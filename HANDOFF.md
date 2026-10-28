@@ -68,3 +68,10 @@ Not built yet: the automatic weekly planner and gap analysis. It must read `shif
 Next feature candidate: worker constraints (text + voice), or the weekly planner. Ask the user which.
 
 Next version is still the user's choice: worker constraints (text + voice) or the automatic weekly planner. Ask before starting either.
+
+## Done: smoother Google sign-in (2026-10-28)
+
+- Cause of "sign in again after every update/reload": the access token lived only in memory, and the first request of every page load used `prompt: 'consent'`.
+- Now (`src/lib/google/auth.ts`): the token and its expiry are saved in localStorage (`shiftsmart.token`), so a reload within the hour skips the sign-in screen. The account is remembered (`shiftsmart.account`, email from Drive `about` best effort), so renewal uses `prompt: ''` + `login_hint`: one click, no consent screen, popup closes itself. Sign-out clears both.
+- Limit (serverless): tokens last ~1 hour, and GIS opens a popup that browsers allow only from a click, so renewal can't be fully silent in the background. Fully silent long-term sign-in needs a backend holding a refresh token.
+- User decision (2026-10-28): no server for now. **When the app is deployed to Vercel, tell the user it is time to revisit a small backend for long-term silent sign-in** (refresh token; note Google "Testing" status expires refresh tokens after 7 days).

@@ -8,7 +8,7 @@ declare namespace google.accounts.oauth2 {
     error_description?: string
   }
   interface TokenClient {
-    requestAccessToken(overrides?: { prompt?: string }): void
+    requestAccessToken(overrides?: { prompt?: string; login_hint?: string }): void
   }
   function initTokenClient(config: {
     client_id: string

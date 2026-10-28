@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { signIn, signOut } from '../lib/google/auth'
+import { getAccessToken, signIn, signOut } from '../lib/google/auth'
 
 interface AuthState {
   signedIn: boolean
@@ -10,7 +10,8 @@ interface AuthState {
 }
 
 export const useAuth = create<AuthState>((set) => ({
-  signedIn: false,
+  // A token saved before a reload is still good: skip the sign-in screen.
+  signedIn: getAccessToken() !== null,
   busy: false,
   error: null,
   login: async () => {

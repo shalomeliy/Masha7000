@@ -1,16 +1,53 @@
 import { GOOGLE_CLIENT_ID, GOOGLE_SCOPES } from './config'
 
 // Browser-only OAuth via the GIS token model: no backend, no refresh token.
-// The access token lives in memory only and is re-requested when it expires.
+// The access token (about 1 hour) is kept in localStorage so a page reload or an app
+// update reuses it. After it expires the user clicks once; because the account is
+// remembered, Google skips the consent screen and the popup closes by itself.
 
 interface Token {
   value: string
   expiresAt: number
 }
 
-let token: Token | null = null
+const TOKEN_KEY = 'shiftsmart.token'
+const ACCOUNT_KEY = 'shiftsmart.account'
+
+function readStored<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : null
+  } catch {
+    return null
+  }
+}
+
+function writeStored(key: string, value: unknown) {
+  try {
+    if (value === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Storage blocked (private mode): fall back to memory only.
+  }
+}
+
+/** The Google account that signed in before, so renewal skips consent and account choice. */
+interface Account {
+  email?: string
+}
+
+let token: Token | null = readStored<Token>(TOKEN_KEY)
 let client: google.accounts.oauth2.TokenClient | null = null
 let pending: { resolve: (t: string) => void; reject: (e: Error) => void } | null = null
+
+function setToken(next: Token | null) {
+  token = next
+  writeStored(TOKEN_KEY, next)
+}
+
+export function rememberedAccount(): Account | null {
+  return readStored<Account>(ACCOUNT_KEY)
+}
 
 function waitForGis(timeoutMs = 10000): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -36,7 +73,7 @@ async function getClient() {
         pending?.reject(new Error(res.error_description || res.error || 'Sign-in failed'))
       } else {
         // Renew a minute early so a request never goes out with a token about to expire.
-        token = { value: res.access_token, expiresAt: Date.now() + (res.expires_in - 60) * 1000 }
+        setToken({ value: res.access_token, expiresAt: Date.now() + (res.expires_in - 60) * 1000 })
         pending?.resolve(res.access_token)
       }
       pending = null
@@ -49,13 +86,35 @@ async function getClient() {
   return client
 }
 
-/** Opens the Google consent popup. Must be called from a user click. */
+/** Best effort: learn the signed-in email so the next renewal can name the account. */
+async function rememberAccount(access: string) {
+  const prev = rememberedAccount()
+  writeStored(ACCOUNT_KEY, { email: prev?.email })
+  try {
+    const res = await fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)', {
+      headers: { Authorization: `Bearer ${access}` },
+    })
+    if (!res.ok) return
+    const email = ((await res.json()) as { user?: { emailAddress?: string } }).user?.emailAddress
+    if (email) writeStored(ACCOUNT_KEY, { email })
+  } catch {
+    // Without the email, renewal still works; Google may just show the account chooser.
+  }
+}
+
+/**
+ * Opens the Google popup. Must be called from a user click (browsers block popups otherwise).
+ * First time: full consent screen. After that: a popup that closes by itself.
+ */
 export async function signIn(): Promise<string> {
   const c = await getClient()
-  return new Promise((resolve, reject) => {
+  const account = rememberedAccount()
+  const access = await new Promise<string>((resolve, reject) => {
     pending = { resolve, reject }
-    c.requestAccessToken({ prompt: token ? '' : 'consent' })
+    c.requestAccessToken(account ? { prompt: '', login_hint: account.email } : { prompt: 'consent' })
   })
+  await rememberAccount(access)
+  return access
 }
 
 export function getAccessToken(): string | null {
@@ -65,7 +124,8 @@ export function getAccessToken(): string | null {
 
 export function signOut() {
   if (token) google.accounts.oauth2.revoke(token.value)
-  token = null
+  setToken(null)
+  writeStored(ACCOUNT_KEY, null)
 }
 
 export class AuthExpiredError extends Error {}
@@ -78,7 +138,7 @@ export async function googleFetch(url: string, init: RequestInit = {}): Promise<
   headers.set('Authorization', `Bearer ${access}`)
   const res = await fetch(url, { ...init, headers })
   if (res.status === 401) {
-    token = null
+    setToken(null)
     throw new AuthExpiredError('Session expired')
   }
   if (!res.ok) throw new Error(`Google API ${res.status}: ${await res.text()}`)

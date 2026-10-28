@@ -1,8 +1,10 @@
+import { rememberedAccount } from '../lib/google/auth'
 import { GOOGLE_CLIENT_ID } from '../lib/google/config'
 import { useAuth } from '../store/auth'
 
 export function SignIn() {
   const { login, busy, error } = useAuth()
+  const account = rememberedAccount()
 
   return (
     <main className="mx-auto flex min-h-full max-w-md flex-col justify-center gap-6 px-6">
@@ -23,8 +25,14 @@ export function SignIn() {
         disabled={busy || !GOOGLE_CLIENT_ID}
         className="rounded-xl bg-sky-500 py-4 text-lg font-semibold text-slate-950 disabled:opacity-50"
       >
-        {busy ? 'מתחבר...' : 'התחברות עם Google'}
+        {busy ? 'מתחבר...' : account ? 'המשך' : 'התחברות עם Google'}
       </button>
+
+      {account && !busy && (
+        <p className="text-sm text-slate-400">
+          {account.email ? `תמשיך כ-${account.email}. ` : ''}החיבור לגוגל מתחדש כל שעה, לחיצה אחת מחדשת אותו.
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-red-400">
