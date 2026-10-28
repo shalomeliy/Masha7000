@@ -2,7 +2,13 @@
 
 export interface Role {
   id: string
-  name: string // e.g. "אחראי משמרת", "מוקדן"
+  name: string // e.g. "טפסן", "חשמלאי"
+}
+
+// Not in the spec: a separate list from roles, e.g. "אנטנה עד גובה 20 מטר", "חשמלאי מוסמך".
+export interface Certification {
+  id: string
+  name: string
 }
 
 export interface Constraint {
@@ -11,21 +17,33 @@ export interface Constraint {
   reason: string
 }
 
+// The spec's single `name` is split into first and last name; the contact fields are the user's list.
 export interface Worker {
   id: string
-  name: string
-  roleIds: string[] // roles the worker is certified for
+  firstName: string
+  lastName: string
+  birthDate?: string // YYYY-MM-DD
+  address?: string
+  mobilePhone?: string
+  homePhone?: string
+  emergencyPhone1?: string
+  emergencyPhone2?: string
+  roleIds: string[] // independent of each other: any combination is allowed
+  certificationIds: string[]
+  notes?: string
   constraints: Constraint[]
 }
 
 export interface ShiftDefinition {
   id: string
-  name: string // "בוקר", "צהריים", "לילה", "כוננות 24/7"
+  name: string // "יום", "לילה"
   isStandby?: boolean // standby shift staffed by exactly 3 people
   requiredHeadcount?: number // usually 1 for a regular shift, 3 for standby
   requiredRoleIds: string[]
+  requiredCertificationIds: string[]
   startTime: string // "07:00"
-  endTime: string // "15:00"
+  endTime: string // "16:00"
+  endsNextDay?: boolean // night job: starts in the morning, ends 16:00 the next day
 }
 
 export interface ShiftAssignment {

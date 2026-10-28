@@ -13,6 +13,7 @@ export const TIME_ZONE = 'Asia/Jerusalem'
 export const DRIVE_FILES = {
   workers: 'workers.json',
   roles: 'roles_definition.json',
+  certifications: 'certifications.json',
   shiftDefinitions: 'shift_definitions.json',
   settings: 'settings.json',
 } as const
