@@ -127,3 +127,11 @@ export function normalizeShift(raw: Omit<ShiftDefinition, 'requiredCertification
 
 /** Hebrew count: 1 gets its own word ("עובד אחד"), the rest "<n> <plural>". */
 export const countText = (n: number, one: string, many: string) => (n === 1 ? one : `${n} ${many}`)
+
+// Dial link for the phone's own dialer. Keeps digits and a leading +; null when nothing dialable is left.
+export function telHref(phone: string | undefined): string | null {
+  const trimmed = phone?.trim() ?? ''
+  const digits = trimmed.replace(/\D/g, '')
+  if (!digits) return null
+  return `tel:${trimmed.startsWith('+') ? '+' : ''}${digits}`
+}

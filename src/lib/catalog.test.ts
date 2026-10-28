@@ -11,6 +11,7 @@ import {
   STARTER_SHIFTS,
   tagNames,
   tagUsage,
+  telHref,
   upsert,
 } from './catalog'
 import type { Role, ShiftDefinition, Worker } from '../types/models'
@@ -133,5 +134,17 @@ describe('normalize older files', () => {
     const { requiredCertificationIds: _, ...old } = shifts[0]
     expect(normalizeShift(old).requiredCertificationIds).toEqual([])
     expect(normalizeShift({ ...old, startTime: '20:00', endTime: '14:00' }).endsNextDay).toBe(true)
+  })
+})
+
+describe('telHref', () => {
+  it('keeps only digits and a leading plus', () => {
+    expect(telHref('050-123 4567')).toBe('tel:0501234567')
+    expect(telHref(' +972 (50) 1234567 ')).toBe('tel:+972501234567')
+  })
+  it('returns null when there is nothing to dial', () => {
+    expect(telHref(undefined)).toBeNull()
+    expect(telHref('  ')).toBeNull()
+    expect(telHref('אין')).toBeNull()
   })
 })

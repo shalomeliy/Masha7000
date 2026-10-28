@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- Throwaway spike: does Hebrew dictation (Web Speech API, he-IL) work in this browser? -->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ניסוי הכתבה</title>
+  <style>
+    body { font: 18px system-ui; background: #0f172a; color: #e2e8f0; padding: 16px; }
+    button { font-size: 20px; padding: 14px 20px; margin: 8px 0; }
+    textarea { width: 100%; min-height: 140px; font-size: 18px; }
+    pre { white-space: pre-wrap; font-size: 13px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <h1>ניסוי הכתבה קולית</h1>
+  <p id="support"></p>
+  <button id="go">התחל להקליט</button>
+  <textarea id="out" placeholder="הטקסט יופיע כאן. אפשר גם ללחוץ על המיקרופון במקלדת של הטלפון."></textarea>
+  <pre id="log"></pre>
+  <script>
+    const log = (m) => (document.getElementById('log').textContent += new Date().toLocaleTimeString() + ' ' + m + '\n')
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    document.getElementById('support').textContent = SR
+      ? 'הדפדפן תומך בהכתבה. לחץ, דבר בעברית, ולחץ שוב לעצירה.'
+      : 'הדפדפן הזה לא תומך בהכתבה מתוך האתר. המיקרופון של המקלדת עדיין יעבוד.'
+    log('SpeechRecognition: ' + (SR ? 'yes' : 'no') + ' | secure: ' + isSecureContext + ' | ' + navigator.userAgent)
+    let rec = null
+    let base = ''
+    document.getElementById('go').onclick = () => {
+      if (!SR) return
+      const btn = document.getElementById('go'), out = document.getElementById('out')
+      if (rec) { rec.stop(); return }
+      rec = new SR()
+      rec.lang = 'he-IL'
+      rec.interimResults = true
+      rec.continuous = true
+      base = out.value ? out.value + ' ' : ''
+      const t0 = performance.now()
+      rec.onstart = () => { btn.textContent = 'עצור'; log('start') }
+      rec.onresult = (e) => {
+        let text = ''
+        for (const r of e.results) text += r[0].transcript
+        out.value = base + text
+        log('result after ' + Math.round(performance.now() - t0) + 'ms, final=' + e.results[e.results.length - 1].isFinal)
+      }
+      rec.onerror = (e) => log('error: ' + e.error)
+      rec.onend = () => { btn.textContent = 'התחל להקליט'; rec = null; log('end') }
+      rec.start()
+    }
+  </script>
+</body>
+</html>
