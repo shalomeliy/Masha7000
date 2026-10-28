@@ -46,6 +46,13 @@ export interface ShiftDefinition {
   endsNextDay?: boolean // night job: starts in the morning, ends 16:00 the next day
 }
 
+// One person a job needs: the role they fill and, optionally, a certification they must hold.
+// The automatic planner will read this. The role is never empty: the default is "כללי".
+export interface StaffSlot {
+  roleId: string
+  certificationId?: string
+}
+
 export interface CrewMember {
   workerId: string
   roleId: string // one of the worker's roles; "" when the worker has none yet
@@ -73,6 +80,7 @@ export interface ShiftRecord {
   location: string
   jobDescription: string
   crew: CrewMember[]
+  staffing: StaffSlot[] // who the job needs; one slot per person
   urgent?: boolean // opened "from now"
   startTime?: string // HH:mm, urgent shifts only: when it was opened
   endDate?: string // urgent shifts: default the next day
@@ -86,6 +94,7 @@ export interface PendingJob {
   id: string
   location: string
   jobDescription: string
+  staffing: StaffSlot[] // who the job needs; carried into the shift it is scheduled to
   fromShiftId?: string
   outcome?: Exclude<ClosureOutcome, 'done'>
   note?: string

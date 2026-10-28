@@ -17,7 +17,7 @@ export function Calendar() {
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
   // The cards and sheets read these too (names, roles, reasons), so everything loads together.
-  const lists = [shifts, defs, useDriveList('workers'), useDriveList('roles'), useDriveList('pendingJobs'), useDriveList('postponeReasons')]
+  const lists = [shifts, defs, useDriveList('workers'), useDriveList('roles'), useDriveList('certifications'), useDriveList('pendingJobs'), useDriveList('postponeReasons')]
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
   const today = todayIso()

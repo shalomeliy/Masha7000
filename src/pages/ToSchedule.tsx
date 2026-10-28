@@ -3,13 +3,14 @@ import { CalendarPlus, Loader2 } from 'lucide-react'
 import { DictationField } from '../components/DictationField'
 import { DriveError } from '../components/DriveError'
 import { Field, inputClass, Sheet, SheetActions } from '../components/Sheet'
-import { nameError, newId, tagNames, upsert } from '../lib/catalog'
+import { nameError, newId, staffingFor, staffingText, tagNames, upsert } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { blankShift, dayName, isWaiting, showDate, STARTER_POSTPONE_REASONS, taskHistory } from '../lib/shifts'
 import type { PendingJob, PostponeReason, ShiftRecord } from '../types/models'
 import { OUTCOMES } from './calendar/outcomes'
 import { ShiftSheet } from './calendar/ShiftEditor'
+import { StaffingField } from './calendar/StaffingField'
 import { AddButton, EditMark, EmptyState } from './workers/common'
 
 // "לשיבוץ": jobs that still need a shift (left over from partial or postponed night jobs, or added
@@ -26,6 +27,7 @@ export function ToSchedule() {
     useDriveList('shiftDefinitions'),
     useDriveList('workers'),
     useDriveList('roles'),
+    useDriveList('certifications'),
   ]
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
@@ -67,12 +69,14 @@ export function ToSchedule() {
   )
 }
 
-const blankJob = (): PendingJob => ({ id: newId(), location: '', jobDescription: '', reasonIds: [], createdAt: new Date().toISOString() })
+const blankJob = (): PendingJob => ({ id: newId(), location: '', jobDescription: '', staffing: [], reasonIds: [], createdAt: new Date().toISOString() })
 
 function JobsSection() {
   const jobs = useDriveList('pendingJobs')
   const reasons = useDriveList('postponeReasons')
   const shifts = useDriveList('shifts')
+  const roles = useDriveList('roles')
+  const certs = useDriveList('certifications')
   const waiting = jobs.items.filter((j) => isWaiting(j, shifts.items))
   const [editing, setEditing] = useState<PendingJob | null>(null)
   const [scheduling, setScheduling] = useState<ShiftRecord | null>(null)
@@ -106,6 +110,9 @@ function JobsSection() {
                     {j.location && <span className="block font-semibold">{j.location}</span>}
                     {j.jobDescription && <span className="block text-sm text-slate-300">{j.jobDescription}</span>}
                     {why && <span className="block text-sm text-slate-400">{why}</span>}
+                    <span className="block text-sm text-slate-400">
+                      צריך {staffingText(staffingFor(j.staffing, roles.items, certs.items.map((c) => c.id)), roles.items, certs.items)}
+                    </span>
                   </button>
                   <TaskHistory job={j} />
                   <button
@@ -173,7 +180,9 @@ function TaskHistory({ job }: { job: PendingJob }) {
 
 function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
   const jobs = useDriveList('pendingJobs')
-  const [draft, setDraft] = useState(job)
+  const roles = useDriveList('roles')
+  const certs = useDriveList('certifications')
+  const [draft, setDraft] = useState(() => ({ ...job, staffing: staffingFor(job.staffing, roles.items, certs.items.map((c) => c.id)) }))
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
@@ -205,6 +214,7 @@ function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
         <input autoFocus value={draft.location} onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))} className={inputClass} />
       </Field>
       <DictationField label="מהות העבודה" value={draft.jobDescription} onChange={(v) => setDraft((d) => ({ ...d, jobDescription: v }))} />
+      <StaffingField value={draft.staffing} onChange={(staffing) => setDraft((d) => ({ ...d, staffing }))} />
       <DictationField label="הערות" value={draft.note ?? ''} onChange={(v) => setDraft((d) => ({ ...d, note: v }))} />
       <SheetActions
         onSave={save}

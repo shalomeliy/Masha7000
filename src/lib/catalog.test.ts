@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   endsNextDay,
   filterWorkers,
+  generalRoleId,
+  resizeStaffing,
+  staffingFor,
+  withGeneralRole,
   fullName,
   nameError,
   normalizeShift,
@@ -146,5 +150,45 @@ describe('telHref', () => {
     expect(telHref(undefined)).toBeNull()
     expect(telHref('  ')).toBeNull()
     expect(telHref('אין')).toBeNull()
+  })
+})
+
+describe('general role', () => {
+  it('is added when the roles file has none, and found by name when it has one', () => {
+    const roles = [{ id: 'r1', name: 'טפסן' }]
+    expect(withGeneralRole(roles)[0]).toEqual({ id: 'general', name: 'כללי' })
+    const old = [{ id: 'uuid-1', name: 'כללי' }, ...roles]
+    expect(withGeneralRole(old)).toBe(old)
+    expect(generalRoleId(old)).toBe('uuid-1')
+  })
+
+  it('every worker holds it, so filtering by it keeps everyone', () => {
+    const ws = [normalizeWorker({ id: 'a', firstName: 'א', roleIds: [] }), normalizeWorker({ id: 'b', firstName: 'ב', roleIds: ['r1'] })]
+    expect(filterWorkers(ws, ['general'], [], 'general')).toHaveLength(2)
+    expect(filterWorkers(ws, ['general', 'r1'], [], 'general').map((w) => w.id)).toEqual(['b'])
+  })
+})
+
+describe('staffing', () => {
+  const roles = [{ id: 'general', name: 'כללי' }, { id: 'r1', name: 'טפסן' }]
+
+  it('defaults to one person in the general role, with no certification', () => {
+    expect(staffingFor(undefined, roles, [])).toEqual([{ roleId: 'general', certificationId: undefined }])
+    expect(staffingFor([], roles, [])).toHaveLength(1)
+  })
+
+  it('a deleted role falls back to general and a deleted certification is dropped', () => {
+    expect(staffingFor([{ roleId: 'gone', certificationId: 'c-gone' }, { roleId: 'r1', certificationId: 'c1' }], roles, ['c1'])).toEqual([
+      { roleId: 'general', certificationId: undefined },
+      { roleId: 'r1', certificationId: 'c1' },
+    ])
+  })
+
+  it('grows with general slots, shrinks from the end, and stays between 1 and 20', () => {
+    const one = [{ roleId: 'r1' }]
+    expect(resizeStaffing(one, 3, 'general')).toEqual([{ roleId: 'r1' }, { roleId: 'general' }, { roleId: 'general' }])
+    expect(resizeStaffing(resizeStaffing(one, 3, 'general'), 1, 'general')).toEqual(one)
+    expect(resizeStaffing(one, 0, 'general')).toHaveLength(1)
+    expect(resizeStaffing(one, 99, 'general')).toHaveLength(20)
   })
 })

@@ -3,11 +3,12 @@ import { X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
-import { fullName, upsert } from '../../lib/catalog'
+import { fullName, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { isNightShift, pendingAfterShiftSave, shiftRecordError, weekShiftCount } from '../../lib/shifts'
 import type { ShiftRecord, Worker } from '../../types/models'
 import { WorkerDial } from '../workers/common'
+import { StaffingField } from './StaffingField'
 
 // Create or edit one shift. A new shift that came from "לשיבוץ" removes that job when saved.
 
@@ -35,7 +36,14 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const defs = useDriveList('shiftDefinitions')
   const workers = useDriveList('workers')
   const roles = useDriveList('roles')
-  const [draft, setDraft] = useState(shift)
+  const certs = useDriveList('certifications')
+  const general = generalRoleId(roles.items)
+  // Crew saved before "כללי" existed may have no role; they are "כללי" now.
+  const [draft, setDraft] = useState(() => ({
+    ...shift,
+    crew: shift.crew.map((c) => (c.roleId ? c : { ...c, roleId: general })),
+    staffing: staffingFor(shift.staffing, roles.items, certs.items.map((c) => c.id)),
+  }))
   const [datesValid, setDatesValid] = useState({ date: true, end: true })
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
@@ -64,7 +72,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         ? 'יש תאריך לא תקין'
         : clean.closure && !isNightShift(clean, defs.items)
           ? 'העבודה הזו כבר נסגרה, ולכן היא נשארת משמרת לילה. כדי לשנות, קודם פתח מחדש את הסגירה.'
-          : shiftRecordError(clean, workers.items, roles.items.map((r) => r.id))
+          : shiftRecordError(clean, workers.items, roles.items.map((r) => r.id), general)
     setError(err)
     if (err) return
     run(async () => {
@@ -80,12 +88,14 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
 
   const inCrew = new Set(draft.crew.map((c) => c.workerId))
   const available = workers.items.filter((w) => !inCrew.has(w.id))
-  const roleOptions = (w: Worker | undefined) => roles.items.filter((r) => w?.roleIds.includes(r.id))
+  const roleOptions = (w: Worker | undefined) => (w ? roles.items.filter((r) => workerHasRole(w, r.id, general)) : [])
 
+  // A new crew member gets their own role; "כללי" only when they have no other.
   const addWorker = (id: string) => {
     const w = workers.items.find((x) => x.id === id)
     if (!w) return
-    set('crew', [...draft.crew, { workerId: id, roleId: roleOptions(w)[0]?.id ?? '' }])
+    const options = roleOptions(w)
+    set('crew', [...draft.crew, { workerId: id, roleId: (options.find((r) => !isGeneralRole(r)) ?? options[0])?.id ?? general }])
   }
 
   return (
@@ -139,9 +149,12 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         <input value={draft.location} onChange={(e) => set('location', e.target.value)} className={inputClass} />
       </Field>
       <DictationField label="מהות העבודה" value={draft.jobDescription} onChange={(v) => set('jobDescription', v)} />
+      <StaffingField value={draft.staffing} onChange={(staffing) => set('staffing', staffing)} />
 
       <div className="space-y-2">
-        <span className="text-sm text-slate-300">עובדים במשמרת</span>
+        <span className="text-sm text-slate-300">
+          עובדים במשמרת ({draft.crew.length} מתוך {draft.staffing.length})
+        </span>
         {draft.crew.map((c, i) => {
           const w = workers.items.find((x) => x.id === c.workerId)
           const options = roleOptions(w)

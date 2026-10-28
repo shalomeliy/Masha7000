@@ -1,4 +1,4 @@
-import type { ShiftDefinition, Worker } from '../types/models'
+import type { Role, ShiftDefinition, StaffSlot, Worker } from '../types/models'
 
 // Pure rules for the master lists (roles, certifications, workers, shift types). No I/O here.
 
@@ -36,6 +36,53 @@ export const STARTER_SHIFTS: Omit<ShiftDefinition, 'id'>[] = [
 export const newId = () => crypto.randomUUID()
 
 const normalize = (name: string) => name.trim().toLocaleLowerCase()
+
+// "כללי" is the role every worker holds without marking it, and the default role a job asks for.
+// It is found by name (older files may hold it under a random id), so it cannot be renamed or deleted.
+export const GENERAL_ROLE_NAME = 'כללי'
+export const GENERAL_ROLE_ID = 'general'
+
+export const isGeneralRole = (r: Pick<Role, 'name'>) => normalize(r.name) === normalize(GENERAL_ROLE_NAME)
+
+/** The roles list, with "כללי" first when the file does not hold it yet. Same array when nothing was added. */
+export const withGeneralRole = (roles: Role[]): Role[] =>
+  roles.some(isGeneralRole) ? roles : [{ id: GENERAL_ROLE_ID, name: GENERAL_ROLE_NAME }, ...roles]
+
+export const generalRoleId = (roles: Role[]) => roles.find(isGeneralRole)?.id ?? GENERAL_ROLE_ID
+
+/** Every worker holds the general role, marked or not. */
+export const workerHasRole = (w: Pick<Worker, 'roleIds'>, roleId: string, generalId: string) => roleId === generalId || w.roleIds.includes(roleId)
+
+export const MAX_STAFF = 20
+
+/**
+ * A job's staffing, ready to show or edit: at least one person; a role that no longer exists
+ * falls back to "כללי", a certification that no longer exists is dropped.
+ */
+export function staffingFor(staffing: StaffSlot[] | undefined, roles: Role[], certificationIds: string[]): StaffSlot[] {
+  const general = generalRoleId(roles)
+  const slots = staffing?.length ? staffing : [{ roleId: general }]
+  return slots.map((s) => ({
+    roleId: roles.some((r) => r.id === s.roleId) ? s.roleId : general,
+    certificationId: s.certificationId && certificationIds.includes(s.certificationId) ? s.certificationId : undefined,
+  }))
+}
+
+/** "2 אנשים: טפסן (חשמלאי מוסמך), כללי" for a job card. */
+export function staffingText(slots: StaffSlot[], roles: Role[], certs: { id: string; name: string }[]): string {
+  const names = slots.map((s) => {
+    const role = roles.find((r) => r.id === s.roleId)?.name ?? GENERAL_ROLE_NAME
+    const cert = certs.find((c) => c.id === s.certificationId)?.name
+    return cert ? `${role} (${cert})` : role
+  })
+  return `${countText(slots.length, 'אדם אחד', 'אנשים')}: ${names.join(', ')}`
+}
+
+/** Grows or shrinks to `n` people; new people need "כללי" and no certification. */
+export function resizeStaffing(slots: StaffSlot[], n: number, generalId: string): StaffSlot[] {
+  const size = Math.min(MAX_STAFF, Math.max(1, Math.round(n) || 1))
+  return size <= slots.length ? slots.slice(0, size) : [...slots, ...Array.from({ length: size - slots.length }, () => ({ roleId: generalId }))]
+}
 
 /** Returns an error message for a name, or null when it is valid. `selfId` is skipped when editing. */
 export function nameError(name: string, existing: { id: string; name: string }[], selfId?: string): string | null {
@@ -94,9 +141,9 @@ export function tagNames(ids: string[], tags: { id: string; name: string }[]): s
 export const fullName = (w: Pick<Worker, 'firstName' | 'lastName'>) => `${w.firstName} ${w.lastName}`.trim()
 
 /** Workers holding every selected role and every selected certification. Nothing selected = everyone. */
-export function filterWorkers(workers: Worker[], roleIds: string[], certificationIds: string[]): Worker[] {
+export function filterWorkers(workers: Worker[], roleIds: string[], certificationIds: string[], generalId = GENERAL_ROLE_ID): Worker[] {
   return workers.filter(
-    (w) => roleIds.every((id) => w.roleIds.includes(id)) && certificationIds.every((id) => w.certificationIds.includes(id)),
+    (w) => roleIds.every((id) => workerHasRole(w, id, generalId)) && certificationIds.every((id) => w.certificationIds.includes(id)),
   )
 }
 

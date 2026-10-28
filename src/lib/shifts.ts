@@ -1,4 +1,4 @@
-import { SHIFT_END, endsNextDay, fullName, newId } from './catalog'
+import { GENERAL_ROLE_ID, SHIFT_END, endsNextDay, fullName, newId } from './catalog'
 import { dateError, todayIso } from './dates'
 import type { PendingJob, ShiftClosure, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
@@ -55,6 +55,7 @@ export function urgentShift(now: Date, defs: ShiftDefinition[]): ShiftRecord {
     location: '',
     jobDescription: '',
     crew: [],
+    staffing: [],
     urgent: true,
     startTime: hhmm(now),
     endDate: addDays(date, 1),
@@ -69,12 +70,16 @@ export function blankShift(date: string, from?: PendingJob): ShiftRecord {
     location: from?.location ?? '',
     jobDescription: from?.jobDescription ?? '',
     crew: [],
+    staffing: from?.staffing ?? [],
     fromJobId: from?.id,
   }
 }
 
-/** Error for a shift, or null. `roleIds` are the roles that still exist, so a deleted role does not count. */
-export function shiftRecordError(r: ShiftRecord, workers: Worker[], roleIds?: string[]): string | null {
+/**
+ * Error for a shift, or null. `roleIds` are the roles that still exist, so a deleted role does not count.
+ * Every worker also holds the general role.
+ */
+export function shiftRecordError(r: ShiftRecord, workers: Worker[], roleIds?: string[], generalId = GENERAL_ROLE_ID): string | null {
   const d = dateError(r.date, { required: true })
   if (d) return d
   if (!r.urgent && !r.shiftDefinitionId) return 'צריך לבחור סוג משמרת'
@@ -92,8 +97,8 @@ export function shiftRecordError(r: ShiftRecord, workers: Worker[], roleIds?: st
     seen.add(c.workerId)
     const w = workers.find((x) => x.id === c.workerId)
     if (!w) return 'אחד העובדים במשמרת כבר לא קיים'
-    const held = roleIds ? w.roleIds.filter((id) => roleIds.includes(id)) : w.roleIds
-    if (held.length && !held.includes(c.roleId)) return `צריך לבחור תפקיד ל${fullName(w)}`
+    const held = [generalId, ...(roleIds ? w.roleIds.filter((id) => roleIds.includes(id)) : w.roleIds)]
+    if (!held.includes(c.roleId)) return `צריך לבחור תפקיד ל${fullName(w)}`
   }
   return null
 }
@@ -139,6 +144,7 @@ export function applyClosure(
     location: closure.followUp?.location ?? shift.location,
     jobDescription: closure.followUp?.jobDescription ?? shift.jobDescription,
     followUp: closure.followUp ? true : undefined,
+    staffing: existing?.staffing.length ? existing.staffing : shift.staffing,
     fromShiftId: shiftId,
     outcome: closure.outcome,
     note: closure.note,
@@ -196,11 +202,11 @@ export function taskHistory(job: PendingJob, records: ShiftRecord[], jobs: Pendi
 
 /** Older or hand-edited files may lack lists; fill them so the screens can rely on them. */
 export function normalizeShiftRecord(raw: Partial<ShiftRecord> & { id: string; date: string }): ShiftRecord {
-  return { location: '', jobDescription: '', ...raw, crew: raw.crew ?? [] }
+  return { location: '', jobDescription: '', ...raw, crew: raw.crew ?? [], staffing: raw.staffing ?? [] }
 }
 
 export function normalizePendingJob(raw: Partial<PendingJob> & { id: string }): PendingJob {
-  return { location: '', jobDescription: '', createdAt: '', ...raw, reasonIds: raw.reasonIds ?? [] }
+  return { location: '', jobDescription: '', createdAt: '', ...raw, reasonIds: raw.reasonIds ?? [], staffing: raw.staffing ?? [] }
 }
 
 export const STARTER_POSTPONE_REASONS = ['חסר אישור קונסטרוקטור', 'תנאי מזג אויר']

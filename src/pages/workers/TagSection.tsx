@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
-import { countText, nameError, newId, removeTagReferences, STARTER_CERTIFICATIONS, STARTER_ROLES, tagUsage, upsert } from '../../lib/catalog'
+import { countText, isGeneralRole, nameError, newId, removeTagReferences, STARTER_CERTIFICATIONS, STARTER_ROLES, tagUsage, upsert } from '../../lib/catalog'
 import type { TagKind } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { AddButton, EditMark, EmptyState } from './common'
 
 // Roles and certifications behave the same: a named list that workers hold and shift types require.
+// The one exception is the role "כללי": every worker holds it, and it cannot be renamed or deleted.
 
 interface Tag {
   id: string
@@ -22,7 +23,7 @@ const TEXT: Record<TagKind, { one: string; linked: string; it: string; add: stri
     fresh: 'תפקיד חדש',
     field: 'שם התפקיד',
     explain: 'תפקיד הוא סוג עבודה, למשל טפסן או חשמלאי. לכל עובד אפשר לסמן כמה תפקידים שרוצים.',
-    starter: STARTER_ROLES,
+    starter: STARTER_ROLES.filter((name) => !isGeneralRole({ name })), // "כללי" is always there
   },
   certifications: {
     one: 'ההסמכה',
@@ -44,11 +45,12 @@ export function TagSection({ kind }: { kind: TagKind }) {
   const [editing, setEditing] = useState<Tag | null>(null)
   const [starterError, setStarterError] = useState<unknown>(null)
   const t = TEXT[kind]
+  const isFixed = (tag: Tag) => kind === 'roles' && isGeneralRole(tag)
 
   const addStarter = async () => {
     setStarterError(null)
     try {
-      await tags.save(t.starter.map((name) => ({ id: newId(), name })))
+      await tags.save([...tags.items, ...t.starter.map((name) => ({ id: newId(), name }))])
     } catch (e) {
       setStarterError(e)
     }
@@ -56,7 +58,7 @@ export function TagSection({ kind }: { kind: TagKind }) {
 
   return (
     <>
-      {tags.items.length === 0 ? (
+      {tags.items.every(isFixed) ? (
         <EmptyState
           text={t.explain}
           addLabel={t.add}
@@ -71,6 +73,16 @@ export function TagSection({ kind }: { kind: TagKind }) {
           <ul className="space-y-2">
             {tags.items.map((tag) => {
               const u = tagUsage(kind, tag.id, workers.items, shifts.items)
+              if (isFixed(tag))
+                return (
+                  <li key={tag.id} className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-2">
+                    <span>
+                      <span className="block font-semibold">{tag.name}</span>
+                      <span className="block text-xs text-slate-400">כל העובדים, קבוע</span>
+                    </span>
+                    <span className="shrink-0 text-sm text-slate-400">{countText(workers.items.length, 'עובד אחד', 'עובדים')}</span>
+                  </li>
+                )
               return (
                 <li key={tag.id}>
                   <button

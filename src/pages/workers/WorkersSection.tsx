@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Filter, Phone, X } from 'lucide-react'
 import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
-import { countText, filterWorkers, fullName, newId, tagNames, telHref, upsert } from '../../lib/catalog'
+import { countText, filterWorkers, fullName, generalRoleId, isGeneralRole, newId, tagNames, telHref, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { todayIso } from '../../lib/dates'
 import { DateField } from '../../components/DateField'
@@ -22,7 +22,7 @@ export function WorkersSection() {
   const [certFilter, setCertFilter] = useState<string[]>([])
 
   const filtering = roleFilter.length + certFilter.length > 0
-  const shown = filterWorkers(workers.items, roleFilter, certFilter).sort((a, b) => fullName(a).localeCompare(fullName(b), 'he'))
+  const shown = filterWorkers(workers.items, roleFilter, certFilter, generalRoleId(roles.items)).sort((a, b) => fullName(a).localeCompare(fullName(b), 'he'))
   const filterNames = [...tagNames(roleFilter, roles.items), ...tagNames(certFilter, certs.items)]
 
   if (workers.items.length === 0) {
@@ -184,6 +184,7 @@ function WorkerForm({ worker, onDone }: { worker: Worker; onDone: () => void }) 
   const [saveError, setSaveError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
   const exists = workers.items.some((w) => w.id === worker.id)
+  const specificRoles = roles.items.filter((r) => !isGeneralRole(r))
 
   const set = (field: TextField) => (e: { target: { value: string } }) => {
     const value = e.target.value
@@ -226,10 +227,11 @@ function WorkerForm({ worker, onDone }: { worker: Worker; onDone: () => void }) 
 
       <div className="space-y-1">
         <span className="text-sm text-slate-300">תפקידים</span>
-        {roles.items.length ? (
-          <Chips options={roles.items} selected={draft.roleIds} onToggle={(id) => setDraft((d) => ({ ...d, roleIds: toggle(d.roleIds, id) }))} />
+        <p className="text-xs text-slate-400">כל עובד הוא גם "כללי", בלי לסמן.</p>
+        {specificRoles.length ? (
+          <Chips options={specificRoles} selected={draft.roleIds} onToggle={(id) => setDraft((d) => ({ ...d, roleIds: toggle(d.roleIds, id) }))} />
         ) : (
-          <p className="text-sm text-amber-300">עוד אין תפקידים. אפשר להוסיף אותם בלשונית "תפקידים".</p>
+          <p className="text-sm text-amber-300">עוד אין תפקידים מלבד "כללי". אפשר להוסיף אותם בלשונית "תפקידים".</p>
         )}
       </div>
       <div className="space-y-1">

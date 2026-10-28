@@ -44,6 +44,16 @@ Browser-console testing tip: after HMR the app loads `/src/store/auth.ts?t=...`;
 - Pencil mark on every list card (edit; delete inside), user request.
 - Verified in the browser with an in-memory Drive mock (incl. forced failure of the second Drive write): urgent shift, postpone with note, waiting job created, starter reasons, scheduling the job removes it.
 
+## Done: staffing requirement on every job (2026-10-28)
+
+- User request: every shift and every waiting job says how many people it needs, and for each person a required role (default "כללי") and an optional certification. This is the input for the automatic planner.
+- Model: `StaffSlot { roleId, certificationId? }`, `staffing: StaffSlot[]` on `ShiftRecord` and `PendingJob` (normalized to `[]` on read; `staffingFor` turns empty into one "כללי" slot and maps deleted roles to "כללי", drops deleted certs). The planner must read staffing through `staffingFor`.
+- Flow: a waiting job's staffing goes into the shift it is scheduled to (`blankShift`); a partial/postponed night job takes its shift's staffing to "לשיבוץ" (`applyClosure`, keeps an already edited job's staffing).
+- UI: shared `src/pages/calendar/StaffingField.tsx` (count stepper 1..20, role + cert per person) in the shift editor and the job editor; job cards show "צריך 2 אנשים: טפסן (גובה 40), כללי"; the shift editor shows "עובדים במשמרת (1 מתוך 2)". The calendar shift card does not show staffing yet.
+- Role "כללי": always in the roles list (`withGeneralRole` on read, id `general`, or the existing role named כללי from older files, found by name via `generalRoleId`). Every worker holds it implicitly (`workerHasRole`, `filterWorkers`, crew role options, `shiftRecordError`); it cannot be renamed or deleted, and the worker editor no longer offers it as a chip. Crew saved with an empty role become "כללי" when the shift is edited.
+- Not done: shift types' old `requiredHeadcount` / `requiredRoleIds` are not used to prefill staffing.
+- Verified in the browser with the in-memory Drive mock: old job shows "אדם אחד: כללי", edited to 2 people (טפסן + 40m, כללי) and saved to Drive, scheduling carries it into the shift, a worker with no roles is added as "כללי". 58 tests.
+
 ## Done: tap-to-call everywhere (2026-10-28)
 
 - Every phone field in the worker editor always shows a call button (grey until a number is typed).
