@@ -49,3 +49,8 @@ Short spec from the user's messages (2026-10-28). No expert fan-out: the buildin
 ## Verification
 
 Unit tests for the pure rules (validation, week count, closure rules). Browser check with mocked Drive, like v0.2.
+
+## Added by the user during v0.3
+
+- Tap-to-call: a dial link on the worker card (mobile) and next to each of the four phone fields in the editor. Done.
+- Dates: every date in the app uses `DateField` (`src/components/DateField.tsx`). A tap opens the calendar (`showPicker`); a typed date is checked against the calendar on blur (impossible dates like 31.2, half-typed dates, out-of-range dates) and the form refuses to save it. Done for birth date; every new date field must use it.
