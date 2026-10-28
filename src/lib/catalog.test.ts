@@ -16,6 +16,7 @@ import {
   tagNames,
   tagUsage,
   telHref,
+  isIsraeliMobile,
   upsert,
 } from './catalog'
 import type { Role, ShiftDefinition, Worker } from '../types/models'
@@ -150,6 +151,23 @@ describe('telHref', () => {
     expect(telHref(undefined)).toBeNull()
     expect(telHref('  ')).toBeNull()
     expect(telHref('אין')).toBeNull()
+  })
+})
+
+describe('isIsraeliMobile', () => {
+  it('accepts 05X numbers, local or with +972, with or without separators', () => {
+    expect(isIsraeliMobile('0501234567')).toBe(true)
+    expect(isIsraeliMobile('050-123 4567')).toBe(true)
+    expect(isIsraeliMobile('+972 (50) 1234567')).toBe(true)
+    expect(isIsraeliMobile('972-54-1234567')).toBe(true)
+  })
+  it('rejects empty, short, landline and non-numbers', () => {
+    expect(isIsraeliMobile(undefined)).toBe(false)
+    expect(isIsraeliMobile('')).toBe(false)
+    expect(isIsraeliMobile('050123456')).toBe(false)
+    expect(isIsraeliMobile('05012345678')).toBe(false)
+    expect(isIsraeliMobile('031234567')).toBe(false)
+    expect(isIsraeliMobile('אין')).toBe(false)
   })
 })
 

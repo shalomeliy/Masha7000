@@ -1,7 +1,19 @@
 import { useState } from 'react'
 import { Filter, Phone, X } from 'lucide-react'
 import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
-import { countText, filterWorkers, fullName, generalRoleId, isGeneralRole, newId, tagNames, telHref, upsert } from '../../lib/catalog'
+import {
+  countText,
+  filterWorkers,
+  fullName,
+  GENERAL_ROLE_NAME,
+  generalRoleId,
+  isGeneralRole,
+  isIsraeliMobile,
+  newId,
+  tagNames,
+  telHref,
+  upsert,
+} from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { todayIso } from '../../lib/dates'
 import { DateField } from '../../components/DateField'
@@ -110,7 +122,9 @@ export function WorkersSection() {
 function WorkerCard({ worker: w, onOpen }: { worker: Worker; onOpen: () => void }) {
   const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
-  const roleList = tagNames(w.roleIds, roles.items)
+  // Every worker is "כללי"; it is shown only when they hold no other role, so the card is never empty.
+  const specific = tagNames(w.roleIds, roles.items.filter((r) => !isGeneralRole(r)))
+  const roleList = specific.length ? specific : [GENERAL_ROLE_NAME]
   const certList = tagNames(w.certificationIds, certs.items)
 
   const dial = telHref(w.mobilePhone)
@@ -138,7 +152,6 @@ function WorkerCard({ worker: w, onOpen }: { worker: Worker; onOpen: () => void 
               {n}
             </span>
           ))}
-          {roleList.length + certList.length === 0 && <span className="text-xs text-amber-300">אין תפקידים או הסמכות</span>}
         </span>
       </button>
       {dial && (
@@ -165,7 +178,7 @@ function WorkerSheet({ editing, onClose }: { editing: Worker | null; onClose: ()
 }
 
 const PHONES = [
-  ['mobilePhone', 'טלפון נייד'],
+  ['mobilePhone', 'טלפון נייד (חובה)'],
   ['homePhone', 'טלפון בבית'],
   ['emergencyPhone1', 'טלפון חירום 1'],
   ['emergencyPhone2', 'טלפון חירום 2'],
@@ -206,7 +219,17 @@ function WorkerForm({ worker, onDone }: { worker: Worker; onDone: () => void }) 
 
   const save = () => {
     // Names are not unique on purpose: two workers may share a name.
-    const err = !draft.firstName.trim() ? 'צריך למלא שם פרטי' : !birthDateValid ? 'תאריך הלידה לא תקין' : null
+    const err = !draft.firstName.trim()
+      ? 'צריך למלא שם פרטי'
+      : !draft.lastName.trim()
+        ? 'צריך למלא שם משפחה'
+        : !draft.mobilePhone?.trim()
+          ? 'צריך למלא טלפון נייד'
+          : !isIsraeliMobile(draft.mobilePhone)
+            ? 'הטלפון הנייד לא תקין. צריך 10 ספרות שמתחילות ב-05, למשל 050-1234567'
+            : !birthDateValid
+              ? 'תאריך הלידה לא תקין'
+              : null
     setError(err)
     if (err) return
     const clean: Worker = { ...draft, firstName: draft.firstName.trim(), lastName: draft.lastName.trim() }
@@ -217,10 +240,10 @@ function WorkerForm({ worker, onDone }: { worker: Worker; onDone: () => void }) 
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="שם פרטי">
+        <Field label="שם פרטי (חובה)">
           <input autoFocus value={draft.firstName} onChange={set('firstName')} className={inputClass} />
         </Field>
-        <Field label="שם משפחה">
+        <Field label="שם משפחה (חובה)">
           <input value={draft.lastName} onChange={set('lastName')} className={inputClass} />
         </Field>
       </div>

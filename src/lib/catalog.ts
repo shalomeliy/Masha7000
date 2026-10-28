@@ -176,6 +176,12 @@ export function normalizeShift(raw: Omit<ShiftDefinition, 'requiredCertification
 export const countText = (n: number, one: string, many: string) => (n === 1 ? one : `${n} ${many}`)
 
 // Dial link for the phone's own dialer. Keeps digits and a leading +; null when nothing dialable is left.
+/** An Israeli mobile number: 05X and 7 more digits, or the same as +972 5X. Spaces, dashes and brackets are ignored. */
+export function isIsraeliMobile(phone: string | undefined): boolean {
+  const compact = (phone ?? '').replace(/[\s\-()]/g, '')
+  return /^(?:05\d|\+9725\d|9725\d)\d{7}$/.test(compact)
+}
+
 export function telHref(phone: string | undefined): string | null {
   const trimmed = phone?.trim() ?? ''
   const digits = trimmed.replace(/\D/g, '')
