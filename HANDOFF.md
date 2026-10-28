@@ -87,3 +87,11 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - Now (`src/lib/google/auth.ts`): the token and its expiry are saved in localStorage (`shiftsmart.token`), so a reload within the hour skips the sign-in screen. The account is remembered (`shiftsmart.account`, email from Drive `about` best effort), so renewal uses `prompt: ''` + `login_hint`: one click, no consent screen, popup closes itself. Sign-out clears both.
 - Limit (serverless): tokens last ~1 hour, and GIS opens a popup that browsers allow only from a click, so renewal can't be fully silent in the background. Fully silent long-term sign-in needs a backend holding a refresh token.
 - User decision (2026-10-28): no server for now. **When the app is deployed to Vercel, tell the user it is time to revisit a small backend for long-term silent sign-in** (refresh token; note Google "Testing" status expires refresh tokens after 7 days).
+
+## In progress: Vercel deploy + installable app (2026-10-28)
+
+- PWA: `public/manifest.webmanifest` (RTL Hebrew, standalone), icons in `public/icons/` (calendar mark, sky + amber on slate-950, made with a throwaway PIL script; maskable variant inside the safe zone), `public/sw.js` (navigation network-first with cached `/` offline fallback, `/assets` + `/icons` cache-first, other origins untouched). Registered in `src/main.tsx` only in production builds. The Vite default favicon/icons.svg were removed.
+- `vercel.json`: Vite framework, SPA rewrite, `sw.js` no-cache, `/assets` immutable.
+- `.claude/launch.json` gained `shiftsmart-built` (vite preview on 4180) to test the built app; checked there: worker active, manifest and all icons served.
+- Deploy path: Vercel project imported from GitHub `shalomeliy/Masha7000` (auto-deploy on push to `master`), env var `VITE_GOOGLE_CLIENT_ID` set in Vercel (build-time, Vite inlines it). The user signs in to Vercel themselves. After the first deploy, the Vercel URL must be added to Authorized JavaScript origins of the OAuth client in Google Cloud project `masha7000`.
+- After deploy: remind the user to revisit a small backend for long-lived silent Google sign-in (see "smoother Google sign-in").
