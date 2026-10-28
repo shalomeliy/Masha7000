@@ -69,6 +69,18 @@ Next feature candidate: worker constraints (text + voice), or the weekly planner
 
 Next version is still the user's choice: worker constraints (text + voice) or the automatic weekly planner. Ask before starting either.
 
+## Done: automatic crew for a shift, "שבץ" (2026-10-28)
+
+- User request: the manager defines only the staffing (count + role + cert per place); a "שבץ" button under the crew list picks the workers. No spike: a pure function in an already-proven screen.
+- Rules in `src/lib/planner.ts` (pure, deterministic, 13 tests in `planner.test.ts`):
+  - Hard: one worker per place; a place gets only a worker with its role (everyone holds "כללי") and its certification. Augmenting-path matching, so a place only one worker can fill is never lost to an easier place.
+  - Soft, in order: not already in another shift on the same days (a night job runs into the next day, urgent until its end date), under `NIGHT_LIMIT` = 2 night jobs per Sunday-Saturday week (urgent counts as night), fewest shifts this week (urgent included), fewest nights this week, fewest shifts in the past 4 weeks, then Hebrew name, then id.
+  - Over the night limit or busy: still placed when nobody else fits, with a warning ("כבר שובץ ל-2 לילות השבוע" / "כבר במשמרת אחרת באותו זמן") on the crew row and in the pickers.
+  - Workers already in the crew stay (in a place of their role if possible); only empty places are filled. Places with no fitting worker are listed under the button.
+- Shift editor (`ShiftEditor.tsx`): the manager does not pick workers up front (user rule): with an empty crew only a hint and the "שבץ" button show; the add-worker list appears only after a crew exists. Then "שבץ את המקומות החסרים", a swap button per crew row (offers only free workers holding that row's role, fairest first), add-worker list sorted by the same fairness order with the warnings.
+- Verified in the browser with the in-memory Drive mock: night shift with 3 places (טפסן + גובה 40, טפסן, כללי) got the only certified worker with the night warning, the least-loaded climber and general worker; swap offered only the other climber; saved crew matched in `shifts.json`.
+- Not done: worker constraints (dates off) are not read yet, since that feature does not exist; the weekly planner over many shifts at once and gap analysis are still open.
+
 ## Done: smoother Google sign-in (2026-10-28)
 
 - Cause of "sign in again after every update/reload": the access token lived only in memory, and the first request of every page load used `prompt: 'consent'`.

@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { ArrowLeftRight, Sparkles, X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { fullName, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
-import { isNightShift, pendingAfterShiftSave, shiftRecordError, weekShiftCount } from '../../lib/shifts'
+import { autoAssign, candidateOrder, fitsSlot, loadWarning, type PlanContext, type WorkerLoad } from '../../lib/planner'
+import { isNightShift, pendingAfterShiftSave, shiftRecordError } from '../../lib/shifts'
 import type { ShiftRecord, Worker } from '../../types/models'
 import { WorkerDial } from '../workers/common'
 import { StaffingField } from './StaffingField'
@@ -30,6 +31,9 @@ export function ShiftSheet({ editing, onClose }: { editing: ShiftRecord | null; 
 
 const plural = (n: number) => (n === 0 ? 'אין לו משמרות השבוע' : n === 1 ? 'כבר משמרת אחת השבוע' : `כבר ${n} משמרות השבוע`)
 
+// "דני כהן · כבר משמרת אחת השבוע · כבר שובץ ל-2 לילות השבוע" for the worker pickers.
+const pickLabel = (w: Worker, load: WorkerLoad) => [fullName(w), plural(load.week), loadWarning(load)].filter(Boolean).join(' · ')
+
 function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }) {
   const shifts = useDriveList('shifts')
   const pending = useDriveList('pendingJobs')
@@ -48,6 +52,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
+  const [planNote, setPlanNote] = useState<string | null>(null)
+  const [swapping, setSwapping] = useState<string | null>(null)
   const exists = shifts.items.some((s) => s.id === shift.id)
 
   const set = <K extends keyof ShiftRecord>(key: K, value: ShiftRecord[K]) => setDraft((d) => ({ ...d, [key]: value }))
@@ -87,7 +93,30 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const remove = () => run(() => shifts.save(shifts.items.filter((s) => s.id !== shift.id)))
 
   const inCrew = new Set(draft.crew.map((c) => c.workerId))
-  const available = workers.items.filter((w) => !inCrew.has(w.id))
+  const planCtx: PlanContext = { workers: workers.items, records: shifts.items, defs: defs.items, generalId: general }
+  // Fairest first: the same order the automatic crew uses.
+  const ranked = candidateOrder(draft, planCtx)
+  const available = ranked.filter((c) => !inCrew.has(c.worker.id))
+  const loadOf = (id: string) => ranked.find((c) => c.worker.id === id)?.load
+
+  // The manager only says who is needed; "שבץ" picks the workers. Manual changes come after.
+  const plan = () => {
+    const { crew, unfilled } = autoAssign(draft, draft.staffing, planCtx)
+    set('crew', crew)
+    setSwapping(null)
+    const names = unfilled.map((s) => {
+      const role = roles.items.find((r) => r.id === s.roleId)?.name ?? ''
+      const cert = certs.items.find((c) => c.id === s.certificationId)?.name
+      return cert ? `${role} (${cert})` : role
+    })
+    setPlanNote(names.length ? `לא נמצא עובד מתאים ל: ${names.join(', ')}` : null)
+  }
+
+  // Swap keeps the place's role, so only workers holding it are offered.
+  const swap = (i: number, id: string) => {
+    set('crew', draft.crew.map((x, j) => (j === i ? { ...x, workerId: id } : x)))
+    setSwapping(null)
+  }
   const roleOptions = (w: Worker | undefined) => (w ? roles.items.filter((r) => workerHasRole(w, r.id, general)) : [])
 
   // A new crew member gets their own role; "כללי" only when they have no other.
@@ -158,8 +187,12 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         {draft.crew.map((c, i) => {
           const w = workers.items.find((x) => x.id === c.workerId)
           const options = roleOptions(w)
+          const load = loadOf(c.workerId)
+          const warning = load && loadWarning(load)
+          const swapOptions = available.filter((x) => fitsSlot(x.worker, { roleId: c.roleId }, general))
           return (
-            <div key={c.workerId} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 p-2">
+            <div key={c.workerId} className="rounded-xl border border-slate-800 bg-slate-950 p-2">
+              <div className="flex items-center gap-2">
               <WorkerDial worker={w} className="min-h-11 min-w-0 flex-1 ps-1" />
               {options.length ? (
                 <select
@@ -180,16 +213,41 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
               )}
               <button
                 type="button"
+                aria-label={`החלפת ${w ? fullName(w) : 'העובד'} בעובד אחר`}
+                aria-expanded={swapping === c.workerId}
+                onClick={() => setSwapping((s) => (s === c.workerId ? null : c.workerId))}
+                className="flex size-11 items-center justify-center rounded-lg text-slate-400"
+              >
+                <ArrowLeftRight size={18} aria-hidden />
+              </button>
+              <button
+                type="button"
                 aria-label="הוצאה מהמשמרת"
                 onClick={() => set('crew', draft.crew.filter((_, j) => j !== i))}
                 className="flex size-11 items-center justify-center rounded-lg text-slate-400"
               >
                 <X size={18} aria-hidden />
               </button>
+              </div>
+              {warning && <p className="ps-1 text-xs text-amber-300">{warning}</p>}
+              {swapping === c.workerId &&
+                (swapOptions.length ? (
+                  <select aria-label={`במקום ${w ? fullName(w) : 'העובד'}`} value="" onChange={(e) => swap(i, e.target.value)} className={`${inputClass} mt-2 text-slate-300`}>
+                    <option value="">במקומו...</option>
+                    {swapOptions.map(({ worker: x, load: l }) => (
+                      <option key={x.id} value={x.id}>
+                        {pickLabel(x, l)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="mt-2 ps-1 text-xs text-slate-400">אין עובד פנוי אחר עם התפקיד הזה</p>
+                ))}
             </div>
           )
         })}
-        {available.length > 0 ? (
+        {workers.items.length > 0 && draft.crew.length === 0 && <p className="text-sm text-slate-400">לחץ "שבץ" והמערכת תבחר את העובדים לבד.</p>}
+        {draft.crew.length > 0 && available.length > 0 ? (
           <select
             aria-label="הוספת עובד למשמרת"
             value=""
@@ -197,15 +255,26 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
             className={`${inputClass} text-slate-300`}
           >
             <option value="">+ הוספת עובד</option>
-            {available.map((w) => (
+            {available.map(({ worker: w, load }) => (
               <option key={w.id} value={w.id}>
-                {fullName(w)} · {plural(weekShiftCount(w.id, draft.date, shifts.items, draft.id))}
+                {pickLabel(w, load)}
               </option>
             ))}
           </select>
         ) : (
           workers.items.length === 0 && <p className="text-sm text-amber-300">עוד אין עובדים. אפשר להוסיף אותם בלשונית "עובדים".</p>
         )}
+        {workers.items.length > 0 && (
+          <button
+            type="button"
+            onClick={plan}
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-sky-500 bg-sky-500/15 text-sm font-medium text-sky-300"
+          >
+            <Sparkles size={18} aria-hidden />
+            {draft.crew.length ? 'שבץ את המקומות החסרים' : 'שבץ'}
+          </button>
+        )}
+        {planNote && <p className="text-sm text-amber-300">{planNote}</p>}
       </div>
 
       <SheetActions
