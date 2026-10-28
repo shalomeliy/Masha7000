@@ -105,3 +105,11 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - `src/lib/report.ts` (pure, 5 tests): `dayReport`, `weekReport`, `whatsappHref`. WhatsApp bold with `*...*`; urgent shifts show start and end; empty crew says "עוד לא שובצו"; empty days say "אין משמרות".
 - Calendar: "שליחת היום" on each day header that has shifts, "שליחת סידור השבוע בוואטסאפ" under the week bar (sends the week on screen, so the manager moves to next week first for the coming week). Both open `src/pages/calendar/ShareSheet.tsx`: text preview, "שליחה בוואטסאפ" (wa.me, pick the chat/group in WhatsApp), "שיתוף" (phone share sheet, only where supported), "העתקה".
 - Verified in the browser with the in-memory Drive mock (fetch + GIS stubbed): day and week text correct, wa.me link encoded. Not yet tried on the user's phone.
+
+### WhatsApp export, revision after user feedback (same day)
+
+- User: the text looked plain; wanted it designed, or sent as a picture.
+- Both: `report.ts` now builds structured data (`dayData`, `weekData`) and `reportText` formats it with WhatsApp bold/italic and icons per shift kind. `src/lib/reportImage.ts` draws the same data as a 1080px PNG card on a canvas (dark header, white card per shift with a color strip per kind, worker rows with role labels), measured then drawn.
+- Share sheet: image preview, "שליחה כתמונה" (Web Share with a file, so the phone's share sheet opens and WhatsApp is picked there; download on a computer without file sharing), "שליחה כטקסט" (wa.me), "העתקת טקסט". The PNG is drawn when the sheet opens, because the share call must come straight from the tap.
+- Bidi: a date range must have a Hebrew word between the dates ("1.11 עד 7.11.2026"); "1.11 - 7.11" shows reversed in a right-to-left line.
+- Verified in the browser with the mock: image looks right for day and week. Image sharing on the user's phone not yet confirmed.

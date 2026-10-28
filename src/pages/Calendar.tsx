@@ -4,7 +4,8 @@ import { DriveError } from '../components/DriveError'
 import { tagNames } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
-import { dayReport, weekReport } from '../lib/report'
+import { dayData, weekData } from '../lib/report'
+import type { Report } from '../lib/report'
 import { addDays, blankShift, dayName, isNightShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
 import type { ShiftRecord } from '../types/models'
 import { CloseSheet } from './calendar/CloseJob'
@@ -28,7 +29,7 @@ export function Calendar() {
   const [weekStart, setWeekStart] = useState(() => weekOf(today).start)
   const [editing, setEditing] = useState<ShiftRecord | null>(null)
   const [closing, setClosing] = useState<ShiftRecord | null>(null)
-  const [sharing, setSharing] = useState<{ title: string; text: string } | null>(null)
+  const [sharing, setSharing] = useState<{ title: string; report: Report } | null>(null)
   const week = weekOf(weekStart)
   const records = sortShifts(shifts.items)
   const ctx = { shifts: shifts.items, defs: defs.items, workers: workers.items, roles: roles.items }
@@ -79,7 +80,7 @@ export function Calendar() {
 
           <button
             type="button"
-            onClick={() => setSharing({ title: 'סידור השבוע לוואטסאפ', text: weekReport(week.start, ctx) })}
+            onClick={() => setSharing({ title: 'סידור השבוע לוואטסאפ', report: weekData(week.start, ctx) })}
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/50 text-sm font-semibold text-emerald-300"
           >
             <MessageCircle size={18} aria-hidden />
@@ -99,7 +100,7 @@ export function Calendar() {
                     {dayShifts.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setSharing({ title: `יום ${dayName(day)} ${showDate(day)} לוואטסאפ`, text: dayReport(day, ctx) })}
+                        onClick={() => setSharing({ title: `יום ${dayName(day)} ${showDate(day)} לוואטסאפ`, report: dayData(day, ctx) })}
                         className="flex min-h-11 items-center gap-1.5 px-2 text-xs text-emerald-300"
                       >
                         <MessageCircle size={16} aria-hidden />
@@ -127,7 +128,7 @@ export function Calendar() {
 
       <ShiftSheet editing={editing} onClose={() => setEditing(null)} />
       <CloseSheet shift={closing} onClose={() => setClosing(null)} />
-      <ShareSheet title={sharing?.title ?? ''} text={sharing?.text ?? null} onClose={() => setSharing(null)} />
+      <ShareSheet title={sharing?.title ?? ''} report={sharing?.report ?? null} onClose={() => setSharing(null)} />
     </section>
   )
 }
