@@ -1,13 +1,15 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Loader2, Plus, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Zap } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
 import { tagNames } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
+import { dayReport, weekReport } from '../lib/report'
 import { addDays, blankShift, dayName, isNightShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
 import type { ShiftRecord } from '../types/models'
 import { CloseSheet } from './calendar/CloseJob'
 import { OUTCOMES } from './calendar/outcomes'
+import { ShareSheet } from './calendar/ShareSheet'
 import { ShiftSheet } from './calendar/ShiftEditor'
 import { EditMark, WorkerDial } from './workers/common'
 
@@ -17,15 +19,19 @@ export function Calendar() {
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
   // The cards and sheets read these too (names, roles, reasons), so everything loads together.
-  const lists = [shifts, defs, useDriveList('workers'), useDriveList('roles'), useDriveList('certifications'), useDriveList('pendingJobs'), useDriveList('postponeReasons')]
+  const workers = useDriveList('workers')
+  const roles = useDriveList('roles')
+  const lists = [shifts, defs, workers, roles, useDriveList('certifications'), useDriveList('pendingJobs'), useDriveList('postponeReasons')]
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
   const today = todayIso()
   const [weekStart, setWeekStart] = useState(() => weekOf(today).start)
   const [editing, setEditing] = useState<ShiftRecord | null>(null)
   const [closing, setClosing] = useState<ShiftRecord | null>(null)
+  const [sharing, setSharing] = useState<{ title: string; text: string } | null>(null)
   const week = weekOf(weekStart)
   const records = sortShifts(shifts.items)
+  const ctx = { shifts: shifts.items, defs: defs.items, workers: workers.items, roles: roles.items }
 
   return (
     <section className="space-y-4 px-4 pt-6">
@@ -71,15 +77,36 @@ export function Calendar() {
             </button>
           </div>
 
+          <button
+            type="button"
+            onClick={() => setSharing({ title: 'סידור השבוע לוואטסאפ', text: weekReport(week.start, ctx) })}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/50 text-sm font-semibold text-emerald-300"
+          >
+            <MessageCircle size={18} aria-hidden />
+            שליחת סידור השבוע בוואטסאפ
+          </button>
+
           <ol className="space-y-4">
             {week.days.map((day) => {
               const dayShifts = records.filter((r) => r.date === day)
               return (
                 <li key={day} className="space-y-2">
-                  <h2 className={`text-sm font-semibold ${day === today ? 'text-sky-400' : 'text-slate-400'}`}>
-                    יום {dayName(day)} {showDate(day)}
-                    {day === today && ' · היום'}
-                  </h2>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className={`text-sm font-semibold ${day === today ? 'text-sky-400' : 'text-slate-400'}`}>
+                      יום {dayName(day)} {showDate(day)}
+                      {day === today && ' · היום'}
+                    </h2>
+                    {dayShifts.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSharing({ title: `יום ${dayName(day)} ${showDate(day)} לוואטסאפ`, text: dayReport(day, ctx) })}
+                        className="flex min-h-11 items-center gap-1.5 px-2 text-xs text-emerald-300"
+                      >
+                        <MessageCircle size={16} aria-hidden />
+                        שליחת היום
+                      </button>
+                    )}
+                  </div>
                   {dayShifts.length === 0 ? (
                     <p className="text-sm text-slate-600">אין משמרות</p>
                   ) : (
@@ -100,6 +127,7 @@ export function Calendar() {
 
       <ShiftSheet editing={editing} onClose={() => setEditing(null)} />
       <CloseSheet shift={closing} onClose={() => setClosing(null)} />
+      <ShareSheet title={sharing?.title ?? ''} text={sharing?.text ?? null} onClose={() => setSharing(null)} />
     </section>
   )
 }

@@ -97,3 +97,11 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - After deploy: remind the user to revisit a small backend for long-lived silent Google sign-in (see "smoother Google sign-in").
 - Live: **https://masha7000.vercel.app** (Vercel team "Delvr", Hobby, project `masha7000`, auto-deploys every push to `master`). Checked: site serves, client ID inlined in the bundle, `sw.js` no-cache. The user added the URL to the OAuth client's JS origins; Google sign-in on the live site works (user confirmed).
 - Not yet confirmed by the user: install on the phone, Hebrew dictation on the phone.
+
+## Done: WhatsApp export of a day and a week (2026-10-28)
+
+- User request: send the shifts of a chosen day, and a weekly report (Sunday to Saturday), as Hebrew WhatsApp text: date, each shift's place, job, workers and their roles.
+- No spike: text building is pure, and sending uses standard browser features (wa.me link, Web Share, clipboard).
+- `src/lib/report.ts` (pure, 5 tests): `dayReport`, `weekReport`, `whatsappHref`. WhatsApp bold with `*...*`; urgent shifts show start and end; empty crew says "עוד לא שובצו"; empty days say "אין משמרות".
+- Calendar: "שליחת היום" on each day header that has shifts, "שליחת סידור השבוע בוואטסאפ" under the week bar (sends the week on screen, so the manager moves to next week first for the coming week). Both open `src/pages/calendar/ShareSheet.tsx`: text preview, "שליחה בוואטסאפ" (wa.me, pick the chat/group in WhatsApp), "שיתוף" (phone share sheet, only where supported), "העתקה".
+- Verified in the browser with the in-memory Drive mock (fetch + GIS stubbed): day and week text correct, wa.me link encoded. Not yet tried on the user's phone.
