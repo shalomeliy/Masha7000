@@ -2,54 +2,35 @@
 
 Reply to the user in Hebrew (masculine form), short and direct, no emojis.
 
-## This folder is a template
-
-This folder is the user's **base template for every new project**. To start a new project, the user copies these files into a new folder and builds from there. So there are two situations, and you must know which one you are in:
-
-| Situation | How to tell | What to do |
-|---|---|---|
-| **Fresh copy** (a new project) | `Project name` below is still `TEMPLATE` and the working folder is **not** the template folder | Run the `new-project-setup` skill first, before any feature work |
-| **Editing the template itself** | The working folder is the template folder: `C:\Users\Shalom\Projects\New Claude project` (or any mounted path whose last folder is `New Claude project`) | Keep every change generic. No project-specific names, stacks, content or files |
-| **Project already set up** | `Project name` is filled in | Normal work through the pipeline below |
-
-Check the working folder path first; it decides between the first two rows without guessing from the user's wording. If the template folder is ever moved or renamed, update the path here.
-
-Rules while editing the template:
-- Anything added must be useful to *any* future project, or be clearly marked as conditional (for example "only when the project is a website").
-- Template-only files (the template roadmap in `docs/TEMPLATE-ROADMAP.md`) are deleted by `new-project-setup` in a fresh copy.
-- Never put secrets, API keys or account IDs here. Each project fills its own.
-
-### Base skills vs project skills
-
-**Base skills** are the template's permanent skills and agents. Every copy gets them. Current base set:
-
-- Skills: `architecture-plan`, `ce-compound`, `ce-compound-refresh`, `ce-debug`, `ce-simplify-code`, `drop-generic-design`, `feature-spike`, `loop-engineering`, `new-project-setup`, `rtl-chat`, `ui-ux-review`, `write-feature-spec`
-- Agents: `architecture-expert`, `change-reviewer`, `design-expert`, `product-expert`, `qa-expert`, `security-expert`
-
-**Project skills** are added after a project was copied and fit only that project. They are listed under "Project skills" in that project's CLAUDE.md, never here. `new-project-setup` writes that section, with its own registration steps and start-of-session check, into every new project.
-
-### Adding a skill or agent to the template
-
-When the user adds a skill or agent while `Project name` is `TEMPLATE`, it is a base skill. Before calling it done:
-
-1. Make it generic: no project names, stacks, domains, IDs or keys. Values a project must supply are written as `TBD` or read from "Project facts".
-2. If it only applies to some projects, say so in its `description` (for example "Use only when the project is a website").
-3. Point any file paths it writes at the shared output folders in "Where outputs go"; add a row if it needs a new one.
-4. Add it to the base set above and a row to "Skill routing" (or "Agents").
-5. If it references skills that are not installed, add them to the substitutes table.
-
-**Check at the start of template work:** list `.claude/skills/` and `.claude/agents/`. Anything not in the base set above was added without registration. Run steps 1 to 5 on it, or ask the user if it looks project-specific.
-
-
 ## Project facts
 
-- Project name: `TEMPLATE`
-- Project type: **TBD** (website, app, API, script...). Website-specific skills apply only when this is a website.
-- Stack: **TBD** (no site code yet). Fill in when the first code lands.
-- Verify command: **TBD**. Until it exists, `loop-engineering` uses the narrowest real check available and says which one it ran.
-- Performance budget: **TBD** (set by `new-project-setup` for websites; see `docs/TEMPLATE-ROADMAP.md`).
-- Product direction: `docs/PRODUCT-DIRECTION.md` if present; otherwise ask the user and do not invent one.
-- Not a git repository yet. Skills that commit or open PRs stop at the local change.
+- Project name: `Masha7000`
+- Project type: **web app** for managing work shifts.
+- Stack: **proposed, not yet approved by the user**: React + TypeScript + Vite, data kept in the browser for the first version, tests with Vitest. Confirm or replace when the first code lands.
+- Verify command: **TBD** (expected `npm run verify` once the app exists). Until it exists, `loop-engineering` uses the narrowest real check available and says which one it ran.
+- Performance budget: Google "Good" Core Web Vitals: LCP up to 2.5s, INP up to 200ms, CLS up to 0.1.
+- Product direction: `docs/PRODUCT-DIRECTION.md`. Do not invent beyond it; ask the user.
+- Git: remote `https://github.com/shalomeliy/Masha7000`, branch `master`. Standing rule from the user: at the end of every version, commit and push to that repo.
+
+## Project skills
+
+Base skills (inherited from the template): `architecture-plan`, `ce-compound`, `ce-compound-refresh`, `ce-debug`, `ce-simplify-code`, `drop-generic-design`, `feature-spike`, `loop-engineering`, `rtl-chat`, `ui-ux-review`, `write-feature-spec`, and the agents `architecture-expert`, `change-reviewer`, `design-expert`, `product-expert`, `qa-expert`, `security-expert`.
+
+Skills added for this project only:
+
+- (none yet)
+
+### Adding a skill or agent to this project
+
+Before calling it done:
+
+1. Fill it with this project's real values from "Project facts". No `TBD` left where a value is known.
+2. If it only applies to part of the project, say so in its `description`.
+3. Point any file paths it writes at the folders in "Where outputs go"; add a row if it needs a new one.
+4. Add it to the list above and a row to "Skill routing" (or "Agents").
+5. If it references skills that are not installed, add them to the substitutes table.
+
+**Check at the start of every session:** list `.claude/skills/` and `.claude/agents/`. Anything not in the base set or the project list above was added without registration. Run steps 1 to 5 on it and tell the user what was registered.
 
 ## Where outputs go
 
@@ -60,13 +41,11 @@ When the user adds a skill or agent while `Project name` is `TEMPLATE`, it is a 
 | Spike result and verdict | `docs/spikes/<feature>.md` | `feature-spike` |
 | Implementation plan | `docs/plans/<feature>-PLAN.md` | `architecture-plan` |
 | Solved-problem learnings | `docs/solutions/` | `ce-compound` |
-| Template roadmap (template only) | `docs/TEMPLATE-ROADMAP.md` | manual |
 
 ## Skill routing: which skill when
 
 | Situation | Use | Not |
 |---|---|---|
-| Fresh copy of the template, first request | `new-project-setup` | starting features with `TEMPLATE` facts |
 | New feature or vague request | `write-feature-spec` | jumping to code |
 | Spec approved, new capability | `feature-spike` (small experiment first) | building the full feature on an untested idea |
 | Spike verdict GO, need a technical plan | `architecture-plan` | re-opening product decisions |
