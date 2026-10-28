@@ -30,13 +30,22 @@ Real org data replaced the generic examples (see the "Update from the user" sect
 
 Browser-console testing tip: after HMR the app loads `/src/store/auth.ts?t=...`; import that exact URL (from `performance.getEntriesByType('resource')`) to reach the app's store, not the bare path.
 
+## Done: v0.3 shifts, closing night jobs, urgent shift (2026-10-28)
+
+- Spec: `docs/specs/shifts-closing-urgent.md`. Spike: `docs/spikes/hebrew-dictation.md` (GO with fallback; real speech not yet heard on the user's phone, needs the Vercel deploy).
+- User decisions: closing only for night jobs (type with `endsNextDay`, or urgent); partial/postponed go to "לשיבוץ" automatically; urgent shift ends next day 16:00 unless edited, can be cancelled (deleted) or fully edited; week is Sunday to Saturday.
+- "יומן" tab is real (`src/pages/Calendar.tsx`): week view with prev/next, "משמרת דחופה עכשיו", "משמרת חדשה", shift cards, close-job bar on night shifts. Editor `src/pages/calendar/ShiftEditor.tsx` (crew picker shows each worker's shift count this week, urgent included). Closing `src/pages/calendar/CloseJob.tsx`.
+- New bottom tab "לשיבוץ" (`src/pages/ToSchedule.tsx`): waiting jobs (schedule into a shift, edit, delete, add by hand) and the postpone reasons list.
+- Drive files: `shifts.json` (`ShiftRecord[]`), `pending_jobs.json`, `postpone_reasons.json`. Pure rules in `src/lib/shifts.ts` (19 tests).
+- Shared components: `DateField` (calendar on tap, typed dates checked; every date must use it, user rule), `DictationField` (he-IL mic button where supported).
+- Tap-to-call: `telHref` + dial links on worker card and each phone field.
+- Scheduled jobs stay in `pending_jobs.json` with `scheduledShiftId` (see `isWaiting`, `pendingAfterShiftSave`), so retries and cancels never lose or duplicate a job. change-reviewer REPAIR findings fixed, 25 shift tests.
+- Pencil mark on every list card (edit; delete inside), user request.
+- Verified in the browser with an in-memory Drive mock (incl. forced failure of the second Drive write): urgent shift, postpone with note, waiting job created, starter reasons, scheduling the job removes it.
+
 ## Next
 
-Hours: the user does not want to enter hours. Shift form has only "נגמרת למחרת"; times are fixed 07:00/16:00 (`SHIFT_START`/`SHIFT_END`), night = `endsNextDay: true`.
+Hours: regular shifts still have no hours (fixed 07:00/16:00). Only urgent shifts carry start/end time.
 
-### Requested, not started: urgent shift "from now"
-The manager must be able to open a shift starting right now, at any moment, including Friday and Saturday. When planning the rest of the week, the planner must take these shifts into account (e.g. who already worked one). Belongs with the weekly schedule feature; spec it together with that.
-
-### v0.3 (requested, not started): closing a night job
-After a night job the manager marks it: done fully (closed), partially (free text or Hebrew voice dictation), or postponed (reason from a user-managed list, e.g. "חסר אישור קונסטרוקטור", "תנאי מזג אויר", plus free text or voice). Riskiest part: Web Speech API Hebrew dictation (`webkitSpeechRecognition`, lang he-IL) on the user's phone. Spike that first. Answered by the user: every shift (not only night jobs) has a date, a location, the nature of the work, and the list of workers each with the role they fill in that shift.
-Next feature candidate: worker constraints (text + voice), or the weekly schedule screen. Ask the user which.
+Not built yet: the automatic weekly planner and gap analysis. It must read `shifts.json` and count urgent shifts (use `weekShiftCount`). Writing shifts to Google Calendar is also not built.
+Next feature candidate: worker constraints (text + voice), or the weekly planner. Ask the user which.

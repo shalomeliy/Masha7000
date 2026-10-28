@@ -1,21 +1,24 @@
 import { useState } from 'react'
 import { BottomNav } from './components/BottomNav'
 import type { Tab } from './components/BottomNav'
+import { Calendar } from './pages/Calendar'
 import { Placeholder } from './pages/Placeholder'
 import { Settings } from './pages/Settings'
 import { Workers } from './pages/Workers'
 import { SignIn } from './pages/SignIn'
+import { ToSchedule } from './pages/ToSchedule'
 import { useAuth } from './store/auth'
 
 export default function App() {
   const signedIn = useAuth((s) => s.signedIn)
-  const [tab, setTab] = useState<Tab>('workers')
+  const [tab, setTab] = useState<Tab>('calendar')
 
   if (!signedIn) return <SignIn />
 
   return (
     <div className="mx-auto min-h-full max-w-md pb-24">
-      {tab === 'calendar' && <Placeholder title="יומן משמרות" />}
+      {tab === 'calendar' && <Calendar />}
+      {tab === 'toSchedule' && <ToSchedule />}
       {tab === 'workers' && <Workers />}
       {tab === 'archive' && <Placeholder title="ארכיון" />}
       {tab === 'settings' && <Settings />}

@@ -46,12 +46,56 @@ export interface ShiftDefinition {
   endsNextDay?: boolean // night job: starts in the morning, ends 16:00 the next day
 }
 
-export interface ShiftAssignment {
+export interface CrewMember {
+  workerId: string
+  roleId: string // one of the worker's roles; "" when the worker has none yet
+}
+
+export type ClosureOutcome = 'done' | 'partial' | 'postponed'
+
+// How a night job ended. Only night shifts (and urgent ones, which end the next day) are closed.
+export interface ShiftClosure {
+  outcome: ClosureOutcome
+  note?: string // free text or dictation; required for partial
+  reasonIds: string[] // postpone reasons, for postponed
+  closedAt: string // ISO time
+}
+
+// One real shift on one date. Replaces the spec's ShiftAssignment: the user's shifts carry a
+// place, the nature of the work, and each worker's role in that shift.
+export interface ShiftRecord {
   id: string
-  date: string // YYYY-MM-DD
-  shiftDefinitionId: string
-  assignedWorkerIds: string[]
-  status: 'VALID' | 'HAS_CONFLICT' | 'MISSING_ROLE'
+  date: string // YYYY-MM-DD, the day it starts
+  shiftDefinitionId?: string // יום / לילה; may be empty for an urgent shift
+  location: string
+  jobDescription: string
+  crew: CrewMember[]
+  urgent?: boolean // opened "from now"
+  startTime?: string // HH:mm, urgent shifts only: when it was opened
+  endDate?: string // urgent shifts: default the next day
+  endTime?: string // urgent shifts: default 16:00
+  fromJobId?: string // scheduled from a job waiting in "לשיבוץ"
+  closure?: ShiftClosure
+}
+
+// A job that still needs a shift: left over from a partial or postponed night job, or added by hand.
+export interface PendingJob {
+  id: string
+  location: string
+  jobDescription: string
+  fromShiftId?: string
+  outcome?: Exclude<ClosureOutcome, 'done'>
+  note?: string
+  reasonIds: string[]
+  createdAt: string // ISO time
+  // Set when the job is put into a shift. The job is kept, so cancelling that shift brings it back
+  // and re-closing the original night job does not list it as waiting again.
+  scheduledShiftId?: string
+}
+
+export interface PostponeReason {
+  id: string
+  name: string // "חסר אישור קונסטרוקטור", "תנאי מזג אויר"
 }
 
 // Stored in Drive appDataFolder as settings.json. Not in the spec; holds ids we must remember.

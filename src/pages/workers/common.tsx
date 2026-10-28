@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { DriveError } from '../../components/DriveError'
 
 export function AddButton({ label, onClick, icon: Icon = Plus }: { label: string; onClick: () => void; icon?: LucideIcon }) {
@@ -51,4 +51,9 @@ export function EmptyState({
       {starterError != null && <DriveError error={starterError} action="save" />}
     </div>
   )
+}
+
+/** Pencil in the card's corner: tapping a card opens it for editing (delete is inside). Parent needs `relative`. */
+export function EditMark() {
+  return <Pencil size={16} aria-hidden className="pointer-events-none absolute end-3 top-3 text-slate-500" />
 }

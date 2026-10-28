@@ -6,7 +6,7 @@ import { useDriveList } from '../../lib/data/useDriveList'
 import { todayIso } from '../../lib/dates'
 import { DateField } from '../../components/DateField'
 import type { Worker } from '../../types/models'
-import { AddButton, EmptyState } from './common'
+import { AddButton, EditMark, EmptyState } from './common'
 
 const blankWorker = (): Worker => ({ id: newId(), firstName: '', lastName: '', roleIds: [], certificationIds: [], constraints: [] })
 
@@ -117,7 +117,8 @@ function WorkerCard({ worker: w, onOpen }: { worker: Worker; onOpen: () => void 
 
   return (
     <div className="flex items-stretch rounded-2xl border border-slate-800 bg-slate-900">
-      <button type="button" onClick={onOpen} className="min-w-0 flex-1 space-y-2 p-4 text-start">
+      <button type="button" onClick={onOpen} className="relative min-w-0 flex-1 space-y-2 p-4 pe-9 text-start">
+        <EditMark />
         <span className="flex items-baseline justify-between gap-2">
           <span className="font-semibold">{fullName(w)}</span>
           {w.mobilePhone && (

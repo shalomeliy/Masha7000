@@ -15,5 +15,8 @@ export const DRIVE_FILES = {
   roles: 'roles_definition.json',
   certifications: 'certifications.json',
   shiftDefinitions: 'shift_definitions.json',
+  shifts: 'shifts.json',
+  pendingJobs: 'pending_jobs.json',
+  postponeReasons: 'postpone_reasons.json',
   settings: 'settings.json',
 } as const

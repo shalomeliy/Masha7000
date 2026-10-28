@@ -2,20 +2,31 @@ import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/
 import { readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
 import { normalizeShift, normalizeWorker } from '../catalog'
-import type { Certification, Role, ShiftDefinition, Worker } from '../../types/models'
+import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
+import type { Certification, PendingJob, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker } from '../../types/models'
 
 // One Drive appData JSON file = one list. A missing file is an empty list.
 // Saves write the whole list, optimistically, and roll back if Drive refuses.
 // Saves to one file run one at a time (mutation scope): two whole-list writes in flight
 // could land out of order, or both create the file when it does not exist yet.
 
-type ListOf = { roles: Role; certifications: Certification; workers: Worker; shiftDefinitions: ShiftDefinition }
+type ListOf = {
+  roles: Role
+  certifications: Certification
+  workers: Worker
+  shiftDefinitions: ShiftDefinition
+  shifts: ShiftRecord
+  pendingJobs: PendingJob
+  postponeReasons: PostponeReason
+}
 type ListFile = keyof ListOf
 
 // Older files may lack fields added later; fill them on read so the screens can rely on them.
 const normalizers: { [K in ListFile]?: (raw: never) => ListOf[K] } = {
   workers: normalizeWorker,
   shiftDefinitions: normalizeShift,
+  shifts: normalizeShiftRecord,
+  pendingJobs: normalizePendingJob,
 }
 
 export function useDriveList<K extends ListFile>(key: K) {

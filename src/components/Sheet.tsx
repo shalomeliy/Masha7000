@@ -89,6 +89,8 @@ export function SheetActions({
   onCancel,
   onDelete,
   deleteWarning,
+  deleteLabel = 'מחיקה',
+  confirmLabel = 'כן, למחוק',
   busy,
   error,
   saveError,
@@ -97,6 +99,8 @@ export function SheetActions({
   onCancel: () => void
   onDelete?: () => void
   deleteWarning?: string
+  deleteLabel?: string
+  confirmLabel?: string
   busy: boolean
   error: string | null // validation
   saveError: unknown
@@ -116,7 +120,7 @@ export function SheetActions({
           <p className="text-sm text-red-200">{deleteWarning ?? 'למחוק? אי אפשר לבטל את זה.'}</p>
           <div className="flex gap-2">
             <button type="button" disabled={busy} onClick={onDelete} className="min-h-11 flex-1 rounded-xl bg-red-500 font-semibold text-slate-950 disabled:opacity-50">
-              כן, למחוק
+              {confirmLabel}
             </button>
             <button type="button" onClick={() => setConfirming(false)} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-slate-300">
               לא
@@ -133,7 +137,7 @@ export function SheetActions({
           </button>
           {onDelete && (
             <button type="button" onClick={() => setConfirming(true)} className="min-h-12 flex-1 rounded-xl border border-red-500/50 text-red-300">
-              מחיקה
+              {deleteLabel}
             </button>
           )}
         </div>

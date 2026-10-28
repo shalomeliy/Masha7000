@@ -54,3 +54,10 @@ Unit tests for the pure rules (validation, week count, closure rules). Browser c
 
 - Tap-to-call: a dial link on the worker card (mobile) and next to each of the four phone fields in the editor. Done.
 - Dates: every date in the app uses `DateField` (`src/components/DateField.tsx`). A tap opens the calendar (`showPicker`); a typed date is checked against the calendar on blur (impossible dates like 31.2, half-typed dates, out-of-range dates) and the form refuses to save it. Done for birth date; every new date field must use it.
+
+## Decisions after review (v0.3)
+
+- The data model in code supersedes the "Data" section above: `closure.reasonIds[]`, urgent `startTime` / `endDate` / `endTime`, `PendingJob.scheduledShiftId`.
+- Closing only for night jobs (night type or urgent), and only once the shift's date has come.
+- A scheduled job is kept in `pending_jobs.json` with `scheduledShiftId`; "לשיבוץ" shows a job until it sits in an existing shift. Cancelling that shift brings it back; re-closing the original job does not.
+- Every list card shows a pencil: tap to edit, delete is inside the editor (user request).

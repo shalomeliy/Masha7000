@@ -1,10 +1,11 @@
-import { Archive, CalendarDays, Settings, Users } from 'lucide-react'
+import { Archive, CalendarDays, ClipboardList, Settings, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-export type Tab = 'calendar' | 'workers' | 'archive' | 'settings'
+export type Tab = 'calendar' | 'toSchedule' | 'workers' | 'archive' | 'settings'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'calendar', label: 'יומן', icon: CalendarDays },
+  { id: 'toSchedule', label: 'לשיבוץ', icon: ClipboardList },
   { id: 'workers', label: 'עובדים', icon: Users },
   { id: 'archive', label: 'ארכיון', icon: Archive },
   { id: 'settings', label: 'הגדרות', icon: Settings },
@@ -13,7 +14,7 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
 export function BottomNav({ active, onChange }: { active: Tab; onChange: (tab: Tab) => void }) {
   return (
     <nav className="fixed inset-x-0 bottom-0 border-t border-slate-800 bg-slate-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <ul className="mx-auto grid max-w-md grid-cols-4">
+      <ul className="mx-auto grid max-w-md grid-cols-5">
         {TABS.map(({ id, label, icon: Icon }) => (
           <li key={id}>
             <button

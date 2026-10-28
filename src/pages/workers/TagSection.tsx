@@ -3,7 +3,7 @@ import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { countText, nameError, newId, removeTagReferences, STARTER_CERTIFICATIONS, STARTER_ROLES, tagUsage, upsert } from '../../lib/catalog'
 import type { TagKind } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
-import { AddButton, EmptyState } from './common'
+import { AddButton, EditMark, EmptyState } from './common'
 
 // Roles and certifications behave the same: a named list that workers hold and shift types require.
 
@@ -76,8 +76,9 @@ export function TagSection({ kind }: { kind: TagKind }) {
                   <button
                     type="button"
                     onClick={() => setEditing(tag)}
-                    className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-2 text-start"
+                    className="relative flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-2 pe-9 text-start"
                   >
+                    <EditMark />
                     <span className="font-semibold">{tag.name}</span>
                     <span className="shrink-0 text-sm text-slate-400">{countText(u.workers, 'עובד אחד', 'עובדים')}</span>
                   </button>

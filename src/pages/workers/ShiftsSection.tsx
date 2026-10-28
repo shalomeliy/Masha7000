@@ -3,7 +3,7 @@ import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/
 import { countText, endsNextDay, newId, SHIFT_END, SHIFT_START, shiftError, STANDBY_HEADCOUNT, STARTER_SHIFTS, tagNames, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import type { ShiftDefinition } from '../../types/models'
-import { AddButton, EmptyState } from './common'
+import { AddButton, EditMark, EmptyState } from './common'
 
 const blankShift = (): ShiftDefinition => ({
   id: newId(),
@@ -55,8 +55,9 @@ export function ShiftsSection() {
                   <button
                     type="button"
                     onClick={() => setEditing(s)}
-                    className="w-full space-y-2 rounded-2xl border border-slate-800 bg-slate-900 p-4 text-start"
+                    className="relative w-full space-y-2 rounded-2xl border border-slate-800 bg-slate-900 p-4 pe-9 text-start"
                   >
+                    <EditMark />
                     <span className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-2 font-semibold">
                         {s.name}
