@@ -56,8 +56,11 @@ export type ClosureOutcome = 'done' | 'partial' | 'postponed'
 // How a night job ended. Only night shifts (and urgent ones, which end the next day) are closed.
 export interface ShiftClosure {
   outcome: ClosureOutcome
-  note?: string // free text or dictation; required for partial
+  note?: string // free text or dictation
   reasonIds: string[] // postpone reasons, for postponed
+  // Partial only. Absent: the same task is reopened and goes back to "לשיבוץ" as it was.
+  // Present: this task is closed and a follow-up task with what is left goes to "לשיבוץ", linked to it.
+  followUp?: { location: string; jobDescription: string }
   closedAt: string // ISO time
 }
 
@@ -88,6 +91,7 @@ export interface PendingJob {
   note?: string
   reasonIds: string[]
   createdAt: string // ISO time
+  followUp?: true // a follow-up task: its text is what was left, not the original shift's
   // Set when the job is put into a shift. The job is kept, so cancelling that shift brings it back
   // and re-closing the original night job does not list it as waiting again.
   scheduledShiftId?: string

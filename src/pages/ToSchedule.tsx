@@ -6,7 +6,7 @@ import { Field, inputClass, Sheet, SheetActions } from '../components/Sheet'
 import { nameError, newId, tagNames, upsert } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
-import { blankShift, isWaiting, showDate, STARTER_POSTPONE_REASONS } from '../lib/shifts'
+import { blankShift, dayName, isWaiting, showDate, STARTER_POSTPONE_REASONS, taskHistory } from '../lib/shifts'
 import type { PendingJob, PostponeReason, ShiftRecord } from '../types/models'
 import { OUTCOMES } from './calendar/outcomes'
 import { ShiftSheet } from './calendar/ShiftEditor'
@@ -96,13 +96,18 @@ function JobsSection() {
                   <button type="button" onClick={() => setEditing(j)} className="relative w-full space-y-1 p-4 pe-9 text-start">
                     <EditMark />
                     <span className="flex flex-wrap items-center gap-2 text-xs">
-                      {outcome && <span className={`rounded-full border px-2 py-0.5 font-semibold ${outcome.tone}`}>{outcome.label}</span>}
+                      {j.followUp ? (
+                        <span className="rounded-full border border-sky-500 bg-sky-500/15 px-2 py-0.5 font-semibold text-sky-200">משימת המשך</span>
+                      ) : (
+                        outcome && <span className={`rounded-full border px-2 py-0.5 font-semibold ${outcome.tone}`}>{outcome.label}</span>
+                      )}
                       {j.createdAt && <span className="text-slate-400">מ-{showDate(todayIso(new Date(j.createdAt)))}</span>}
                     </span>
                     {j.location && <span className="block font-semibold">{j.location}</span>}
                     {j.jobDescription && <span className="block text-sm text-slate-300">{j.jobDescription}</span>}
                     {why && <span className="block text-sm text-slate-400">{why}</span>}
                   </button>
+                  <TaskHistory job={j} />
                   <button
                     type="button"
                     onClick={() => setScheduling(blankShift(todayIso(), j))}
@@ -124,6 +129,45 @@ function JobsSection() {
       </Sheet>
       <ShiftSheet editing={scheduling} onClose={() => setScheduling(null)} />
     </>
+  )
+}
+
+// The earlier steps of a task, oldest first: each shift it went through and how it ended.
+function TaskHistory({ job }: { job: PendingJob }) {
+  const jobs = useDriveList('pendingJobs')
+  const shifts = useDriveList('shifts')
+  const reasons = useDriveList('postponeReasons')
+  const steps = taskHistory(job, shifts.items, jobs.items)
+  if (!steps.length) return null
+  const first = steps[0].shift
+
+  return (
+    <details className="border-t border-slate-800 px-4 py-2 text-sm">
+      <summary className="flex min-h-10 cursor-pointer items-center text-slate-300">
+        {steps.length === 1 ? `מקושרת למשימה מ-${showDate(first.date)}` : `מקושרת ל-${steps.length} משימות קודמות, מ-${showDate(first.date)}`}
+      </summary>
+      <ol className="space-y-2 border-s border-slate-700 ps-3 pt-1">
+        {steps.map(({ shift: s }) => {
+          const outcome = OUTCOMES.find((o) => o.id === s.closure?.outcome)
+          const why = s.closure ? [tagNames(s.closure.reasonIds, reasons.items).join(', '), s.closure.note].filter(Boolean).join(' · ') : ''
+          return (
+            <li key={s.id} className="space-y-0.5">
+              <span className="block text-xs text-slate-400">
+                יום {dayName(s.date)} {showDate(s.date)}
+                {s.location && ` · ${s.location}`}
+              </span>
+              {s.jobDescription && <span className="block text-slate-200">{s.jobDescription}</span>}
+              {outcome && (
+                <span className="block text-xs">
+                  <span className={`rounded-full border px-2 py-0.5 font-semibold ${outcome.tone}`}>{outcome.label}</span>
+                  {why && <span className="ms-2 text-slate-400">{why}</span>}
+                </span>
+              )}
+            </li>
+          )
+        })}
+      </ol>
+    </details>
   )
 }
 

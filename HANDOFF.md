@@ -40,6 +40,7 @@ Browser-console testing tip: after HMR the app loads `/src/store/auth.ts?t=...`;
 - Shared components: `DateField` (calendar on tap, typed dates checked; every date must use it, user rule), `DictationField` (he-IL mic button where supported).
 - Tap-to-call: `telHref` + dial links on worker card and each phone field.
 - Scheduled jobs stay in `pending_jobs.json` with `scheduledShiftId` (see `isWaiting`, `pendingAfterShiftSave`), so retries and cancels never lose or duplicate a job. change-reviewer REPAIR findings fixed, 25 shift tests.
+- Partial close: reopen the same task, or close and open a linked follow-up task (endless chain, `taskHistory`, shown in "לשיבוץ").
 - Pencil mark on every list card (edit; delete inside), user request.
 - Verified in the browser with an in-memory Drive mock (incl. forced failure of the second Drive write): urgent shift, postpone with note, waiting job created, starter reasons, scheduling the job removes it.
 

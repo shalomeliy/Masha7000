@@ -109,15 +109,16 @@ export function sortShifts(records: ShiftRecord[]): ShiftRecord[] {
   return [...records].sort((a, b) => a.date.localeCompare(b.date) || Number(!!a.urgent) - Number(!!b.urgent) || (a.startTime ?? '').localeCompare(b.startTime ?? ''))
 }
 
-export function closureError(c: Pick<ShiftClosure, 'outcome' | 'note' | 'reasonIds'>): string | null {
-  if (c.outcome === 'partial' && !c.note?.trim()) return 'צריך לכתוב מה נשאר לעשות'
+export function closureError(c: Pick<ShiftClosure, 'outcome' | 'note' | 'reasonIds' | 'followUp'>): string | null {
+  if (c.outcome === 'partial' && c.followUp && !c.followUp.jobDescription.trim()) return 'צריך לכתוב במשימת ההמשך מה נשאר לעשות'
   if (c.outcome === 'postponed' && !c.reasonIds.length && !c.note?.trim()) return 'צריך לבחור סיבה או לכתוב אותה'
   return null
 }
 
 /**
- * Closes (or re-closes, or reopens with `closure` undefined) a night job. Partial and postponed
- * leave a job in "לשיבוץ" with the same place and work; done or reopened removes it again.
+ * Closes (or re-closes, or reopens with `closure` undefined) a night job. Postponed, and partial
+ * reopened, leave the same task in "לשיבוץ"; partial with a follow-up leaves the follow-up task.
+ * Done or reopened removes it again. The task keeps `fromShiftId`, which links it to its history.
  */
 export function applyClosure(
   records: ShiftRecord[],
@@ -135,8 +136,9 @@ export function applyClosure(
   const job: PendingJob = {
     ...existing,
     id: existing?.id ?? newId(),
-    location: shift.location,
-    jobDescription: shift.jobDescription,
+    location: closure.followUp?.location ?? shift.location,
+    jobDescription: closure.followUp?.jobDescription ?? shift.jobDescription,
+    followUp: closure.followUp ? true : undefined,
     fromShiftId: shiftId,
     outcome: closure.outcome,
     note: closure.note,
@@ -161,13 +163,35 @@ export function pendingAfterShiftSave(pending: PendingJob[], shift: ShiftRecord)
       changed = true
       return { ...j, scheduledShiftId: shift.id }
     }
-    if (j.fromShiftId === shift.id && !j.scheduledShiftId && (j.location !== shift.location || j.jobDescription !== shift.jobDescription)) {
+    if (j.fromShiftId === shift.id && !j.scheduledShiftId && !j.followUp && (j.location !== shift.location || j.jobDescription !== shift.jobDescription)) {
       changed = true
       return { ...j, location: shift.location, jobDescription: shift.jobDescription }
     }
     return j
   })
   return changed ? next : pending
+}
+
+export interface HistoryStep {
+  shift: ShiftRecord
+  job?: PendingJob // the task this shift was scheduled from, if any
+}
+
+/**
+ * Every earlier step of a task, oldest first: the shift it came from, the task that shift was
+ * scheduled from, the shift before that, and so on. The chain has no length limit.
+ */
+export function taskHistory(job: PendingJob, records: ShiftRecord[], jobs: PendingJob[]): HistoryStep[] {
+  const steps: HistoryStep[] = []
+  const seen = new Set<string>()
+  let shift = records.find((r) => r.id === job.fromShiftId)
+  while (shift && !seen.has(shift.id)) {
+    seen.add(shift.id)
+    const from = jobs.find((j) => j.id === shift?.fromJobId)
+    steps.unshift({ shift, job: from })
+    shift = from ? records.find((r) => r.id === from.fromShiftId) : undefined
+  }
+  return steps
 }
 
 /** Older or hand-edited files may lack lists; fill them so the screens can rely on them. */

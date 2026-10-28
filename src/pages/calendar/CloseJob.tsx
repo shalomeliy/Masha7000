@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { DictationField } from '../../components/DictationField'
-import { Chips, Sheet, SheetActions } from '../../components/Sheet'
+import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { applyClosure, closureError } from '../../lib/shifts'
 import type { ClosureOutcome, ShiftRecord } from '../../types/models'
 import { OUTCOMES } from './outcomes'
 
-// Closing a night job: done, partial (what is left), or postponed (reasons and/or a note).
-// Partial and postponed leave the job in "לשיבוץ".
+// Closing a night job: done, partial, or postponed (reasons and/or a note).
+// Partial either reopens the same task, or closes it and opens a linked follow-up task with what is left.
+// Postponed and partial both leave a task in "לשיבוץ".
+
+type PartialMode = 'reopen' | 'followUp'
 
 export function CloseSheet({ shift, onClose }: { shift: ShiftRecord | null; onClose: () => void }) {
   const shifts = useDriveList('shifts')
@@ -26,6 +29,9 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const [outcome, setOutcome] = useState<ClosureOutcome | null>(shift.closure?.outcome ?? null)
   const [note, setNote] = useState(shift.closure?.note ?? '')
   const [reasonIds, setReasonIds] = useState(shift.closure?.reasonIds ?? [])
+  const prior = shift.closure?.outcome === 'partial' ? shift.closure : undefined
+  const [mode, setMode] = useState<PartialMode | null>(prior ? (prior.followUp ? 'followUp' : 'reopen') : null)
+  const [followUp, setFollowUp] = useState(prior?.followUp ?? { location: shift.location, jobDescription: '' })
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
@@ -51,10 +57,15 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
 
   const save = () => {
     if (!outcome) return setError('צריך לבחור איך העבודה הסתיימה')
+    if (outcome === 'partial' && !mode) return setError('צריך לבחור מה קורה עם מה שנשאר')
     const closure = {
       outcome,
       note: outcome === 'done' ? undefined : note.trim() || undefined,
       reasonIds: outcome === 'postponed' ? reasonIds : [],
+      followUp:
+        outcome === 'partial' && mode === 'followUp'
+          ? { location: followUp.location.trim(), jobDescription: followUp.jobDescription.trim() }
+          : undefined,
       closedAt: new Date().toISOString(),
     }
     const err = closureError(closure)
@@ -92,7 +103,41 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           )}
         </div>
       )}
-      {outcome === 'partial' && <DictationField label="מה בוצע ומה נשאר לעשות" value={note} onChange={setNote} />}
+      {outcome === 'partial' && (
+        <>
+          <DictationField label="מה בוצע (לא חובה)" value={note} onChange={setNote} />
+          <div role="radiogroup" aria-label="מה קורה עם מה שנשאר" className="space-y-2">
+            <span className="text-sm text-slate-300">מה קורה עם מה שנשאר?</span>
+            {(
+              [
+                ['reopen', 'לפתוח מחדש את אותה משימה', 'המשימה חוזרת ללשונית "לשיבוץ" כמו שהיא.'],
+                ['followUp', 'לסגור ולפתוח משימת המשך', 'המשימה הזו נסגרת. אתה כותב מה נשאר, וזו משימה חדשה שמקושרת אליה.'],
+              ] as const
+            ).map(([id, title, explain]) => (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={mode === id}
+                onClick={() => setMode(id)}
+                className={`block w-full rounded-xl border p-3 text-start ${mode === id ? 'border-sky-500 bg-sky-500/10' : 'border-slate-700'}`}
+              >
+                <span className="block font-semibold">{title}</span>
+                <span className="block text-sm text-slate-400">{explain}</span>
+              </button>
+            ))}
+          </div>
+          {mode === 'followUp' && (
+            <div className="space-y-3 rounded-xl border border-sky-500/40 p-3">
+              <span className="block font-semibold text-sky-300">משימת ההמשך</span>
+              <Field label="מיקום">
+                <input value={followUp.location} onChange={(e) => setFollowUp((f) => ({ ...f, location: e.target.value }))} className={inputClass} />
+              </Field>
+              <DictationField label="מה נשאר לעשות" value={followUp.jobDescription} onChange={(v) => setFollowUp((f) => ({ ...f, jobDescription: v }))} />
+            </div>
+          )}
+        </>
+      )}
       {outcome === 'postponed' && <DictationField label="פרטים נוספים (לא חובה אם בחרת סיבה)" value={note} onChange={setNote} />}
       {outcome && outcome !== 'done' && <p className="text-sm text-slate-400">העבודה תופיע בלשונית "לשיבוץ" עד שתשבץ אותה למשמרת.</p>}
 
@@ -100,9 +145,9 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         onSave={save}
         onCancel={onDone}
         onDelete={shift.closure ? () => write(undefined) : undefined}
-        deleteWarning="לבטל את הסגירה? העבודה תחזור להיות פתוחה."
-        deleteLabel="פתיחה מחדש"
-        confirmLabel="כן, לפתוח"
+        deleteWarning="לבטל את הסגירה? העבודה תחזור להיות פתוחה, כאילו לא נסגרה."
+        deleteLabel="ביטול הסגירה"
+        confirmLabel="כן, לבטל"
         busy={busy}
         error={error}
         saveError={saveError}

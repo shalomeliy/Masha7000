@@ -122,6 +122,7 @@ function ShiftCard({ shift: r, canClose, onOpen, onCloseJob }: { shift: ShiftRec
         <span className="flex flex-wrap items-center gap-2 text-xs">
           {r.urgent && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 font-semibold text-amber-300">דחופה מ-{r.startTime}</span>}
           {def && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">{def.name}</span>}
+          {r.fromJobId && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-300">המשך של משימה קודמת</span>}
           {r.urgent && r.endDate && (
             <span className="text-slate-400">
               עד יום {dayName(r.endDate)} {r.endTime}

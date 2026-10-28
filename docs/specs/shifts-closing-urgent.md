@@ -61,3 +61,4 @@ Unit tests for the pure rules (validation, week count, closure rules). Browser c
 - Closing only for night jobs (night type or urgent), and only once the shift's date has come.
 - A scheduled job is kept in `pending_jobs.json` with `scheduledShiftId`; "לשיבוץ" shows a job until it sits in an existing shift. Cancelling that shift brings it back; re-closing the original job does not.
 - Every list card shows a pencil: tap to edit, delete is inside the editor (user request).
+- Partial has two paths (user, 2026-10-28): reopen the same task (back to "לשיבוץ" as it was), or close it and open a follow-up task with what is left (`closure.followUp`, `PendingJob.followUp`). Follow-ups chain without limit through `fromShiftId` / `fromJobId`; "לשיבוץ" shows the chain (`taskHistory`) and the calendar marks a shift that continues an earlier task.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, applyClosure, closureError, isNightShift, isWaiting, pendingAfterShiftSave, shiftRecordError, sortShifts, urgentShift, weekOf, weekShiftCount } from './shifts'
+import { addDays, applyClosure, closureError, isNightShift, isWaiting, pendingAfterShiftSave, taskHistory, shiftRecordError, sortShifts, urgentShift, weekOf, weekShiftCount } from './shifts'
 import type { ShiftClosure, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
@@ -95,9 +95,10 @@ describe('sortShifts', () => {
 describe('closing a night job', () => {
   const close = (outcome: ShiftClosure['outcome'], extra: Partial<ShiftClosure> = {}): ShiftClosure => ({ outcome, reasonIds: [], closedAt: '2026-10-29T16:00:00Z', ...extra })
 
-  it('partial needs a note; postponed needs a reason or a note; done needs nothing', () => {
-    expect(closureError(close('partial'))).toBe('צריך לכתוב מה נשאר לעשות')
-    expect(closureError(close('partial', { note: 'נשאר חיווט' }))).toBeNull()
+  it('a follow-up needs what is left; postponed needs a reason or a note; reopen and done need nothing', () => {
+    expect(closureError(close('partial'))).toBeNull()
+    expect(closureError(close('partial', { followUp: { location: 'חיפה', jobDescription: ' ' } }))).toBe('צריך לכתוב במשימת ההמשך מה נשאר לעשות')
+    expect(closureError(close('partial', { followUp: { location: 'חיפה', jobDescription: 'חיווט' } }))).toBeNull()
     expect(closureError(close('postponed'))).toBe('צריך לבחור סיבה או לכתוב אותה')
     expect(closureError(close('postponed', { reasonIds: ['rain'] }))).toBeNull()
     expect(closureError(close('done'))).toBeNull()
@@ -162,5 +163,43 @@ describe('waiting jobs across both files', () => {
     const w = worker('דני', ['gone'])
     expect(shiftRecordError(shift({ crew: [{ workerId: 'דני', roleId: '' }] }), [w], ['climber'])).toBeNull()
     expect(shiftRecordError(shift({ crew: [{ workerId: 'דני', roleId: 'x' }] }), [worker('דני')], ['climber'])).toBe('צריך לבחור תפקיד לדני')
+  })
+})
+
+describe('follow-up tasks and their history', () => {
+  const closedAt = '2026-10-29T16:00:00Z'
+
+  it('partial with a follow-up leaves the follow-up text in "לשיבוץ", reopen leaves the same task', () => {
+    const follow = applyClosure([shift()], [], 's1', { outcome: 'partial', reasonIds: [], closedAt, followUp: { location: 'חיפה', jobDescription: 'נשאר חיווט' } })
+    expect(follow.pending[0]).toMatchObject({ jobDescription: 'נשאר חיווט', followUp: true, fromShiftId: 's1' })
+    const reopen = applyClosure([shift()], [], 's1', { outcome: 'partial', reasonIds: [], closedAt })
+    expect(reopen.pending[0]).toMatchObject({ jobDescription: 'התקנת אנטנה', fromShiftId: 's1' })
+    expect(reopen.pending[0].followUp).toBeUndefined()
+  })
+
+  it('editing the closed shift does not overwrite what the follow-up says is left', () => {
+    const { pending } = applyClosure([shift()], [], 's1', { outcome: 'partial', reasonIds: [], closedAt, followUp: { location: 'חיפה', jobDescription: 'נשאר חיווט' } })
+    expect(pendingAfterShiftSave(pending, shift({ jobDescription: 'אחר' }))).toBe(pending)
+  })
+
+  it('walks the whole chain, oldest first, however long it is', () => {
+    // s1 -> task j1 -> scheduled into s2 -> task j2 -> scheduled into s3 -> task j3 (waiting)
+    let records = [shift()]
+    let jobs = applyClosure(records, [], 's1', { outcome: 'partial', reasonIds: [], closedAt, followUp: { location: 'חיפה', jobDescription: 'שלב 2' } }).pending
+    const j1 = jobs[0]
+    records = [...records, shift({ id: 's2', fromJobId: j1.id, jobDescription: 'שלב 2' })]
+    jobs = applyClosure(records, jobs, 's2', { outcome: 'postponed', reasonIds: ['rain'], closedAt }).pending
+    const j2 = jobs.find((j) => j.fromShiftId === 's2')!
+    records = [...records, shift({ id: 's3', fromJobId: j2.id })]
+    jobs = applyClosure(records, jobs, 's3', { outcome: 'partial', reasonIds: [], closedAt, followUp: { location: 'חיפה', jobDescription: 'שלב 3' } }).pending
+    const j3 = jobs.find((j) => j.fromShiftId === 's3')!
+    const history = taskHistory(j3, records, jobs)
+    expect(history.map((h) => h.shift.id)).toEqual(['s1', 's2', 's3'])
+    expect(history[0].job).toBeUndefined()
+    expect(history[2].job?.id).toBe(j2.id)
+  })
+
+  it('a hand-added task has no history', () => {
+    expect(taskHistory({ id: 'x', location: '', jobDescription: '', reasonIds: [], createdAt: '' }, [], [])).toEqual([])
   })
 })
