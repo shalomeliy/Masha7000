@@ -1,6 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
-import { Pencil, Plus } from 'lucide-react'
+import { Pencil, Phone, Plus } from 'lucide-react'
 import { DriveError } from '../../components/DriveError'
+import { fullName, telHref } from '../../lib/catalog'
+import type { Worker } from '../../types/models'
 
 export function AddButton({ label, onClick, icon: Icon = Plus }: { label: string; onClick: () => void; icon?: LucideIcon }) {
   return (
@@ -56,4 +58,23 @@ export function EmptyState({
 /** Pencil in the card's corner: tapping a card opens it for editing (delete is inside). Parent needs `relative`. */
 export function EditMark() {
   return <Pencil size={16} aria-hidden className="pointer-events-none absolute end-3 top-3 text-slate-500" />
+}
+
+/** A worker's name; with a dialable mobile number, tapping it opens the phone's dialer with the number ready. */
+export function WorkerDial({ worker, suffix, className = '' }: { worker: Worker | undefined; suffix?: string; className?: string }) {
+  const name = worker ? fullName(worker) : 'עובד שנמחק'
+  const dial = telHref(worker?.mobilePhone)
+  const text = (
+    <span className="truncate">
+      {name}
+      {suffix}
+    </span>
+  )
+  if (!dial) return <span className={`inline-flex items-center ${className}`}>{text}</span>
+  return (
+    <a href={dial} aria-label={`חיוג אל ${name}`} className={`inline-flex items-center gap-1 ${className}`}>
+      <Phone size={14} aria-hidden className="shrink-0 text-emerald-400" />
+      {text}
+    </a>
+  )
 }

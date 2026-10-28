@@ -7,6 +7,7 @@ import { fullName, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { isNightShift, pendingAfterShiftSave, shiftRecordError, weekShiftCount } from '../../lib/shifts'
 import type { ShiftRecord, Worker } from '../../types/models'
+import { WorkerDial } from '../workers/common'
 
 // Create or edit one shift. A new shift that came from "לשיבוץ" removes that job when saved.
 
@@ -146,7 +147,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           const options = roleOptions(w)
           return (
             <div key={c.workerId} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 p-2">
-              <span className="min-w-0 flex-1 truncate ps-1">{w ? fullName(w) : 'עובד שנמחק'}</span>
+              <WorkerDial worker={w} className="min-h-11 min-w-0 flex-1 ps-1" />
               {options.length ? (
                 <select
                   aria-label={`התפקיד של ${w ? fullName(w) : ''}`}

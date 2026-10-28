@@ -44,9 +44,17 @@ Browser-console testing tip: after HMR the app loads `/src/store/auth.ts?t=...`;
 - Pencil mark on every list card (edit; delete inside), user request.
 - Verified in the browser with an in-memory Drive mock (incl. forced failure of the second Drive write): urgent shift, postpone with note, waiting job created, starter reasons, scheduling the job removes it.
 
+## Done: tap-to-call everywhere (2026-10-28)
+
+- Every phone field in the worker editor always shows a call button (grey until a number is typed).
+- Workers on a calendar shift card and in the shift editor's crew list are tap-to-dial (`WorkerDial` in `src/pages/workers/common.tsx`, mobile number). On the card the crew row sits outside the edit button, so a name tap dials and the rest of the card still opens the editor.
+- `.claude/launch.json` has `shiftsmart-alt` on port 5181 for when 5180 is taken by another session.
+
 ## Next
 
 Hours: regular shifts still have no hours (fixed 07:00/16:00). Only urgent shifts carry start/end time.
 
 Not built yet: the automatic weekly planner and gap analysis. It must read `shifts.json` and count urgent shifts (use `weekShiftCount`). Writing shifts to Google Calendar is also not built.
 Next feature candidate: worker constraints (text + voice), or the weekly planner. Ask the user which.
+
+Next version is still the user's choice: worker constraints (text + voice) or the automatic weekly planner. Ask before starting either.

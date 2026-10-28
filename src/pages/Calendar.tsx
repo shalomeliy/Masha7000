@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Loader2, Plus, Zap } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
-import { fullName, tagNames } from '../lib/catalog'
+import { tagNames } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { addDays, blankShift, dayName, isNightShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
@@ -9,7 +9,7 @@ import type { ShiftRecord } from '../types/models'
 import { CloseSheet } from './calendar/CloseJob'
 import { OUTCOMES } from './calendar/outcomes'
 import { ShiftSheet } from './calendar/ShiftEditor'
-import { EditMark } from './workers/common'
+import { EditMark, WorkerDial } from './workers/common'
 
 // The week, Sunday to Saturday, with every shift in it. Urgent shifts can be opened any moment.
 
@@ -131,23 +131,24 @@ function ShiftCard({ shift: r, canClose, onOpen, onCloseJob }: { shift: ShiftRec
         </span>
         {r.location && <span className="block font-semibold">{r.location}</span>}
         {r.jobDescription && <span className="block text-sm text-slate-300">{r.jobDescription}</span>}
-        {r.crew.length > 0 ? (
-          <span className="flex flex-wrap gap-1">
-            {r.crew.map((c) => {
-              const w = workers.items.find((x) => x.id === c.workerId)
-              const role = roles.items.find((x) => x.id === c.roleId)
-              return (
-                <span key={c.workerId} className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-200">
-                  {w ? fullName(w) : 'עובד שנמחק'}
-                  {role && ` · ${role.name}`}
-                </span>
-              )
-            })}
-          </span>
-        ) : (
-          <span className="block text-xs text-amber-300">עוד אין עובדים במשמרת</span>
-        )}
+        {r.crew.length === 0 && <span className="block text-xs text-amber-300">עוד אין עובדים במשמרת</span>}
       </button>
+      {/* Outside the edit button: tapping a worker dials them instead of opening the editor. */}
+      {r.crew.length > 0 && (
+        <div className="-mt-2 flex flex-wrap gap-1.5 px-4 pb-4">
+          {r.crew.map((c) => {
+            const role = roles.items.find((x) => x.id === c.roleId)
+            return (
+              <WorkerDial
+                key={c.workerId}
+                worker={workers.items.find((x) => x.id === c.workerId)}
+                suffix={role && ` · ${role.name}`}
+                className="min-h-9 rounded-full bg-slate-800 px-3 py-1.5 text-xs text-slate-200"
+              />
+            )
+          })}
+        </div>
+      )}
       {night && (canClose || r.closure) && (
         <button type="button" onClick={onCloseJob} className="flex min-h-12 w-full items-center gap-2 border-t border-slate-800 px-4 text-start text-sm">
           {outcome ? (

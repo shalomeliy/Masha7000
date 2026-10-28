@@ -252,10 +252,15 @@ function WorkerForm({ worker, onDone }: { worker: Worker; onDone: () => void }) 
             <Field key={field} label={label}>
               <span className="flex gap-1">
                 <input type="tel" dir="ltr" inputMode="tel" value={draft[field] ?? ''} onChange={set(field)} className={`${inputClass} min-w-0 text-right`} />
-                {dial && (
+                {/* Always shown so every phone field visibly has a call button; inactive until a number is typed. */}
+                {dial ? (
                   <a href={dial} aria-label={`חיוג: ${label}`} className="flex w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
                     <Phone size={18} aria-hidden />
                   </a>
+                ) : (
+                  <span aria-hidden className="flex w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800/60 text-slate-600">
+                    <Phone size={18} />
+                  </span>
                 )}
               </span>
             </Field>
