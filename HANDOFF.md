@@ -34,6 +34,9 @@ Browser-console testing tip: after HMR the app loads `/src/store/auth.ts?t=...`;
 
 Hours: the user does not want to enter hours. Shift form has only "נגמרת למחרת"; times are fixed 07:00/16:00 (`SHIFT_START`/`SHIFT_END`), night = `endsNextDay: true`.
 
+### Requested, not started: urgent shift "from now"
+The manager must be able to open a shift starting right now, at any moment, including Friday and Saturday. When planning the rest of the week, the planner must take these shifts into account (e.g. who already worked one). Belongs with the weekly schedule feature; spec it together with that.
+
 ### v0.3 (requested, not started): closing a night job
 After a night job the manager marks it: done fully (closed), partially (free text or Hebrew voice dictation), or postponed (reason from a user-managed list, e.g. "חסר אישור קונסטרוקטור", "תנאי מזג אויר", plus free text or voice). Riskiest part: Web Speech API Hebrew dictation (`webkitSpeechRecognition`, lang he-IL) on the user's phone. Spike that first. Open product question: what is a "night job" record (date, site/description, assigned workers?), since there is no schedule yet.
 Next feature candidate: worker constraints (text + voice), or the weekly schedule screen. Ask the user which.
