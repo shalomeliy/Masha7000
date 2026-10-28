@@ -6,8 +6,10 @@ Reply to the user in Hebrew (masculine form), short and direct, no emojis.
 
 - Project name: `Masha7000`
 - Project type: **web app** for managing work shifts.
-- Stack: **proposed, not yet approved by the user**: React + TypeScript + Vite, data kept in the browser for the first version, tests with Vitest. Confirm or replace when the first code lands.
-- Verify command: **TBD** (expected `npm run verify` once the app exists). Until it exists, `loop-engineering` uses the narrowest real check available and says which one it ran.
+- Stack: Vite + React + TypeScript + Tailwind CSS v4, Zustand, TanStack Query, dayjs, lucide-react, Vitest. Browser-only SPA, no backend; data lives in the manager's Google Drive appDataFolder and a `Smart Shifts` Google Calendar (see `docs/input/`). Hosting target: Vercel. Dev server: port 5180 (`.claude/launch.json`).
+- Verify command: `npm run verify` (lint + tests + typecheck + build).
+- Google OAuth Client ID goes in `.env.local` as `VITE_GOOGLE_CLIENT_ID` (gitignored; template in `.env.example`). Authorized JS origins must include `http://localhost:5180`.
+- Source specs from the user: `docs/input/01-product-ux-spec.md`, `docs/input/02-technical-spec.md`.
 - Performance budget: Google "Good" Core Web Vitals: LCP up to 2.5s, INP up to 200ms, CLS up to 0.1.
 - Product direction: `docs/PRODUCT-DIRECTION.md`. Do not invent beyond it; ask the user.
 - Git: remote `https://github.com/shalomeliy/Masha7000`, branch `master`. Standing rule from the user: at the end of every version, commit and push to that repo.
