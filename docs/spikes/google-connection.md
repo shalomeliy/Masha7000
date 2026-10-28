@@ -20,6 +20,6 @@ Scopes: `drive.appdata` and `calendar.app.created` (only calendars this app crea
 
 ## Result
 
-Code builds and the sign-in screen renders. **The live round trip has not run yet**: it needs an OAuth Client ID from the user's Google Cloud project.
+2026-10-28: the user signed in with their own Google account (test user, unverified-app warning accepted) and ran the connection check at `http://localhost:5180`. All 5 steps passed: Drive appData write, Drive read, `Smart Shifts` calendar created, event created, event read back and deleted.
 
-Verdict: **pending** until the connection check passes with a real Client ID.
+Verdict: **GO**. The browser-only architecture from the spec works with the narrow scopes.

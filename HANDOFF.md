@@ -8,11 +8,12 @@
 - Settings screen has a "בדיקת חיבור לגוגל" button that runs the full Drive + Calendar round trip.
 - `npm run verify` passes (lint, tests (none yet), typecheck, build).
 
-## Blocked on the user
+## Google spike: GO (2026-10-28)
 
-The Google spike has not run live. The user must create an OAuth Client ID (Web application) in Google Cloud Console, with authorized JavaScript origin `http://localhost:5180`, enable Google Drive API and Google Calendar API, and add their account as a test user on the consent screen. The ID goes in `.env.local` as `VITE_GOOGLE_CLIENT_ID`.
+Google Cloud project `masha7000`: Drive API + Calendar API enabled, consent screen "SmartShift" (External, user is a test user), Web client with origin `http://localhost:5180`. Client ID is in `.env.local` (not committed). The live connection check passed 5/5.
+
+When deploying to Vercel: add the Vercel URL to the client's Authorized JavaScript origins, and set `VITE_GOOGLE_CLIENT_ID` in Vercel env vars. Remind the user.
 
 ## Next
 
-1. User provides Client ID, runs the connection check. All 5 steps green = spike GO.
-2. Then, per the pipeline: spec for the first real feature (likely workers + roles + shift definitions), plan, build.
+Per the pipeline: `write-feature-spec` for the first real feature (likely workers + roles + shift definitions, stored in Drive), then plan, then build.
