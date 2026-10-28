@@ -1,10 +1,11 @@
 import { fullName, workerHasRole } from './catalog'
+import { blockingConstraint, constraintText } from './constraints'
 import { addDays, isNightShift, weekOf, weekShiftCount } from './shifts'
-import type { CrewMember, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
+import type { Constraint, CrewMember, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
 // Automatic crew for one shift ("שבץ"). Pure and deterministic: the same data always gives the
 // same crew. Hard rules: one worker per place, a worker fills a place only with its role and
-// certification. Soft rules, in this order: not already working at the same time, under the
+// certification, a worker a constraint blocks is never picked. Soft rules, in this order: not already working at the same time, under the
 // weekly night limit, fewest shifts this week, fewest nights this week, fewest shifts lately, name.
 
 /** Night jobs per worker per week (Sunday to Saturday). Beyond it the worker may still be placed, with a warning. */
@@ -20,6 +21,7 @@ export interface PlanContext {
 export interface Plan {
   crew: CrewMember[]
   unfilled: StaffSlot[] // places no fitting worker was found for
+  why: string[] // for each unfilled place, in the same order: why nobody was found
 }
 
 export interface WorkerLoad {
@@ -28,6 +30,7 @@ export interface WorkerLoad {
   recent: number // shifts in the four weeks before this week and in it
   overNightLimit: boolean // this shift is a night job and the worker already has NIGHT_LIMIT of them
   busy: boolean // already in another shift that runs on one of this shift's days
+  blocked: Constraint | null // a constraint keeps the worker out of this shift
 }
 
 export const fitsSlot = (w: Worker, slot: StaffSlot, generalId: string) =>
@@ -38,7 +41,8 @@ function span(r: ShiftRecord, defs: ShiftDefinition[]): [string, string] {
   return [r.date, r.endDate ?? (isNightShift(r, defs) ? addDays(r.date, 1) : r.date)]
 }
 
-export function workerLoad(workerId: string, shift: ShiftRecord, ctx: Pick<PlanContext, 'records' | 'defs'>): WorkerLoad {
+export function workerLoad(worker: Worker, shift: ShiftRecord, ctx: Pick<PlanContext, 'records' | 'defs'>): WorkerLoad {
+  const workerId = worker.id
   const { start, end } = weekOf(shift.date)
   const recentFrom = addDays(start, -28)
   const [from, to] = span(shift, ctx.defs)
@@ -53,11 +57,13 @@ export function workerLoad(workerId: string, shift: ShiftRecord, ctx: Pick<PlanC
       const [a, b] = span(r, ctx.defs)
       return a <= to && b >= from
     }),
+    blocked: blockingConstraint(worker, shift, ctx.defs),
   }
 }
 
 /** Warning to show next to a worker in this shift, or null. */
 export function loadWarning(load: WorkerLoad): string | null {
+  if (load.blocked) return `${constraintText(load.blocked)}${load.blocked.note ? ` (${load.blocked.note})` : ''}`
   if (load.busy) return 'כבר במשמרת אחרת באותו זמן'
   if (load.overNightLimit) return `כבר שובץ ל-${load.nights} לילות השבוע`
   return null
@@ -66,9 +72,10 @@ export function loadWarning(load: WorkerLoad): string | null {
 /** Every worker, fairest pick first. Also the order of the screen's worker lists. */
 export function candidateOrder(shift: ShiftRecord, ctx: PlanContext): { worker: Worker; load: WorkerLoad }[] {
   return ctx.workers
-    .map((worker) => ({ worker, load: workerLoad(worker.id, shift, ctx) }))
+    .map((worker) => ({ worker, load: workerLoad(worker, shift, ctx) }))
     .sort(
       (a, b) =>
+        Number(!!a.load.blocked) - Number(!!b.load.blocked) ||
         Number(a.load.busy) - Number(b.load.busy) ||
         Number(a.load.overNightLimit) - Number(b.load.overNightLimit) ||
         a.load.week - b.load.week ||
@@ -86,7 +93,8 @@ export function candidateOrder(shift: ShiftRecord, ctx: PlanContext): { worker: 
  * `staffing` is the shift's staffing read through `staffingFor`.
  */
 export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanContext): Plan {
-  const ordered = candidateOrder(shift, ctx).map((c) => c.worker)
+  const candidates = candidateOrder(shift, ctx)
+  const ordered = candidates.filter((c) => !c.load.blocked).map((c) => c.worker)
   const byId = new Map(ctx.workers.map((w) => [w.id, w]))
   const locked = shift.crew.filter((c) => byId.has(c.workerId))
   const workerAt: (string | undefined)[] = staffing.map(() => undefined)
@@ -135,8 +143,19 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
   })
   // A pick of the manager's that fits no place stays as it was.
   for (const c of locked) if (!slotOf.has(c.workerId)) crew.push(c)
+  const placed = new Set(crew.map((c) => c.workerId))
+  const empty = staffing.filter((_, s) => workerAt[s] === undefined)
   return {
     crew,
-    unfilled: staffing.filter((_, s) => workerAt[s] === undefined),
+    unfilled: empty,
+    why: empty.map((slot) => {
+      const fit = candidates.filter((c) => fitsSlot(c.worker, slot, ctx.generalId) && !placed.has(c.worker.id))
+      const blocked = fit.filter((c) => c.load.blocked)
+      if (blocked.length)
+        return `לא זמינים: ${blocked.map((c) => `${fullName(c.worker)} (${constraintText(c.load.blocked!)})`).join(', ')}`
+      return fit.length || candidates.some((c) => fitsSlot(c.worker, slot, ctx.generalId))
+        ? 'כל המתאימים כבר במשמרת הזו'
+        : 'אין עובד עם התפקיד וההסמכה האלה'
+    }),
   }
 }

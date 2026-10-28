@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Zap } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
-import { tagNames } from '../lib/catalog'
+import { fullName, tagNames } from '../lib/catalog'
+import { blockingConstraint, constraintText } from '../lib/constraints'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { dayData, weekData } from '../lib/report'
@@ -143,6 +144,14 @@ function ShiftCard({ shift: r, canClose, onOpen, onCloseJob }: { shift: ShiftRec
   const night = isNightShift(r, defs.items)
   const outcome = OUTCOMES.find((o) => o.id === r.closure?.outcome)
   const reasonText = r.closure ? tagNames(r.closure.reasonIds, reasons.items).join(', ') : ''
+  // A constraint added after the crew was picked: the manager has to see it on the week view.
+  const blocked = r.closure
+    ? []
+    : r.crew.flatMap((c) => {
+        const w = workers.items.find((x) => x.id === c.workerId)
+        const hit = w && blockingConstraint(w, r, defs.items)
+        return hit ? [`${fullName(w)}: ${constraintText(hit)}`] : []
+      })
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
@@ -161,6 +170,11 @@ function ShiftCard({ shift: r, canClose, onOpen, onCloseJob }: { shift: ShiftRec
         {r.location && <span className="block font-semibold">{r.location}</span>}
         {r.jobDescription && <span className="block text-sm text-slate-300">{r.jobDescription}</span>}
         {r.crew.length === 0 && <span className="block text-xs text-amber-300">עוד אין עובדים במשמרת</span>}
+        {blocked.map((line) => (
+          <span key={line} className="block text-xs text-red-300">
+            {line}
+          </span>
+        ))}
       </button>
       {/* Outside the edit button: tapping a worker dials them instead of opening the editor. */}
       {r.crew.length > 0 && (

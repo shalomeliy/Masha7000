@@ -113,3 +113,16 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - Share sheet: image preview, "שליחה כתמונה" (Web Share with a file, so the phone's share sheet opens and WhatsApp is picked there; download on a computer without file sharing), "שליחה כטקסט" (wa.me), "העתקת טקסט". The PNG is drawn when the sheet opens, because the share call must come straight from the tap.
 - Bidi: a date range must have a Hebrew word between the dates ("1.11 עד 7.11.2026"); "1.11 - 7.11" shows reversed in a right-to-left line.
 - Verified in the browser with the mock: image looks right for day and week. Image sharing on the user's phone not yet confirmed.
+
+## Done: worker constraints + WhatsApp constraints request (2026-10-28)
+
+- Coordinator brief: the agreed next step. No spike: pure rules plus screens built from parts already proven (DateField, DictationField, wa.me sharing).
+- Model: `Constraint { when: 'dates' | 'weekdays' | 'always', from/to, weekdays (0 = Sunday), nightsOnly, note }`. The spec's `{ date, reason }` is upgraded on read (`normalizeConstraint`, called from `normalizeWorker`). `always` is always nights only ("בלי לילות בכלל").
+- Rules in `src/lib/constraints.ts` (pure, tests in `constraints.test.ts`): `blockingConstraint` (a whole-day constraint blocks a shift on any day it runs, so a night job is blocked by a day off on its second day; nights-only blocks a night job starting on that day), `constraintText`, `constraintError`, `isOver`, `shiftDays`.
+- Planner: a blocked worker is never picked by "שבץ" (hard rule). A worker the manager placed by hand stays, with a red warning. `Plan.why` explains each empty place: who is unavailable and why, "כל המתאימים כבר במשמרת הזו", or no worker with the role/cert. Blocked workers sort last in the pickers with their constraint shown.
+- Calendar card: a crew member a constraint now blocks shows in red (constraint added after the crew was picked).
+- Worker editor: "אילוצים" section (`src/pages/workers/ConstraintsField.tsx`): add/edit/delete inline, dates / weekly days / always, whole day or nights only, free-text detail with dictation; past ranges dimmed. Worker cards show active constraints as amber chips.
+- WhatsApp request (user request): "בקשת אילוצים מהעובדים בוואטסאפ" on the workers list (`RequestSheet.tsx`, `requestText`): header with the week's dates (default next week), one line per day for "אין אילוץ" or details, a notes line. The worker's reply is pasted into "הדבקת תשובה מוואטסאפ" in that worker's editor (`parseReply`): each day with text becomes a one-day constraint (nights only if it mentions לילה/לילות), the notes line is added to the worker's notes. Header lost: the manager picks the week.
+- JS regex `\b` does not see Hebrew letters as word letters; the day-name match uses a lookahead.
+- Verified in the browser with the in-memory Drive mock: old constraint upgraded, request text and wa.me link, pasted reply gave 2 constraints + notes, weekly nights-only added, saved to `workers.json`, "שבץ" skipped the vacationing and the busy-with-a-wedding workers and listed why, calendar card warned about a blocked crew member.
+- Not done: free text is not parsed into dates except in the reply format; a constraint does not stop a manual save.

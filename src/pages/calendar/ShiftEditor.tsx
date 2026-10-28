@@ -52,7 +52,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
-  const [planNote, setPlanNote] = useState<string | null>(null)
+  const [planNote, setPlanNote] = useState<string[] | null>(null)
   const [swapping, setSwapping] = useState<string | null>(null)
   const exists = shifts.items.some((s) => s.id === shift.id)
 
@@ -101,15 +101,15 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
 
   // The manager only says who is needed; "שבץ" picks the workers. Manual changes come after.
   const plan = () => {
-    const { crew, unfilled } = autoAssign(draft, draft.staffing, planCtx)
+    const { crew, unfilled, why } = autoAssign(draft, draft.staffing, planCtx)
     set('crew', crew)
     setSwapping(null)
-    const names = unfilled.map((s) => {
+    const lines = unfilled.map((s, i) => {
       const role = roles.items.find((r) => r.id === s.roleId)?.name ?? ''
       const cert = certs.items.find((c) => c.id === s.certificationId)?.name
-      return cert ? `${role} (${cert})` : role
+      return `${cert ? `${role} (${cert})` : role}: ${why[i]}`
     })
-    setPlanNote(names.length ? `לא נמצא עובד מתאים ל: ${names.join(', ')}` : null)
+    setPlanNote(lines.length ? lines : null)
   }
 
   // Swap keeps the place's role, so only workers holding it are offered.
@@ -229,7 +229,9 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
                 <X size={18} aria-hidden />
               </button>
               </div>
-              {warning && <p className="ps-1 text-xs text-amber-300">{warning}</p>}
+              {warning && (
+                <p className={`ps-1 text-xs ${load.blocked ? 'text-red-300' : 'text-amber-300'}`}>{warning}</p>
+              )}
               {swapping === c.workerId &&
                 (swapOptions.length ? (
                   <select aria-label={`במקום ${w ? fullName(w) : 'העובד'}`} value="" onChange={(e) => swap(i, e.target.value)} className={`${inputClass} mt-2 text-slate-300`}>
@@ -274,7 +276,14 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
             {draft.crew.length ? 'שבץ את המקומות החסרים' : 'שבץ'}
           </button>
         )}
-        {planNote && <p className="text-sm text-amber-300">{planNote}</p>}
+        {planNote && (
+          <div role="status" className="space-y-1 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
+            <p className="font-medium">לא נמצא עובד לכל המקומות:</p>
+            {planNote.map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
+          </div>
+        )}
       </div>
 
       <SheetActions

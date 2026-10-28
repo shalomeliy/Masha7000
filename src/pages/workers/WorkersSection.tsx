@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Filter, Phone, X } from 'lucide-react'
+import { CalendarX, Filter, Phone, X } from 'lucide-react'
 import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import {
   countText,
@@ -14,11 +14,14 @@ import {
   telHref,
   upsert,
 } from '../../lib/catalog'
+import { constraintText, isOver } from '../../lib/constraints'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { todayIso } from '../../lib/dates'
 import { DateField } from '../../components/DateField'
 import type { Worker } from '../../types/models'
 import { AddButton, EditMark, EmptyState } from './common'
+import { ConstraintsField } from './ConstraintsField'
+import { RequestSheet } from './RequestSheet'
 
 const blankWorker = (): Worker => ({ id: newId(), firstName: '', lastName: '', roleIds: [], certificationIds: [], constraints: [] })
 
@@ -32,6 +35,7 @@ export function WorkersSection() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [roleFilter, setRoleFilter] = useState<string[]>([])
   const [certFilter, setCertFilter] = useState<string[]>([])
+  const [requesting, setRequesting] = useState(false)
 
   const filtering = roleFilter.length + certFilter.length > 0
   const shown = filterWorkers(workers.items, roleFilter, certFilter, generalRoleId(roles.items)).sort((a, b) => fullName(a).localeCompare(fullName(b), 'he'))
@@ -53,6 +57,14 @@ export function WorkersSection() {
   return (
     <>
       <div className="mb-3 space-y-2">
+        <button
+          type="button"
+          onClick={() => setRequesting(true)}
+          className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-emerald-500/50 px-3 text-start text-sm text-emerald-300"
+        >
+          <CalendarX size={16} aria-hidden className="shrink-0" />
+          בקשת אילוצים מהעובדים בוואטסאפ
+        </button>
         <button
           type="button"
           aria-expanded={filterOpen}
@@ -115,6 +127,7 @@ export function WorkersSection() {
       )}
       <AddButton label="הוספת עובד" onClick={() => setEditing(blankWorker())} />
       <WorkerSheet editing={editing} onClose={() => setEditing(null)} />
+      <RequestSheet open={requesting} onClose={() => setRequesting(false)} />
     </>
   )
 }
@@ -126,6 +139,8 @@ function WorkerCard({ worker: w, onOpen }: { worker: Worker; onOpen: () => void 
   const specific = tagNames(w.roleIds, roles.items.filter((r) => !isGeneralRole(r)))
   const roleList = specific.length ? specific : [GENERAL_ROLE_NAME]
   const certList = tagNames(w.certificationIds, certs.items)
+  const today = todayIso()
+  const active = w.constraints.filter((c) => !isOver(c, today))
 
   const dial = telHref(w.mobilePhone)
 
@@ -153,6 +168,16 @@ function WorkerCard({ worker: w, onOpen }: { worker: Worker; onOpen: () => void 
             </span>
           ))}
         </span>
+        {active.length > 0 && (
+          <span className="flex flex-wrap gap-1">
+            {active.slice(0, 2).map((c) => (
+              <span key={c.id} className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-200">
+                {constraintText(c)}
+              </span>
+            ))}
+            {active.length > 2 && <span className="px-1 text-xs text-amber-200">ועוד {active.length - 2}</span>}
+          </span>
+        )}
       </button>
       {dial && (
         <a href={dial} aria-label={`חיוג אל ${fullName(w)}`} className="flex w-14 shrink-0 items-center justify-center border-s border-slate-800 text-emerald-400">
@@ -301,6 +326,11 @@ function WorkerForm({ worker, onDone }: { worker: Worker; onDone: () => void }) 
           setDraft((d) => ({ ...d, birthDate }))
           setBirthDateValid(valid)
         }}
+      />
+      <ConstraintsField
+        value={draft.constraints}
+        onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
+        onNotes={(text) => setDraft((d) => ({ ...d, notes: [d.notes?.trim(), text].filter(Boolean).join('\n') }))}
       />
       <Field label="כתובת">
         <input value={draft.address ?? ''} onChange={set('address')} className={inputClass} />

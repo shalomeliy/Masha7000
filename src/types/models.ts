@@ -11,10 +11,17 @@ export interface Certification {
   name: string
 }
 
+// When a worker cannot work. `when` says which days: a date range (vacation, a day off), fixed
+// weekdays every week, or always. `nightsOnly` narrows it to night jobs starting on those days.
+// The spec's single-date `{ date, reason }` is upgraded on read (`normalizeConstraint`).
 export interface Constraint {
   id: string
-  date: string // YYYY-MM-DD
-  reason: string
+  when: 'dates' | 'weekdays' | 'always'
+  from?: string // YYYY-MM-DD, `dates` only
+  to?: string // YYYY-MM-DD, `dates` only; same as `from` for one day
+  weekdays?: number[] // 0 = Sunday, `weekdays` only
+  nightsOnly?: boolean // only night jobs are blocked; `always` is always nights only
+  note?: string // free text, a pasted WhatsApp message or dictation
 }
 
 // The spec's single `name` is split into first and last name; the contact fields are the user's list.

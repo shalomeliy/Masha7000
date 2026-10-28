@@ -1,4 +1,5 @@
 import type { Role, ShiftDefinition, StaffSlot, Worker } from '../types/models'
+import { normalizeConstraint } from './constraints'
 
 // Pure rules for the master lists (roles, certifications, workers, shift types). No I/O here.
 
@@ -159,7 +160,7 @@ export function normalizeWorker(raw: Partial<Worker> & { name?: string; phone?: 
     mobilePhone: w.mobilePhone ?? phone,
     roleIds: w.roleIds ?? [],
     certificationIds: w.certificationIds ?? [],
-    constraints: w.constraints ?? [],
+    constraints: (w.constraints ?? []).map(normalizeConstraint),
   }
 }
 

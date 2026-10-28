@@ -96,7 +96,7 @@ describe('autoAssign', () => {
     expect(ids(autoAssign(tonight, [{ roleId: G }], ctx([worker('a'), worker('b')], [...nights, ...days])))).toEqual(['b'])
     const alone = autoAssign(tonight, [{ roleId: G }], ctx([worker('a')], nights))
     expect(ids(alone)).toEqual(['a'])
-    expect(loadWarning(workerLoad('a', tonight, ctx([], nights)))).toBe('כבר שובץ ל-2 לילות השבוע')
+    expect(loadWarning(workerLoad(worker('a'), tonight, ctx([], nights)))).toBe('כבר שובץ ל-2 לילות השבוע')
   })
 
   it('the night limit does not apply to a day shift', () => {
@@ -104,12 +104,12 @@ describe('autoAssign', () => {
       shift('n1', '2026-10-25', { shiftDefinitionId: 'night', crew: on('a') }),
       shift('n2', '2026-10-27', { shiftDefinitionId: 'night', crew: on('a') }),
     ]
-    expect(workerLoad('a', shift('s', '2026-10-30'), ctx([], nights)).overNightLimit).toBe(false)
+    expect(workerLoad(worker('a'), shift('s', '2026-10-30'), ctx([], nights)).overNightLimit).toBe(false)
   })
 
   it('an urgent shift is a night job for the limit', () => {
     const records = [shift('n1', '2026-10-25', { urgent: true, crew: on('a') }), shift('n2', '2026-10-27', { shiftDefinitionId: 'night', crew: on('a') })]
-    expect(workerLoad('a', shift('s', '2026-10-30', { shiftDefinitionId: 'night' }), ctx([], records)).overNightLimit).toBe(true)
+    expect(workerLoad(worker('a'), shift('s', '2026-10-30', { shiftDefinitionId: 'night' }), ctx([], records)).overNightLimit).toBe(true)
   })
 
   it('prefers a worker who is not already working at the same time (a night job runs into the next day)', () => {
@@ -120,7 +120,7 @@ describe('autoAssign', () => {
     ]
     const p = autoAssign(shift('s', '2026-10-28'), [{ roleId: G }], ctx([worker('a'), worker('b')], records))
     expect(ids(p)).toEqual(['b'])
-    expect(loadWarning(workerLoad('a', shift('s', '2026-10-28'), ctx([], records)))).toBe('כבר במשמרת אחרת באותו זמן')
+    expect(loadWarning(workerLoad(worker('a'), shift('s', '2026-10-28'), ctx([], records)))).toBe('כבר במשמרת אחרת באותו זמן')
   })
 
   it('keeps workers the manager already put in, and fills only the empty places', () => {
@@ -141,7 +141,7 @@ describe('autoAssign', () => {
       { workerId: 'a', roleId: 'climber' },
       { workerId: 'b', roleId: G },
     ])
-    expect(workerLoad('b', s, ctx([], [s])).week).toBe(0)
+    expect(workerLoad(worker('b'), s, ctx([], [s])).week).toBe(0)
   })
 
   it('is deterministic: ties go by name, whatever the order of the list', () => {
@@ -155,5 +155,44 @@ describe('autoAssign', () => {
   it('breaks a weekly tie by the shifts of the past four weeks', () => {
     const records = [shift('old', '2026-10-14', { crew: on('a') })]
     expect(candidateOrder(shift('s', '2026-10-28'), ctx([worker('a'), worker('b')], records)).map((c) => c.worker.id)).toEqual(['b', 'a'])
+  })
+})
+
+describe('constraints in autoAssign', () => {
+  const off = (id: string, c: Partial<Worker['constraints'][number]>, roleIds: string[] = []): Worker => ({
+    ...worker(id, roleIds),
+    constraints: [{ id: `${id}-c`, when: 'dates', ...c }],
+  })
+
+  it('never picks a blocked worker, even the least loaded one, and says why the place is empty', () => {
+    const records = [shift('x', '2026-10-26', { crew: on('b') })]
+    const p = autoAssign(shift('s', '2026-10-28'), [{ roleId: G }, { roleId: G }], ctx([off('a', { from: '2026-10-27', to: '2026-10-29' }), worker('b')], records))
+    expect(ids(p)).toEqual(['b'])
+    expect(p.why).toEqual(['לא זמינים: a (לא זמין 27.10 עד 29.10)'])
+  })
+
+  it('a night job is blocked by a day off on its second day, a day shift is not', () => {
+    const w = off('a', { from: '2026-10-29', to: '2026-10-29' })
+    expect(ids(autoAssign(shift('s', '2026-10-28', { shiftDefinitionId: 'night' }), [{ roleId: G }], ctx([w])))).toEqual([])
+    expect(ids(autoAssign(shift('s', '2026-10-28'), [{ roleId: G }], ctx([w])))).toEqual(['a'])
+  })
+
+  it('nights-only on a weekday blocks only a night job starting that day', () => {
+    const w = off('a', { when: 'weekdays', weekdays: [3], nightsOnly: true }) // Wednesday
+    expect(ids(autoAssign(shift('s', '2026-10-28', { shiftDefinitionId: 'night' }), [{ roleId: G }], ctx([w])))).toEqual([])
+    expect(ids(autoAssign(shift('s', '2026-10-28'), [{ roleId: G }], ctx([w])))).toEqual(['a'])
+    expect(ids(autoAssign(shift('s', '2026-10-27', { shiftDefinitionId: 'night' }), [{ roleId: G }], ctx([w])))).toEqual(['a'])
+  })
+
+  it('keeps a blocked worker the manager put in by hand, with a warning', () => {
+    const w = off('a', { when: 'always', nightsOnly: true, note: 'בעיה בגב' })
+    const s = shift('s', '2026-10-28', { shiftDefinitionId: 'night', crew: on('a') })
+    expect(ids(autoAssign(s, [{ roleId: G }], ctx([w])))).toEqual(['a'])
+    expect(loadWarning(workerLoad(w, s, ctx([w])))).toBe('בלי לילות בכלל (בעיה בגב)')
+  })
+
+  it('tells a missing role apart from a crew that already holds everyone', () => {
+    const p = autoAssign(shift('s', '2026-10-28'), [{ roleId: G }, { roleId: G }, { roleId: 'climber' }], ctx([worker('a')]))
+    expect(p.why).toEqual(['כל המתאימים כבר במשמרת הזו', 'אין עובד עם התפקיד וההסמכה האלה'])
   })
 })
