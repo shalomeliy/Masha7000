@@ -99,6 +99,15 @@ export interface ShiftRecord {
   endTime?: string // urgent shifts: default 16:00
   fromJobId?: string // scheduled from a job waiting in "לשיבוץ"
   closure?: ShiftClosure
+  swaps?: CrewSwap[] // workers replaced after the shift was first saved, oldest first; for the archive
+}
+
+// One crew change in a saved shift: `outId` was replaced by `inId` in the place of role `roleId`.
+export interface CrewSwap {
+  at: string // ISO time the shift was saved with the change
+  outId: string
+  inId: string
+  roleId: string
 }
 
 // A job that still needs a shift: left over from a partial or postponed night job, or added by hand.

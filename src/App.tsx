@@ -3,8 +3,8 @@ import { BottomNav } from './components/BottomNav'
 import type { Tab } from './components/BottomNav'
 import { applyWordSettings } from './lib/constraintWords'
 import { useDriveList } from './lib/data/useDriveList'
+import { Archive } from './pages/Archive'
 import { Calendar } from './pages/Calendar'
-import { Placeholder } from './pages/Placeholder'
 import { Settings } from './pages/Settings'
 import { Workers } from './pages/Workers'
 import { SignIn } from './pages/SignIn'
@@ -23,7 +23,7 @@ export default function App() {
       {tab === 'calendar' && <Calendar />}
       {tab === 'toSchedule' && <ToSchedule />}
       {tab === 'workers' && <Workers />}
-      {tab === 'archive' && <Placeholder title="ארכיון" />}
+      {tab === 'archive' && <Archive />}
       {tab === 'settings' && <Settings />}
       <BottomNav active={tab} onChange={setTab} />
     </div>

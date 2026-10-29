@@ -176,3 +176,12 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - Orange: the card border and the blocked worker's chip, with the constraint lines and "לחץ על המשמרת כדי להחליף"; in the shift editor the blocked crew row is outlined orange (swap button on the row). These were red before.
 - `SheetActions` gained an optional `saveLabel`.
 - Browser not checked: the dev server could not start (5 dev servers of other chats in this folder). `npm run verify` green.
+
+## Done: Archive screen (2026-10-29)
+
+- Coordinator brief: the "ארכיון" tab (was a placeholder) holds the full history of shifts and their assignments, searchable by dates, worker and place. No spike: pure filtering over `shifts.json`, built from proven parts.
+- Shifts are never pruned from `shifts.json`, so the archive is the whole history (the spec's "6 months" is the default range, not a limit).
+- Rules in `src/lib/archive.ts` (tests in `archive.test.ts`): `archiveShifts` (dates, worker = in the crew or swapped out, exact place ignoring spaces/case, free text over place, work, closing note, follow-up task and worker names, every word must match; newest first), `archivePlaces`, `archiveSummary`, `taskLinks` (where a postponed/partial job went, and the shift a scheduled job came from), `rangeDates`.
+- Swaps: new `ShiftRecord.swaps?: CrewSwap[]`. When a saved shift is saved again with a place's worker changed (`crewSwaps`, same index, not an add/remove/reorder), the change is appended. Shifts saved before this have no swap history.
+- Screen `src/pages/Archive.tsx`: quick ranges (חודש אחרון, 3 חודשים, חצי שנה, הכול), from/to `DateField`s, worker and place selects, free-text search, a summary line (shifts, urgent, done/partial/postponed, swaps), read-only cards (date, type, outcome, crew with roles, swaps, reasons, closing note, follow-up task, links to the previous/next step), 50 at a time with "עוד". Future shifts in range are marked "עתידית". `Placeholder.tsx` removed.
+- Browser not checked: the dev server could not start (5 dev servers of other chats in this folder). `npm run verify` green, 191 tests.

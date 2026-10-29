@@ -5,6 +5,7 @@ import { DictationField } from '../../components/DictationField'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { Suggestions } from '../../components/Suggestions'
 import { fullName, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
+import { crewSwaps } from '../../lib/archive'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { autoAssign, candidateOrder, fitsSlot, loadWarning, type PlanContext, type WorkerLoad } from '../../lib/planner'
 import { isNightShift, pendingAfterShiftSave, shiftRecordError } from '../../lib/shifts'
@@ -73,7 +74,15 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   }
 
   const save = () => {
-    const clean: ShiftRecord = { ...draft, location: draft.location.trim(), jobDescription: draft.jobDescription.trim() }
+    // A worker replaced in a saved shift is kept in its history, for the archive.
+    const saved = shifts.items.find((s) => s.id === shift.id)
+    const swaps = saved ? crewSwaps(saved.crew, draft.crew, new Date().toISOString()) : []
+    const clean: ShiftRecord = {
+      ...draft,
+      location: draft.location.trim(),
+      jobDescription: draft.jobDescription.trim(),
+      ...(swaps.length ? { swaps: [...(draft.swaps ?? []), ...swaps] } : {}),
+    }
     const err =
       !datesValid.date || !datesValid.end
         ? 'יש תאריך לא תקין'
