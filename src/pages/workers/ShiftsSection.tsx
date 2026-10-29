@@ -94,12 +94,14 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
   const shifts = useDriveList('shiftDefinitions')
   const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
+  const records = useDriveList('shifts')
   const [draft, setDraft] = useState(shift)
   const [headcount, setHeadcount] = useState(String(shift.requiredHeadcount ?? 1))
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
   const exists = shifts.items.some((s) => s.id === shift.id)
+  const inUse = records.items.filter((r) => r.shiftDefinitionId === shift.id).length
 
   const write = async (next: ShiftDefinition[]) => {
     setBusy(true)
@@ -178,7 +180,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
         onSave={save}
         onCancel={onDone}
         onDelete={exists ? () => write(shifts.items.filter((s) => s.id !== shift.id)) : undefined}
-        deleteWarning={`למחוק את סוג המשמרת "${shift.name}"? אי אפשר לבטל את זה.`}
+        deleteWarning={`למחוק את סוג המשמרת "${shift.name}"? אי אפשר לבטל את זה.${inUse ? ` ${countText(inUse, 'משמרת אחת ביומן היא', `משמרות ביומן הן`)} מהסוג הזה: הן יישארו ביומן בלי סוג, כמשמרת יום רגילה.` : ''}`}
         busy={busy}
         error={error}
         saveError={saveError}

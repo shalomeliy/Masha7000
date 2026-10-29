@@ -18,5 +18,8 @@ export const DRIVE_FILES = {
   shifts: 'shifts.json',
   pendingJobs: 'pending_jobs.json',
   postponeReasons: 'postpone_reasons.json',
+  places: 'places.json',
+  jobTypes: 'job_types.json',
+  constraintWords: 'constraint_words.json',
   settings: 'settings.json',
 } as const

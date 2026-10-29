@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { BottomNav } from './components/BottomNav'
 import type { Tab } from './components/BottomNav'
+import { applyWordSettings } from './lib/constraintWords'
+import { useDriveList } from './lib/data/useDriveList'
 import { Calendar } from './pages/Calendar'
 import { Placeholder } from './pages/Placeholder'
 import { Settings } from './pages/Settings'
@@ -17,6 +19,7 @@ export default function App() {
 
   return (
     <div className="mx-auto min-h-full max-w-md pb-24">
+      <ConstraintWords />
       {tab === 'calendar' && <Calendar />}
       {tab === 'toSchedule' && <ToSchedule />}
       {tab === 'workers' && <Workers />}
@@ -25,4 +28,10 @@ export default function App() {
       <BottomNav active={tab} onChange={setTab} />
     </div>
   )
+}
+
+// The manager's words for reading constraints (Settings), put into the reader before any screen uses it.
+function ConstraintWords() {
+  applyWordSettings(useDriveList('constraintWords').items)
+  return null
 }

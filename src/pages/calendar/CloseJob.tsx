@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { DictationField } from '../../components/DictationField'
 import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
+import { Suggestions } from '../../components/Suggestions'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { applyClosure, closureError } from '../../lib/shifts'
 import type { ClosureOutcome, ShiftRecord } from '../../types/models'
@@ -133,6 +134,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
               <Field label="מיקום">
                 <input value={followUp.location} onChange={(e) => setFollowUp((f) => ({ ...f, location: e.target.value }))} className={inputClass} />
               </Field>
+              <Suggestions list="places" value={followUp.location} onPick={(location) => setFollowUp((f) => ({ ...f, location }))} />
               <DictationField label="מה נשאר לעשות" value={followUp.jobDescription} onChange={(v) => setFollowUp((f) => ({ ...f, jobDescription: v }))} />
             </div>
           )}

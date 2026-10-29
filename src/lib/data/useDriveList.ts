@@ -3,7 +3,7 @@ import { readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
 import { normalizeShift, normalizeWorker, withGeneralRole } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
-import type { Certification, PendingJob, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker } from '../../types/models'
+import type { Certification, JobType, PendingJob, Place, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
 
 // One Drive appData JSON file = one list. A missing file is an empty list.
 // Saves write the whole list, optimistically, and roll back if Drive refuses.
@@ -18,6 +18,9 @@ type ListOf = {
   shifts: ShiftRecord
   pendingJobs: PendingJob
   postponeReasons: PostponeReason
+  places: Place
+  jobTypes: JobType
+  constraintWords: WordGroupSetting
 }
 type ListFile = keyof ListOf
 

@@ -143,6 +143,7 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - `Constraint.to` now also applies to `when: 'weekdays'`: optional last date. Blocks that weekday only up to it; `isOver` after it; text "לא זמין ביום שני עד 16.11". Editor: "עד תאריך (לא חובה, ריק = כל שבוע בלי סוף)" under the weekday pills.
 - WhatsApp: a day answer with "כל שבוע" / "קבוע" / "שבועי" / "כל יום שני" becomes a weekly constraint on that weekday; "עד 15.2" / "עד 15.2.27" / "עד 15.2.2027" sets the last date (no year: the next such date). The request text now has an example line for it. The preview shows "כל יום שני עד 15.2".
 - Words added: morning (לפנה"צ, "לפני/עד הצהריים", ברית), noon (איסוף, אוסף את), whole day (השתלמות, הכשרה, ניתוח, אשפוז, בית חולים, לידה, טיול, נסיעה, כנס, שומר שבת, חג), evening (שבע ברכות, אזכרה, אסיפת הורים, חוג, אימון), can't (לא פנוי, עסוק, תפוס).
+- User edit (same day): removed שומר שבת, לא פנוי, עסוק; added חול, ערב חג (not read as evening), איסרו חג. חו"ל and חג were already there.
 - Browser not checked again (5 dev servers of other chats in this folder); `npm run verify` green, 156 tests.
 
 ### A corrected WhatsApp reply replaces the earlier one (2026-10-29)

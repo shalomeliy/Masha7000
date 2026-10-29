@@ -123,6 +123,28 @@ export interface PostponeReason {
   name: string // "חסר אישור קונסטרוקטור", "תנאי מזג אויר"
 }
 
+// Places and kinds of work the manager writes often. Suggestions only: a shift stores the text itself,
+// so a renamed item is rewritten in the shifts that hold its old text, and a deleted one leaves them.
+export interface Place {
+  id: string
+  name: string
+}
+
+export interface JobType {
+  id: string
+  name: string
+}
+
+// The manager's changes to one group of words that `readAnswer` reads constraints by. Only the
+// changes are stored, so words added to the built-in table later still arrive.
+export type WordGroup = 'morning' | 'noon' | 'evening' | 'wholeDay' | 'morningEvents' | 'events' | 'cant'
+
+export interface WordGroupSetting {
+  id: WordGroup
+  added: string[]
+  removed: string[] // built-in words the manager took out
+}
+
 // Stored in Drive appDataFolder as settings.json. Not in the spec; holds ids we must remember.
 export interface AppSettings {
   calendarId?: string

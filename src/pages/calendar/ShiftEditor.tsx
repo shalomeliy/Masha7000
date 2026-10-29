@@ -3,6 +3,7 @@ import { ArrowLeftRight, Sparkles, X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
+import { Suggestions } from '../../components/Suggestions'
 import { fullName, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { autoAssign, candidateOrder, fitsSlot, loadWarning, type PlanContext, type WorkerLoad } from '../../lib/planner'
@@ -177,7 +178,9 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       <Field label="מיקום">
         <input value={draft.location} onChange={(e) => set('location', e.target.value)} className={inputClass} />
       </Field>
+      <Suggestions list="places" value={draft.location} onPick={(v) => set('location', v)} />
       <DictationField label="מהות העבודה" value={draft.jobDescription} onChange={(v) => set('jobDescription', v)} />
+      <Suggestions list="jobTypes" value={draft.jobDescription} onPick={(v) => set('jobDescription', v)} />
       <StaffingField value={draft.staffing} onChange={(staffing) => set('staffing', staffing)} />
 
       <div className="space-y-2">

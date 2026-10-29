@@ -98,10 +98,10 @@ const EVENING_FROM = '17:00'
 const MORNING = ['בוקר', 'לפנה"צ', 'לפנה״צ']
 const NOON = ['צהריים', 'צהרים', 'אחה"צ', 'אחה״צ', 'אחהצ', 'איסוף', 'אוסף את', 'אוספת את']
 const EVENING = ['ערב', 'לילה', 'לילות']
-const WHOLE_DAY_WORDS = ['לימוד', 'חופש', 'מילואים', 'מחלה', 'חולה', 'לוויה', 'הלוויה', 'שבעה', 'טיסה', 'טס ', 'טסה', 'חו"ל', 'חו״ל', 'בחו ל', 'נופש', 'בחינה', 'מבחן', 'קורס', 'אבל ', 'השתלמות', 'הכשרה', 'ניתוח', 'אשפוז', 'בית חולים', 'לידה', 'יולדת', 'טיול', 'נסיעה', 'כנס', 'שומר שבת', 'שומרת שבת', 'חג']
+const WHOLE_DAY_WORDS = ['לימוד', 'חופש', 'מילואים', 'מחלה', 'חולה', 'לוויה', 'הלוויה', 'שבעה', 'טיסה', 'טס ', 'טסה', 'חו"ל', 'חו״ל', 'בחו ל', 'נופש', 'בחינה', 'מבחן', 'קורס', 'אבל ', 'השתלמות', 'הכשרה', 'ניתוח', 'אשפוז', 'בית חולים', 'לידה', 'יולדת', 'טיול', 'נסיעה', 'כנס', 'חול ', 'ערב חג', 'ערב החג', 'איסרו חג', 'אסרו חג', 'חג']
 const MORNING_EVENTS = ['ברית'] // a brit is held in the morning
 const EVENT_WORDS = ['אירוע', 'ארוע', 'חתונ', 'בר מצו', 'בת מצו', 'בר-מצו', 'בת-מצו', 'חינה', 'אירוסין', 'מסיבה', 'יום הולדת', 'יומולדת', 'הופעה', 'הצגה', 'ארוחת ערב', 'שבע ברכות', 'אזכרה', 'אסיפת הורים', 'חוג', 'אימון']
-const CANT_WORDS = ['לא יכול', 'לא זמין', 'לא פנוי', 'עסוק', 'תפוס', 'לא עובד', 'לא אוכל', 'לא מגיע', 'רופא', 'טיפול', 'בדיק', 'תור ', 'סידורים', 'משפחתי', 'אישי']
+const CANT_WORDS = ['לא יכול', 'לא זמין', 'תפוס', 'לא עובד', 'לא אוכל', 'לא מגיע', 'רופא', 'טיפול', 'בדיק', 'תור ', 'סידורים', 'משפחתי', 'אישי']
 
 export interface Reading {
   part?: DayPart // absent = whole day
@@ -124,7 +124,9 @@ function hourPart(t: string): DayPart | undefined {
 export function readAnswer(answer: string): Reading {
   // "לפני הצהריים", "עד הצהריים" mean the morning, though they hold the word for noon.
   const t = ` ${answer.trim()} `.replace(/(?:לפני|עד) ה?צהר(?:י)?ים/g, 'בוקר')
-  const asked = [has(t, MORNING) && 'morning', has(t, NOON) && 'noon', has(t, EVENING) && 'evening'].filter(Boolean) as DayPart[]
+  // "ערב חג" is the eve of a holiday, the whole day, not the evening.
+  const times = t.replace(/ערב ה?חג/g, '')
+  const asked = [has(times, MORNING) && 'morning', has(times, NOON) && 'noon', has(times, EVENING) && 'evening'].filter(Boolean) as DayPart[]
   const stem = (has(t, WHOLE_DAY_WORDS) ?? has(t, EVENT_WORDS) ?? has(t, CANT_WORDS))?.trim()
   // The worker's whole word, not the table's stem: "חתונה", not "חתונ".
   const cause = stem && t.match(new RegExp(`[^\\s,.]*${stem}[^\\s,.]*`))?.[0]
@@ -238,3 +240,6 @@ export const replacedByReply = (existing: Constraint[], week: string) => existin
 export const mergeReply = (existing: Constraint[], added: Constraint[], week: string) => [...existing.filter((c) => c.reply !== week), ...added]
 
 const weekStartOf = (date: string) => addDays(date, -weekday(date))
+
+// The word tables by group, for the manager's word settings (`constraintWords.ts`).
+export const WORD_GROUPS = { morning: MORNING, noon: NOON, evening: EVENING, wholeDay: WHOLE_DAY_WORDS, morningEvents: MORNING_EVENTS, events: EVENT_WORDS, cant: CANT_WORDS }
