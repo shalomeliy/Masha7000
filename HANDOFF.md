@@ -136,3 +136,11 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - Worker editor: part pills (כל היום, בוקר, צהריים, ערב, רק בלי לילה); a guess shows in red until the manager saves the constraint. Paste preview: one row per day with what was understood, the worker's words, and a list to fix the part before adding.
 - Tests: `readAnswer.test.ts` and `constraints.test.ts` (about 45 real replies plus day/night shift rules).
 - Not checked in the browser this time: the dev server could not start (5 servers of other chats already running in this folder). Verified by `npm run verify` only.
+
+### Weekly constraint with a last date, more words (2026-10-29)
+
+- User request: a weekly constraint until a date ("לימודים כל שבוע עד xx.xx.xx"), and more words in the list.
+- `Constraint.to` now also applies to `when: 'weekdays'`: optional last date. Blocks that weekday only up to it; `isOver` after it; text "לא זמין ביום שני עד 16.11". Editor: "עד תאריך (לא חובה, ריק = כל שבוע בלי סוף)" under the weekday pills.
+- WhatsApp: a day answer with "כל שבוע" / "קבוע" / "שבועי" / "כל יום שני" becomes a weekly constraint on that weekday; "עד 15.2" / "עד 15.2.27" / "עד 15.2.2027" sets the last date (no year: the next such date). The request text now has an example line for it. The preview shows "כל יום שני עד 15.2".
+- Words added: morning (לפנה"צ, "לפני/עד הצהריים", ברית), noon (איסוף, אוסף את), whole day (השתלמות, הכשרה, ניתוח, אשפוז, בית חולים, לידה, טיול, נסיעה, כנס, שומר שבת, חג), evening (שבע ברכות, אזכרה, אסיפת הורים, חוג, אימון), can't (לא פנוי, עסוק, תפוס).
+- Browser not checked again (5 dev servers of other chats in this folder); `npm run verify` green, 156 tests.

@@ -123,7 +123,7 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
     set({
       when,
       from: when === 'dates' ? (c.from ?? todayIso()) : undefined,
-      to: when === 'dates' ? (c.to ?? c.from ?? todayIso()) : undefined,
+      to: when === 'dates' ? (c.to ?? c.from ?? todayIso()) : undefined, // weekly: no last date until one is picked
       weekdays: when === 'weekdays' ? (c.weekdays ?? []) : undefined,
       nightsOnly: when === 'always' ? true : c.nightsOnly,
     })
@@ -177,6 +177,14 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
             )
           })}
         </div>
+      )}
+      {c.when === 'weekdays' && (
+        <DateField
+          label="עד תאריך (לא חובה, ריק = כל שבוע בלי סוף)"
+          value={c.to ?? ''}
+          min={todayIso()}
+          onChange={(to, ok) => (set({ to: to || undefined }), setDatesValid((v) => ({ ...v, to: ok })))}
+        />
       )}
       {c.when === 'always' ? (
         <p className="text-sm text-slate-300">העובד לא ישובץ אף פעם למשמרת לילה.</p>
@@ -247,7 +255,10 @@ function PasteReply({ onDone, onCancel }: { onDone: (added: Constraint[], notes:
         <div className="space-y-1 text-sm" aria-live="polite">
           {parsed.constraints.length ? (
             parsed.constraints.map((c, i) => {
-              const day = `${HEBREW_DAYS[weekday(c.from!)]} ${showDate(c.from!)}`
+              const day =
+                c.when === 'weekdays'
+                  ? `כל יום ${HEBREW_DAYS[c.weekdays![0]]}${c.to ? ` עד ${showDate(c.to)}` : ', בלי סוף'}`
+                  : `${HEBREW_DAYS[weekday(c.from!)]} ${showDate(c.from!)}`
               return (
                 <div key={i} className={`flex items-center gap-2 rounded-xl border px-2 py-1 ${c.guess ? 'border-red-500/50' : 'border-amber-500/30'}`}>
                   <div className="min-w-0 flex-1">

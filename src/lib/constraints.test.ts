@@ -139,3 +139,40 @@ describe('part of the day against day and night shifts', () => {
     expect(constraintText(c({ from: '2026-11-02', to: '2026-11-02', part: 'evening' }))).toBe('לא זמין בערב ב-2.11')
   })
 })
+
+describe('weekly constraint with a last date', () => {
+  const weekly = (to?: string) => c({ when: 'weekdays', weekdays: [1], to })
+
+  it('blocks that weekday until the last date, then stops', () => {
+    expect(blockingConstraint({ constraints: [weekly('2026-11-16')] }, shift('2026-11-16'), [])).not.toBeNull()
+    expect(blockingConstraint({ constraints: [weekly('2026-11-16')] }, shift('2026-11-23'), [])).toBeNull()
+    expect(blockingConstraint({ constraints: [weekly()] }, shift('2027-06-07'), [])).not.toBeNull()
+  })
+
+  it('says the last date, and is over after it', () => {
+    expect(constraintText(weekly('2026-11-16'))).toBe('לא זמין ביום שני עד 16.11')
+    expect(isOver(weekly('2026-11-16'), '2026-11-17')).toBe(true)
+    expect(isOver(weekly(), '2030-01-01')).toBe(false)
+    expect(normalizeConstraint(weekly('2026-11-16')).to).toBe('2026-11-16')
+  })
+
+  it('reads "כל שבוע עד" from a WhatsApp reply', () => {
+    const p = parseReply('שני 2.11: לימודים, כל שבוע עד 15.2\nרביעי: חוג קבוע\nחמישי: לימודים עד 10.3.27 כל שבוע', '2026-11-01')
+    expect(p.constraints.map(({ id: _, ...x }) => x)).toEqual([
+      { when: 'weekdays', weekdays: [1], to: '2027-02-15', note: 'לימודים, כל שבוע עד 15.2' },
+      { when: 'weekdays', weekdays: [3], to: undefined, part: 'evening', note: 'חוג קבוע' },
+      { when: 'weekdays', weekdays: [4], to: '2027-03-10', note: 'לימודים עד 10.3.27 כל שבוע' },
+    ])
+  })
+})
+
+describe('more words', () => {
+  it.each([
+    ['ברית לאחיין', 'בוקר · ברית'],
+    ['לפני הצהריים בדיקה', 'בוקר · בדיקה'],
+    ['איסוף ילדים מהגן', 'צהריים'],
+    ['השתלמות', 'כל היום · השתלמות'],
+    ['שבע ברכות', 'ערב · שבע ברכות'],
+    ['לא פנוי', 'כל היום · לא פנוי'],
+  ])('%s', (answer, understood) => expect(readingText(readAnswer(answer))).toBe(understood))
+})

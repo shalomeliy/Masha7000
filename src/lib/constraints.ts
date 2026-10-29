@@ -18,7 +18,7 @@ export function normalizeConstraint(raw: Partial<Constraint> & { date?: string; 
     id: c.id ?? newId(),
     when,
     from: when === 'dates' ? from : undefined,
-    to: when === 'dates' ? (c.to ?? from) : undefined,
+    to: when === 'dates' ? (c.to ?? from) : when === 'weekdays' ? c.to || undefined : undefined, // weekly: optional last date
     weekdays: when === 'weekdays' ? (c.weekdays ?? []) : undefined,
     nightsOnly: when === 'always' ? true : c.nightsOnly || undefined,
     note: c.note ?? (reason?.trim() || undefined),
@@ -33,6 +33,10 @@ export function constraintError(c: Constraint): string | null {
     if (to) return `תאריך הסיום: ${to}`
   }
   if (c.when === 'weekdays' && !c.weekdays?.length) return 'צריך לסמן לפחות יום אחד בשבוע'
+  if (c.when === 'weekdays') {
+    const to = dateError(c.to ?? '')
+    if (to) return `תאריך הסיום: ${to}`
+  }
   return null
 }
 
@@ -47,17 +51,17 @@ export const PART_NAMES: Record<DayPart, string> = { morning: 'בבוקר', noon
 export function constraintText(c: Constraint): string {
   const what = c.nightsOnly ? 'בלי לילות' : c.part ? `לא זמין ${PART_NAMES[c.part]}` : 'לא זמין'
   if (c.when === 'always') return 'בלי לילות בכלל'
-  if (c.when === 'weekdays') return `${what} ${c.weekdays?.length === 1 ? 'ביום' : 'בימי'} ${dayList(c.weekdays ?? [])}`
+  if (c.when === 'weekdays') return `${what} ${c.weekdays?.length === 1 ? 'ביום' : 'בימי'} ${dayList(c.weekdays ?? [])}${c.to ? ` עד ${showDate(c.to)}` : ''}`
   if (!c.from) return what
   // A Hebrew word between the dates: "1.11 - 5.11" shows reversed in a right-to-left line.
   return c.to && c.to !== c.from ? `${what} ${showDate(c.from)} עד ${showDate(c.to)}` : `${what} ב-${showDate(c.from)}`
 }
 
-/** A date range that ended before today no longer matters; weekly and permanent ones always do. */
-export const isOver = (c: Constraint, today: string) => c.when === 'dates' && !!c.to && c.to < today
+/** A date range, or a weekly one with a last date, that ended before today no longer matters. */
+export const isOver = (c: Constraint, today: string) => c.when !== 'always' && !!c.to && c.to < today
 
 const onDay = (c: Constraint, date: string) =>
-  c.when === 'always' || (c.when === 'weekdays' ? !!c.weekdays?.includes(weekday(date)) : !!c.from && c.from <= date && date <= (c.to ?? c.from))
+  c.when === 'always' || (c.when === 'weekdays' ? !!c.weekdays?.includes(weekday(date)) && (!c.to || date <= c.to) : !!c.from && c.from <= date && date <= (c.to ?? c.from))
 
 /** The days a shift runs on: a night job runs into the next afternoon, an urgent one until its end date. */
 export function shiftDays(r: ShiftRecord, defs: ShiftDefinition[]): string[] {
@@ -91,12 +95,13 @@ const EVENING_FROM = '17:00'
 // Order (user rules): a time of day the worker wrote wins; then words that always mean the whole
 // day (לימודים, חופש); then events, which are in the evening; then plain "can't", the whole day.
 
-const MORNING = ['בוקר']
-const NOON = ['צהריים', 'צהרים', 'אחה"צ', 'אחה״צ', 'אחהצ']
+const MORNING = ['בוקר', 'לפנה"צ', 'לפנה״צ']
+const NOON = ['צהריים', 'צהרים', 'אחה"צ', 'אחה״צ', 'אחהצ', 'איסוף', 'אוסף את', 'אוספת את']
 const EVENING = ['ערב', 'לילה', 'לילות']
-const WHOLE_DAY_WORDS = ['לימוד', 'חופש', 'מילואים', 'מחלה', 'חולה', 'לוויה', 'הלוויה', 'שבעה', 'טיסה', 'טס ', 'טסה', 'חו"ל', 'חו״ל', 'בחו ל', 'נופש', 'בחינה', 'מבחן', 'קורס', 'אבל ']
-const EVENT_WORDS = ['אירוע', 'ארוע', 'חתונ', 'בר מצו', 'בת מצו', 'בר-מצו', 'בת-מצו', 'ברית', 'חינה', 'אירוסין', 'מסיבה', 'יום הולדת', 'יומולדת', 'הופעה', 'הצגה', 'ארוחת ערב']
-const CANT_WORDS = ['לא יכול', 'לא זמין', 'לא עובד', 'לא אוכל', 'לא מגיע', 'רופא', 'טיפול', 'בדיק', 'תור ', 'סידורים', 'משפחתי', 'אישי']
+const WHOLE_DAY_WORDS = ['לימוד', 'חופש', 'מילואים', 'מחלה', 'חולה', 'לוויה', 'הלוויה', 'שבעה', 'טיסה', 'טס ', 'טסה', 'חו"ל', 'חו״ל', 'בחו ל', 'נופש', 'בחינה', 'מבחן', 'קורס', 'אבל ', 'השתלמות', 'הכשרה', 'ניתוח', 'אשפוז', 'בית חולים', 'לידה', 'יולדת', 'טיול', 'נסיעה', 'כנס', 'שומר שבת', 'שומרת שבת', 'חג']
+const MORNING_EVENTS = ['ברית'] // a brit is held in the morning
+const EVENT_WORDS = ['אירוע', 'ארוע', 'חתונ', 'בר מצו', 'בת מצו', 'בר-מצו', 'בת-מצו', 'חינה', 'אירוסין', 'מסיבה', 'יום הולדת', 'יומולדת', 'הופעה', 'הצגה', 'ארוחת ערב', 'שבע ברכות', 'אזכרה', 'אסיפת הורים', 'חוג', 'אימון']
+const CANT_WORDS = ['לא יכול', 'לא זמין', 'לא פנוי', 'עסוק', 'תפוס', 'לא עובד', 'לא אוכל', 'לא מגיע', 'רופא', 'טיפול', 'בדיק', 'תור ', 'סידורים', 'משפחתי', 'אישי']
 
 export interface Reading {
   part?: DayPart // absent = whole day
@@ -117,7 +122,8 @@ function hourPart(t: string): DayPart | undefined {
 
 /** What a worker's answer for one day means. */
 export function readAnswer(answer: string): Reading {
-  const t = ` ${answer.trim()} `
+  // "לפני הצהריים", "עד הצהריים" mean the morning, though they hold the word for noon.
+  const t = ` ${answer.trim()} `.replace(/(?:לפני|עד) ה?צהר(?:י)?ים/g, 'בוקר')
   const asked = [has(t, MORNING) && 'morning', has(t, NOON) && 'noon', has(t, EVENING) && 'evening'].filter(Boolean) as DayPart[]
   const stem = (has(t, WHOLE_DAY_WORDS) ?? has(t, EVENT_WORDS) ?? has(t, CANT_WORDS))?.trim()
   // The worker's whole word, not the table's stem: "חתונה", not "חתונ".
@@ -131,6 +137,7 @@ export function readAnswer(answer: string): Reading {
   const hour = hourPart(t)
   if (hour) return { part: hour, ...why }
   if (has(t, EVENT_WORDS)) return { part: 'evening', ...why }
+  if (has(t, MORNING_EVENTS)) return { part: 'morning', cause: has(t, MORNING_EVENTS) }
   if (cause) return why
   return { guess: true }
 }
@@ -153,6 +160,7 @@ export function requestText(weekStart: string): string {
   return [
     `*בקשת אילוצים לשבוע ${showDate(days[0])} עד ${showDate(days[6])}.${year}*`,
     'באם יש לך אילוץ נא הזן אותו, לדוגמה (חופש, ארוע בערב, לימודים).',
+    'אילוץ קבוע כל שבוע? כתוב ליד היום, לדוגמה: לימודים, כל שבוע עד 15.2',
     'באם אין אילוץ השאר ריק.',
     'בסיום שלח את ההודעה בחזרה.',
     '',
@@ -201,9 +209,28 @@ export function parseReply(text: string, weekStart: string): ParsedReply {
     if (NO_CONSTRAINT.test(answer)) continue
     const date = addDays(start, HEBREW_DAYS.indexOf(m[1]))
     const { cause: _, ...reading } = readAnswer(answer)
-    constraints.push({ id: newId(), when: 'dates', from: date, to: date, ...reading, note: answer })
+    const weekly = WEEKLY.test(answer)
+    constraints.push(
+      weekly
+        ? { id: newId(), when: 'weekdays', weekdays: [weekday(date)], to: untilDate(answer, date), ...reading, note: answer }
+        : { id: newId(), when: 'dates', from: date, to: date, ...reading, note: answer },
+    )
   }
   return { weekStart: fromHeader, constraints, notes: notes.filter((n) => n && !NO_CONSTRAINT.test(n)).join('\n') }
+}
+
+// "לימודים, קבוע כל שבוע עד 15.2": the same day every week, until the date when one is written.
+const WEEKLY = /כל שבוע|כל יום (?:ראשון|שני|שלישי|רביעי|חמישי|שישי|שבת)|קבוע|בקביעות|שבועי/
+
+/** The date after "עד" in a weekly answer: "עד 15.2", "עד 15.2.27", "עד 15.2.2027". No year: the next such date. */
+function untilDate(answer: string, from: string): string | undefined {
+  const m = answer.match(/עד\s*(?:ה-?|ל-?)?\s*(\d{1,2})\.(\d{1,2})(?:\.(\d{2}|\d{4}))?(?!\d)/)
+  if (!m) return undefined
+  const md = `${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`
+  let year = m[3] ? Number(m[3].length === 2 ? `20${m[3]}` : m[3]) : Number(from.slice(0, 4))
+  if (!m[3] && `${year}-${md}` < from) year += 1
+  const date = `${year}-${md}`
+  return dateError(date) ? undefined : date
 }
 
 const weekStartOf = (date: string) => addDays(date, -weekday(date))
