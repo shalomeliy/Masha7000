@@ -126,3 +126,13 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - JS regex `\b` does not see Hebrew letters as word letters; the day-name match uses a lookahead.
 - Verified in the browser with the in-memory Drive mock: old constraint upgraded, request text and wa.me link, pasted reply gave 2 constraints + notes, weekly nights-only added, saved to `workers.json`, "שבץ" skipped the vacationing and the busy-with-a-wedding workers and listed why, calendar card warned about a blocked crew member.
 - Not done: free text is not parsed into dates except in the reply format; a constraint does not stop a manual save.
+
+### Constraints by part of the day (2026-10-29)
+
+- User request: read the worker's WhatsApp words as morning / noon / evening / whole day. User rules: לימודים, חופש = whole day; אירוע = evening unless it says בוקר or צהריים.
+- Model: `Constraint.part?: 'morning' | 'noon' | 'evening'` (absent = whole day), `guess?: true` (words not understood). `nightsOnly` kept as is ("בלי לילה").
+- `readAnswer` in `src/lib/constraints.ts`: Hebrew word table, no server. Order: explicit time word (בוקר / צהריים / אחה"צ / ערב) wins; two time words or "כל היום" = whole day; לילה alone (no event) = nights only; whole-day words (לימודים, חופש, מילואים, מחלה, חו"ל, ...); an hour ("ב-10", "בשעה 14:30", "עד 12") gives its part (<12 morning, <17 noon, else evening; a date with a dot is not an hour); events (אירוע, חתונה, בר מצווה, ...) = evening; "לא יכול", רופא, טיפול = whole day; nothing known = whole day marked as a guess. `readingText` gives the preview line ("ערב · חתונה"), with the worker's whole word as the cause.
+- `blockingConstraint`: whole day / morning / noon block every day a shift runs on. Evening blocks a day the shift runs past, not its last day (day shift ends 16:00; a night job ends 16:00 the next day), unless an urgent shift ends at 17:00 or later.
+- Worker editor: part pills (כל היום, בוקר, צהריים, ערב, רק בלי לילה); a guess shows in red until the manager saves the constraint. Paste preview: one row per day with what was understood, the worker's words, and a list to fix the part before adding.
+- Tests: `readAnswer.test.ts` and `constraints.test.ts` (about 45 real replies plus day/night shift rules).
+- Not checked in the browser this time: the dev server could not start (5 servers of other chats already running in this folder). Verified by `npm run verify` only.

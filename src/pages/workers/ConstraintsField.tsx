@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { ClipboardPaste, Plus, X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
-import { blankConstraint, constraintError, constraintText, isOver, parseReply } from '../../lib/constraints'
+import { blankConstraint, constraintError, constraintText, isOver, parseReply, readAnswer, readingText } from '../../lib/constraints'
 import { todayIso } from '../../lib/dates'
-import { addDays, HEBREW_DAYS, showDate, weekOf } from '../../lib/shifts'
-import type { Constraint } from '../../types/models'
+import { addDays, HEBREW_DAYS, showDate, weekday, weekOf } from '../../lib/shifts'
+import type { Constraint, DayPart } from '../../types/models'
 
 // The worker's constraints inside the worker editor. Saved with the worker.
 
@@ -17,6 +17,19 @@ const WHEN: { id: Constraint['when']; label: string }[] = [
   { id: 'weekdays', label: 'כל שבוע בימים' },
   { id: 'always', label: 'תמיד' },
 ]
+
+// Which part of the day. An evening keeps the day shift (until 16:00) open; nights only blocks night jobs.
+const PARTS: { id: DayPart | undefined | 'nights'; label: string }[] = [
+  { id: undefined, label: 'כל היום' },
+  { id: 'morning', label: 'בוקר' },
+  { id: 'noon', label: 'צהריים' },
+  { id: 'evening', label: 'ערב' },
+  { id: 'nights', label: 'רק בלי לילה' },
+]
+// The same choices in the paste preview's list, where a value has to be a string.
+const partKey = (c: Constraint) => (c.nightsOnly ? 'nights' : (c.part ?? 'all'))
+const fromKey = (key: string): Pick<Constraint, 'part' | 'nightsOnly' | 'guess'> =>
+  key === 'nights' ? { nightsOnly: true } : { part: key === 'all' ? undefined : (key as DayPart) }
 
 export function ConstraintsField({
   value,
@@ -51,6 +64,7 @@ export function ConstraintsField({
                 {constraintText(c)}
                 {isOver(c, today) && ' (עבר)'}
               </span>
+              {c.guess && <span className="block text-xs text-red-300">ניחוש: לא הבנתי את המילים. לחץ כדי לבדוק.</span>}
               {c.note && <span className="block truncate text-xs text-slate-400">{c.note}</span>}
             </button>
             <button
@@ -115,7 +129,8 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
     })
 
   const save = () => {
-    const clean: Constraint = { ...c, note: c.note?.trim() || undefined, nightsOnly: c.nightsOnly || undefined }
+    // Checked by the manager: no longer a guess.
+    const clean: Constraint = { ...c, note: c.note?.trim() || undefined, nightsOnly: c.nightsOnly || undefined, guess: undefined }
     const err = !datesValid.from || !datesValid.to ? 'יש תאריך לא תקין' : constraintError(clean)
     setError(err)
     if (!err) onSave(clean)
@@ -167,12 +182,20 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
         <p className="text-sm text-slate-300">העובד לא ישובץ אף פעם למשמרת לילה.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <button type="button" aria-pressed={!c.nightsOnly} onClick={() => set({ nightsOnly: undefined })} className={pill(!c.nightsOnly)}>
-            לא יכול בכלל
-          </button>
-          <button type="button" aria-pressed={!!c.nightsOnly} onClick={() => set({ nightsOnly: true })} className={pill(!!c.nightsOnly)}>
-            רק בלי לילה
-          </button>
+          {PARTS.map((p) => {
+            const on = p.id === 'nights' ? !!c.nightsOnly : !c.nightsOnly && c.part === p.id
+            return (
+              <button
+                key={p.label}
+                type="button"
+                aria-pressed={on}
+                onClick={() => set(p.id === 'nights' ? { nightsOnly: true, part: undefined } : { nightsOnly: undefined, part: p.id })}
+                className={pill(on)}
+              >
+                {p.label}
+              </button>
+            )
+          })}
         </div>
       )}
       <DictationField label="פירוט (לא חובה)" value={c.note ?? ''} onChange={(note) => set({ note })} placeholder="למשל: חתונה של אח, תור לרופא" />
@@ -198,11 +221,14 @@ function PasteReply({ onDone, onCancel }: { onDone: (added: Constraint[], notes:
   const [text, setText] = useState('')
   // Used only when the reply lost its header line with the dates; the request is usually for next week.
   const [weekStart, setWeekStart] = useState(() => addDays(weekOf(todayIso()).start, 7))
-  const parsed = text.trim() ? parseReply(text, weekStart) : null
+  // The manager's fixes to what was understood, by row; the reply is read again on every keystroke.
+  const [fixes, setFixes] = useState<Record<number, string>>({})
+  const read = text.trim() ? parseReply(text, weekStart) : null
+  const parsed = read && { ...read, constraints: read.constraints.map((c, i) => (fixes[i] ? { ...c, part: undefined, nightsOnly: undefined, guess: undefined, ...fromKey(fixes[i]) } : c)) }
 
   return (
     <div className="space-y-3 rounded-2xl border border-sky-500/40 bg-slate-950 p-3">
-      <DictationField label="הדבק כאן את התשובה של העובד" value={text} onChange={setText} />
+      <DictationField label="הדבק כאן את התשובה של העובד" value={text} onChange={(t) => (setText(t), setFixes({}))} />
       {parsed && !parsed.weekStart && (
         <div className="flex items-center gap-2 text-sm text-slate-300">
           <span>לא מצאתי תאריכים בהודעה. השבוע:</span>
@@ -220,15 +246,35 @@ function PasteReply({ onDone, onCancel }: { onDone: (added: Constraint[], notes:
       {parsed && (
         <div className="space-y-1 text-sm" aria-live="polite">
           {parsed.constraints.length ? (
-            parsed.constraints.map((c) => (
-              <p key={c.id} className="text-amber-200">
-                {constraintText(c)}
-                {c.note && <span className="text-slate-400"> · {c.note}</span>}
-              </p>
-            ))
+            parsed.constraints.map((c, i) => {
+              const day = `${HEBREW_DAYS[weekday(c.from!)]} ${showDate(c.from!)}`
+              return (
+                <div key={i} className={`flex items-center gap-2 rounded-xl border px-2 py-1 ${c.guess ? 'border-red-500/50' : 'border-amber-500/30'}`}>
+                  <div className="min-w-0 flex-1">
+                    <span className={`block ${c.guess ? 'text-red-300' : 'text-amber-200'}`}>
+                      {day}: {readingText({ ...c, cause: fixes[i] ? undefined : readAnswer(c.note ?? '').cause })}
+                    </span>
+                    <span className="block truncate text-xs text-slate-400">"{c.note}"</span>
+                  </div>
+                  <select
+                    aria-label={`תיקון ${day}`}
+                    value={partKey(c)}
+                    onChange={(e) => setFixes({ ...fixes, [i]: e.target.value })}
+                    className="min-h-11 shrink-0 rounded-lg border border-slate-700 bg-slate-900 px-2 text-sm text-slate-200"
+                  >
+                    {PARTS.map((p) => (
+                      <option key={p.label} value={p.id ?? 'all'}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )
+            })
           ) : (
             <p className="text-emerald-300">אין אילוצים בתשובה הזו.</p>
           )}
+          {parsed.constraints.length > 0 && <p className="text-xs text-slate-400">בדוק מה הבנתי בכל יום. אם טעיתי, בחר נכון ברשימה שליד היום.</p>}
           {parsed.notes && <p className="text-slate-300">הערות: {parsed.notes} (יתווספו להערות של העובד)</p>}
         </div>
       )}

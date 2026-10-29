@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { blockingConstraint, constraintError, constraintText, isOver, normalizeConstraint, parseReply, requestText } from './constraints'
-import type { Constraint, ShiftRecord } from '../types/models'
+import { blockingConstraint, constraintError, constraintText, isOver, normalizeConstraint, parseReply, readAnswer, readingText, requestText } from './constraints'
+import type { Constraint, ShiftDefinition, ShiftRecord } from '../types/models'
 
 const c = (over: Partial<Constraint>): Constraint => ({ id: 'c', when: 'dates', ...over })
 const shift = (date: string, over: Partial<ShiftRecord> = {}): ShiftRecord => ({ id: 's', date, location: '', jobDescription: '', crew: [], staffing: [], ...over })
@@ -64,7 +64,7 @@ describe('WhatsApp request and reply', () => {
     const p = parseReply(reply, '2026-10-25')
     expect(p.weekStart).toBe('2026-11-01')
     expect(p.constraints.map(({ id: _, ...c }) => c)).toEqual([
-      { when: 'dates', from: '2026-11-02', to: '2026-11-02', nightsOnly: undefined, note: 'לא יכול, חתונה' },
+      { when: 'dates', from: '2026-11-02', to: '2026-11-02', part: 'evening', note: 'לא יכול, חתונה' },
       { when: 'dates', from: '2026-11-04', to: '2026-11-04', nightsOnly: true, note: 'בלי לילה' },
     ])
     expect(p.notes).toBe('אני בחופש מ-15.11')
@@ -75,5 +75,67 @@ describe('WhatsApp request and reply', () => {
     expect(p.weekStart).toBeNull()
     expect(p.constraints.map((c) => c.from)).toEqual(['2026-11-03'])
     expect(p.notes).toBe('')
+  })
+})
+
+describe("reading a worker's words", () => {
+  // Realistic replies and what the manager should see in the preview.
+  const cases: [string, string][] = [
+    ['לימודים', 'כל היום · לימודים'],
+    ['יש לי לימודים עד הערב', 'ערב · לימודים'],
+    ['חופש', 'כל היום · חופש'],
+    ['בחופש עם המשפחה', 'כל היום · בחופש'],
+    ['אירוע', 'ערב · אירוע'],
+    ['ארוע בערב', 'ערב · ארוע'],
+    ['אירוע בבוקר', 'בוקר · אירוע'],
+    ['אירוע משפחתי בצהריים', 'צהריים · אירוע'],
+    ['חתונה של אח שלי', 'ערב · חתונה'],
+    ['בר מצווה לבן', 'ערב · בר מצווה'],
+    ['מילואים', 'כל היום · מילואים'],
+    ['חולה', 'כל היום · חולה'],
+    ['לא יכול', 'כל היום · לא יכול'],
+    ['לא יכול בבוקר', 'בוקר · לא יכול'],
+    ['תור לרופא ב-10', 'בוקר · לרופא'],
+    ['טיפול שיניים בשעה 14:30', 'צהריים · טיפול'],
+    ['יכול רק עד 12, אחרי זה יש לי סידורים', 'צהריים · סידורים'],
+    ['בלי לילה', 'בלי לילה'],
+    ['לא יכול בלילה', 'בלי לילה · לא יכול'],
+    ['אחה"צ אוסף את הילדים', 'צהריים'],
+    ['טס לחו"ל', 'כל היום · טס'],
+    ['לא יכול כל היום, אירוע', 'כל היום · אירוע'],
+    ['בבוקר ובערב', 'כל היום'],
+    ['אצל סבתא', 'כל היום (ניחוש, לא הבנתי את המילים)'],
+  ]
+  it.each(cases)('%s', (answer, understood) => expect(readingText(readAnswer(answer))).toBe(understood))
+
+  it('a date is not an hour', () => expect(readAnswer('חוזר מ-3.11').part).toBeUndefined())
+})
+
+describe('part of the day against day and night shifts', () => {
+  const defs: ShiftDefinition[] = [
+    { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00' },
+    { id: 'night', name: 'לילה', startTime: '20:00', endTime: '16:00' },
+  ] as ShiftDefinition[]
+  const on = (date: string, part?: Constraint['part']) => ({ constraints: [c({ from: date, to: date, part })] })
+  const day = shift('2026-11-02', { shiftDefinitionId: 'day' })
+  const night = shift('2026-11-02', { shiftDefinitionId: 'night' })
+
+  it('a day shift is blocked by morning, noon or a whole day, not by an evening', () => {
+    expect(blockingConstraint(on('2026-11-02', 'morning'), day, defs)).not.toBeNull()
+    expect(blockingConstraint(on('2026-11-02', 'noon'), day, defs)).not.toBeNull()
+    expect(blockingConstraint(on('2026-11-02'), day, defs)).not.toBeNull()
+    expect(blockingConstraint(on('2026-11-02', 'evening'), day, defs)).toBeNull()
+  })
+
+  it('a night job is blocked by any part of its first day, and by all but the evening of the next', () => {
+    for (const part of ['morning', 'noon', 'evening', undefined] as const) expect(blockingConstraint(on('2026-11-02', part), night, defs)).not.toBeNull()
+    expect(blockingConstraint(on('2026-11-03', 'morning'), night, defs)).not.toBeNull()
+    expect(blockingConstraint(on('2026-11-03', 'noon'), night, defs)).not.toBeNull()
+    expect(blockingConstraint(on('2026-11-03'), night, defs)).not.toBeNull()
+    expect(blockingConstraint(on('2026-11-03', 'evening'), night, defs)).toBeNull()
+  })
+
+  it('says the part in the constraint text', () => {
+    expect(constraintText(c({ from: '2026-11-02', to: '2026-11-02', part: 'evening' }))).toBe('לא זמין בערב ב-2.11')
   })
 })

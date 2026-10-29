@@ -1,7 +1,7 @@
 import { newId } from './catalog'
 import { dateError } from './dates'
 import { addDays, HEBREW_DAYS, isNightShift, showDate, weekday } from './shifts'
-import type { Constraint, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
+import type { Constraint, DayPart, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 // Worker constraints: when a worker cannot work. Pure rules, no I/O. The planner never places a
 // worker a constraint blocks; the screens show why.
@@ -41,9 +41,11 @@ const dayList = (days: number[]) => {
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} ו${names.at(-1)}` : names[0]
 }
 
-/** "לא זמין 1.11 עד 5.11", "בלי לילות בימי שלישי", "בלי לילות בכלל". The note is not included. */
+export const PART_NAMES: Record<DayPart, string> = { morning: 'בבוקר', noon: 'בצהריים', evening: 'בערב' }
+
+/** "לא זמין 1.11 עד 5.11", "לא זמין בערב ב-2.11", "בלי לילות בימי שלישי", "בלי לילות בכלל". The note is not included. */
 export function constraintText(c: Constraint): string {
-  const what = c.nightsOnly ? 'בלי לילות' : 'לא זמין'
+  const what = c.nightsOnly ? 'בלי לילות' : c.part ? `לא זמין ${PART_NAMES[c.part]}` : 'לא זמין'
   if (c.when === 'always') return 'בלי לילות בכלל'
   if (c.when === 'weekdays') return `${what} ${c.weekdays?.length === 1 ? 'ביום' : 'בימי'} ${dayList(c.weekdays ?? [])}`
   if (!c.from) return what
@@ -66,16 +68,77 @@ export function shiftDays(r: ShiftRecord, defs: ShiftDefinition[]): string[] {
 }
 
 /**
- * The first constraint that keeps this worker out of this shift, or null. A whole-day constraint
- * blocks a shift on any of its days (a night job ends the next afternoon); a nights-only one blocks
- * a night job that starts on one of its days.
+ * The first constraint that keeps this worker out of this shift, or null. A whole-day, morning or
+ * noon constraint blocks a shift on any of its days (a night job ends the next afternoon). An evening
+ * one blocks only a day the shift runs past: not the last day, which ends at 16:00, unless an urgent
+ * shift ends later. A nights-only one blocks a night job that starts on one of its days.
  */
 export function blockingConstraint(w: Pick<Worker, 'constraints'>, shift: ShiftRecord, defs: ShiftDefinition[]): Constraint | null {
   const night = isNightShift(shift, defs)
   const days = shiftDays(shift, defs)
+  const endTime = shift.urgent ? shift.endTime : defs.find((d) => d.id === shift.shiftDefinitionId)?.endTime
+  const endsInEvening = (endTime ?? '16:00') >= EVENING_FROM
+  const blocks = (c: Constraint, d: string, last: boolean) => onDay(c, d) && (c.part !== 'evening' || !last || endsInEvening)
   return (
-    w.constraints.find((c) => (c.nightsOnly ? night && onDay(c, shift.date) : days.some((d) => onDay(c, d)))) ?? null
+    w.constraints.find((c) => (c.nightsOnly ? night && onDay(c, shift.date) : days.some((d, i) => blocks(c, d, i === days.length - 1)))) ?? null
   )
+}
+
+const EVENING_FROM = '17:00'
+
+// Reading a worker's words: which part of the day they mean. No server, so a word table, not a
+// language model. Words match inside longer words, so Hebrew prefixes (ב, ל, ה, ו) need no care.
+// Order (user rules): a time of day the worker wrote wins; then words that always mean the whole
+// day (לימודים, חופש); then events, which are in the evening; then plain "can't", the whole day.
+
+const MORNING = ['בוקר']
+const NOON = ['צהריים', 'צהרים', 'אחה"צ', 'אחה״צ', 'אחהצ']
+const EVENING = ['ערב', 'לילה', 'לילות']
+const WHOLE_DAY_WORDS = ['לימוד', 'חופש', 'מילואים', 'מחלה', 'חולה', 'לוויה', 'הלוויה', 'שבעה', 'טיסה', 'טס ', 'טסה', 'חו"ל', 'חו״ל', 'בחו ל', 'נופש', 'בחינה', 'מבחן', 'קורס', 'אבל ']
+const EVENT_WORDS = ['אירוע', 'ארוע', 'חתונ', 'בר מצו', 'בת מצו', 'בר-מצו', 'בת-מצו', 'ברית', 'חינה', 'אירוסין', 'מסיבה', 'יום הולדת', 'יומולדת', 'הופעה', 'הצגה', 'ארוחת ערב']
+const CANT_WORDS = ['לא יכול', 'לא זמין', 'לא עובד', 'לא אוכל', 'לא מגיע', 'רופא', 'טיפול', 'בדיק', 'תור ', 'סידורים', 'משפחתי', 'אישי']
+
+export interface Reading {
+  part?: DayPart // absent = whole day
+  nightsOnly?: true
+  guess?: true // no known word: whole day, to be safe
+  cause?: string // the word that decided, for the preview: "אירוע"
+}
+
+const has = (text: string, words: string[]) => words.find((w) => text.includes(w))
+
+/** "ב-10", "עד 12", "מ-18:00", "בשעה 8": the part of the day of an hour the worker wrote. A date has a dot, so it is not an hour. */
+function hourPart(t: string): DayPart | undefined {
+  const m = t.match(/(?:^|\s)(?:ב|עד|מ|משעה|בשעה|אחרי|לפני|החל מ)\s*-?\s*(\d{1,2})(?::\d\d)?(?![\d.])/)
+  if (!m) return undefined
+  const h = Number(m[1])
+  return h > 23 ? undefined : h < 12 ? 'morning' : h < 17 ? 'noon' : 'evening'
+}
+
+/** What a worker's answer for one day means. */
+export function readAnswer(answer: string): Reading {
+  const t = ` ${answer.trim()} `
+  const asked = [has(t, MORNING) && 'morning', has(t, NOON) && 'noon', has(t, EVENING) && 'evening'].filter(Boolean) as DayPart[]
+  const stem = (has(t, WHOLE_DAY_WORDS) ?? has(t, EVENT_WORDS) ?? has(t, CANT_WORDS))?.trim()
+  // The worker's whole word, not the table's stem: "חתונה", not "חתונ".
+  const cause = stem && t.match(new RegExp(`[^\\s,.]*${stem}[^\\s,.]*`))?.[0]
+  const why = cause ? { cause } : {}
+  if (/כל היום|יום שלם/.test(t) || asked.length > 1) return why
+  // "בלי לילה", "לא לילות": no night jobs; the day itself is free.
+  if (asked[0] === 'evening' && !/ערב/.test(t) && !has(t, EVENT_WORDS)) return { nightsOnly: true, ...why }
+  if (asked.length === 1) return { part: asked[0], ...why }
+  if (has(t, WHOLE_DAY_WORDS)) return why
+  const hour = hourPart(t)
+  if (hour) return { part: hour, ...why }
+  if (has(t, EVENT_WORDS)) return { part: 'evening', ...why }
+  if (cause) return why
+  return { guess: true }
+}
+
+/** "ערב · אירוע", "כל היום · לימוד", "כל היום (ניחוש)": what was understood, for the paste preview. */
+export function readingText(r: { part?: DayPart; nightsOnly?: boolean; guess?: boolean; cause?: string }): string {
+  const what = r.nightsOnly ? 'בלי לילה' : r.part ? PART_NAMES[r.part].slice(1) : 'כל היום'
+  return `${what}${r.cause ? ` · ${r.cause}` : ''}${r.guess ? ' (ניחוש, לא הבנתי את המילים)' : ''}`
 }
 
 // The WhatsApp request the manager sends and the worker fills in: one line per day of the week.
@@ -108,8 +171,8 @@ export interface ParsedReply {
 const strip = (s: string) => s.replace(/[*_~]/g, '').trim()
 
 /**
- * Reads a filled request back. A day with anything but "אין אילוץ" becomes a one-day constraint;
- * a mention of night ("לילה", "לילות") makes it nights only. The worker's words are kept as the note.
+ * Reads a filled request back. A day with anything but "אין אילוץ" becomes a one-day constraint,
+ * for the part of the day its words mean (`readAnswer`). The worker's words are kept as the note.
  * `weekStart` is used when the header with the dates was cut off.
  */
 export function parseReply(text: string, weekStart: string): ParsedReply {
@@ -137,7 +200,8 @@ export function parseReply(text: string, weekStart: string): ParsedReply {
     const answer = m[2].trim()
     if (NO_CONSTRAINT.test(answer)) continue
     const date = addDays(start, HEBREW_DAYS.indexOf(m[1]))
-    constraints.push({ id: newId(), when: 'dates', from: date, to: date, nightsOnly: /לילה|לילות/.test(answer) || undefined, note: answer })
+    const { cause: _, ...reading } = readAnswer(answer)
+    constraints.push({ id: newId(), when: 'dates', from: date, to: date, ...reading, note: answer })
   }
   return { weekStart: fromHeader, constraints, notes: notes.filter((n) => n && !NO_CONSTRAINT.test(n)).join('\n') }
 }
