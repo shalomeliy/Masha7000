@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
-import { countText, nameError, newId, upsert } from '../../lib/catalog'
+import { nameError, newId, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { renameText, textUsage, usedTexts } from '../../lib/lists'
 import type { TextField } from '../../lib/lists'
@@ -37,8 +37,13 @@ const TEXT: Record<Kind, { field: TextField; explain: string; add: string; edit:
   },
 }
 
-const usageText = (u: { shifts: number; jobs: number }) =>
-  [u.shifts && countText(u.shifts, 'משמרת אחת', 'משמרות'), u.jobs && countText(u.jobs, 'עבודה אחת לשיבוץ', 'עבודות לשיבוץ')].filter(Boolean).join(' ו')
+// A number after a Hebrew prefix letter takes a hyphen: "ב-2 משמרות", "ועבודה אחת".
+const withPrefix = (prefix: string, n: number, one: string, many: string) => (n === 1 ? `${prefix}${one}` : `${prefix}${prefix ? '-' : ''}${n} ${many}`)
+
+const usageText = (u: { shifts: number; jobs: number }, prefix = '') =>
+  [u.shifts && withPrefix(prefix, u.shifts, 'משמרת אחת', 'משמרות'), u.jobs && withPrefix(u.shifts ? 'ו' : prefix, u.jobs, 'עבודה אחת לשיבוץ', 'עבודות לשיבוץ')]
+    .filter(Boolean)
+    .join(' ')
 
 export function NameListSection({ kind }: { kind: Kind }) {
   const list = useDriveList(kind)
@@ -151,7 +156,7 @@ function NameForm({ kind, item, onDone }: { kind: Kind; item: Item; onDone: () =
 
   return (
     <>
-      <Field label={t.label} hint={renamed && used ? `השם יתעדכן גם ב${usageText(u)} שכתוב בהן "${item.name}".` : undefined}>
+      <Field label={t.label} hint={renamed && used ? `השם יתעדכן גם ${usageText(u, 'ב')} עם "${item.name}".` : undefined}>
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </Field>
       <SheetActions
@@ -160,7 +165,7 @@ function NameForm({ kind, item, onDone }: { kind: Kind; item: Item; onDone: () =
         onDelete={exists ? () => run(() => list.save(list.items.filter((x) => x.id !== item.id))) : undefined}
         deleteWarning={
           used
-            ? `${t.one} יימחק מהרשימה בלבד. ב${usageText(u)} שכבר כתוב בהן "${item.name}" הוא יישאר כמו שהוא.`
+            ? `${t.one} יימחק מהרשימה בלבד. ${usageText(u, 'ב')} עם "${item.name}" הטקסט יישאר כמו שהוא.`
             : `למחוק את "${item.name}" מהרשימה?`
         }
         busy={busy}
