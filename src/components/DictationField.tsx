@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Mic, Square } from 'lucide-react'
 import { inputClass } from './Sheet'
+import { joinTranscripts } from '../lib/dictation'
 
 // Text field with Hebrew voice dictation (Web Speech API, he-IL). See docs/spikes/hebrew-dictation.md.
 // The mic button shows only where the browser has speech recognition; the phone keyboard's own
@@ -48,9 +49,9 @@ export function DictationField({ label, value, onChange, placeholder }: { label:
     r.continuous = true
     const base = value.trim() ? `${value.trim()} ` : ''
     r.onresult = (e) => {
-      let text = ''
-      for (let i = 0; i < e.results.length; i++) text += e.results[i][0].transcript
-      onChange(base + text.trim())
+      const pieces: string[] = []
+      for (let i = 0; i < e.results.length; i++) pieces.push(e.results[i][0].transcript)
+      onChange(base + joinTranscripts(pieces))
     }
     r.onerror = (e) => e.error !== 'aborted' && setError(ERRORS[e.error] ?? 'ההכתבה לא הצליחה. אפשר להקליד במקום.')
     r.onend = () => {
