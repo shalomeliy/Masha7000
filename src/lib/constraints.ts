@@ -88,6 +88,15 @@ export function blockingConstraint(w: Pick<Worker, 'constraints'>, shift: ShiftR
   )
 }
 
+/** The crew members a constraint keeps out of this shift, each with that constraint. */
+export function blockedCrew(shift: ShiftRecord, workers: Worker[], defs: ShiftDefinition[]): { worker: Worker; constraint: Constraint }[] {
+  return shift.crew.flatMap((c) => {
+    const worker = workers.find((w) => w.id === c.workerId)
+    const constraint = worker && blockingConstraint(worker, shift, defs)
+    return constraint ? [{ worker, constraint }] : []
+  })
+}
+
 const EVENING_FROM = '17:00'
 
 // Reading a worker's words: which part of the day they mean. No server, so a word table, not a

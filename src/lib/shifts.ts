@@ -75,6 +75,24 @@ export function blankShift(date: string, from?: PendingJob): ShiftRecord {
   }
 }
 
+/** Days from `a` to `b` (negative when `b` is earlier). */
+export function dayGap(a: string, b: string): number {
+  const utc = (d: string) => {
+    const [y, m, day] = d.split('-').map(Number)
+    return Date.UTC(y, m - 1, day)
+  }
+  return Math.round((utc(b) - utc(a)) / 86_400_000)
+}
+
+/**
+ * The same shift, crew and all, starting on `date`. A night job keeps running into the next day
+ * (that comes from its type); an urgent shift's end date moves by the same number of days.
+ */
+export function moveShift(r: ShiftRecord, date: string): ShiftRecord {
+  const gap = dayGap(r.date, date)
+  return { ...r, date, ...(r.endDate ? { endDate: addDays(r.endDate, gap) } : {}) }
+}
+
 /**
  * Error for a shift, or null. `roleIds` are the roles that still exist, so a deleted role does not count.
  * Every worker also holds the general role.

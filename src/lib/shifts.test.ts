@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, applyClosure, blankShift, closureError, isNightShift, isWaiting, pendingAfterShiftSave, taskHistory, shiftRecordError, sortShifts, urgentShift, weekOf, weekShiftCount } from './shifts'
+import { addDays, applyClosure, dayGap, moveShift, blankShift, closureError, isNightShift, isWaiting, pendingAfterShiftSave, taskHistory, shiftRecordError, sortShifts, urgentShift, weekOf, weekShiftCount } from './shifts'
 import type { ShiftClosure, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
@@ -223,5 +223,23 @@ describe('staffing', () => {
     const w = worker('a', [])
     expect(shiftRecordError(shift({ crew: [{ workerId: 'a', roleId: 'general' }] }), [w], ['general', 'climber'], 'general')).toBeNull()
     expect(shiftRecordError(shift({ crew: [{ workerId: 'a', roleId: 'climber' }] }), [w], ['general', 'climber'], 'general')).not.toBeNull()
+  })
+})
+
+describe('moving a shift to another day', () => {
+  it('keeps the crew, place and type, and changes only the date', () => {
+    const r = shift({ crew: [{ workerId: 'a', roleId: 'climber' }] })
+    const moved = moveShift(r, '2026-11-02')
+    expect(moved).toEqual({ ...r, date: '2026-11-02' })
+  })
+
+  it('moves an urgent shift end date by the same number of days', () => {
+    const r = shift({ urgent: true, date: '2026-10-28', endDate: '2026-10-29', startTime: '22:00', endTime: '16:00' })
+    expect(moveShift(r, '2026-10-26')).toMatchObject({ date: '2026-10-26', endDate: '2026-10-27', startTime: '22:00', endTime: '16:00' })
+  })
+
+  it('counts days across months', () => {
+    expect(dayGap('2026-10-30', '2026-11-02')).toBe(3)
+    expect(dayGap('2026-11-02', '2026-10-30')).toBe(-3)
   })
 })

@@ -1,15 +1,16 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Zap } from 'lucide-react'
+import { CalendarArrowUp, ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Zap } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
-import { fullName, tagNames } from '../lib/catalog'
-import { blockingConstraint, constraintText } from '../lib/constraints'
+import { fullName, tagNames, upsert } from '../lib/catalog'
+import { blockedCrew, constraintText } from '../lib/constraints'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { dayData, weekData } from '../lib/report'
 import type { Report } from '../lib/report'
-import { addDays, blankShift, dayName, isNightShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
+import { addDays, blankShift, dayName, isNightShift, moveShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
 import type { ShiftRecord } from '../types/models'
 import { CloseSheet } from './calendar/CloseJob'
+import { MoveSheet } from './calendar/MoveSheet'
 import { OUTCOMES } from './calendar/outcomes'
 import { ShareSheet } from './calendar/ShareSheet'
 import { ShiftSheet } from './calendar/ShiftEditor'
@@ -31,9 +32,27 @@ export function Calendar() {
   const [editing, setEditing] = useState<ShiftRecord | null>(null)
   const [closing, setClosing] = useState<ShiftRecord | null>(null)
   const [sharing, setSharing] = useState<{ title: string; report: Report } | null>(null)
+  const [moving, setMoving] = useState<ShiftRecord | null>(null)
+  // Dragging a card onto another day (mouse; on a phone the card's "העברה ליום אחר" does it).
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dropDay, setDropDay] = useState<string | null>(null)
+  const [dropError, setDropError] = useState<unknown>(null)
   const week = weekOf(weekStart)
   const records = sortShifts(shifts.items)
   const ctx = { shifts: shifts.items, defs: defs.items, workers: workers.items, roles: roles.items }
+
+  const drop = async (day: string) => {
+    const r = shifts.items.find((x) => x.id === dragId)
+    setDragId(null)
+    setDropDay(null)
+    if (!r || r.date === day) return
+    setDropError(null)
+    try {
+      await shifts.save(upsert(shifts.items, moveShift(r, day)))
+    } catch (e) {
+      setDropError(e)
+    }
+  }
 
   return (
     <section className="space-y-4 px-4 pt-6">
@@ -88,11 +107,23 @@ export function Calendar() {
             שליחת סידור השבוע בוואטסאפ
           </button>
 
+          {dropError != null && <DriveError error={dropError} action="save" />}
+
           <ol className="space-y-4">
             {week.days.map((day) => {
               const dayShifts = records.filter((r) => r.date === day)
               return (
-                <li key={day} className="space-y-2">
+                <li
+                  key={day}
+                  onDragOver={(e) => {
+                    if (!dragId) return
+                    e.preventDefault()
+                    setDropDay(day)
+                  }}
+                  onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropDay((d) => (d === day ? null : d))}
+                  onDrop={(e) => (e.preventDefault(), drop(day))}
+                  className={`space-y-2 rounded-xl ${dropDay === day ? 'outline-2 outline-offset-4 outline-dashed outline-sky-500' : ''}`}
+                >
                   <div className="flex items-center justify-between gap-2">
                     <h2 className={`text-sm font-semibold ${day === today ? 'text-sky-400' : 'text-slate-400'}`}>
                       יום {dayName(day)} {showDate(day)}
@@ -115,7 +146,15 @@ export function Calendar() {
                     <ul className="space-y-2">
                       {dayShifts.map((r) => (
                         <li key={r.id}>
-                          <ShiftCard shift={r} canClose={r.date <= today} onOpen={() => setEditing(r)} onCloseJob={() => setClosing(r)} />
+                          <ShiftCard
+                            shift={r}
+                            canClose={r.date <= today}
+                            onOpen={() => setEditing(r)}
+                            onCloseJob={() => setClosing(r)}
+                            onMove={() => setMoving(r)}
+                            onDragStart={() => setDragId(r.id)}
+                            onDragEnd={() => (setDragId(null), setDropDay(null))}
+                          />
                         </li>
                       ))}
                     </ul>
@@ -129,13 +168,31 @@ export function Calendar() {
 
       <ShiftSheet editing={editing} onClose={() => setEditing(null)} />
       <CloseSheet shift={closing} onClose={() => setClosing(null)} />
+      <MoveSheet shift={moving} onClose={() => setMoving(null)} />
       <ShareSheet title={sharing?.title ?? ''} report={sharing?.report ?? null} onClose={() => setSharing(null)} />
     </section>
   )
 }
 
 // A night job can be closed once it has started (and changed later, whenever it is closed).
-function ShiftCard({ shift: r, canClose, onOpen, onCloseJob }: { shift: ShiftRecord; canClose: boolean; onOpen: () => void; onCloseJob: () => void }) {
+// A closed job already happened, so it is not moved.
+function ShiftCard({
+  shift: r,
+  canClose,
+  onOpen,
+  onCloseJob,
+  onMove,
+  onDragStart,
+  onDragEnd,
+}: {
+  shift: ShiftRecord
+  canClose: boolean
+  onOpen: () => void
+  onCloseJob: () => void
+  onMove: () => void
+  onDragStart: () => void
+  onDragEnd: () => void
+}) {
   const defs = useDriveList('shiftDefinitions')
   const workers = useDriveList('workers')
   const roles = useDriveList('roles')
@@ -144,17 +201,23 @@ function ShiftCard({ shift: r, canClose, onOpen, onCloseJob }: { shift: ShiftRec
   const night = isNightShift(r, defs.items)
   const outcome = OUTCOMES.find((o) => o.id === r.closure?.outcome)
   const reasonText = r.closure ? tagNames(r.closure.reasonIds, reasons.items).join(', ') : ''
-  // A constraint added after the crew was picked: the manager has to see it on the week view.
-  const blocked = r.closure
-    ? []
-    : r.crew.flatMap((c) => {
-        const w = workers.items.find((x) => x.id === c.workerId)
-        const hit = w && blockingConstraint(w, r, defs.items)
-        return hit ? [`${fullName(w)}: ${constraintText(hit)}`] : []
-      })
+  // A constraint added after the crew was picked, or a shift moved onto a worker's day off:
+  // the shift and that worker are outlined in orange, so the manager opens it and swaps them.
+  const blocked = r.closure ? [] : blockedCrew(r, workers.items, defs.items)
+  const blockedIds = new Set(blocked.map((b) => b.worker.id))
+  const showClose = night && (canClose || !!r.closure)
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+    <div
+      draggable={!r.closure}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', r.id)
+        onDragStart()
+      }}
+      onDragEnd={onDragEnd}
+      className={`overflow-hidden rounded-2xl border bg-slate-900 ${blocked.length ? 'border-2 border-orange-500' : 'border-slate-800'}`}
+    >
       <button type="button" onClick={onOpen} className="relative w-full space-y-2 p-4 pe-9 text-start">
         <EditMark />
         <span className="flex flex-wrap items-center gap-2 text-xs">
@@ -170,11 +233,17 @@ function ShiftCard({ shift: r, canClose, onOpen, onCloseJob }: { shift: ShiftRec
         {r.location && <span className="block font-semibold">{r.location}</span>}
         {r.jobDescription && <span className="block text-sm text-slate-300">{r.jobDescription}</span>}
         {r.crew.length === 0 && <span className="block text-xs text-amber-300">עוד אין עובדים במשמרת</span>}
-        {blocked.map((line) => (
-          <span key={line} className="block text-xs text-red-300">
-            {line}
+        {blocked.length > 0 && (
+          <span className="block space-y-0.5 text-xs text-orange-300">
+            {blocked.map(({ worker, constraint }) => (
+              <span key={worker.id} className="block">
+                {fullName(worker)}: {constraintText(constraint)}
+                {constraint.note && ` (${constraint.note})`}
+              </span>
+            ))}
+            <span className="block text-orange-400">לחץ על המשמרת כדי להחליף {blocked.length > 1 ? 'אותם' : 'אותו'}</span>
           </span>
-        ))}
+        )}
       </button>
       {/* Outside the edit button: tapping a worker dials them instead of opening the editor. */}
       {r.crew.length > 0 && (
@@ -186,23 +255,39 @@ function ShiftCard({ shift: r, canClose, onOpen, onCloseJob }: { shift: ShiftRec
                 key={c.workerId}
                 worker={workers.items.find((x) => x.id === c.workerId)}
                 suffix={role && ` · ${role.name}`}
-                className="min-h-9 rounded-full bg-slate-800 px-3 py-1.5 text-xs text-slate-200"
+                className={`min-h-9 rounded-full px-3 py-1.5 text-xs ${
+                  blockedIds.has(c.workerId) ? 'border-2 border-orange-500 bg-orange-500/10 text-orange-200' : 'bg-slate-800 text-slate-200'
+                }`}
               />
             )
           })}
         </div>
       )}
-      {night && (canClose || r.closure) && (
-        <button type="button" onClick={onCloseJob} className="flex min-h-12 w-full items-center gap-2 border-t border-slate-800 px-4 text-start text-sm">
-          {outcome ? (
-            <>
-              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${outcome.tone}`}>{outcome.label}</span>
-              <span className="min-w-0 truncate text-slate-400">{[reasonText, r.closure?.note].filter(Boolean).join(' · ')}</span>
-            </>
-          ) : (
-            <span className="font-semibold text-sky-400">סגירת עבודה</span>
+      {(showClose || !r.closure) && (
+        <div className="flex border-t border-slate-800">
+          {showClose && (
+            <button type="button" onClick={onCloseJob} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 px-4 text-start text-sm">
+              {outcome ? (
+                <>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${outcome.tone}`}>{outcome.label}</span>
+                  <span className="min-w-0 truncate text-slate-400">{[reasonText, r.closure?.note].filter(Boolean).join(' · ')}</span>
+                </>
+              ) : (
+                <span className="font-semibold text-sky-400">סגירת עבודה</span>
+              )}
+            </button>
           )}
-        </button>
+          {!r.closure && (
+            <button
+              type="button"
+              onClick={onMove}
+              className={`flex min-h-12 items-center gap-1.5 px-4 text-sm text-slate-300 ${showClose ? 'border-s border-slate-800' : 'flex-1'}`}
+            >
+              <CalendarArrowUp size={16} aria-hidden />
+              העברה ליום אחר
+            </button>
+          )}
+        </div>
       )}
     </div>
   )

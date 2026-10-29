@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { blockingConstraint, constraintError, constraintText, isOver, mergeReply, normalizeConstraint, parseReply, readAnswer, readingText, requestText } from './constraints'
-import type { Constraint, ShiftDefinition, ShiftRecord } from '../types/models'
+import { blockedCrew, blockingConstraint, constraintError, constraintText, isOver, mergeReply, normalizeConstraint, parseReply, readAnswer, readingText, requestText } from './constraints'
+import type { Constraint, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 const c = (over: Partial<Constraint>): Constraint => ({ id: 'c', when: 'dates', ...over })
 const shift = (date: string, over: Partial<ShiftRecord> = {}): ShiftRecord => ({ id: 's', date, location: '', jobDescription: '', crew: [], staffing: [], ...over })
@@ -222,5 +222,19 @@ describe('a later reply ends an earlier weekly constraint', () => {
 
   it('does not start before the week it was written in', () => {
     expect(blockingConstraint({ constraints: studies }, shift('2026-10-26'), [])).toBeNull()
+  })
+})
+
+describe('blockedCrew', () => {
+  const w = (id: string, constraints: Constraint[] = []): Worker => ({ id, firstName: id, lastName: '', roleIds: [], certificationIds: [], constraints })
+  const workers = [w('free'), w('away', [c({ from: '2026-11-03', to: '2026-11-03', note: 'חתונה' })])]
+  const crew = [
+    { workerId: 'free', roleId: 'general' },
+    { workerId: 'away', roleId: 'general' },
+  ]
+
+  it('finds the crew member a constraint blocks after the shift moves to that day', () => {
+    expect(blockedCrew(shift('2026-11-02', { crew }), workers, [])).toEqual([])
+    expect(blockedCrew(shift('2026-11-03', { crew }), workers, []).map((b) => b.worker.id)).toEqual(['away'])
   })
 })

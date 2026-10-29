@@ -194,7 +194,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           const warning = load && loadWarning(load)
           const swapOptions = available.filter((x) => fitsSlot(x.worker, { roleId: c.roleId }, general))
           return (
-            <div key={c.workerId} className="rounded-xl border border-slate-800 bg-slate-950 p-2">
+            // A constraint keeps this worker out on the shift's day: outlined in orange, swap is right there.
+            <div key={c.workerId} className={`rounded-xl bg-slate-950 p-2 ${load?.blocked ? 'border-2 border-orange-500' : 'border border-slate-800'}`}>
               <div className="flex items-center gap-2">
               <WorkerDial worker={w} className="min-h-11 min-w-0 flex-1 ps-1" />
               {options.length ? (
@@ -233,7 +234,10 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
               </button>
               </div>
               {warning && (
-                <p className={`ps-1 text-xs ${load.blocked ? 'text-red-300' : 'text-amber-300'}`}>{warning}</p>
+                <p className={`ps-1 text-xs ${load.blocked ? 'text-orange-300' : 'text-amber-300'}`}>
+                  {warning}
+                  {load.blocked && ' · אפשר להחליף בכפתור החצים'}
+                </p>
               )}
               {swapping === c.workerId &&
                 (swapOptions.length ? (

@@ -91,6 +91,7 @@ export function SheetActions({
   deleteWarning,
   deleteLabel = 'מחיקה',
   confirmLabel = 'כן, למחוק',
+  saveLabel = 'שמירה',
   busy,
   error,
   saveError,
@@ -101,6 +102,7 @@ export function SheetActions({
   deleteWarning?: string
   deleteLabel?: string
   confirmLabel?: string
+  saveLabel?: string
   busy: boolean
   error: string | null // validation
   saveError: unknown
@@ -130,7 +132,7 @@ export function SheetActions({
       ) : (
         <div className="flex gap-2">
           <button type="button" disabled={busy} onClick={onSave} className="min-h-12 flex-[2] rounded-xl bg-sky-500 font-semibold text-slate-950 disabled:opacity-50">
-            {busy ? 'שומר...' : 'שמירה'}
+            {busy ? 'שומר...' : saveLabel}
           </button>
           <button type="button" disabled={busy} onClick={onCancel} className="min-h-12 flex-1 rounded-xl border border-slate-700 text-slate-300 disabled:opacity-50">
             ביטול

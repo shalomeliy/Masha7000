@@ -167,3 +167,12 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - Constraint words (`constraint_words.json`, `src/lib/constraintWords.ts`, `src/pages/settings/WordsSection.tsx`): only the manager's changes are stored (`added` / `removed` per group), so built-in words added later still arrive. `applyWordSettings` writes them into the arrays `readAnswer` reads (`WORD_GROUPS` at the end of `constraints.ts`), from `ConstraintWords` in `App.tsx`. Tap a word to remove it, "החזרת המילים המקוריות" per group.
 - Roles, certifications and reasons are referenced by id, so a rename already shows everywhere. Deleting a shift type now says how many calendar shifts use it (they stay, as a day shift).
 - Verified on the live site with an in-memory Drive mock (fetch replaced in the page, fake token): list hub, places filled from shifts, rename propagated to 2 shifts and 1 job, delete warning, words add/remove saved, chips in the job editor. The other chat's commit 88298e4 included most of this work by accident; the fix-up commit has the rest.
+
+## Done: move a shift to another day, constraint outline in orange (2026-10-29)
+
+- Coordinator brief: move a whole shift (crew kept) to another day in the calendar; a crew member blocked by a constraint on the shift's day is outlined in orange, on the card and in the editor.
+- Rules: `moveShift` / `dayGap` in `src/lib/shifts.ts` (date changes; an urgent shift's end date moves by the same days; a night job's second day comes from its type, so it keeps its 2-day span). `blockedCrew` in `src/lib/constraints.ts` (uses `blockingConstraint`, so part of day and weekly-until rules apply). Tests added.
+- Calendar card: footer button "העברה ליום אחר" (beside "סגירת עבודה" on night jobs) opens `src/pages/calendar/MoveSheet.tsx`: quick day pills for the shift's week and the next, a date field for any other day, and an orange preview of who has a constraint on the new day (move is still allowed). On a computer the card can also be dragged onto a day (HTML5 drag, saves at once). Closed jobs are not moved.
+- Orange: the card border and the blocked worker's chip, with the constraint lines and "לחץ על המשמרת כדי להחליף"; in the shift editor the blocked crew row is outlined orange (swap button on the row). These were red before.
+- `SheetActions` gained an optional `saveLabel`.
+- Browser not checked: the dev server could not start (5 dev servers of other chats in this folder). `npm run verify` green.
