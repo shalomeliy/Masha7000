@@ -52,7 +52,8 @@ describe('WhatsApp request and reply', () => {
     expect(t.split('\n')[0]).toBe('*בקשת אילוצים לשבוע 1.11 עד 7.11.2026*')
     expect(t).toContain('ראשון 1.11: \n')
     expect(t).toContain('שבת 7.11: ')
-    expect(t.endsWith('הערות: ')).toBe(true)
+    expect(t).toContain('\nהערות: \n')
+    expect(t.endsWith('*ניתן לשלוח את התשובה עד סוף יום העבודה, 17:00 לכל המאוחר.*')).toBe(true)
   })
 
   it('reads a filled reply back into constraints', () => {

@@ -155,6 +155,8 @@ export function readingText(r: { part?: DayPart; nightsOnly?: boolean; guess?: b
 
 const NO_CONSTRAINT = /^(אין|אין אילוץ|אין אילוצים|-|—|\.|✓|✔️?|👍)?$/
 const NOTES_LABEL = 'הערות:'
+// The last line of the request, under the notes; not part of the worker's notes when the reply comes back.
+const DEADLINE = 'ניתן לשלוח את התשובה עד סוף יום העבודה, 17:00 לכל המאוחר.'
 
 export function requestText(weekStart: string): string {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
@@ -169,6 +171,8 @@ export function requestText(weekStart: string): string {
     ...days.map((d) => `${HEBREW_DAYS[weekday(d)]} ${showDate(d)}: `),
     '',
     `${NOTES_LABEL} `,
+    '',
+    `*${DEADLINE}*`,
   ].join('\n')
 }
 
@@ -200,7 +204,7 @@ export function parseReply(text: string, weekStart: string): ParsedReply {
       continue
     }
     if (inNotes) {
-      notes.push(line)
+      if (line !== DEADLINE) notes.push(line)
       continue
     }
     // "ראשון 1.11: לא יכול", "יום ראשון - בלי לילה", "ראשון לא יכול". A lookahead, not a word
