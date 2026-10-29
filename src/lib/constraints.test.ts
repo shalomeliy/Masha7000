@@ -159,9 +159,9 @@ describe('weekly constraint with a last date', () => {
   it('reads "כל שבוע עד" from a WhatsApp reply', () => {
     const p = parseReply('שני 2.11: לימודים, כל שבוע עד 15.2\nרביעי: חוג קבוע\nחמישי: לימודים עד 10.3.27 כל שבוע', '2026-11-01')
     expect(p.constraints.map(({ id: _, reply: __, ...x }) => x)).toEqual([
-      { when: 'weekdays', weekdays: [1], to: '2027-02-15', note: 'לימודים, כל שבוע עד 15.2' },
-      { when: 'weekdays', weekdays: [3], to: undefined, part: 'evening', note: 'חוג קבוע' },
-      { when: 'weekdays', weekdays: [4], to: '2027-03-10', note: 'לימודים עד 10.3.27 כל שבוע' },
+      { when: 'weekdays', weekdays: [1], from: '2026-11-02', to: '2027-02-15', note: 'לימודים, כל שבוע עד 15.2' },
+      { when: 'weekdays', weekdays: [3], from: '2026-11-04', to: undefined, part: 'evening', note: 'חוג קבוע' },
+      { when: 'weekdays', weekdays: [4], from: '2026-11-05', to: '2027-03-10', note: 'לימודים עד 10.3.27 כל שבוע' },
     ])
   })
 })
@@ -195,5 +195,31 @@ describe('pasting a corrected reply', () => {
 
   it('tags each constraint with the week of the reply, from its header when kept', () => {
     expect(parseReply(requestText('2026-11-15').replace('שני 16.11: ', 'שני 16.11: חופש'), '2026-11-01').constraints[0].reply).toBe('2026-11-15')
+  })
+})
+
+describe('a later reply ends an earlier weekly constraint', () => {
+  const studies = parseReply('שני: לימודים כל שבוע עד 15.2', '2026-11-01').constraints
+
+  it('ends it the day before the new week, so it stops blocking from then on', () => {
+    const after = mergeReply(studies, parseReply('שלישי: אירוע', '2026-11-22').constraints, '2026-11-22')
+    expect(after[0]).toMatchObject({ when: 'weekdays', from: '2026-11-02', to: '2026-11-21' })
+    expect(blockingConstraint({ constraints: after }, shift('2026-11-16'), [])).not.toBeNull()
+    expect(blockingConstraint({ constraints: after }, shift('2026-11-23'), [])).toBeNull()
+    expect(after[1].note).toBe('אירוע')
+  })
+
+  it('keeps it when the worker writes it again, and leaves weekly ones added by hand', () => {
+    const byHand = c({ id: 'hand', when: 'weekdays', weekdays: [4] })
+    const after = mergeReply([...studies, byHand], parseReply('שני: לימודים כל שבוע עד 15.2', '2026-11-22').constraints, '2026-11-22')
+    expect(after.map((x) => [x.from, x.to])).toEqual([
+      ['2026-11-02', '2026-11-21'],
+      [undefined, undefined],
+      ['2026-11-23', '2027-02-15'],
+    ])
+  })
+
+  it('does not start before the week it was written in', () => {
+    expect(blockingConstraint({ constraints: studies }, shift('2026-10-26'), [])).toBeNull()
   })
 })

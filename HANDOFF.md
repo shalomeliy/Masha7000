@@ -151,3 +151,9 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - User approved: pasting a new reply for a week replaces what the earlier paste of that week added.
 - `Constraint.reply` = the Sunday of the reply's week (from the header, or the week the manager picked). `mergeReply` / `replacedByReply` in `constraints.ts`; constraints added by hand and other weeks' pastes stay. The paste preview says how many constraints the new reply will replace.
 - Constraints pasted before this change have no `reply` tag, so a re-paste of those weeks does not replace them (delete by hand once).
+
+### A later reply ends an earlier weekly constraint (2026-10-29)
+
+- User request: a worker who stopped studying mid-term sends a new reply; the weekly constraint must stop from then on.
+- Pasted weekly constraints now carry `from` (the day in the reply's week); `onDay` respects it, `normalizeConstraint` keeps it.
+- `mergeReply`: a weekly constraint from an earlier reply (`reply` < this week) that still runs into this week ends the day before this week (`endedByReply`); dropped if it had not started yet. If it still holds, the worker writes "כל שבוע" again and a fresh one is added. Weekly constraints added by hand are not touched. The paste preview lists each one that will end and on what date.

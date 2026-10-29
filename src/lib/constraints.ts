@@ -17,7 +17,7 @@ export function normalizeConstraint(raw: Partial<Constraint> & { date?: string; 
     ...c,
     id: c.id ?? newId(),
     when,
-    from: when === 'dates' ? from : undefined,
+    from: when === 'dates' ? from : when === 'weekdays' ? c.from || undefined : undefined, // weekly: optional first date
     to: when === 'dates' ? (c.to ?? from) : when === 'weekdays' ? c.to || undefined : undefined, // weekly: optional last date
     weekdays: when === 'weekdays' ? (c.weekdays ?? []) : undefined,
     nightsOnly: when === 'always' ? true : c.nightsOnly || undefined,
@@ -61,7 +61,7 @@ export function constraintText(c: Constraint): string {
 export const isOver = (c: Constraint, today: string) => c.when !== 'always' && !!c.to && c.to < today
 
 const onDay = (c: Constraint, date: string) =>
-  c.when === 'always' || (c.when === 'weekdays' ? !!c.weekdays?.includes(weekday(date)) && (!c.to || date <= c.to) : !!c.from && c.from <= date && date <= (c.to ?? c.from))
+  c.when === 'always' || (c.when === 'weekdays' ? !!c.weekdays?.includes(weekday(date)) && (!c.from || c.from <= date) && (!c.to || date <= c.to) : !!c.from && c.from <= date && date <= (c.to ?? c.from))
 
 /** The days a shift runs on: a night job runs into the next afternoon, an urgent one until its end date. */
 export function shiftDays(r: ShiftRecord, defs: ShiftDefinition[]): string[] {
@@ -214,7 +214,7 @@ export function parseReply(text: string, weekStart: string): ParsedReply {
     const weekly = WEEKLY.test(answer)
     constraints.push(
       weekly
-        ? { id: newId(), when: 'weekdays', weekdays: [weekday(date)], to: untilDate(answer, date), ...reading, note: answer, reply: start }
+        ? { id: newId(), when: 'weekdays', weekdays: [weekday(date)], from: date, to: untilDate(answer, date), ...reading, note: answer, reply: start }
         : { id: newId(), when: 'dates', from: date, to: date, ...reading, note: answer, reply: start },
     )
   }
@@ -237,7 +237,26 @@ function untilDate(answer: string, from: string): string | undefined {
 
 /** A corrected reply for the same week replaces what the earlier paste of that week added. Constraints added by hand stay. */
 export const replacedByReply = (existing: Constraint[], week: string) => existing.filter((c) => c.reply === week)
-export const mergeReply = (existing: Constraint[], added: Constraint[], week: string) => [...existing.filter((c) => c.reply !== week), ...added]
+
+/**
+ * A weekly constraint from an earlier reply that still runs into this week: the new reply speaks for
+ * this week on, so it ends the day before (stopped studying mid-term). If it still holds, the worker
+ * writes it again ("כל שבוע") and the new reply adds it afresh. Weekly ones added by hand stay.
+ */
+export const endedByReply = (existing: Constraint[], week: string) =>
+  existing.filter((c) => c.when === 'weekdays' && !!c.reply && c.reply < week && (!c.to || c.to >= week))
+
+export function mergeReply(existing: Constraint[], added: Constraint[], week: string): Constraint[] {
+  const ended = endedByReply(existing, week)
+  const kept = existing
+    .filter((c) => c.reply !== week)
+    .flatMap((c) => {
+      if (!ended.includes(c)) return [c]
+      const to = addDays(week, -1)
+      return c.from && c.from > to ? [] : [{ ...c, to }]
+    })
+  return [...kept, ...added]
+}
 
 const weekStartOf = (date: string) => addDays(date, -weekday(date))
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ClipboardPaste, Plus, X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
-import { blankConstraint, constraintError, constraintText, isOver, mergeReply, parseReply, readAnswer, readingText, replacedByReply } from '../../lib/constraints'
+import { blankConstraint, constraintError, constraintText, endedByReply, isOver, mergeReply, parseReply, readAnswer, readingText, replacedByReply } from '../../lib/constraints'
 import { todayIso } from '../../lib/dates'
 import { addDays, HEBREW_DAYS, showDate, weekday, weekOf } from '../../lib/shifts'
 import type { Constraint, DayPart } from '../../types/models'
@@ -243,6 +243,7 @@ function PasteReply({
   const read = text.trim() ? parseReply(text, weekStart) : null
   const week = read?.weekStart ?? weekStart
   const replaced = read ? replacedByReply(existing, week).length : 0
+  const ended = read ? endedByReply(existing, week) : []
   const parsed = read && { ...read, constraints: read.constraints.map((c, i) => (fixes[i] ? { ...c, part: undefined, nightsOnly: undefined, guess: undefined, ...fromKey(fixes[i]) } : c)) }
 
   return (
@@ -297,6 +298,12 @@ function PasteReply({
             <p className="text-emerald-300">אין אילוצים בתשובה הזו.</p>
           )}
           {parsed.constraints.length > 0 && <p className="text-xs text-slate-400">בדוק מה הבנתי בכל יום. אם טעיתי, בחר נכון ברשימה שליד היום.</p>}
+          {ended.map((c) => (
+            <p key={c.id} className="text-sky-300">
+              {constraintText(c)}
+              {c.note && ` (${c.note})`}: יסתיים ב-{showDate(addDays(week, -1))}, כי התשובה החדשה מחליפה אותו מהשבוע הזה. אם זה עדיין נכון, העובד צריך לכתוב שוב "כל שבוע".
+            </p>
+          ))}
           {replaced > 0 && (
             <p className="text-sky-300">
               כבר הדבקת תשובה לשבוע הזה. התשובה החדשה תחליף את {replaced === 1 ? 'האילוץ' : `${replaced} האילוצים`} שהגיעו ממנה.
