@@ -89,7 +89,9 @@ export function requestText(weekStart: string): string {
   const year = days[6].slice(0, 4)
   return [
     `*בקשת אילוצים לשבוע ${showDate(days[0])} עד ${showDate(days[6])}.${year}*`,
-    'ליד כל יום כתוב "אין אילוץ", או מה האילוץ (למשל: לא יכול כל היום, בלי לילה). ואז שלח את ההודעה בחזרה.',
+    'באם יש לך אילוץ נא הזן אותו, לדוגמה (חופש, ארוע בערב, לימודים).',
+    'באם אין אילוץ השאר ריק.',
+    'בסיום שלח את ההודעה בחזרה.',
     '',
     ...days.map((d) => `${HEBREW_DAYS[weekday(d)]} ${showDate(d)}: `),
     '',
