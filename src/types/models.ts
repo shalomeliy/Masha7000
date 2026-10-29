@@ -24,6 +24,7 @@ export interface Constraint {
   weekdays?: number[] // 0 = Sunday, `weekdays` only
   nightsOnly?: boolean // only night jobs are blocked; `always` is always nights only
   part?: DayPart // only this part of the day; absent = the whole day. Not with `nightsOnly`.
+  reply?: string // YYYY-MM-DD, the Sunday of the WhatsApp reply this came from; a new paste for that week replaces it
   guess?: true // read from a WhatsApp reply whose words were not understood; shown so the manager checks it
   note?: string // free text, a pasted WhatsApp message or dictation
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockingConstraint, constraintError, constraintText, isOver, normalizeConstraint, parseReply, readAnswer, readingText, requestText } from './constraints'
+import { blockingConstraint, constraintError, constraintText, isOver, mergeReply, normalizeConstraint, parseReply, readAnswer, readingText, requestText } from './constraints'
 import type { Constraint, ShiftDefinition, ShiftRecord } from '../types/models'
 
 const c = (over: Partial<Constraint>): Constraint => ({ id: 'c', when: 'dates', ...over })
@@ -63,7 +63,7 @@ describe('WhatsApp request and reply', () => {
       .replace('הערות: ', 'הערות: אני בחופש מ-15.11')
     const p = parseReply(reply, '2026-10-25')
     expect(p.weekStart).toBe('2026-11-01')
-    expect(p.constraints.map(({ id: _, ...c }) => c)).toEqual([
+    expect(p.constraints.map(({ id: _, reply: __, ...c }) => c)).toEqual([
       { when: 'dates', from: '2026-11-02', to: '2026-11-02', part: 'evening', note: 'לא יכול, חתונה' },
       { when: 'dates', from: '2026-11-04', to: '2026-11-04', nightsOnly: true, note: 'בלי לילה' },
     ])
@@ -158,7 +158,7 @@ describe('weekly constraint with a last date', () => {
 
   it('reads "כל שבוע עד" from a WhatsApp reply', () => {
     const p = parseReply('שני 2.11: לימודים, כל שבוע עד 15.2\nרביעי: חוג קבוע\nחמישי: לימודים עד 10.3.27 כל שבוע', '2026-11-01')
-    expect(p.constraints.map(({ id: _, ...x }) => x)).toEqual([
+    expect(p.constraints.map(({ id: _, reply: __, ...x }) => x)).toEqual([
       { when: 'weekdays', weekdays: [1], to: '2027-02-15', note: 'לימודים, כל שבוע עד 15.2' },
       { when: 'weekdays', weekdays: [3], to: undefined, part: 'evening', note: 'חוג קבוע' },
       { when: 'weekdays', weekdays: [4], to: '2027-03-10', note: 'לימודים עד 10.3.27 כל שבוע' },
@@ -175,4 +175,20 @@ describe('more words', () => {
     ['שבע ברכות', 'ערב · שבע ברכות'],
     ['לא פנוי', 'כל היום · לא פנוי'],
   ])('%s', (answer, understood) => expect(readingText(readAnswer(answer))).toBe(understood))
+})
+
+describe('pasting a corrected reply', () => {
+  it('replaces what the earlier paste of the same week added, and keeps the rest', () => {
+    const first = parseReply('שני: חופש\nשלישי: אירוע', '2026-11-01').constraints
+    const byHand = c({ id: 'hand', from: '2026-11-03', to: '2026-11-03' })
+    const otherWeek = parseReply('שני: חופש', '2026-11-08').constraints
+    const corrected = parseReply('שני: לימודים', '2026-11-01').constraints
+    const after = mergeReply([...first, byHand, ...otherWeek], corrected, '2026-11-01')
+    expect(after.map((x) => x.note)).toEqual([undefined, 'חופש', 'לימודים'])
+    expect(after.map((x) => x.reply)).toEqual([undefined, '2026-11-08', '2026-11-01'])
+  })
+
+  it('tags each constraint with the week of the reply, from its header when kept', () => {
+    expect(parseReply(requestText('2026-11-15').replace('שני 16.11: ', 'שני 16.11: חופש'), '2026-11-01').constraints[0].reply).toBe('2026-11-15')
+  })
 })

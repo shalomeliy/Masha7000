@@ -144,3 +144,9 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - WhatsApp: a day answer with "כל שבוע" / "קבוע" / "שבועי" / "כל יום שני" becomes a weekly constraint on that weekday; "עד 15.2" / "עד 15.2.27" / "עד 15.2.2027" sets the last date (no year: the next such date). The request text now has an example line for it. The preview shows "כל יום שני עד 15.2".
 - Words added: morning (לפנה"צ, "לפני/עד הצהריים", ברית), noon (איסוף, אוסף את), whole day (השתלמות, הכשרה, ניתוח, אשפוז, בית חולים, לידה, טיול, נסיעה, כנס, שומר שבת, חג), evening (שבע ברכות, אזכרה, אסיפת הורים, חוג, אימון), can't (לא פנוי, עסוק, תפוס).
 - Browser not checked again (5 dev servers of other chats in this folder); `npm run verify` green, 156 tests.
+
+### A corrected WhatsApp reply replaces the earlier one (2026-10-29)
+
+- User approved: pasting a new reply for a week replaces what the earlier paste of that week added.
+- `Constraint.reply` = the Sunday of the reply's week (from the header, or the week the manager picked). `mergeReply` / `replacedByReply` in `constraints.ts`; constraints added by hand and other weeks' pastes stay. The paste preview says how many constraints the new reply will replace.
+- Constraints pasted before this change have no `reply` tag, so a re-paste of those weeks does not replace them (delete by hand once).

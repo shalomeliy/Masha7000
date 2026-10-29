@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ClipboardPaste, Plus, X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
-import { blankConstraint, constraintError, constraintText, isOver, parseReply, readAnswer, readingText } from '../../lib/constraints'
+import { blankConstraint, constraintError, constraintText, isOver, mergeReply, parseReply, readAnswer, readingText, replacedByReply } from '../../lib/constraints'
 import { todayIso } from '../../lib/dates'
 import { addDays, HEBREW_DAYS, showDate, weekday, weekOf } from '../../lib/shifts'
 import type { Constraint, DayPart } from '../../types/models'
@@ -81,8 +81,9 @@ export function ConstraintsField({
       {editing && !value.some((x) => x.id === editing.id) && <ConstraintEditor initial={editing} onSave={save} onCancel={() => setEditing(null)} />}
       {pasting && (
         <PasteReply
-          onDone={(added, notes) => {
-            onChange([...value, ...added])
+          existing={value}
+          onDone={(added, notes, week) => {
+            onChange(mergeReply(value, added, week))
             if (notes) onNotes(notes)
             setPasting(false)
           }}
@@ -225,13 +226,23 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
   )
 }
 
-function PasteReply({ onDone, onCancel }: { onDone: (added: Constraint[], notes: string) => void; onCancel: () => void }) {
+function PasteReply({
+  existing,
+  onDone,
+  onCancel,
+}: {
+  existing: Constraint[]
+  onDone: (added: Constraint[], notes: string, week: string) => void
+  onCancel: () => void
+}) {
   const [text, setText] = useState('')
   // Used only when the reply lost its header line with the dates; the request is usually for next week.
   const [weekStart, setWeekStart] = useState(() => addDays(weekOf(todayIso()).start, 7))
   // The manager's fixes to what was understood, by row; the reply is read again on every keystroke.
   const [fixes, setFixes] = useState<Record<number, string>>({})
   const read = text.trim() ? parseReply(text, weekStart) : null
+  const week = read?.weekStart ?? weekStart
+  const replaced = read ? replacedByReply(existing, week).length : 0
   const parsed = read && { ...read, constraints: read.constraints.map((c, i) => (fixes[i] ? { ...c, part: undefined, nightsOnly: undefined, guess: undefined, ...fromKey(fixes[i]) } : c)) }
 
   return (
@@ -286,6 +297,11 @@ function PasteReply({ onDone, onCancel }: { onDone: (added: Constraint[], notes:
             <p className="text-emerald-300">אין אילוצים בתשובה הזו.</p>
           )}
           {parsed.constraints.length > 0 && <p className="text-xs text-slate-400">בדוק מה הבנתי בכל יום. אם טעיתי, בחר נכון ברשימה שליד היום.</p>}
+          {replaced > 0 && (
+            <p className="text-sky-300">
+              כבר הדבקת תשובה לשבוע הזה. התשובה החדשה תחליף את {replaced === 1 ? 'האילוץ' : `${replaced} האילוצים`} שהגיעו ממנה.
+            </p>
+          )}
           {parsed.notes && <p className="text-slate-300">הערות: {parsed.notes} (יתווספו להערות של העובד)</p>}
         </div>
       )}
@@ -293,7 +309,7 @@ function PasteReply({ onDone, onCancel }: { onDone: (added: Constraint[], notes:
         <button
           type="button"
           disabled={!parsed}
-          onClick={() => parsed && onDone(parsed.constraints, parsed.notes)}
+          onClick={() => parsed && onDone(parsed.constraints, parsed.notes, week)}
           className="min-h-11 flex-[2] rounded-xl bg-sky-500 text-sm font-semibold text-slate-950 disabled:opacity-50"
         >
           הוספה לאילוצים

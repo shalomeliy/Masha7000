@@ -212,8 +212,8 @@ export function parseReply(text: string, weekStart: string): ParsedReply {
     const weekly = WEEKLY.test(answer)
     constraints.push(
       weekly
-        ? { id: newId(), when: 'weekdays', weekdays: [weekday(date)], to: untilDate(answer, date), ...reading, note: answer }
-        : { id: newId(), when: 'dates', from: date, to: date, ...reading, note: answer },
+        ? { id: newId(), when: 'weekdays', weekdays: [weekday(date)], to: untilDate(answer, date), ...reading, note: answer, reply: start }
+        : { id: newId(), when: 'dates', from: date, to: date, ...reading, note: answer, reply: start },
     )
   }
   return { weekStart: fromHeader, constraints, notes: notes.filter((n) => n && !NO_CONSTRAINT.test(n)).join('\n') }
@@ -232,5 +232,9 @@ function untilDate(answer: string, from: string): string | undefined {
   const date = `${year}-${md}`
   return dateError(date) ? undefined : date
 }
+
+/** A corrected reply for the same week replaces what the earlier paste of that week added. Constraints added by hand stay. */
+export const replacedByReply = (existing: Constraint[], week: string) => existing.filter((c) => c.reply === week)
+export const mergeReply = (existing: Constraint[], added: Constraint[], week: string) => [...existing.filter((c) => c.reply !== week), ...added]
 
 const weekStartOf = (date: string) => addDays(date, -weekday(date))
