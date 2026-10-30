@@ -31,7 +31,6 @@ The week is staffed in one tap, the manager sees exactly what changed before any
 
 - Shifts considered: in the shown week, not closed, starting today or later. Past days are left as they are.
 - Order: by date, then night jobs before day shifts on the same date (night jobs are harder to staff and limited to 2 a week), then shifts with more places first. Each result is added to the records before the next shift is planned, so fairness and "already working at the same time" see it.
-- Standby shifts, if `docs/specs/daily-standby.md` is built, are planned last each day.
 
 ## Proposed experience
 
