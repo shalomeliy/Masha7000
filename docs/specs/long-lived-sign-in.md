@@ -100,7 +100,7 @@ Wording that becomes false is replaced: "החיבור לגוגל מתחדש כל
 ## Open decisions (for the user)
 
 1. Sign-out: "התנתקות" only on this device, plus a separate "ניתוק מכל המכשירים". Recommended. Alternative: one button that always disconnects every device.
-2. Only your own Google account may sign in. Recommended. Alternative: any account you add later as a test user.
+2. Who may sign in. User (2026-10-30): wants to allow more emails besides their own. So the allowed-account setting is a list of emails (comma-separated, in Vercel). Note: each account sees its own Drive, so a second email sees an empty app, not the owner's data. Open: is the second email another account of the owner, or a second person who must see the same schedule (sharing data is a separate, larger feature)?
 
 ## Expert notes: accepted and rejected
 
