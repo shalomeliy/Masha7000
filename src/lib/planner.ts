@@ -159,3 +159,37 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
     }),
   }
 }
+
+export interface WeekPlanItem {
+  shift: ShiftRecord // with its new crew
+  added: CrewMember[] // workers "שבץ את השבוע" put in
+  unfilled: StaffSlot[]
+  why: string[]
+}
+
+/** The order "שבץ את השבוע" staffs shifts in: by date, night jobs first, more places first. */
+export function weekPlanOrder(shifts: ShiftRecord[], staffingOf: (r: ShiftRecord) => StaffSlot[], defs: ShiftDefinition[]): ShiftRecord[] {
+  return [...shifts].sort(
+    (a, b) =>
+      a.date.localeCompare(b.date) ||
+      Number(isNightShift(b, defs)) - Number(isNightShift(a, defs)) ||
+      staffingOf(b).length - staffingOf(a).length ||
+      a.id.localeCompare(b.id),
+  )
+}
+
+/**
+ * "שבץ" on several shifts at once (docs/specs/week-planner.md), in `weekPlanOrder`. Each shift's
+ * new crew is added to the records the next one is planned with, so fairness and "already working
+ * at the same time" see it. Workers already in a shift stay in it.
+ */
+export function planShifts(shifts: ShiftRecord[], staffingOf: (r: ShiftRecord) => StaffSlot[], ctx: PlanContext): WeekPlanItem[] {
+  let records = ctx.records
+  return weekPlanOrder(shifts, staffingOf, ctx.defs).map((shift) => {
+    const plan = autoAssign(shift, staffingOf(shift), { ...ctx, records })
+    const before = new Set(shift.crew.map((c) => c.workerId))
+    const next = { ...shift, crew: plan.crew }
+    records = records.some((r) => r.id === shift.id) ? records.map((r) => (r.id === shift.id ? next : r)) : [...records, next]
+    return { shift: next, added: plan.crew.filter((c) => !before.has(c.workerId)), unfilled: plan.unfilled, why: plan.why }
+  })
+}
