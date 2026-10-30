@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { autoAssign, candidateOrder, loadWarning, workerLoad, type PlanContext } from './planner'
+import { autoAssign, candidateOrder, loadWarning, planShifts, weekPlanOrder, workerLoad, type PlanContext } from './planner'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 const day: ShiftDefinition = {
@@ -194,5 +194,48 @@ describe('constraints in autoAssign', () => {
   it('tells a missing role apart from a crew that already holds everyone', () => {
     const p = autoAssign(shift('s', '2026-10-28'), [{ roleId: G }, { roleId: G }, { roleId: 'climber' }], ctx([worker('a')]))
     expect(p.why).toEqual(['כל המתאימים כבר במשמרת הזו', 'אין עובד עם התפקיד וההסמכה האלה'])
+  })
+})
+
+describe('planShifts', () => {
+  const ws = [worker('a'), worker('b'), worker('c')]
+  const two = [{ roleId: G }, { roleId: G }]
+
+  it('gives the same crews as "שבץ" and save on each shift, one by one, in the same order', () => {
+    const shifts = [shift('s1', '2026-10-27'), shift('s2', '2026-10-26', { shiftDefinitionId: 'night' }), shift('s3', '2026-10-26')]
+    const plan = planShifts(shifts, () => two, ctx(ws, shifts))
+    let records = shifts
+    for (const s of weekPlanOrder(shifts, () => two, [day, night])) {
+      const p = autoAssign(s, two, ctx(ws, records))
+      records = records.map((r) => (r.id === s.id ? { ...r, crew: p.crew } : r))
+    }
+    expect(plan.map((i) => [i.shift.id, ids(i.shift)])).toEqual(weekPlanOrder(records, () => two, [day, night]).map((r) => [r.id, ids(r)]))
+  })
+
+  it('staffs night jobs first on a date, and never puts a worker in two shifts at once', () => {
+    const shifts = [shift('d', '2026-10-26'), shift('n', '2026-10-26', { shiftDefinitionId: 'night' })]
+    const plan = planShifts(shifts, () => [{ roleId: G }], ctx(ws, shifts))
+    expect(plan.map((i) => i.shift.id)).toEqual(['n', 'd'])
+    expect(ids(plan[0].shift)).not.toEqual(ids(plan[1].shift))
+  })
+
+  it('keeps the manager\'s picks and lists only the workers it added', () => {
+    const s = shift('s', '2026-10-27', { crew: on('c') })
+    const [item] = planShifts([s], () => two, ctx(ws, [s]))
+    expect(ids(item.shift)).toContain('c')
+    expect(item.added.map((c) => c.workerId)).toEqual(['a'])
+  })
+
+  it('spreads the week: three one-person shifts go to three different workers', () => {
+    const shifts = ['2026-10-26', '2026-10-27', '2026-10-28'].map((d, i) => shift(`s${i}`, d))
+    const plan = planShifts(shifts, () => [{ roleId: G }], ctx(ws, shifts))
+    expect(new Set(plan.flatMap((i) => ids(i.shift))).size).toBe(3)
+  })
+
+  it('reports places nobody can fill', () => {
+    const s = shift('s', '2026-10-27')
+    const [item] = planShifts([s], () => [{ roleId: 'climber' }], ctx(ws, [s]))
+    expect(item.unfilled).toEqual([{ roleId: 'climber' }])
+    expect(item.why).toEqual(['אין עובד עם התפקיד וההסמכה האלה'])
   })
 })

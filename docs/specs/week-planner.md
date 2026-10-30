@@ -1,6 +1,6 @@
 # Spec: "שבץ את השבוע" in one tap (v0.6 candidate)
 
-Status: draft (2026-10-30). User decision: only today and later days are staffed; past days are never touched. No expert fan-out yet. `SECURITY NOT TRIGGERED`.
+Status: approved and built (2026-10-30). User decision: only today and later days are staffed; past days are never touched. Recommendations accepted: no "השבוע הבא" shortcut; night jobs first. No expert fan-out yet. `SECURITY NOT TRIGGERED`.
 
 ## Context and observed problem
 

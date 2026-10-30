@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarArrowUp, Check, ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Zap } from 'lucide-react'
+import { CalendarArrowUp, Check, ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Wand2, Zap } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
 import { fullName, generalRoleId, tagNames, upsert } from '../lib/catalog'
 import { blockedCrew, constraintText } from '../lib/constraints'
@@ -15,6 +15,7 @@ import { MoveSheet } from './calendar/MoveSheet'
 import { OUTCOMES } from './calendar/outcomes'
 import { ShareSheet } from './calendar/ShareSheet'
 import { ShiftSheet } from './calendar/ShiftEditor'
+import { WeekPlanSheet } from './calendar/WeekPlanSheet'
 import { EditMark, WorkerDial } from './workers/common'
 
 // The week, Sunday to Saturday, with every shift in it. Urgent shifts can be opened any moment.
@@ -40,6 +41,7 @@ export function Calendar() {
   const [dropDay, setDropDay] = useState<string | null>(null)
   const [dropError, setDropError] = useState<unknown>(null)
   const [filter, setFilter] = useState<GapKind | null>(null)
+  const [planning, setPlanning] = useState<ShiftRecord[] | null>(null)
   const week = weekOf(weekStart)
   const records = sortShifts(shifts.items)
   const ctx = { shifts: shifts.items, defs: defs.items, workers: workers.items, roles: roles.items }
@@ -56,6 +58,8 @@ export function Calendar() {
   const gaps = new Map(weekShifts.map((r) => [r.id, shiftGaps(r, gapCtx)]))
   const counts = gapCounts([...gaps.values()])
   const shown = (r: ShiftRecord) => !filter || !!gaps.get(r.id)?.kinds.includes(filter)
+  // "שבץ את השבוע": open shifts from today on that still have an empty place.
+  const toPlan = weekShifts.filter((r) => !r.closure && r.date >= today && gaps.get(r.id)?.missing.length)
   const changeWeek = (start: string) => (setWeekStart(start), setFilter(null))
 
   const drop = async (day: string) => {
@@ -129,6 +133,18 @@ export function Calendar() {
             <MessageCircle size={18} aria-hidden />
             שליחת סידור השבוע בוואטסאפ
           </button>
+
+          {weekShifts.length > 0 && (
+            <button
+              type="button"
+              disabled={toPlan.length === 0}
+              onClick={() => setPlanning(toPlan)}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 text-sm font-semibold text-slate-950 disabled:bg-slate-800 disabled:text-slate-400"
+            >
+              <Wand2 size={18} aria-hidden />
+              {toPlan.length ? `שבץ את השבוע (${toPlan.length === 1 ? 'משמרת אחת' : `${toPlan.length} משמרות`})` : 'אין משמרות פתוחות לשבץ'}
+            </button>
+          )}
 
           {weekShifts.length > 0 && <WeekStatus counts={counts} filter={filter} onFilter={setFilter} />}
 
@@ -205,6 +221,7 @@ export function Calendar() {
       <ShiftSheet editing={editing} onClose={() => setEditing(null)} />
       <CloseSheet shift={closing} onClose={() => setClosing(null)} />
       <MoveSheet shift={moving} onClose={() => setMoving(null)} />
+      <WeekPlanSheet shifts={planning} onClose={() => setPlanning(null)} />
       <ShareSheet title={sharing?.title ?? ''} report={sharing?.report ?? null} warning={sharing?.warning} onClose={() => setSharing(null)} />
     </section>
   )
