@@ -197,3 +197,10 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - `sw.js` skips `/api/` (cache v2); `vercel.json` rewrite skips `api/`, `/api` no-store.
 - Verified: 221 tests; browser on the built app with a fake `/api` and in-memory Drive: signed in with no click, Settings shows the account and the list, add email, conflict message with the other person's place kept. Not yet run on Vercel: needs the owner's setup (Upstash, env vars, redirect URI `https://masha7000.vercel.app/api/auth/callback`, publish the consent screen). `SESSION_KEY` was generated into `.env.local` for the owner to copy.
 - After setup: check on the live site with the owner and a second email; remind the owner to check after 8 days that they are still signed in.
+
+## Week at a glance: gaps in red (2026-10-30)
+
+- Spec `docs/specs/week-gaps.md`. Spike skipped: pure computation on lists the calendar already loads, every part proven in this project.
+- `src/lib/gaps.ts`: which places of a shift its crew leaves empty (matched like the planner: role in this shift + certification; "כללי" places take anyone), why nobody can fill one, double-booked and over-night-limit crew. Tests in `gaps.test.ts`.
+- Calendar: status chips (חסרים עובדים / התנגשות אילוץ / אותו עובד פעמיים / מעל 2 לילות) that filter the week, red card with "חסר: ..." lines, amber per-worker warnings, red count on the day header, green "מאויש" only with no gap, warning on the WhatsApp week share.
+- Verified in the browser with the in-memory Drive mock at phone width: counts, filter, "הצג הכול", no sideways scroll. change-reviewer agent not available in this cloud session; not run.

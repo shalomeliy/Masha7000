@@ -7,7 +7,7 @@ import { reportImage } from '../../lib/reportImage'
 
 // Shows the report as an image card before sending. The image goes out through the phone's share
 // sheet (pick WhatsApp there); the text version opens WhatsApp directly, or is copied.
-export function ShareSheet({ title, report, onClose }: { title: string; report: Report | null; onClose: () => void }) {
+export function ShareSheet({ title, report, warning, onClose }: { title: string; report: Report | null; warning?: string; onClose: () => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
@@ -63,6 +63,7 @@ export function ShareSheet({ title, report, onClose }: { title: string; report: 
 
   return (
     <Sheet open={report !== null} title={title} onClose={onClose}>
+      {warning && <p className="rounded-xl border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-200">{warning}</p>}
       <div className="max-h-[50dvh] overflow-y-auto rounded-xl border border-slate-800 bg-slate-950">
         {preview ? (
           <img src={preview} alt="תמונת הסידור שתישלח" className="block w-full" />
