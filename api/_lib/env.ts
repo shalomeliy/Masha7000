@@ -18,14 +18,19 @@ const bySuffix = (e: NodeJS.ProcessEnv, ...suffixes: string[]) => {
   return key ? e[key]! : ''
 }
 
+// Storage is either Upstash over REST (url + token) or a plain Redis connection string (REDIS_URL,
+// e.g. Vercel Marketplace "Redis"); for the latter kvUrl holds redis://... and kvToken is 'tcp'.
 function collect(e: NodeJS.ProcessEnv) {
+  const restUrl = bySuffix(e, 'KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL')
+  const restToken = bySuffix(e, 'KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_TOKEN')
+  const redisUrl = restUrl && restToken ? '' : bySuffix(e, 'REDIS_URL')
   return {
     clientId: (e.VITE_GOOGLE_CLIENT_ID ?? '').trim(),
     clientSecret: (e.GOOGLE_CLIENT_SECRET ?? '').trim(),
     sessionKey: (e.SESSION_KEY ?? '').trim(),
     ownerEmail: (e.OWNER_EMAIL ?? '').trim().toLowerCase(),
-    kvUrl: bySuffix(e, 'KV_REST_API_URL', 'UPSTASH_REDIS_REST_URL'),
-    kvToken: bySuffix(e, 'KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_TOKEN'),
+    kvUrl: redisUrl || restUrl,
+    kvToken: redisUrl ? 'tcp' : restToken,
     appOrigin: e.APP_ORIGIN ?? 'https://masha7000.vercel.app',
   }
 }
@@ -40,7 +45,7 @@ const NAMES: Record<keyof Env, string> = {
   clientSecret: 'GOOGLE_CLIENT_SECRET',
   sessionKey: 'SESSION_KEY',
   ownerEmail: 'OWNER_EMAIL',
-  kvUrl: 'KV_REST_API_URL',
+  kvUrl: 'REDIS_URL (or KV_REST_API_URL)',
   kvToken: 'KV_REST_API_TOKEN',
   appOrigin: 'APP_ORIGIN',
 }

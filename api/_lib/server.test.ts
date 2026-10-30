@@ -99,6 +99,11 @@ describe('env and auth url', () => {
   it('is not configured while any value is missing', () => {
     expect(readEnv({ VITE_GOOGLE_CLIENT_ID: 'x' })).toBeNull()
   })
+  it('takes a plain Redis connection string when there is no REST store', () => {
+    const base = { VITE_GOOGLE_CLIENT_ID: 'c', GOOGLE_CLIENT_SECRET: 's', SESSION_KEY: KEY, OWNER_EMAIL: OWNER }
+    expect(readEnv({ ...base, REDIS_URL: 'redis://x' })).toMatchObject({ kvUrl: 'redis://x', kvToken: 'tcp' })
+    expect(readEnv({ ...base, STORAGE_REDIS_URL: 'redis://y' })).toMatchObject({ kvUrl: 'redis://y' })
+  })
   it('asks offline Drive access only in owner mode', () => {
     const env = readEnv()!
     const owner = new URL(authUrl(env, 'owner', 's', 'c')).searchParams
