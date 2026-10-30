@@ -1,108 +1,121 @@
-# Spec: Stay signed in to Google for months
+# Spec: Shared data and staying signed in for months
 
-Status: draft, waiting for the user's approval (2026-10-29). Expert fan-out: product (with design wording), architecture, QA, security.
+Status: draft, waiting for the user's approval (2026-10-30). Expert fan-out: product (with design wording), architecture, QA, security (2026-10-29), updated after the user's decisions on 2026-10-30.
 
 ## Context and observed problem
 
-Sign-in today is browser-only (GIS token model, `src/lib/google/auth.ts`). Google hands out a 1-hour access token and no refresh token. The token is kept in localStorage, so a reload within the hour is fine, but after an hour the manager must click "המשך" and a popup opens and closes. A popup can only open from a click, so this cannot be made silent without a server. The OAuth app is in "Testing", where any refresh token would expire after 7 days anyway.
+1. Sign-in today is browser-only (GIS token model, `src/lib/google/auth.ts`): a 1-hour access token, no refresh token, one click each hour. A popup only opens from a click, so this cannot be silent without a server. The OAuth app is in "Testing", where a refresh token expires after 7 days.
+2. Data lives in the Drive appDataFolder of whoever signs in. A second person signing in gets an empty app. The user (2026-10-30): "זה לא טוב לי שלכל אחד מידע משלו".
 
-User decision (2026-10-29): build option 2 from the thread, a small server inside the same Vercel project plus publishing the OAuth app to "In production".
+## User decisions
 
-## Target user and decision
+- 2026-10-29: a small server inside the same Vercel project, and publishing the OAuth app ("In production").
+- 2026-10-30: more emails besides the owner's may sign in.
+- 2026-10-30: option 1 of three: the data stays in the owner's Drive; the server is the guard at the door. Rejected: a shared Drive folder (needs a broad Drive scope, which Google reviews at length and cost), a new database holding all data (moving every list, much more work; kept as a future path if workers ever get access).
+- 2026-10-30, storage estimate given to the user: about 2 to 5 MB per year of archive, far below Drive's free 15 GB.
 
-The one manager, on a phone (installed app) and a computer. Decision they make: none day to day; they should simply never see the sign-in screen in a normal week.
+## Target users
+
+- The owner (the manager whose Drive holds the data), on phone and computer.
+- Up to a few more people the owner allows by email (for example a deputy), each with their own Google account.
 
 ## Outcome
 
-- Sign in once per device; after that, opening, reloading or updating the app goes straight to the calendar for months, with no click and no popup.
-- A failed renewal never loses an unsaved edit, and never shows a broken screen: it shows one clear "reconnect" button.
+- Everyone allowed sees and edits the same schedule, workers and lists.
+- Each person signs in once per device and stays signed in for months: opening, reloading or updating the app goes straight to the calendar.
+- Two people editing at once never silently erase each other's change.
 
 ## Goal
 
-- Server functions in the Vercel project (`/api/...`) run Google's code flow with offline access, keep the refresh token, and hand the app a fresh access token on request.
-- The app renews silently on start and whenever the token runs out.
-- Only the owner's Google account can sign in.
-- The OAuth app is published ("In production"), so the refresh token does not expire after 7 days.
+- Owner connection: the owner signs in once with full consent; the server keeps the owner's Google refresh token (encrypted) in a small server storage.
+- Everyone signs in with Google only to prove who they are (their email). The server checks the email against the allowed list and keeps them signed in with a long-lived session cookie.
+- When the app needs Google, the server uses the owner's refresh token to give the app a short-lived access token for the owner's Drive (only this app's hidden folder) and the app's own calendar. The app's Drive and Calendar code stays as it is.
+- The owner manages the allowed emails in Settings.
+- Saves check that the file did not change since it was read; if it did, the app reloads it and asks to redo the change.
 
 ## Non-goals
 
-- More than one manager, worker accounts, our own user database.
-- Background sync while the app is closed.
-- Google app verification (not needed for a single user; an "unverified app" warning on first sign-in is accepted).
+- Worker accounts, different permission levels (everyone allowed is a full editor), our own database for the shift data.
+- Live updates pushed between two open screens (the other person sees changes on reload or on next load of that list).
+- Google app verification (not needed for a few users; an "unverified app" warning on first sign-in is accepted).
 
 ## Assumptions
 
-- No database: the refresh token lives in an encrypted cookie the browser holds and only the server can read.
-- Server secrets (`GOOGLE_CLIENT_SECRET`, cookie key, allowed account) are set only for the production deployment, never with a `VITE_` prefix, never in the browser bundle.
-- Local dev (port 5180) has no server functions; there the app falls back to today's popup by itself. Nothing breaks.
-- On iPhone, the installed app may not share cookies with Safari, so it may need its own one-time sign-in. To be checked on the user's phone.
-- Scope category of `calendar.app.created` (sensitive or not) is unconfirmed; it only changes whether Google shows the "unverified" warning, not whether it works. Checked in the spike.
+- Server storage: one small free key-value store from the Vercel Marketplace (Upstash Redis), added by the owner with a click. It holds only: the owner's refresh token (encrypted), the owner's email, the allowed emails.
+- Session cookies are signed and encrypted, `HttpOnly`, about 180 days. No Google token is kept in the browser beyond the 1-hour access token, in memory only.
+- Secrets (`GOOGLE_CLIENT_SECRET`, cookie key, storage keys, owner email) are set only on the production deployment, never with a `VITE_` prefix.
+- Local dev (port 5180) has no server functions; there the app falls back to today's popup and the signed-in person's own Drive. Nothing breaks.
+- iPhone: the installed app may not share cookies with Safari, so it may need its own one-time sign-in.
+- Scope category of `calendar.app.created` is unconfirmed; it only decides whether Google shows the "unverified" warning.
 
 ## Proposed experience
 
-1. First time on a device: sign-in screen, button "התחברות עם Google", line "מתחברים פעם אחת, והחיבור נשמר." The whole page goes to Google (not a popup), the manager picks the account and approves (once: a possible "האפליקציה לא אומתה" warning, then "המשך"), and comes back to the calendar.
-2. Every later visit: a short "מתחבר..." moment, then the calendar. No button.
-3. Token runs out while working: renewed in the background; the save that hit it is retried once. The manager sees nothing.
-4. Connection really broken (access removed in the Google account, cookie gone): screen "החיבור לגוגל נותק. לחיצה אחת מחברת מחדש." with the email. Unsaved edits on screen stay.
-5. No internet: a message "אין חיבור לאינטרנט", not a sign-out. "No internet" and "access removed" are different states.
-6. Settings: "מחובר כ-<email>", "התנתקות" (this device only), and "ניתוק מכל המכשירים" (removes the app's access in Google, so every device must sign in again).
-7. Another Google account tries to sign in: "החשבון הזה לא מורשה להיכנס לאפליקציה." Nothing is saved.
+1. First setup (owner, once): sign in on the live site; the whole page goes to Google, owner approves (maybe an "unverified" warning, then "המשך"). The app is now connected to the owner's Drive for everyone.
+2. Another allowed person: "התחברות עם Google", picks their account, sees the owner's schedule. Google only asks them to share their name and email, not their Drive.
+3. Every later visit: a short "מתחבר..." moment, then the calendar.
+4. Token runs out while working: renewed in the background, the save is retried once, nothing shows.
+5. Email not on the list: "המייל הזה לא מורשה. בקש מהמנהל להוסיף אותו." Nothing is saved.
+6. Owner connection broken (owner removed access in their Google account): everyone sees "החיבור לדרייב של המנהל נותק. המנהל צריך להתחבר מחדש." The owner sees a "חיבור מחדש" button.
+7. No internet: "אין חיבור לאינטרנט", not a sign-out.
+8. Edit conflict: "מישהו אחר שמר שינוי ברשימה הזו בינתיים. טענו את הגרסה החדשה, בצע את השינוי שוב." The other person's change is kept.
+9. Settings:
+   - Everyone: "מחובר כ-<email>", "התנתקות" (this device only).
+   - Owner only: "מי יכול להיכנס": the allowed emails, add (typed email) and remove. Removing someone ends their access within an hour at most. And "ניתוק הדרייב" (stops the app's access to the owner's Drive for everyone, until the owner connects again).
 
-Wording that becomes false is replaced: "החיבור לגוגל מתחדש כל שעה" (`SignIn.tsx`), "החיבור לגוגל פג (זה קורה בערך כל שעה)" (`errors.ts`). The line "הנתונים נשמרים בחשבון הגוגל שלך בלבד" stays true (data stays in Drive), with "החיבור נשמר בצורה מוצפנת" added.
+Wording that becomes false is replaced: "החיבור לגוגל מתחדש כל שעה" (`SignIn.tsx`), "החיבור לגוגל פג (זה קורה בערך כל שעה)" (`errors.ts`), and "הנתונים נשמרים בחשבון הגוגל שלך בלבד" becomes "הנתונים נשמרים בגוגל דרייב של המנהל".
 
 ## System and data implications
 
-- New server functions: start sign-in, Google callback, get a fresh token, sign out (this device / all devices).
-- The browser no longer stores the access token in localStorage; it keeps it in memory and asks the server again after a reload. The remembered email may stay.
-- The service worker must never touch `/api/...` (today it would cache the Google callback page as the offline app), and the SPA rewrite in `vercel.json` must skip `/api/`.
-- `googleFetch` keeps its shape; Drive and Calendar code does not change.
-- Rollback: remove the server functions and the app falls back to the popup on its own.
-- User actions in Google Cloud (project `masha7000`): publish the consent screen, add the redirect address, create a client secret. In Vercel: paste three values. I will give exact steps.
+- New server functions: start sign-in, Google callback, get an access token, sign out, owner disconnect, allowed-email list (read, add, remove; owner only).
+- The browser no longer stores the access token in localStorage.
+- The service worker must never touch `/api/...` (today it would cache the Google callback as the offline app); the SPA rewrite in `vercel.json` must skip `/api/`.
+- Drive writes carry a version check (read the file's version, refuse to overwrite a newer one). This applies to every list.
+- Existing data: already in the owner's Drive (the owner is the one who used the app so far). Nothing moves.
+- Rollback: remove the server functions; the app falls back to the popup and each person's own Drive.
+- Owner actions: Google Cloud project `masha7000` (publish the consent screen, add the redirect address, create a client secret); Vercel (add the free storage, paste the secrets). I give exact steps.
 
 ## Acceptance criteria (observable)
 
-1. After signing in on the live site, reload, close and reopen, and wait over an hour: the calendar opens with no sign-in screen and no popup.
-2. Eight days later the app still opens signed in (proves the app is published, not in Testing).
-3. localStorage has no `shiftsmart.token`; the browser holds an HttpOnly cookie the page's scripts cannot read.
-4. Signing in with a different Google account is refused and leaves no cookie.
-5. "התנתקות" on the computer shows the sign-in screen there; the phone stays signed in.
-6. "ניתוק מכל המכשירים" removes the app from the Google account's third-party access list; the phone shows "החיבור לגוגל נותק" on its next request.
-7. Removing access in the Google account settings: the next open shows the reconnect screen, no endless loop.
-8. Offline: a message, the manager stays signed in, and on reconnect everything works with no click.
-9. Local dev (5180): sign-in still works through the popup.
-10. Security checks (tests): a callback with a wrong or missing `state` is refused; a token request from another site (foreign Origin) is refused; the server answers carry `no-store`.
+1. Owner signs in on the live site; a second allowed account on another device sees the same workers and shifts.
+2. A change saved by one is visible to the other after a reload.
+3. Both edit the same list at once: the second save is refused with the conflict message, and the first change is still there.
+4. After reload, closing and reopening, and over an hour of waiting: the calendar opens with no sign-in screen and no popup, for both people.
+5. Eight days later, still signed in (proves "In production").
+6. An email not on the list is refused and gets no session.
+7. The owner removes an email: that person is out within an hour, at their next token request.
+8. "התנתקות" on one device leaves the other devices signed in.
+9. "ניתוק הדרייב": everyone sees the "נותק" message; the owner reconnects with one sign-in and everyone works again with no action.
+10. No `shiftsmart.token` in localStorage; the session cookie cannot be read by page scripts.
+11. Offline: a message, still signed in; works again on reconnect with no click.
+12. Local dev (5180): sign-in still works through the popup.
+13. Security tests: wrong or missing `state` refused; token request from another site (foreign Origin) refused; a non-owner cannot change the allowed list; server answers carry `no-store`.
 
 ## States
 
-- Loading: "מתחבר..." while asking the server on start (short; times out to the sign-in screen).
-- Empty: never signed in on this device: sign-in screen.
-- Error: Google refused / server error: a plain message and the button again.
-- Partial: server unreachable but internet works: fall back to the popup (needs a click).
-- Recovery: any broken state is fixed with one tap on "התחברות"; unsaved edits stay on screen.
+- Loading: "מתחבר..." on start (times out to the sign-in screen).
+- Empty: never signed in on this device: sign-in screen. Owner never connected: allowed people see "המנהל עוד לא חיבר את הדרייב".
+- Error: Google refused / server error: plain message and the button again.
+- Partial: server unreachable but internet works: an error with "נסה שוב" (no fallback to the person's own Drive on the live site, so nobody edits the wrong data).
+- Recovery: one tap on "התחברות" (or the owner's "חיבור מחדש"); unsaved edits stay on screen.
 
 ## Accessibility, security, privacy, operations
 
-- Buttons and messages in plain Hebrew, alerts with `role="alert"`, the sign-in button reachable by keyboard.
-- Cookie: encrypted (AES-GCM), `HttpOnly`, `Secure`, `SameSite=Lax`, `__Host-` name, about 180 days. Key version inside, so changing the key signs everyone out (kill switch).
-- Sign-in uses a random `state` and PKCE, checked on return. The token endpoint accepts only POST from the app's own address and sends no CORS headers.
-- Only the account in the allowed-account setting can sign in (checked by Google's ID token on return).
-- Tokens and codes are never written to logs.
-- Secrets only on the production deployment; preview deployments get no secrets and fall back to the popup.
-- Cost: Vercel Hobby functions, free at this scale.
+- Plain Hebrew, `role="alert"` on messages, keyboard-reachable buttons.
+- Refresh token encrypted (AES-GCM) before it goes into storage, key only in Vercel env; never sent to any browser.
+- Session cookie: `__Host-` name, `HttpOnly`, `Secure`, `SameSite=Lax`, encrypted, with a key version so changing the key signs everyone out.
+- Sign-in uses `state` + PKCE. The token endpoint accepts only POST from the app's own address, no CORS.
+- An allowed person's browser receives the owner's 1-hour access token. It reaches only this app's hidden Drive folder and the app's own calendar, nothing else in the owner's Google account. Accepted.
+- The allowed list is checked on every token request, so removal takes effect within an hour.
+- Tokens and codes never logged. Secrets only on production; preview deployments get none.
+- Cost: Vercel Hobby functions and the Upstash free tier, free at this scale.
 
 ## Verification plan
 
-- Unit tests for the server logic with a fake Google: cookie encrypt/decrypt and tamper, state check, wrong account, foreign Origin, refresh, revoke.
-- Client tests: silent resume, retry once after 401, offline vs revoked.
-- Spike first (see `feature-spike`): on the live site, prove that Google returns a refresh token and that it renews an access token after the hour, with the app published.
-- Live checks by the user: criteria 1, 2, 5 to 8 on phone and computer.
+- Spike first: prove that Google returns a refresh token in the code flow, that it renews an access token with no user present, that a second Google account can sign in for identity only, and that the renewed owner token reads the owner's appDataFolder.
+- Unit tests for the server logic with a fake Google and a fake storage: encryption and tamper, state, allowed list, owner-only list changes, foreign Origin, refresh, revoke.
+- Client tests: silent resume, retry once after 401, offline vs disconnected, version conflict on save.
+- Live checks with the user: criteria 1 to 9 and 11 on phone and computer with two accounts.
 
-## Open decisions (for the user)
+## Open decisions
 
-1. Sign-out: "התנתקות" only on this device, plus a separate "ניתוק מכל המכשירים". Recommended. Alternative: one button that always disconnects every device.
-2. Who may sign in. User (2026-10-30): wants to allow more emails besides their own. So the allowed-account setting is a list of emails (comma-separated, in Vercel). Note: each account sees its own Drive, so a second email sees an empty app, not the owner's data. Open: is the second email another account of the owner, or a second person who must see the same schedule (sharing data is a separate, larger feature)?
-
-## Expert notes: accepted and rejected
-
-- Accepted: full-page redirect instead of a popup for the first sign-in (works in the installed app, no popup blocker); access token in memory only; service worker and rewrite must skip `/api`; allowed-account check; state + PKCE; key-versioned cookie; production-only secrets.
-- Rejected: a key-value database for the refresh token (more to set up and pay for, no gain for one user); Google app verification (weeks of review, not needed for one user).
+- None blocking. Defaults taken from the user's answers: sign-out is per device; the owner can disconnect the Drive for everyone; every allowed person is a full editor. The user may change any of these.
