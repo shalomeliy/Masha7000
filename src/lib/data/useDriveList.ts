@@ -1,5 +1,5 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { readJson, writeJson } from '../google/drive'
+import { ConflictError, readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
 import { normalizeShift, normalizeWorker, withGeneralRole } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
@@ -60,8 +60,10 @@ export function useDriveList<K extends ListFile>(key: K) {
       return { previous }
     },
     // Roll back only if no later save has replaced the list in the meantime.
-    onError: (_e, next, ctx) => {
+    // Someone else saved this file first: load their version, so the change can be redone on it.
+    onError: (e, next, ctx) => {
       if (qc.getQueryData(['drive', key]) === next) qc.setQueryData(['drive', key], ctx?.previous)
+      if (e instanceof ConflictError) void qc.invalidateQueries({ queryKey: ['drive', key] })
     },
   })
 

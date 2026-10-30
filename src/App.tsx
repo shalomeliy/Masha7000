@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { BottomNav } from './components/BottomNav'
 import type { Tab } from './components/BottomNav'
 import { applyWordSettings } from './lib/constraintWords'
@@ -12,10 +13,22 @@ import { ToSchedule } from './pages/ToSchedule'
 import { useAuth } from './store/auth'
 
 export default function App() {
-  const signedIn = useAuth((s) => s.signedIn)
+  const status = useAuth((s) => s.status)
+  const check = useAuth((s) => s.check)
   const [tab, setTab] = useState<Tab>('calendar')
 
-  if (!signedIn) return <SignIn />
+  useEffect(() => {
+    void check()
+  }, [check])
+
+  if (status === 'checking')
+    return (
+      <main className="flex min-h-full items-center justify-center gap-2 text-slate-400">
+        <Loader2 className="animate-spin" size={20} aria-hidden />
+        מתחבר...
+      </main>
+    )
+  if (status !== 'signedIn') return <SignIn />
 
   return (
     <div className="mx-auto min-h-full max-w-md pb-24">

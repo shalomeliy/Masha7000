@@ -6,7 +6,9 @@ import { useDriveList } from '../lib/data/useDriveList'
 import { ensureShiftsCalendar, deleteEvent, listEvents, upsertEvent } from '../lib/google/calendar'
 import { readJson, writeJson } from '../lib/google/drive'
 import { TIME_ZONE } from '../lib/google/config'
+import { authMode } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
+import { AccessSection } from './settings/AccessSection'
 import { NameListSection } from './settings/NameListSection'
 import { WordsSection } from './settings/WordsSection'
 import { ReasonsSection } from './ToSchedule'
@@ -116,6 +118,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 
 export function Settings() {
   const logout = useAuth((s) => s.logout)
+  const who = useAuth((s) => s.who)
   const [open, setOpen] = useState<ListId | null>(null)
   // The editors read each other's lists (names, usage counts), so they load together.
   const lists = {
@@ -196,11 +199,21 @@ export function Settings() {
         )}
       </div>
 
+      {who?.isOwner && <AccessSection />}
+
       <ConnectionCheck />
 
-      <button type="button" onClick={logout} className="w-full rounded-xl border border-slate-700 py-3 text-slate-300">
-        התנתקות
-      </button>
+      <div className="space-y-2">
+        {who && (
+          <p className="text-sm text-slate-400">
+            מחובר כ-<span dir="ltr">{who.email}</span>
+          </p>
+        )}
+        <button type="button" onClick={logout} className="w-full rounded-xl border border-slate-700 py-3 text-slate-300">
+          התנתקות
+        </button>
+        {authMode() === 'server' && <p className="text-xs text-slate-500">מנתק רק את המכשיר הזה. שאר המכשירים נשארים מחוברים.</p>}
+      </div>
     </section>
   )
 }
