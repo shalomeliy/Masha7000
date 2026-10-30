@@ -1,6 +1,6 @@
 # Spec: Monthly report per worker (v0.6 candidate)
 
-Status: draft, waiting for the user's approval (2026-10-30). No expert fan-out yet. `SECURITY NOT TRIGGERED` for the screen; a CSV download leaves the app with workers' names, see "Privacy".
+Status: draft (2026-10-30). User decisions: a postponed night job counts as worked; weekend = Friday and Saturday only. No expert fan-out yet. `SECURITY NOT TRIGGERED` for the screen; a CSV download leaves the app with workers' names, see "Privacy".
 
 ## Context and observed problem
 

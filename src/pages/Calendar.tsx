@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { CalendarArrowUp, ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Zap } from 'lucide-react'
+import { CalendarArrowUp, Check, ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Zap } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
-import { fullName, tagNames, upsert } from '../lib/catalog'
+import { fullName, generalRoleId, tagNames, upsert } from '../lib/catalog'
 import { blockedCrew, constraintText } from '../lib/constraints'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
+import { gapCounts, placeText, shiftGaps, type GapKind, type ShiftGaps } from '../lib/gaps'
 import { dayData, weekData } from '../lib/report'
 import type { Report } from '../lib/report'
 import { addDays, blankShift, dayName, isNightShift, moveShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
@@ -24,22 +25,38 @@ export function Calendar() {
   // The cards and sheets read these too (names, roles, reasons), so everything loads together.
   const workers = useDriveList('workers')
   const roles = useDriveList('roles')
-  const lists = [shifts, defs, workers, roles, useDriveList('certifications'), useDriveList('pendingJobs'), useDriveList('postponeReasons')]
+  const certs = useDriveList('certifications')
+  const lists = [shifts, defs, workers, roles, certs, useDriveList('pendingJobs'), useDriveList('postponeReasons')]
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
   const today = todayIso()
   const [weekStart, setWeekStart] = useState(() => weekOf(today).start)
   const [editing, setEditing] = useState<ShiftRecord | null>(null)
   const [closing, setClosing] = useState<ShiftRecord | null>(null)
-  const [sharing, setSharing] = useState<{ title: string; report: Report } | null>(null)
+  const [sharing, setSharing] = useState<{ title: string; report: Report; warning?: string } | null>(null)
   const [moving, setMoving] = useState<ShiftRecord | null>(null)
   // Dragging a card onto another day (mouse; on a phone the card's "העברה ליום אחר" does it).
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropDay, setDropDay] = useState<string | null>(null)
   const [dropError, setDropError] = useState<unknown>(null)
+  const [filter, setFilter] = useState<GapKind | null>(null)
   const week = weekOf(weekStart)
   const records = sortShifts(shifts.items)
   const ctx = { shifts: shifts.items, defs: defs.items, workers: workers.items, roles: roles.items }
+  // What each shift of the week still needs (docs/specs/week-gaps.md). Computed, never saved.
+  const gapCtx = {
+    workers: workers.items,
+    records: shifts.items,
+    defs: defs.items,
+    roles: roles.items,
+    certifications: certs.items,
+    generalId: generalRoleId(roles.items),
+  }
+  const weekShifts = records.filter((r) => r.date >= week.start && r.date <= week.end)
+  const gaps = new Map(weekShifts.map((r) => [r.id, shiftGaps(r, gapCtx)]))
+  const counts = gapCounts([...gaps.values()])
+  const shown = (r: ShiftRecord) => !filter || !!gaps.get(r.id)?.kinds.includes(filter)
+  const changeWeek = (start: string) => (setWeekStart(start), setFilter(null))
 
   const drop = async (day: string) => {
     const r = shifts.items.find((x) => x.id === dragId)
@@ -87,31 +104,42 @@ export function Calendar() {
           </div>
 
           <div className="flex items-center justify-between rounded-xl bg-slate-900 p-1">
-            <button type="button" aria-label="השבוע הקודם" onClick={() => setWeekStart(addDays(week.start, -7))} className="flex size-11 items-center justify-center text-slate-300">
+            <button type="button" aria-label="השבוע הקודם" onClick={() => changeWeek(addDays(week.start, -7))} className="flex size-11 items-center justify-center text-slate-300">
               <ChevronRight size={22} aria-hidden />
             </button>
-            <button type="button" onClick={() => setWeekStart(weekOf(today).start)} className="min-h-11 px-3 text-sm">
+            <button type="button" onClick={() => changeWeek(weekOf(today).start)} className="min-h-11 px-3 text-sm">
               {week.days.includes(today) ? 'השבוע' : 'שבוע'} {showDate(week.start)} - {showDate(week.end)}
             </button>
-            <button type="button" aria-label="השבוע הבא" onClick={() => setWeekStart(addDays(week.start, 7))} className="flex size-11 items-center justify-center text-slate-300">
+            <button type="button" aria-label="השבוע הבא" onClick={() => changeWeek(addDays(week.start, 7))} className="flex size-11 items-center justify-center text-slate-300">
               <ChevronLeft size={22} aria-hidden />
             </button>
           </div>
 
           <button
             type="button"
-            onClick={() => setSharing({ title: 'סידור השבוע לוואטסאפ', report: weekData(week.start, ctx) })}
+            onClick={() =>
+              setSharing({
+                title: 'סידור השבוע לוואטסאפ',
+                report: weekData(week.start, ctx),
+                warning: counts.missing ? `שים לב: ${counts.missing === 1 ? 'משמרת אחת עוד חסרה' : `${counts.missing} משמרות עוד חסרות`} עובדים.` : undefined,
+              })
+            }
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/50 text-sm font-semibold text-emerald-300"
           >
             <MessageCircle size={18} aria-hidden />
             שליחת סידור השבוע בוואטסאפ
           </button>
 
+          {weekShifts.length > 0 && <WeekStatus counts={counts} filter={filter} onFilter={setFilter} />}
+
           {dropError != null && <DriveError error={dropError} action="save" />}
 
           <ol className="space-y-4">
             {week.days.map((day) => {
-              const dayShifts = records.filter((r) => r.date === day)
+              const all = records.filter((r) => r.date === day)
+              const dayShifts = all.filter(shown)
+              const missingToday = all.filter((r) => gaps.get(r.id)?.kinds.includes('missing')).length
+              if (filter && dayShifts.length === 0) return null
               return (
                 <li
                   key={day}
@@ -128,8 +156,15 @@ export function Calendar() {
                     <h2 className={`text-sm font-semibold ${day === today ? 'text-sky-400' : 'text-slate-400'}`}>
                       יום {dayName(day)} {showDate(day)}
                       {day === today && ' · היום'}
+                      {missingToday > 0 && (
+                        <span className="ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
+                          <span className="sr-only">חסרים עובדים ב-</span>
+                          {missingToday}
+                          <span className="sr-only"> {missingToday === 1 ? 'משמרת' : 'משמרות'}</span>
+                        </span>
+                      )}
                     </h2>
-                    {dayShifts.length > 0 && (
+                    {all.length > 0 && (
                       <button
                         type="button"
                         onClick={() => setSharing({ title: `יום ${dayName(day)} ${showDate(day)} לוואטסאפ`, report: dayData(day, ctx) })}
@@ -148,6 +183,7 @@ export function Calendar() {
                         <li key={r.id}>
                           <ShiftCard
                             shift={r}
+                            gaps={gaps.get(r.id)!}
                             canClose={r.date <= today}
                             onOpen={() => setEditing(r)}
                             onCloseJob={() => setClosing(r)}
@@ -169,7 +205,7 @@ export function Calendar() {
       <ShiftSheet editing={editing} onClose={() => setEditing(null)} />
       <CloseSheet shift={closing} onClose={() => setClosing(null)} />
       <MoveSheet shift={moving} onClose={() => setMoving(null)} />
-      <ShareSheet title={sharing?.title ?? ''} report={sharing?.report ?? null} onClose={() => setSharing(null)} />
+      <ShareSheet title={sharing?.title ?? ''} report={sharing?.report ?? null} warning={sharing?.warning} onClose={() => setSharing(null)} />
     </section>
   )
 }
@@ -178,6 +214,7 @@ export function Calendar() {
 // A closed job already happened, so it is not moved.
 function ShiftCard({
   shift: r,
+  gaps,
   canClose,
   onOpen,
   onCloseJob,
@@ -186,6 +223,7 @@ function ShiftCard({
   onDragEnd,
 }: {
   shift: ShiftRecord
+  gaps: ShiftGaps
   canClose: boolean
   onOpen: () => void
   onCloseJob: () => void
@@ -196,6 +234,7 @@ function ShiftCard({
   const defs = useDriveList('shiftDefinitions')
   const workers = useDriveList('workers')
   const roles = useDriveList('roles')
+  const certs = useDriveList('certifications')
   const reasons = useDriveList('postponeReasons')
   const def = defs.items.find((d) => d.id === r.shiftDefinitionId)
   const night = isNightShift(r, defs.items)
@@ -205,6 +244,10 @@ function ShiftCard({
   // the shift and that worker are outlined in orange, so the manager opens it and swaps them.
   const blocked = r.closure ? [] : blockedCrew(r, workers.items, defs.items)
   const blockedIds = new Set(blocked.map((b) => b.worker.id))
+  const missing = gaps.missing.length > 0
+  const warnIds = new Set([...gaps.doubleIds, ...gaps.nightIds])
+  const warnOf = (id: string) =>
+    [gaps.doubleIds.includes(id) && 'כבר במשמרת אחרת באותו זמן', gaps.nightIds.includes(id) && 'מעל 2 לילות השבוע'].filter(Boolean).join(', ')
   const showClose = night && (canClose || !!r.closure)
 
   return (
@@ -216,11 +259,17 @@ function ShiftCard({
         onDragStart()
       }}
       onDragEnd={onDragEnd}
-      className={`overflow-hidden rounded-2xl border bg-slate-900 ${blocked.length ? 'border-2 border-orange-500' : 'border-slate-800'}`}
+      className={`overflow-hidden rounded-2xl border bg-slate-900 ${missing ? 'border-2 border-red-500' : blocked.length ? 'border-2 border-orange-500' : 'border-slate-800'}`}
     >
       <button type="button" onClick={onOpen} className="relative w-full space-y-2 p-4 pe-9 text-start">
         <EditMark />
         <span className="flex flex-wrap items-center gap-2 text-xs">
+          {!r.closure && gaps.kinds.length === 0 && (
+            <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-300">
+              <Check size={12} aria-hidden />
+              מאויש
+            </span>
+          )}
           {r.urgent && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 font-semibold text-amber-300">דחופה מ-{r.startTime}</span>}
           {def && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">{def.name}</span>}
           {r.fromJobId && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-300">המשך של משימה קודמת</span>}
@@ -232,7 +281,28 @@ function ShiftCard({
         </span>
         {r.location && <span className="block font-semibold">{r.location}</span>}
         {r.jobDescription && <span className="block text-sm text-slate-300">{r.jobDescription}</span>}
-        {r.crew.length === 0 && <span className="block text-xs text-amber-300">עוד אין עובדים במשמרת</span>}
+        {missing && (
+          <span className="block space-y-0.5 text-xs text-red-300">
+            {gaps.missing.map((m, i) => (
+              <span key={i} className="block">
+                <span className="font-semibold">חסר: {placeText(m.slot, roles.items, certs.items)}</span>
+                {m.why && <span className="text-red-300/80"> · {m.why}</span>}
+              </span>
+            ))}
+          </span>
+        )}
+        {warnIds.size > 0 && (
+          <span className="block space-y-0.5 text-xs text-amber-300">
+            {[...warnIds].map((id) => {
+              const w = workers.items.find((x) => x.id === id)
+              return (
+                <span key={id} className="block">
+                  {w ? fullName(w) : ''}: {warnOf(id)}
+                </span>
+              )
+            })}
+          </span>
+        )}
         {blocked.length > 0 && (
           <span className="block space-y-0.5 text-xs text-orange-300">
             {blocked.map(({ worker, constraint }) => (
@@ -288,6 +358,46 @@ function ShiftCard({
             </button>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+const STATUS: { kind: GapKind; label: string; tone: string }[] = [
+  { kind: 'missing', label: 'חסרים עובדים', tone: 'border-red-500/60 bg-red-500/15 text-red-200' },
+  { kind: 'blocked', label: 'התנגשות אילוץ', tone: 'border-orange-500/60 bg-orange-500/15 text-orange-200' },
+  { kind: 'double', label: 'אותו עובד פעמיים', tone: 'border-amber-500/60 bg-amber-500/10 text-amber-200' },
+  { kind: 'nights', label: 'מעל 2 לילות', tone: 'border-amber-500/60 bg-amber-500/10 text-amber-200' },
+]
+
+// The week at a glance: how many shifts still need something; a tap shows only those.
+function WeekStatus({ counts, filter, onFilter }: { counts: Record<GapKind, number>; filter: GapKind | null; onFilter: (k: GapKind | null) => void }) {
+  const chips = STATUS.filter((s) => counts[s.kind] > 0)
+  if (chips.length === 0)
+    return (
+      <p role="status" className="flex min-h-11 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-300">
+        <Check size={18} aria-hidden />
+        כל המשמרות השבוע מאוישות
+      </p>
+    )
+  return (
+    <div role="group" aria-label="מצב השבוע" className="flex flex-wrap gap-2">
+      {chips.map((s) => (
+        <button
+          key={s.kind}
+          type="button"
+          aria-pressed={filter === s.kind}
+          onClick={() => onFilter(filter === s.kind ? null : s.kind)}
+          className={`flex min-h-11 items-center gap-2 rounded-full border px-3 text-sm ${s.tone} ${filter === s.kind ? 'ring-2 ring-white/70' : ''}`}
+        >
+          <span className="font-bold">{counts[s.kind]}</span>
+          {s.label}
+        </button>
+      ))}
+      {filter && (
+        <button type="button" onClick={() => onFilter(null)} className="min-h-11 rounded-full border border-slate-700 px-3 text-sm text-slate-300">
+          הצג הכול
+        </button>
       )}
     </div>
   )

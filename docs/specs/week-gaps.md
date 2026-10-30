@@ -1,6 +1,6 @@
 # Spec: The week at a glance, gaps in red (v0.6 candidate)
 
-Status: draft, waiting for the user's approval (2026-10-30). No expert fan-out yet: written from the code; the fan-out runs once the user picks this feature. `SECURITY NOT TRIGGERED`: no new input, sign-in, data or dependency.
+Status: approved and built (2026-10-30). Decisions: past days are checked (user); the night-limit warning is in the bar and the WhatsApp week share warns when shifts are missing (recommendations, accepted with the rest). A shift shows "מאויש" only when it has no gap of any kind. No expert fan-out yet: written from the code; the fan-out runs once the user picks this feature. `SECURITY NOT TRIGGERED`: no new input, sign-in, data or dependency.
 
 ## Context and observed problem
 
@@ -32,7 +32,7 @@ One look at the top of the week tells the manager how many shifts still need som
 
 - A shift's needs are its `staffing` read through `staffingFor` (a shift with no staffing needs one "כללי").
 - Closed night jobs (`closure` set) are history and are not checked.
-- Past days of the shown week are checked too, but listed after today's and later ones. (Open decision 2.)
+- Past days of the shown week are checked too, in their usual place in the week (user, 2026-10-30).
 
 ## Proposed experience
 

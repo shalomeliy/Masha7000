@@ -1,6 +1,6 @@
 # Spec: Backup and restore of all app data (v0.6 candidate)
 
-Status: draft, waiting for the user's approval (2026-10-30). No expert fan-out yet. `SECURITY TRIGGERED`: restore reads a file from outside the app (external input) and the backup holds personal data; the `security-expert` must review before the plan.
+Status: draft (2026-10-30). User decisions: automatic weekly copies, last 8 kept; no password on the downloaded file, a warning instead. No expert fan-out yet. `SECURITY TRIGGERED`: restore reads a file from outside the app (external input) and the backup holds personal data; the `security-expert` must review before the plan.
 
 ## Context and observed problem
 

@@ -1,6 +1,6 @@
 # Spec: "שבץ את השבוע" in one tap (v0.6 candidate)
 
-Status: draft, waiting for the user's approval (2026-10-30). No expert fan-out yet. `SECURITY NOT TRIGGERED`.
+Status: draft (2026-10-30). User decision: only today and later days are staffed; past days are never touched. No expert fan-out yet. `SECURITY NOT TRIGGERED`.
 
 ## Context and observed problem
 
