@@ -224,7 +224,7 @@ describe('token', () => {
 
   it('says not configured when the server has no settings', async () => {
     vi.stubEnv('SESSION_KEY', '')
-    expect(await (await post(token, null)).json()).toEqual({ reason: 'not-configured' })
+    expect(await (await post(token, null)).json()).toEqual({ reason: 'not-configured', missing: ['SESSION_KEY'] })
   })
 })
 
