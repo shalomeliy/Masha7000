@@ -1,5 +1,5 @@
 import { open, seal } from './_lib/crypto.js'
-import { readEnv } from './_lib/env.js'
+import { missingEnv, readEnv } from './_lib/env.js'
 import { refreshAccess } from './_lib/google.js'
 import { guarded, json, sameOrigin } from './_lib/http.js'
 import { KEYS, kv } from './_lib/kv.js'
@@ -15,7 +15,7 @@ interface Cached {
 
 export const POST = guarded(async (req: Request) => {
   const env = readEnv()
-  if (!env) return json({ reason: 'not-configured' }, 503)
+  if (!env) return json({ reason: 'not-configured', missing: missingEnv() }, 503)
   if (!sameOrigin(req, env.appOrigin)) return json({ reason: 'bad-origin' }, 403)
   const session = await readSession(env, req)
   if (!session) return json({ reason: 'no-session' }, 401)
