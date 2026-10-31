@@ -8,9 +8,11 @@ import { RANGES, archivePlaces, archiveShifts, archiveSummary, rangeDates, taskL
 import type { ArchiveFilter } from '../lib/archive'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
+import { defaultMonth, monthDates } from '../lib/monthReport'
 import { dayName, showDate } from '../lib/shifts'
 import type { ShiftRecord } from '../types/models'
 import { OUTCOMES } from './calendar/outcomes'
+import { MonthReport } from './archive/MonthReport'
 
 // The whole history of shifts: who worked, where, what the job was, how a night job ended and
 // who was swapped. Read-only; a shift is changed from "יומן".
@@ -29,6 +31,8 @@ export function Archive() {
   const [range, setRange] = useState<string>('half')
   const [filter, setFilter] = useState<ArchiveFilter>(() => ({ ...rangeDates(182, today), workerId: '', location: '', text: '' }))
   const [shown, setShown] = useState(PAGE)
+  const [mode, setMode] = useState<'list' | 'month'>('list')
+  const [month, setMonth] = useState(() => defaultMonth(today))
 
   const set = (patch: Partial<ArchiveFilter>) => (setFilter((f) => ({ ...f, ...patch })), setShown(PAGE))
   const hits = archiveShifts(shifts.items, filter, workers.items)
@@ -39,6 +43,24 @@ export function Archive() {
   return (
     <section className="space-y-4 px-4 pt-6">
       <h1 className="text-2xl font-bold">ארכיון</h1>
+      <div className="grid grid-cols-2 gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1" role="group" aria-label="תצוגה">
+        {(
+          [
+            ['list', 'משמרות'],
+            ['month', 'דוח חודשי'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={mode === id}
+            onClick={() => setMode(id)}
+            className={`min-h-11 rounded-lg text-sm font-semibold ${mode === id ? 'bg-sky-500/20 text-sky-300' : 'text-slate-400'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {failed ? (
         <DriveError error={failed.query.error} action="load" onRetry={() => lists.forEach((l) => l.query.isError && l.query.refetch())} />
@@ -47,6 +69,13 @@ export function Archive() {
           <Loader2 className="animate-spin" size={18} aria-hidden />
           טוען מגוגל דרייב...
         </p>
+      ) : mode === 'month' ? (
+        <MonthReport
+          month={month}
+          today={today}
+          onMonth={setMonth}
+          onWorker={(workerId) => (setMode('list'), setRange(''), set({ ...monthDates(month, today), workerId, location: '', text: '' }))}
+        />
       ) : (
         <>
           <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">

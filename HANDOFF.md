@@ -221,3 +221,11 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - Moving a shift (sheet or drag) onto a day where a crew member is already in another shift is refused with the names.
 - A worker with a constraint is still offered by hand, with the orange warning (manager override); "שבץ" never picks them.
 - Verified in the browser with the in-memory Drive mock: swap offered nobody when the only other climber lacked the certification; move onto a clashing day refused.
+
+## Monthly report per worker (2026-10-31)
+
+- Spec `docs/specs/monthly-worker-report.md` (user accepted every recommended answer). Spike skipped: pure counting over lists the archive already loads, every part proven.
+- `src/lib/monthReport.ts` (tests in `monthReport.test.ts`): `monthReport` counts per worker day / night (`isNightShift`, urgent = night) / urgent / weekend (Friday, Saturday by start date) / total = day + night / "הוחלף" (in a swap's `outId` and not in the final crew, not in the total). A shift counts in the month of its start date; postponed counts as worked; deleted workers show as "עובד שנמחק". In the current month, shifts after today are not counted ("עד היום"). `monthText` (WhatsApp), `monthCsv` (BOM, quotes escaped, totals row), `defaultMonth` (previous month until the 5th).
+- Archive tab: switch "משמרות" / "דוח חודשי" (`src/pages/archive/MonthReport.tsx`): month arrows (no going past this month), table scrolling inside itself with a sticky name column, totals row, "שליחה בוואטסאפ", "הורדה לאקסל" (`masha7000-YYYY-MM.csv`). Tapping a worker opens the shift list filtered to that worker and month.
+- Browser not checked: the dev server could not start (5 dev servers of other chats in this folder). `npm run verify` green.
+- Remaining unbuilt spec: `docs/specs/backup-restore.md`.
