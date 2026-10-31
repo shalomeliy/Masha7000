@@ -42,6 +42,15 @@ describe('writeJson version check', () => {
     expect(writes).toBe(0)
   })
 
+  it('saves when Drive only raised the version on its own, without changing the content', async () => {
+    const drive = await load()
+    await drive.readJson('a.json')
+    await drive.writeJson('a.json', [1, 2])
+    file = { version: file!.version + 1, body: file!.body } // Drive's own late bump after the upload
+    await drive.writeJson('a.json', [1, 2, 3])
+    expect(file.body).toBe('[1,2,3]')
+  })
+
   it('refuses when someone created the file after this screen saw none', async () => {
     file = null
     const drive = await load()
