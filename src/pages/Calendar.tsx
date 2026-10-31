@@ -5,6 +5,7 @@ import { fullName, generalRoleId, tagNames, upsert } from '../lib/catalog'
 import { blockedCrew, constraintText } from '../lib/constraints'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
+import { busyCrew, busyText } from '../lib/planner'
 import { gapCounts, placeText, shiftGaps, type GapKind, type ShiftGaps } from '../lib/gaps'
 import { dayData, weekData } from '../lib/report'
 import type { Report } from '../lib/report'
@@ -40,6 +41,7 @@ export function Calendar() {
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropDay, setDropDay] = useState<string | null>(null)
   const [dropError, setDropError] = useState<unknown>(null)
+  const [dropRefused, setDropRefused] = useState<string | null>(null)
   const [filter, setFilter] = useState<GapKind | null>(null)
   const [planning, setPlanning] = useState<ShiftRecord[] | null>(null)
   const week = weekOf(weekStart)
@@ -68,8 +70,12 @@ export function Calendar() {
     setDropDay(null)
     if (!r || r.date === day) return
     setDropError(null)
+    setDropRefused(null)
+    const moved = moveShift(r, day)
+    const busy = busyCrew(moved, workers.items, shifts.items, defs.items)
+    if (busy.length) return setDropRefused(`${busyText(busy)}. אי אפשר להעביר את המשמרת ליום הזה לפני שמחליפים ${busy.length > 1 ? 'אותם' : 'אותו'}.`)
     try {
-      await shifts.save(upsert(shifts.items, moveShift(r, day)))
+      await shifts.save(upsert(shifts.items, moved))
     } catch (e) {
       setDropError(e)
     }
@@ -149,6 +155,11 @@ export function Calendar() {
           {weekShifts.length > 0 && <WeekStatus counts={counts} filter={filter} onFilter={setFilter} />}
 
           {dropError != null && <DriveError error={dropError} action="save" />}
+          {dropRefused && (
+            <p role="alert" className="rounded-xl border border-red-500/60 bg-red-500/10 p-3 text-sm text-red-200">
+              {dropRefused}
+            </p>
+          )}
 
           <ol className="space-y-4">
             {week.days.map((day) => {

@@ -212,3 +212,12 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - `planShifts` / `weekPlanOrder` in `src/lib/planner.ts`: runs "שבץ" on each shift in order (date, night first, more places first), carrying each new crew into the records the next one sees. Tests in `planner.test.ts`, including equivalence with one-by-one.
 - Calendar: a "שבץ את השבוע (N משמרות)" button for open shifts from today on with an empty place; `WeekPlanSheet` previews added workers (green) and places still empty with the reason (red); "שמור הכול" is one save of `shifts.json`.
 - Verified in the browser with the in-memory Drive mock at phone width: preview, save wrote both shifts, status counts updated.
+
+## No worker in two shifts at once; swaps keep the place's certification (2026-10-31)
+
+- User rule: a worker is never in two shifts that run at the same time (a night job runs until 16:00 the next day), and a swap must bring a worker with the place's role and certification.
+- `busyWith` / `busyCrew` / `busyText` in `src/lib/planner.ts`. "שבץ" and "שבץ את השבוע" now treat "already in another shift then" as a hard rule (was a soft preference) and say so when a place stays empty.
+- Shift editor: busy workers are not offered in "הוספת עובד" or swap; swap offers only workers who fit the place this worker fills (`crewPlaces` in `src/lib/gaps.ts`, role + certification); save is refused with the clashing shift named.
+- Moving a shift (sheet or drag) onto a day where a crew member is already in another shift is refused with the names.
+- A worker with a constraint is still offered by hand, with the orange warning (manager override); "שבץ" never picks them.
+- Verified in the browser with the in-memory Drive mock: swap offered nobody when the only other climber lacked the certification; move onto a clashing day refused.
