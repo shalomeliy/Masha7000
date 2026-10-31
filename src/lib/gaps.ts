@@ -43,6 +43,12 @@ const fills = (w: Worker, roleId: string, slot: StaffSlot, generalId: string) =>
  * with augmenting paths, so the order of the crew never makes a place look empty.
  */
 export function emptyPlaces(shift: ShiftRecord, staffing: StaffSlot[], workers: Worker[], generalId: string): StaffSlot[] {
+  const filled = new Set(crewPlaces(shift, staffing, workers, generalId).values())
+  return staffing.filter((_, s) => !filled.has(s))
+}
+
+/** Which place (index in `staffing`) each crew member fills, by worker id. A member who fills none is left out. */
+export function crewPlaces(shift: ShiftRecord, staffing: StaffSlot[], workers: Worker[], generalId: string): Map<string, number> {
   const members = shift.crew.flatMap((c) => {
     const w = workers.find((x) => x.id === c.workerId)
     return w ? [{ w, roleId: c.roleId }] : []
@@ -57,7 +63,9 @@ export function emptyPlaces(shift: ShiftRecord, staffing: StaffSlot[], workers: 
     return false
   }
   members.forEach((_, m) => tryPlace(m, new Set()))
-  return staffing.filter((_, s) => memberAt[s] === undefined)
+  const places = new Map<string, number>()
+  memberAt.forEach((m, s) => m !== undefined && places.set(members[m].w.id, s))
+  return places
 }
 
 /** Why no one can fill this place, or undefined when some worker outside the crew still could. */

@@ -7,7 +7,8 @@ import { Suggestions } from '../../components/Suggestions'
 import { fullName, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
 import { crewSwaps } from '../../lib/archive'
 import { useDriveList } from '../../lib/data/useDriveList'
-import { autoAssign, candidateOrder, fitsSlot, loadWarning, type PlanContext, type WorkerLoad } from '../../lib/planner'
+import { crewPlaces } from '../../lib/gaps'
+import { autoAssign, busyCrew, busyText, candidateOrder, fitsSlot, loadWarning, type PlanContext, type WorkerLoad } from '../../lib/planner'
 import { isNightShift, pendingAfterShiftSave, shiftRecordError } from '../../lib/shifts'
 import type { ShiftRecord, Worker } from '../../types/models'
 import { WorkerDial } from '../workers/common'
@@ -73,6 +74,12 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     }
   }
 
+  // A worker cannot be in two shifts that run at the same time (a night job runs into the next afternoon).
+  const busyError = (r: ShiftRecord) => {
+    const busy = busyCrew(r, workers.items, shifts.items, defs.items)
+    return busy.length ? `${busyText(busy)}. החלף ${busy.length > 1 ? 'אותם' : 'אותו'} לפני השמירה.` : null
+  }
+
   const save = () => {
     // A worker replaced in a saved shift is kept in its history, for the archive.
     const saved = shifts.items.find((s) => s.id === shift.id)
@@ -88,7 +95,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         ? 'יש תאריך לא תקין'
         : clean.closure && !isNightShift(clean, defs.items)
           ? 'העבודה הזו כבר נסגרה, ולכן היא נשארת משמרת לילה. כדי לשנות, קודם פתח מחדש את הסגירה.'
-          : shiftRecordError(clean, workers.items, roles.items.map((r) => r.id), general)
+          : shiftRecordError(clean, workers.items, roles.items.map((r) => r.id), general) ?? busyError(clean)
     setError(err)
     if (err) return
     run(async () => {
@@ -106,7 +113,9 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const planCtx: PlanContext = { workers: workers.items, records: shifts.items, defs: defs.items, generalId: general }
   // Fairest first: the same order the automatic crew uses.
   const ranked = candidateOrder(draft, planCtx)
-  const available = ranked.filter((c) => !inCrew.has(c.worker.id))
+  // Workers already in another shift at the same time are not offered at all.
+  const available = ranked.filter((c) => !inCrew.has(c.worker.id) && !c.load.busy)
+  const places = crewPlaces(draft, draft.staffing, workers.items, general)
   const loadOf = (id: string) => ranked.find((c) => c.worker.id === id)?.load
 
   // The manager only says who is needed; "שבץ" picks the workers. Manual changes come after.
@@ -201,7 +210,9 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           const options = roleOptions(w)
           const load = loadOf(c.workerId)
           const warning = load && loadWarning(load)
-          const swapOptions = available.filter((x) => fitsSlot(x.worker, { roleId: c.roleId }, general))
+          // The replacement must fit the place this worker fills: its role and its certification.
+          const place = places.has(c.workerId) ? draft.staffing[places.get(c.workerId)!] : { roleId: c.roleId }
+          const swapOptions = available.filter((x) => fitsSlot(x.worker, place, general))
           return (
             // A constraint keeps this worker out on the shift's day: outlined in orange, swap is right there.
             <div key={c.workerId} className={`rounded-xl bg-slate-950 p-2 ${load?.blocked ? 'border-2 border-orange-500' : 'border border-slate-800'}`}>
@@ -259,7 +270,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
                     ))}
                   </select>
                 ) : (
-                  <p className="mt-2 ps-1 text-xs text-slate-400">אין עובד פנוי אחר עם התפקיד הזה</p>
+                  <p className="mt-2 ps-1 text-xs text-slate-400">אין עובד פנוי אחר עם התפקיד וההסמכה של המקום הזה</p>
                 ))}
             </div>
           )

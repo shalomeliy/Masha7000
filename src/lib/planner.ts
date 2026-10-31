@@ -1,12 +1,12 @@
 import { fullName, workerHasRole } from './catalog'
 import { blockingConstraint, constraintText } from './constraints'
-import { addDays, isNightShift, weekOf, weekShiftCount } from './shifts'
+import { addDays, dayName, isNightShift, showDate, weekOf, weekShiftCount } from './shifts'
 import type { Constraint, CrewMember, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
 // Automatic crew for one shift ("שבץ"). Pure and deterministic: the same data always gives the
 // same crew. Hard rules: one worker per place, a worker fills a place only with its role and
-// certification, a worker a constraint blocks is never picked. Soft rules, in this order: not already working at the same time, under the
-// weekly night limit, fewest shifts this week, fewest nights this week, fewest shifts lately, name.
+// certification, a worker a constraint blocks or who is already in another shift at the same time is never picked. Soft rules, in
+// this order: under the weekly night limit, fewest shifts this week, fewest nights this week, fewest shifts lately, name.
 
 /** Night jobs per worker per week (Sunday to Saturday). Beyond it the worker may still be placed, with a warning. */
 export const NIGHT_LIMIT = 2
@@ -41,11 +41,37 @@ function span(r: ShiftRecord, defs: ShiftDefinition[]): [string, string] {
   return [r.date, r.endDate ?? (isNightShift(r, defs) ? addDays(r.date, 1) : r.date)]
 }
 
+/** Another saved shift the worker is in that runs on one of this shift's days, if any. */
+export function busyWith(workerId: string, shift: ShiftRecord, records: ShiftRecord[], defs: ShiftDefinition[]): ShiftRecord | undefined {
+  const [from, to] = span(shift, defs)
+  return records.find((r) => {
+    if (r.id === shift.id || !r.crew.some((c) => c.workerId === workerId)) return false
+    const [a, b] = span(r, defs)
+    return a <= to && b >= from
+  })
+}
+
+/** Crew members already in another shift at the same time, each with that shift. Saving or moving is refused then. */
+export function busyCrew(shift: ShiftRecord, workers: Worker[], records: ShiftRecord[], defs: ShiftDefinition[]): { worker: Worker; other: ShiftRecord }[] {
+  return shift.crew.flatMap((c) => {
+    const worker = workers.find((w) => w.id === c.workerId)
+    const other = worker && busyWith(worker.id, shift, records, defs)
+    return worker && other ? [{ worker, other }] : []
+  })
+}
+
+/** "דני כהן כבר במשמרת ביום שני 26.10 (חיפה)" for each busy crew member, or null when none is. */
+export function busyText(busy: { worker: Worker; other: ShiftRecord }[]): string | null {
+  if (!busy.length) return null
+  return busy
+    .map(({ worker, other }) => `${fullName(worker)} כבר במשמרת ביום ${dayName(other.date)} ${showDate(other.date)}${other.location ? ` (${other.location})` : ''}`)
+    .join(', ')
+}
+
 export function workerLoad(worker: Worker, shift: ShiftRecord, ctx: Pick<PlanContext, 'records' | 'defs'>): WorkerLoad {
   const workerId = worker.id
   const { start, end } = weekOf(shift.date)
   const recentFrom = addDays(start, -28)
-  const [from, to] = span(shift, ctx.defs)
   const mine = ctx.records.filter((r) => r.id !== shift.id && r.crew.some((c) => c.workerId === workerId))
   const nights = mine.filter((r) => r.date >= start && r.date <= end && isNightShift(r, ctx.defs)).length
   return {
@@ -53,10 +79,7 @@ export function workerLoad(worker: Worker, shift: ShiftRecord, ctx: Pick<PlanCon
     nights,
     recent: mine.filter((r) => r.date >= recentFrom && r.date <= end).length,
     overNightLimit: isNightShift(shift, ctx.defs) && nights >= NIGHT_LIMIT,
-    busy: mine.some((r) => {
-      const [a, b] = span(r, ctx.defs)
-      return a <= to && b >= from
-    }),
+    busy: !!busyWith(workerId, shift, ctx.records, ctx.defs),
     blocked: blockingConstraint(worker, shift, ctx.defs),
   }
 }
@@ -94,7 +117,7 @@ export function candidateOrder(shift: ShiftRecord, ctx: PlanContext): { worker: 
  */
 export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanContext): Plan {
   const candidates = candidateOrder(shift, ctx)
-  const ordered = candidates.filter((c) => !c.load.blocked).map((c) => c.worker)
+  const ordered = candidates.filter((c) => !c.load.blocked && !c.load.busy).map((c) => c.worker)
   const byId = new Map(ctx.workers.map((w) => [w.id, w]))
   const locked = shift.crew.filter((c) => byId.has(c.workerId))
   const workerAt: (string | undefined)[] = staffing.map(() => undefined)
@@ -151,8 +174,14 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
     why: empty.map((slot) => {
       const fit = candidates.filter((c) => fitsSlot(c.worker, slot, ctx.generalId) && !placed.has(c.worker.id))
       const blocked = fit.filter((c) => c.load.blocked)
-      if (blocked.length)
-        return `לא זמינים: ${blocked.map((c) => `${fullName(c.worker)} (${constraintText(c.load.blocked!)})`).join(', ')}`
+      const busy = fit.filter((c) => !c.load.blocked && c.load.busy)
+      if (blocked.length || busy.length)
+        return [
+          blocked.length && `לא זמינים: ${blocked.map((c) => `${fullName(c.worker)} (${constraintText(c.load.blocked!)})`).join(', ')}`,
+          busy.length && `במשמרת אחרת באותו זמן: ${busy.map((c) => fullName(c.worker)).join(', ')}`,
+        ]
+          .filter(Boolean)
+          .join(' · ')
       return fit.length || candidates.some((c) => fitsSlot(c.worker, slot, ctx.generalId))
         ? 'כל המתאימים כבר במשמרת הזו'
         : 'אין עובד עם התפקיד וההסמכה האלה'

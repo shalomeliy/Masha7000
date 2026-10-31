@@ -3,6 +3,7 @@ import { DateField } from '../../components/DateField'
 import { Sheet, SheetActions } from '../../components/Sheet'
 import { fullName, upsert } from '../../lib/catalog'
 import { blockedCrew, constraintText } from '../../lib/constraints'
+import { busyCrew, busyText } from '../../lib/planner'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { addDays, dayName, isNightShift, moveShift, showDate, weekOf } from '../../lib/shifts'
 import type { ShiftRecord } from '../../types/models'
@@ -30,11 +31,19 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   const [busy, setBusy] = useState(false)
   const moved = moveShift(shift, date)
   const blocked = valid && date !== shift.date ? blockedCrew(moved, workers.items, defs.items) : []
+  // A worker cannot be in two shifts at the same time: that move is refused until they are swapped.
+  const clashes = valid && date !== shift.date ? busyCrew(moved, workers.items, shifts.items, defs.items) : []
   // Quick picks: the shift's week and the week after it. Any other day goes through the date field.
   const days = [...weekOf(shift.date).days, ...weekOf(addDays(shift.date, 7)).days]
 
   const save = async () => {
-    const err = !valid ? 'התאריך לא תקין' : date === shift.date ? 'בחר יום אחר מהיום של המשמרת' : null
+    const err = !valid
+      ? 'התאריך לא תקין'
+      : date === shift.date
+        ? 'בחר יום אחר מהיום של המשמרת'
+        : clashes.length
+          ? `${busyText(clashes)}. אי אפשר להעביר: קודם החלף ${clashes.length > 1 ? 'אותם' : 'אותו'} בעריכת המשמרת.`
+          : null
     setError(err)
     if (err) return
     setBusy(true)
@@ -70,6 +79,11 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
         ))}
       </div>
       <DateField label="או תאריך אחר" value={date} required onChange={(d, ok) => (setDate(d), setValid(ok))} />
+      {clashes.length > 0 && (
+        <p role="status" className="rounded-xl border border-red-500/60 bg-red-500/10 p-3 text-sm text-red-200">
+          {busyText(clashes)}. עובד לא יכול להיות בשתי משמרות באותו זמן.
+        </p>
+      )}
       {blocked.length > 0 && (
         <div role="status" className="space-y-1 rounded-xl border border-orange-500/60 bg-orange-500/10 p-3 text-sm text-orange-200">
           <p className="font-medium">ביום הזה יש לעובדים האלה אילוץ:</p>

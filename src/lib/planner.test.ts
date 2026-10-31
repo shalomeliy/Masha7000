@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { autoAssign, candidateOrder, loadWarning, planShifts, weekPlanOrder, workerLoad, type PlanContext } from './planner'
+import { autoAssign, busyCrew, busyText, candidateOrder, loadWarning, planShifts, weekPlanOrder, workerLoad, type PlanContext } from './planner'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 const day: ShiftDefinition = {
@@ -237,5 +237,23 @@ describe('planShifts', () => {
     const [item] = planShifts([s], () => [{ roleId: 'climber' }], ctx(ws, [s]))
     expect(item.unfilled).toEqual([{ roleId: 'climber' }])
     expect(item.why).toEqual(['אין עובד עם התפקיד וההסמכה האלה'])
+  })
+})
+
+describe('never two shifts at the same time', () => {
+  it('"שבץ" leaves a place empty rather than pick a worker already in another shift then', () => {
+    const records = [shift('n', '2026-10-27', { shiftDefinitionId: 'night', crew: on('a') })]
+    const p = autoAssign(shift('s', '2026-10-28'), [{ roleId: G }], ctx([worker('a')], records))
+    expect(p.crew).toEqual([])
+    expect(p.why).toEqual(['במשמרת אחרת באותו זמן: a'])
+  })
+
+  it('busyCrew names the crew member and the other shift; a shift on another day is not a clash', () => {
+    const n = shift('n', '2026-10-27', { shiftDefinitionId: 'night', crew: on('a') })
+    const d = shift('d', '2026-10-28', { crew: on('a', 'b') })
+    const busy = busyCrew(d, [worker('a'), worker('b')], [n, d], [day, night])
+    expect(busy.map((b) => [b.worker.id, b.other.id])).toEqual([['a', 'n']])
+    expect(busyText(busy)).toBe('a כבר במשמרת ביום שלישי 27.10 (חיפה)')
+    expect(busyCrew({ ...d, date: '2026-10-29' }, [worker('a')], [n, d], [day, night])).toEqual([])
   })
 })
