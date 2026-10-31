@@ -69,3 +69,48 @@ export async function writeJson(name: string, data: unknown): Promise<void> {
   if (version) versions.set(name, version)
   else versions.delete(name) // unknown: the next write goes through without a check
 }
+
+// ---- Backup copies: whole files of their own, never edited, so no version check ----
+
+export interface DriveCopy {
+  id: string
+  name: string
+  createdTime: string
+  appProperties?: Record<string, string>
+}
+
+/** Reads a list without becoming this screen's baseline for the conflict check. */
+export async function peekJson<T>(name: string): Promise<T | null> {
+  const file = await findFile(name)
+  return file ? (JSON.parse(await download(file.id)) as T) : null
+}
+
+export async function listCopies(prefix: string): Promise<DriveCopy[]> {
+  const q = encodeURIComponent(`name contains '${prefix}' and trashed = false`)
+  const res = await googleFetch(
+    `${FILES_API}?spaces=appDataFolder&q=${q}&orderBy=createdTime desc&pageSize=100&fields=files(id,name,createdTime,appProperties)`,
+  )
+  const data: { files: DriveCopy[] } = await res.json()
+  return data.files
+}
+
+export async function createCopy(name: string, body: string, appProperties: Record<string, string>): Promise<void> {
+  const form = new FormData()
+  form.append(
+    'metadata',
+    new Blob([JSON.stringify({ name, parents: ['appDataFolder'], appProperties })], { type: 'application/json' }),
+  )
+  form.append('file', new Blob([body], { type: 'application/json' }))
+  await googleFetch(`${UPLOAD_API}?uploadType=multipart&fields=id`, { method: 'POST', body: form })
+}
+
+export const readCopy = (id: string) => download(id)
+
+/** The next write of these files goes through without the conflict check (a restore the manager confirmed again). */
+export function forgetVersions(names: string[]) {
+  for (const n of names) versions.delete(n)
+}
+
+export async function deleteCopy(id: string): Promise<void> {
+  await googleFetch(`${FILES_API}/${id}`, { method: 'DELETE' })
+}

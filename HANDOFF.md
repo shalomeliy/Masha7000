@@ -229,3 +229,11 @@ Next version is still the user's choice: worker constraints (text + voice) or th
 - Archive tab: switch "משמרות" / "דוח חודשי" (`src/pages/archive/MonthReport.tsx`): month arrows (no going past this month), table scrolling inside itself with a sticky name column, totals row, "שליחה בוואטסאפ", "הורדה לאקסל" (`masha7000-YYYY-MM.csv`). Tapping a worker opens the shift list filtered to that worker and month.
 - Browser not checked: the dev server could not start (5 dev servers of other chats in this folder). `npm run verify` green.
 - Remaining unbuilt spec: `docs/specs/backup-restore.md`.
+
+## Done: backup and restore (2026-10-31)
+
+Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/lib/backup.ts`):
+- "הורדת גיבוי": two taps (prepare, then save) so phone browsers allow the download. Every list except settings.json.
+- "שחזור מגיבוי" (owner only, or anyone in popup mode): file is checked as untrusted (20 MB, app marker, version, each list's shape, text fields), preview with counts, then a "before restore" copy, then each list written with the normal conflict check. A partial failure shows what was restored and offers "נסה שוב" (the retry skips the conflict check for the remaining lists).
+- Automatic copies in the appDataFolder, `backup-weekly-*.json` / `backup-beforeRestore-*.json`, counts in Drive appProperties; 8 weekly + 3 before-restore kept. Weekly copy on the first open of each week (`WeeklyCopy` in App.tsx), skipped for an empty account.
+- Not done: the `security-expert` agent does not exist in this project, so no separate security review; change-reviewer's findings were fixed. Week is counted in the device's time zone. Not yet tried on a real iPhone.

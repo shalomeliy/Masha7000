@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { BottomNav } from './components/BottomNav'
 import type { Tab } from './components/BottomNav'
+import { ensureWeeklyCopy } from './lib/backup'
 import { applyWordSettings } from './lib/constraintWords'
 import { useDriveList } from './lib/data/useDriveList'
 import { Archive } from './pages/Archive'
@@ -33,6 +35,7 @@ export default function App() {
   return (
     <div className="mx-auto min-h-full max-w-md pb-24">
       <ConstraintWords />
+      <WeeklyCopy />
       {tab === 'calendar' && <Calendar />}
       {tab === 'toSchedule' && <ToSchedule />}
       {tab === 'workers' && <Workers />}
@@ -46,5 +49,16 @@ export default function App() {
 // The manager's words for reading constraints (Settings), put into the reader before any screen uses it.
 function ConstraintWords() {
   applyWordSettings(useDriveList('constraintWords').items)
+  return null
+}
+
+// The week's automatic backup copy, made quietly on the first open of each week.
+function WeeklyCopy() {
+  const qc = useQueryClient()
+  useEffect(() => {
+    void ensureWeeklyCopy().then((made) => {
+      if (made) void qc.invalidateQueries({ queryKey: ['backupCopies'] })
+    })
+  }, [qc])
   return null
 }

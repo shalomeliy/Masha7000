@@ -9,6 +9,7 @@ import { TIME_ZONE } from '../lib/google/config'
 import { authMode } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
 import { AccessSection } from './settings/AccessSection'
+import { BackupSection } from './settings/BackupSection'
 import { NameListSection } from './settings/NameListSection'
 import { WordsSection } from './settings/WordsSection'
 import { ReasonsSection } from './ToSchedule'
@@ -200,6 +201,9 @@ export function Settings() {
       </div>
 
       {who?.isOwner && <AccessSection />}
+
+      {/* Restore replaces the owner's data for everyone; without the server, everyone is on their own Drive. */}
+      {!loading && !failed && <BackupSection canRestore={authMode() === 'popup' || who?.isOwner === true} />}
 
       <ConnectionCheck />
 
