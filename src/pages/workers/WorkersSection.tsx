@@ -48,6 +48,12 @@ const STATUSES: { id: WorkerStatus; name: string }[] = [
   { id: "inactive", name: "לא פעיל" },
 ];
 
+const STATUS_COLOR: Record<WorkerStatus, string> = {
+  active: "text-emerald-400",
+  sick: "text-orange-400",
+  inactive: "text-red-400",
+};
+
 const statusText = (w: Worker) =>
   w.status === "sick" && w.sickUntil
     ? `במחלה עד ${showDate(w.sickUntil)}`
@@ -466,17 +472,16 @@ function WorkerForm({
         </Field>
       </div>
 
-      <div className="space-y-1">
-        <span className="text-sm text-slate-300">סטטוס</span>
+      <p className="text-sm text-slate-300">
+        סטטוס:{" "}
         <button
           type="button"
           onClick={() => setStatusOpen(true)}
-          className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-slate-700 px-3 text-start text-sm"
+          className={`min-h-11 font-semibold ${STATUS_COLOR[draft.status ?? "active"]}`}
         >
           {statusText(draft)}
-          <span className="text-xs text-slate-400">לשינוי</span>
         </button>
-      </div>
+      </p>
       <StatusSheet
         open={statusOpen}
         worker={draft}

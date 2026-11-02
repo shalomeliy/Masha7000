@@ -29,8 +29,9 @@ export function Sheet({
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
-      onCancel={(e) => locked && e.preventDefault()}
+      // A sheet opened from inside this one sends its own close and cancel up through React; only ours count.
+      onClose={(e) => e.target === ref.current && onClose()}
+      onCancel={(e) => locked && e.target === ref.current && e.preventDefault()}
       onClick={(e) => !locked && e.target === ref.current && onClose()}
       aria-labelledby="sheet-title"
       className="mx-auto mt-auto mb-0 max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-slate-800 bg-slate-900 p-0 text-slate-100 backdrop:bg-black/60"
