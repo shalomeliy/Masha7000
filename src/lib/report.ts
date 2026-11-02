@@ -1,5 +1,6 @@
 import { GENERAL_ROLE_NAME, endsNextDay, fullName } from './catalog'
 import { dayName, showDate, sortShifts, weekOf } from './shifts'
+import { UNKNOWN_WORKER_COLOR, workerColors } from './workerColor'
 import type { Role, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 // The shifts of one day or one Sunday-to-Saturday week, as WhatsApp text and as the data the
@@ -21,7 +22,7 @@ export interface ReportShift {
   until?: string // urgent only: "עד יום רביעי 4.11 16:00"
   job: string
   next?: string // "לינה": the job after the night, "place · work"
-  crew: { name: string; role: string }[]
+  crew: { name: string; role: string; color: string }[] // color: the worker's own, for the image
 }
 
 export interface ReportDay {
@@ -42,7 +43,7 @@ const year = (date: string) => date.slice(0, 4)
 export const nextJobText = (r: Pick<ShiftRecord, 'nextJob'>) =>
   [r.nextJob?.location, r.nextJob?.jobDescription].filter(Boolean).join(' · ') || undefined
 
-function reportShift(r: ShiftRecord, ctx: ReportContext): ReportShift {
+function reportShift(r: ShiftRecord, ctx: ReportContext, colors: Map<string, string>): ReportShift {
   const def = ctx.defs.find((d) => d.id === r.shiftDefinitionId)
   const kind: ShiftKind = r.urgent ? 'urgent' : !def ? 'other' : endsNextDay(def) ? 'night' : 'day'
   return {
@@ -54,14 +55,20 @@ function reportShift(r: ShiftRecord, ctx: ReportContext): ReportShift {
     next: nextJobText(r),
     crew: r.crew.map((c) => {
       const w = ctx.workers.find((x) => x.id === c.workerId)
-      return { name: w ? fullName(w) : 'עובד שנמחק', role: ctx.roles.find((x) => x.id === c.roleId)?.name ?? GENERAL_ROLE_NAME }
+      return {
+        name: w ? fullName(w) : 'עובד שנמחק',
+        role: ctx.roles.find((x) => x.id === c.roleId)?.name ?? GENERAL_ROLE_NAME,
+        color: colors.get(c.workerId) ?? UNKNOWN_WORKER_COLOR,
+      }
     }),
   }
 }
 
 function reportDay(date: string, ctx: ReportContext): ReportDay {
   const shifts = sortShifts(ctx.shifts).filter((r) => r.date === date)
-  return { date, title: `יום ${dayName(date)} ${showDate(date)}`, shifts: shifts.map((r) => reportShift(r, ctx)) }
+  // Colors from the whole worker list, so a worker keeps theirs whoever else works that day.
+  const colors = workerColors(ctx.workers)
+  return { date, title: `יום ${dayName(date)} ${showDate(date)}`, shifts: shifts.map((r) => reportShift(r, ctx, colors)) }
 }
 
 export function dayData(date: string, ctx: ReportContext): Report {
