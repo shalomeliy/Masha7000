@@ -20,6 +20,7 @@ export const BACKUP_LISTS = [
   'postponeReasons',
   'places',
   'jobTypes',
+  'workKinds',
   'departments',
   'constraintWords',
   'workers',
@@ -34,7 +35,8 @@ export const LIST_TITLES: Record<BackupList, string> = {
   shiftDefinitions: 'תבניות עבודה',
   postponeReasons: 'סיבות דחייה',
   places: 'מקומות',
-  jobTypes: 'סוגי עבודה',
+  jobTypes: 'מהויות עבודה',
+  workKinds: 'סוגי עבודה',
   departments: 'מחלקות',
   constraintWords: 'מילים לקריאת אילוצים',
   workers: 'עובדים',
@@ -86,7 +88,8 @@ export function parseBackup(text: string): Backup {
   const files = {} as Backup['files']
   for (const k of BACKUP_LISTS) {
     // Backups made before departments existed: the starter list, as the app would read it.
-    const list = k === 'departments' && raw.files[k] === undefined ? STARTER_DEPARTMENTS : raw.files[k]
+    // Backups made before work kinds existed: none.
+    const list = raw.files[k] === undefined && k === 'departments' ? STARTER_DEPARTMENTS : raw.files[k] === undefined && k === 'workKinds' ? [] : raw.files[k]
     if (!Array.isArray(list)) throw new BackupError(`${NOT_A_BACKUP} חסרה בו הרשימה "${LIST_TITLES[k]}".`)
     for (const item of list)
       if (!isObject(item) || typeof item.id !== 'string' || (k === 'shifts' && typeof item.date !== 'string') || !textFieldsOk(item))

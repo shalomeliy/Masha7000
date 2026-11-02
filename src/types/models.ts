@@ -72,6 +72,17 @@ export interface ShiftDefinition {
 export interface StaffSlot {
   roleId: string
   certificationId?: string
+  altRoleIds?: string[] // other roles that also fill this place, e.g. "מנהל טיפוס" in a "מטפס" place
+  kindId?: string // the work kind (טיפוס, ריתוך) this place came from; absent = added by hand
+}
+
+// A kind of work with the people it needs, e.g. "טיפוס" = מנהל טיפוס + 2 מטפסים. Picking kinds in
+// a job fills its staffing. One worker may fill places of different kinds at once (a climber who
+// welds covers a "טיפוס" place and the "ריתוך" place), never two places of the same kind.
+export interface WorkKind {
+  id: string
+  name: string
+  staffing: StaffSlot[] // without `kindId`; it is added when the kind is picked in a job
 }
 
 export interface CrewMember {
@@ -101,7 +112,8 @@ export interface ShiftRecord {
   location: string
   jobDescription: string
   crew: CrewMember[]
-  staffing: StaffSlot[] // who the job needs; one slot per person
+  staffing: StaffSlot[] // who the job needs; one slot per person, except places of different kinds may share one
+  workKindIds?: string[] // the work kinds picked for this job; their places are in `staffing`
   urgent?: boolean // opened "from now"
   startTime?: string // HH:mm, urgent shifts only: when it was opened
   endDate?: string // urgent shifts: default the next day
@@ -142,7 +154,7 @@ export interface PostponeReason {
   name: string // "חסר אישור קונסטרוקטור", "תנאי מזג אויר"
 }
 
-// Places and kinds of work the manager writes often. Suggestions only: a shift stores the text itself,
+// Places and descriptions of work the manager writes often. Suggestions only: a shift stores the text itself,
 // so a renamed item is rewritten in the shifts that hold its old text, and a deleted one leaves them.
 export interface Place {
   id: string

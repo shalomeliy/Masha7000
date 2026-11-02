@@ -22,7 +22,7 @@ const TEXT: Record<TagKind, { one: string; linked: string; it: string; add: stri
     edit: 'עריכת תפקיד',
     fresh: 'תפקיד חדש',
     field: 'שם התפקיד',
-    explain: 'תפקיד הוא סוג עבודה, למשל טפסן או חשמלאי. לכל עובד אפשר לסמן כמה תפקידים שרוצים.',
+    explain: 'תפקיד הוא מה שהעובד יודע לעשות, למשל טפסן או חשמלאי. לכל עובד אפשר לסמן כמה תפקידים שרוצים.',
     starter: STARTER_ROLES.filter((name) => !isGeneralRole({ name })), // "כללי" is always there
   },
   certifications: {

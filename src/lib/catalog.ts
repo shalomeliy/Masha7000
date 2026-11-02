@@ -103,16 +103,27 @@ export const MAX_STAFF = 20
 export function staffingFor(staffing: StaffSlot[] | undefined, roles: Role[], certificationIds: string[]): StaffSlot[] {
   const general = generalRoleId(roles)
   const slots = staffing?.length ? staffing : [{ roleId: general }]
-  return slots.map((s) => ({
-    roleId: roles.some((r) => r.id === s.roleId) ? s.roleId : general,
-    certificationId: s.certificationId && certificationIds.includes(s.certificationId) ? s.certificationId : undefined,
-  }))
+  return slots.map((s) => {
+    const alt = s.altRoleIds?.filter((id) => id !== s.roleId && roles.some((r) => r.id === id))
+    return {
+      roleId: roles.some((r) => r.id === s.roleId) ? s.roleId : general,
+      certificationId: s.certificationId && certificationIds.includes(s.certificationId) ? s.certificationId : undefined,
+      ...(alt?.length ? { altRoleIds: alt } : {}),
+      ...(s.kindId ? { kindId: s.kindId } : {}),
+    }
+  })
+}
+
+/** "מטפס או מנהל טיפוס" for a place that more than one role fills. */
+export function slotRoleNames(slot: StaffSlot, roles: Role[]): string {
+  const name = (id: string) => roles.find((r) => r.id === id)?.name ?? GENERAL_ROLE_NAME
+  return [slot.roleId, ...(slot.altRoleIds ?? [])].map(name).join(' או ')
 }
 
 /** "2 אנשים: טפסן (חשמלאי מוסמך), כללי" for a job card. */
 export function staffingText(slots: StaffSlot[], roles: Role[], certs: { id: string; name: string }[]): string {
   const names = slots.map((s) => {
-    const role = roles.find((r) => r.id === s.roleId)?.name ?? GENERAL_ROLE_NAME
+    const role = slotRoleNames(s, roles)
     const cert = certs.find((c) => c.id === s.certificationId)?.name
     return cert ? `${role} (${cert})` : role
   })

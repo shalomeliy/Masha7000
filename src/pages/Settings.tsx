@@ -16,6 +16,7 @@ import { WordsSection } from './settings/WordsSection'
 import { ReasonsSection } from './ToSchedule'
 import { ShiftsSection } from './workers/ShiftsSection'
 import { TagSection } from './workers/TagSection'
+import { WorkKindsSection } from './settings/WorkKindsSection'
 
 type StepState = 'idle' | 'running' | 'ok' | 'fail'
 interface Step {
@@ -78,7 +79,7 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
 
 // Every list the manager can change, in one place. Each one is also where it is used (roles in
 // "עובדים", postpone reasons in "לשיבוץ"); this screen opens the same editors.
-type ListId = 'roles' | 'certifications' | 'shiftDefinitions' | 'postponeReasons' | 'places' | 'jobTypes' | 'departments' | 'constraintWords'
+type ListId = 'roles' | 'certifications' | 'shiftDefinitions' | 'workKinds' | 'postponeReasons' | 'places' | 'jobTypes' | 'departments' | 'constraintWords'
 
 const LISTS: { id: ListId; title: string; explain: string }[] = [
   {
@@ -97,6 +98,11 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
     explain: 'יום, לילה, כוננות',
   },
   {
+    id: 'workKinds',
+    title: 'סוגי עבודה',
+    explain: 'טיפוס, ריתוך... וכמה אנשים כל סוג צריך',
+  },
+  {
     id: 'postponeReasons',
     title: 'סיבות דחייה',
     explain: 'למה עבודת לילה נדחתה',
@@ -108,8 +114,8 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
   },
   {
     id: 'jobTypes',
-    title: 'סוגי עבודה',
-    explain: 'עבודות שחוזרות, לבחירה מהירה',
+    title: 'מהויות עבודה',
+    explain: 'מהות עבודה שחוזרת, לבחירה מהירה',
   },
   {
     id: 'departments',
@@ -135,6 +141,7 @@ export function Settings() {
     postponeReasons: useDriveList('postponeReasons'),
     places: useDriveList('places'),
     jobTypes: useDriveList('jobTypes'),
+    workKinds: useDriveList('workKinds'),
     departments: useDriveList('departments'),
     constraintWords: useDriveList('constraintWords'),
     workers: useDriveList('workers'),
@@ -172,6 +179,7 @@ export function Settings() {
         {current.id === 'postponeReasons' && <ReasonsSection />}
         {current.id === 'places' && <NameListSection kind="places" />}
         {current.id === 'jobTypes' && <NameListSection kind="jobTypes" />}
+        {current.id === 'workKinds' && <WorkKindsSection />}
         {current.id === 'departments' && <DepartmentsSection />}
         {current.id === 'constraintWords' && <WordsSection />}
       </section>

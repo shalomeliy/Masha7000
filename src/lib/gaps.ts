@@ -1,6 +1,7 @@
-import { fullName, isActive, staffingFor, workerHasRole } from './catalog'
+import { fullName, isActive, staffingFor } from './catalog'
 import { blockedCrew, blockingConstraint, constraintText } from './constraints'
-import { workerLoad } from './planner'
+import { fitsSlot, workerLoad } from './planner'
+import { canShare } from './workKinds'
 import type { Certification, Role, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
 // The week at a glance (docs/specs/week-gaps.md): what each open shift still needs. Pure rules, no I/O.
@@ -33,9 +34,7 @@ export interface GapContext {
 }
 
 const fills = (w: Worker, roleId: string, slot: StaffSlot, generalId: string) =>
-  (slot.roleId === generalId || roleId === slot.roleId) &&
-  workerHasRole(w, slot.roleId, generalId) &&
-  (!slot.certificationId || w.certificationIds.includes(slot.certificationId))
+  (slot.roleId === generalId || roleId === slot.roleId || !!slot.altRoleIds?.includes(roleId)) && fitsSlot(w, slot, generalId)
 
 /**
  * The places of `staffing` the crew leaves empty. A crew member fills a place of the role they
@@ -43,12 +42,20 @@ const fills = (w: Worker, roleId: string, slot: StaffSlot, generalId: string) =>
  * with augmenting paths, so the order of the crew never makes a place look empty.
  */
 export function emptyPlaces(shift: ShiftRecord, staffing: StaffSlot[], workers: Worker[], generalId: string): StaffSlot[] {
-  const filled = new Set(crewPlaces(shift, staffing, workers, generalId).values())
+  const filled = new Set([...crewCover(shift, staffing, workers, generalId).values()].flat())
   return staffing.filter((_, s) => !filled.has(s))
 }
 
 /** Which place (index in `staffing`) each crew member fills, by worker id. A member who fills none is left out. */
 export function crewPlaces(shift: ShiftRecord, staffing: StaffSlot[], workers: Worker[], generalId: string): Map<string, number> {
+  return new Map([...crewCover(shift, staffing, workers, generalId)].map(([id, places]) => [id, places[0]]))
+}
+
+/**
+ * Every place each crew member fills, their own first. A member also covers an empty place of
+ * another work kind they fit with any role they hold, never two places of the same kind.
+ */
+export function crewCover(shift: ShiftRecord, staffing: StaffSlot[], workers: Worker[], generalId: string): Map<string, number[]> {
   const members = shift.crew.flatMap((c) => {
     const w = workers.find((x) => x.id === c.workerId)
     return w ? [{ w, roleId: c.roleId }] : []
@@ -63,8 +70,16 @@ export function crewPlaces(shift: ShiftRecord, staffing: StaffSlot[], workers: W
     return false
   }
   members.forEach((_, m) => tryPlace(m, new Set()))
-  const places = new Map<string, number>()
-  memberAt.forEach((m, s) => m !== undefined && places.set(members[m].w.id, s))
+  const places = new Map<string, number[]>()
+  memberAt.forEach((m, s) => m !== undefined && places.set(members[m].w.id, [s]))
+  staffing.forEach((slot, s) => {
+    if (memberAt[s] !== undefined || !slot.kindId) return
+    const m = members.find(({ w }) => {
+      const mine = places.get(w.id)
+      return mine && fitsSlot(w, slot, generalId) && mine.every((t) => canShare(staffing[t], slot))
+    })
+    if (m) places.get(m.w.id)!.push(s)
+  })
   return places
 }
 

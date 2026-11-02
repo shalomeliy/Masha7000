@@ -3,7 +3,7 @@ import { ConflictError, readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
 import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withGeneralRole, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
-import type { Certification, Department, JobType, PendingJob, Place, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
+import type { Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
 
 // One Drive appData JSON file = one list. A missing file is an empty list.
 // Saves write the whole list, optimistically, and roll back if Drive refuses.
@@ -20,6 +20,7 @@ type ListOf = {
   postponeReasons: PostponeReason
   places: Place
   jobTypes: JobType
+  workKinds: WorkKind
   departments: Department
   constraintWords: WordGroupSetting
 }
@@ -33,6 +34,9 @@ const normalizers: { [K in ListFile]?: (raw: never) => ListOf[K] } = {
   pendingJobs: normalizePendingJob,
 }
 
+// Lists whose file was not found on the last read; cleared by the first save.
+const missingFiles = new Set<ListFile>()
+
 export function useDriveList<K extends ListFile>(key: K) {
   type T = ListOf[K]
   const qc = useQueryClient()
@@ -42,6 +46,8 @@ export function useDriveList<K extends ListFile>(key: K) {
     queryKey: ['drive', key],
     queryFn: async () => {
       const stored = await readJson<T[]>(file)
+      if (stored === null) missingFiles.add(key)
+      else missingFiles.delete(key)
       // No departments file yet: the starter list, written to the file with the first save.
       const raw = stored ?? (key === 'departments' ? (STARTER_DEPARTMENTS as T[]) : [])
       const fix = normalizers[key] as ((r: T) => T) | undefined
@@ -57,7 +63,10 @@ export function useDriveList<K extends ListFile>(key: K) {
   const mutation = useMutation({
     mutationKey: ['drive', key],
     scope: { id: `drive-${key}` },
-    mutationFn: (next: T[]) => writeJson(file, next),
+    mutationFn: async (next: T[]) => {
+      await writeJson(file, next)
+      missingFiles.delete(key)
+    },
     onMutate: async (next) => {
       await qc.cancelQueries({ queryKey: ['drive', key] })
       const previous = qc.getQueryData<T[]>(['drive', key])
@@ -75,6 +84,7 @@ export function useDriveList<K extends ListFile>(key: K) {
   return {
     items: query.data ?? [],
     query,
+    missing: query.isSuccess && missingFiles.has(key), // no file yet: nothing was ever saved to this list
     save: mutation.mutateAsync,
     saving: useIsMutating({ mutationKey: ['drive', key] }) > 0, // across every component using this file
   }

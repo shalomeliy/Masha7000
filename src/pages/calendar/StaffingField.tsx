@@ -4,12 +4,14 @@ import { useDriveList } from '../../lib/data/useDriveList'
 import type { StaffSlot } from '../../types/models'
 
 // Who a job needs: how many people, and for each one a role (default "כללי") and an optional
-// certification. The automatic planner will staff the job from this.
+// certification. The automatic planner will staff the job from this. A place that came from a work
+// kind shows the kind's name; with `alt`, a place may take a second role that also fills it.
 
 const selectClass = 'min-h-11 w-full min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-2 text-sm'
 
-export function StaffingField({ value, onChange }: { value: StaffSlot[]; onChange: (next: StaffSlot[]) => void }) {
+export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; onChange: (next: StaffSlot[]) => void; alt?: boolean }) {
   const roles = useDriveList('roles')
+  const kinds = useDriveList('workKinds')
   const certs = useDriveList('certifications')
   const general = generalRoleId(roles.items)
   const resize = (n: number) => onChange(resizeStaffing(value, n, general))
@@ -45,9 +47,16 @@ export function StaffingField({ value, onChange }: { value: StaffSlot[]; onChang
       </div>
       <ol className="space-y-2">
         {value.map((s, i) => (
-          <li key={i} className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950 p-2">
+          <li key={i} className="space-y-2 rounded-xl border border-slate-800 bg-slate-950 p-2">
+            <div className="flex items-center gap-2">
             <span className="w-5 shrink-0 text-center text-sm text-slate-400">{i + 1}</span>
-            <select aria-label={`תפקיד לאדם ${i + 1}`} value={s.roleId} onChange={(e) => setSlot(i, { roleId: e.target.value })} className={selectClass}>
+            <select
+              aria-label={`תפקיד לאדם ${i + 1}`}
+              value={s.roleId}
+              // A new role here replaces the place's other roles too, except in the kind editor that shows them.
+              onChange={(e) => setSlot(i, { roleId: e.target.value, altRoleIds: alt ? s.altRoleIds?.filter((id) => id !== e.target.value) : undefined })}
+              className={selectClass}
+            >
               {roles.items.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
@@ -67,6 +76,35 @@ export function StaffingField({ value, onChange }: { value: StaffSlot[]; onChang
                 </option>
               ))}
             </select>
+            </div>
+            {alt ? (
+              <select
+                aria-label={`תפקיד נוסף שמתאים לאדם ${i + 1}`}
+                value={s.altRoleIds?.[0] ?? ''}
+                onChange={(e) => setSlot(i, { altRoleIds: e.target.value ? [e.target.value] : undefined })}
+                className={`${selectClass} text-slate-300`}
+              >
+                <option value="">בלי תפקיד נוסף</option>
+                {roles.items
+                  .filter((r) => r.id !== s.roleId && r.id !== general)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      או {r.name}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              (!!s.kindId || !!s.altRoleIds?.length) && (
+                <p className="ps-7 text-xs text-slate-400">
+                  {[
+                    s.altRoleIds?.length && `מתאים גם: ${s.altRoleIds.map((id) => roles.items.find((r) => r.id === id)?.name).filter(Boolean).join(', ')}`,
+                    s.kindId && `מתוך "${kinds.items.find((k) => k.id === s.kindId)?.name ?? 'סוג עבודה שנמחק'}"`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </p>
+              )
+            )}
           </li>
         ))}
       </ol>

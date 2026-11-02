@@ -8,7 +8,7 @@ export function Suggestions({ list, value, onPick }: { list: 'places' | 'jobType
   const shown = suggestions(value, items.map((i) => i.name))
   if (!shown.length) return null
   return (
-    <div className="flex flex-wrap gap-2" aria-label={list === 'places' ? 'מקומות מהרשימה' : 'סוגי עבודה מהרשימה'}>
+    <div className="flex flex-wrap gap-2" aria-label={list === 'places' ? 'מקומות מהרשימה' : 'מהויות עבודה מהרשימה'}>
       {shown.map((name) => (
         <button key={name} type="button" onClick={() => onPick(name)} className="min-h-9 rounded-full border border-slate-700 px-3 text-sm text-slate-300">
           {name}

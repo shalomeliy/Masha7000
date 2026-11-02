@@ -244,3 +244,11 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Departments list: `departments.json`, Settings > "מחלקות" (`src/pages/settings/DepartmentsSection.tsx`). No file yet = `STARTER_DEPARTMENTS` (תקשורת, תרנים, רוקק, נתיבי חדירה, רובוטים, רחפנים, fixed ids). Rename by id; delete clears the department from its workers first.
 - Backup: `departments` added to `BACKUP_LISTS`; a backup made before this gets the starter list instead of being rejected.
 - Spike skipped: same pattern as roles and places, every part already proven. Built in a separate clone because the "לילה+" work was uncommitted in the main folder. Browser not checked (sign-in needs Google); `npm run verify` green.
+
+## Work kinds "סוג עבודה" with staffing templates (2026-11-02)
+
+- `WorkKind { id, name, staffing }` in `work_kinds.json`, Settings > "סוגי עבודה" (`src/pages/settings/WorkKindsSection.tsx`). The older suggestion list `jobTypes` (text for "מהות העבודה") is now titled "מהויות עבודה"; its data key and file are unchanged.
+- `StaffSlot` gained `altRoleIds` (other roles that fill the place, e.g. "מנהל טיפוס" in a climber place) and `kindId` (the kind it came from). `ShiftRecord.workKindIds` holds the picked kinds. `toggleKind` (`src/lib/workKinds.ts`) adds/removes a kind's places; hand-added places stay.
+- First use (no `work_kinds.json`): `useStarterWorkKinds` writes "טיפוס" (מנהל טיפוס + 2 places מטפס-or-מנהל טיפוס) and "ריתוך" (one "כללי" with cert "רתך"), creating missing roles/cert. An existing "טפסן" is used as the climber when there is no "מטפס" (user asked to confirm).
+- Sharing: places of two different kinds may be filled by one worker, never two of the same kind. `autoAssign` shares before adding people and prefers new workers who can also cover other kinds; `crewCover` (gaps) counts a crew member in every place they cover; the job sheet shows "עובדים בעבודה: 3, ממלאים 4 מתוך 4 מקומות". Swap offers workers who fit all the places the outgoing worker covers, else their own place.
+- Not done: kinds are not on "לשיבוץ" jobs (staffing there is still set by hand). Verified in the browser with the in-memory Drive mock (manager who welds + 2 climbers = 3 people for טיפוס+ריתוך, saved, card shows "מאויש"). `npm run verify` green.

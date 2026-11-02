@@ -7,13 +7,15 @@ import { Suggestions } from '../../components/Suggestions'
 import { defaultShiftDef, endsNextDay, fullName, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
 import { crewSwaps } from '../../lib/archive'
 import { useDriveList } from '../../lib/data/useDriveList'
-import { crewPlaces } from '../../lib/gaps'
+import { crewCover } from '../../lib/gaps'
 import { autoAssign, busyCrew, busyText, busyWith, candidateOrder, fitsSlot, loadWarning, pullFrom, type PlanContext, type WorkerLoad } from '../../lib/planner'
 import { dayName, isNightShift, pendingAfterShiftSave, showDate, shiftRecordError } from '../../lib/shifts'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../../types/models'
 import { WorkerDial } from '../workers/common'
 import { PullConfirm } from './PullConfirm'
 import { StaffingField } from './StaffingField'
+import { WorkKindField } from './WorkKindField'
+import { toggleKind } from '../../lib/workKinds'
 
 // Create or edit one shift. A new shift that came from "לשיבוץ" removes that job when saved.
 
@@ -155,7 +157,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     const o = busyWith(id, draft, shifts.items, defs.items)
     return o ? `ביום ${dayName(o.date)} ${showDate(o.date)}${o.location ? ` (${o.location})` : ''}` : ''
   }
-  const places = crewPlaces(draft, draft.staffing, workers.items, general)
+  const cover = crewCover(draft, draft.staffing, workers.items, general)
+  const covered = new Set([...cover.values()].flat()).size
   const loadOf = (id: string) => ranked.find((c) => c.worker.id === id)?.load
 
   // The manager only says who is needed; "שבץ" picks the workers. Manual changes come after.
@@ -253,11 +256,14 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           <DictationField label="מהות העבודה הנוספת" value={nextJob.jobDescription} onChange={(v) => set('nextJob', { ...nextJob, jobDescription: v })} />
         </div>
       )}
+      <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind, general) }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => set('staffing', staffing)} />
 
       <div className="space-y-2">
         <span className="text-sm text-slate-300">
-          עובדים בעבודה ({draft.crew.length} מתוך {draft.staffing.length})
+          {covered > draft.crew.length
+            ? `עובדים בעבודה: ${draft.crew.length}, ממלאים ${covered} מתוך ${draft.staffing.length} מקומות`
+            : `עובדים בעבודה (${draft.crew.length} מתוך ${draft.staffing.length})`}
         </span>
         {draft.crew.map((c, i) => {
           const w = workers.items.find((x) => x.id === c.workerId)
@@ -268,10 +274,14 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           const warning = pulling
             ? `יעבור לכאן מהעבודה ${otherText(c.workerId)} כשתשמור${fillIn ? `, ושם ייכנס במקומו ${fullName(fillIn)}` : ', ושם יישאר מקום ריק'}`
             : load && loadWarning(load)
-          // The replacement must fit the place this worker fills: its role and its certification.
-          const place = places.has(c.workerId) ? draft.staffing[places.get(c.workerId)!] : { roleId: c.roleId }
-          const swapOptions = available.filter((x) => fitsSlot(x.worker, place, general))
-          const busyOptions = others.filter((x) => fitsSlot(x.worker, place, general))
+          // The replacement must fit the places this worker fills: their roles and certifications.
+          // One who covers places of two kinds is replaced by one who fits both, or else by one who fits their own place.
+          const mine = cover.get(c.workerId)?.map((s) => draft.staffing[s]) ?? [{ roleId: c.roleId }]
+          const fitsAll = (x: Worker) => mine.every((p) => fitsSlot(x, p, general))
+          const fitsOwn = (x: Worker) => fitsSlot(x, mine[0], general)
+          const fit = [...available, ...others].some((x) => fitsAll(x.worker)) ? fitsAll : fitsOwn
+          const swapOptions = available.filter((x) => fit(x.worker))
+          const busyOptions = others.filter((x) => fit(x.worker))
           return (
             // A constraint keeps this worker out on the shift's day: outlined in orange, swap is right there.
             <div key={c.workerId} className={`rounded-xl bg-slate-950 p-2 ${load?.blocked ? 'border-2 border-orange-500' : 'border border-slate-800'}`}>
