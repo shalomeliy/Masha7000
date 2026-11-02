@@ -45,7 +45,7 @@ describe('urgentShift', () => {
 describe('shiftRecordError', () => {
   const workers = [worker('a'), worker('b', [])]
   it('needs a shift type and a place or a job', () => {
-    expect(shiftRecordError(shift({ shiftDefinitionId: undefined }), workers)).toBe('צריך לבחור סוג משמרת')
+    expect(shiftRecordError(shift({ shiftDefinitionId: undefined }), workers)).toBe('צריך לבחור תבנית עבודה')
     expect(shiftRecordError(shift({ location: ' ', jobDescription: '' }), workers)).toBe('צריך למלא מיקום או מהות עבודה')
     expect(shiftRecordError(shift({ location: '' }), workers)).toBeNull()
   })
@@ -53,7 +53,7 @@ describe('shiftRecordError', () => {
     expect(shiftRecordError(shift({ date: '2026-02-30' }), workers)).toBe('התאריך הזה לא קיים ביומן')
   })
   it('checks the crew: no worker twice, and a role the worker holds', () => {
-    expect(shiftRecordError(shift({ crew: [{ workerId: 'a', roleId: 'climber' }, { workerId: 'a', roleId: 'climber' }] }), workers)).toBe('אותו עובד מופיע פעמיים במשמרת')
+    expect(shiftRecordError(shift({ crew: [{ workerId: 'a', roleId: 'climber' }, { workerId: 'a', roleId: 'climber' }] }), workers)).toBe('אותו עובד מופיע פעמיים בעבודה')
     expect(shiftRecordError(shift({ crew: [{ workerId: 'a', roleId: 'electrician' }] }), workers)).toBe('צריך לבחור תפקיד לa')
     expect(shiftRecordError(shift({ crew: [{ workerId: 'b', roleId: 'general' }] }), workers)).toBeNull() // a worker with no roles is "כללי"
   })

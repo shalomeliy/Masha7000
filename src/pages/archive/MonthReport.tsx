@@ -45,12 +45,12 @@ export function MonthReport({ month, today, onMonth, onWorker }: { month: string
 
       {rep.shifts === 0 ? (
         <p role="status" className="rounded-2xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
-          אין משמרות בחודש הזה
+          אין עבודות בחודש הזה
         </p>
       ) : (
         <>
           <p role="status" className="text-sm text-slate-300">
-            {rep.shifts === 1 ? 'משמרת אחת' : `${rep.shifts} משמרות`} בחודש. דחופות וסופ"ש כבר נספרו ביום או בלילה. לחיצה על עובד מציגה את המשמרות שלו.
+            {rep.shifts === 1 ? 'עבודה אחת' : `${rep.shifts} עבודות`} בחודש. דחופות וסופ"ש כבר נספרו ביום או בלילה. לחיצה על עובד מציגה את העבודות שלו.
           </p>
           <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900">
             <table className="w-full text-sm">

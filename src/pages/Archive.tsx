@@ -46,7 +46,7 @@ export function Archive() {
       <div className="grid grid-cols-2 gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1" role="group" aria-label="תצוגה">
         {(
           [
-            ['list', 'משמרות'],
+            ['list', 'עבודות'],
             ['month', 'דוח חודשי'],
           ] as const
         ).map(([id, label]) => (
@@ -132,10 +132,10 @@ export function Archive() {
 
           <p role="status" className="text-sm text-slate-300">
             {sum.shifts === 0 ? (
-              'אין משמרות שמתאימות לחיפוש'
+              'אין עבודות שמתאימות לחיפוש'
             ) : (
               <>
-                <span className="font-semibold">{sum.shifts === 1 ? 'משמרת אחת' : `${sum.shifts} משמרות`}</span>
+                <span className="font-semibold">{sum.shifts === 1 ? 'עבודה אחת' : `${sum.shifts} עבודות`}</span>
                 {[
                   sum.urgent && `${sum.urgent} דחופות`,
                   sum.done && `${sum.done} בוצעו`,
@@ -158,7 +158,7 @@ export function Archive() {
           </ul>
           {hits.length > shown && (
             <button type="button" onClick={() => setShown((n) => n + PAGE)} className="min-h-12 w-full rounded-xl border border-slate-700 text-sm text-slate-200">
-              עוד {Math.min(PAGE, hits.length - shown)} משמרות (מתוך {hits.length - shown} שנשארו)
+              עוד {Math.min(PAGE, hits.length - shown)} עבודות (מתוך {hits.length - shown} שנשארו)
             </button>
           )}
         </>

@@ -138,7 +138,7 @@ export function shiftError(shift: Omit<ShiftDefinition, 'id'>, existing: ShiftDe
   const n = nameError(shift.name, existing, selfId)
   if (n) return n
   if (!TIME.test(shift.startTime) || !TIME.test(shift.endTime)) return 'צריך שעת התחלה ושעת סיום'
-  if (!Number.isInteger(shift.requiredHeadcount) || (shift.requiredHeadcount ?? 0) < 1) return 'צריך לפחות אדם אחד במשמרת'
+  if (!Number.isInteger(shift.requiredHeadcount) || (shift.requiredHeadcount ?? 0) < 1) return 'צריך לפחות אדם אחד בעבודה'
   return null
 }
 

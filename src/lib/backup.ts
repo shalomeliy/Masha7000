@@ -31,7 +31,7 @@ export type BackupList = (typeof BACKUP_LISTS)[number]
 export const LIST_TITLES: Record<BackupList, string> = {
   roles: 'תפקידים',
   certifications: 'הסמכות',
-  shiftDefinitions: 'סוגי משמרות',
+  shiftDefinitions: 'תבניות עבודה',
   postponeReasons: 'סיבות דחייה',
   places: 'מקומות',
   jobTypes: 'סוגי עבודה',
@@ -39,7 +39,7 @@ export const LIST_TITLES: Record<BackupList, string> = {
   constraintWords: 'מילים לקריאת אילוצים',
   workers: 'עובדים',
   pendingJobs: 'משימות לשיבוץ',
-  shifts: 'משמרות',
+  shifts: 'עבודות',
 }
 
 export interface Backup {
@@ -101,11 +101,11 @@ export function backupCounts(b: Backup) {
   return { workers: b.files.workers.length, shifts: b.files.shifts.length, pendingJobs: b.files.pendingJobs.length }
 }
 
-/** "18 עובדים, 412 משמרות, 6 משימות לשיבוץ" */
+/** "18 עובדים, 412 עבודות, 6 משימות לשיבוץ" */
 export function countsText(c: { workers: number; shifts: number; pendingJobs: number }): string {
   return [
     countText(c.workers, 'עובד אחד', 'עובדים'),
-    countText(c.shifts, 'משמרת אחת', 'משמרות'),
+    countText(c.shifts, 'עבודה אחת', 'עבודות'),
     countText(c.pendingJobs, 'משימה אחת לשיבוץ', 'משימות לשיבוץ'),
   ].join(', ')
 }

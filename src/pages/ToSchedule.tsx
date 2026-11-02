@@ -122,7 +122,7 @@ function JobsSection() {
                     className="flex min-h-12 w-full items-center gap-2 border-t border-slate-800 px-4 text-sm font-semibold text-sky-400"
                   >
                     <CalendarPlus size={18} aria-hidden />
-                    שיבוץ למשמרת
+                    שיבוץ ביומן
                   </button>
                 </li>
               )

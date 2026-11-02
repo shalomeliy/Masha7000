@@ -171,7 +171,7 @@ function page(c: Ctx, draw: boolean, report: Report): number {
       y += 64
     }
     if (day.shifts.length === 0) {
-      text(c, draw, 'אין משמרות', right, y + 18, font(500, 32), '#94a3b8')
+      text(c, draw, 'אין עבודות', right, y + 18, font(500, 32), '#94a3b8')
       y += week ? 64 : 72
       continue
     }

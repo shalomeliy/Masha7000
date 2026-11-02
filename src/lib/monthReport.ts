@@ -103,16 +103,16 @@ export const COLUMNS = [
 /** WhatsApp text: one line per worker who worked or was swapped, then the totals. */
 export function monthText(rep: MonthReport): string {
   const line = (r: Omit<MonthRow, 'workerId' | 'name'>) =>
-    [`${r.total} משמרות`, `יום ${r.day}`, `לילה ${r.night}`, r.urgent && `דחופות ${r.urgent}`, r.weekend && `סופ"ש ${r.weekend}`, r.swappedOut && `הוחלף ${r.swappedOut}`]
+    [`${r.total} עבודות`, `יום ${r.day}`, `לילה ${r.night}`, r.urgent && `דחופות ${r.urgent}`, r.weekend && `סופ"ש ${r.weekend}`, r.swappedOut && `הוחלף ${r.swappedOut}`]
       .filter(Boolean)
       .join(' · ')
   const active = rep.rows.filter((r) => r.total || r.swappedOut)
   return [
-    `*דוח משמרות ${monthLabel(rep.month)}*`,
+    `*דוח עבודות ${monthLabel(rep.month)}*`,
     '',
-    ...(active.length ? active.map((r) => `*${r.name}*: ${line(r)}`) : ['אין משמרות בחודש הזה']),
+    ...(active.length ? active.map((r) => `*${r.name}*: ${line(r)}`) : ['אין עבודות בחודש הזה']),
     '',
-    `*סה"כ*: ${rep.shifts} משמרות בחודש · ${line(rep.totals)}`,
+    `*סה"כ*: ${rep.shifts} עבודות בחודש · ${line(rep.totals)}`,
   ].join('\n')
 }
 

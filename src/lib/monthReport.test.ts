@@ -124,9 +124,9 @@ describe('sharing', () => {
 
   it('writes WhatsApp text with only the workers who worked', () => {
     const text = monthText(rep)
-    expect(text).toContain('*דוח משמרות אוקטובר 2026*')
-    expect(text).toContain('*דני כהן*: 2 משמרות · יום 1 · לילה 1 · סופ"ש 1')
+    expect(text).toContain('*דוח עבודות אוקטובר 2026*')
+    expect(text).toContain('*דני כהן*: 2 עבודות · יום 1 · לילה 1 · סופ"ש 1')
     expect(text).not.toContain('יוסי')
-    expect(monthText(monthReport('2026-11', records, workers, defs))).toContain('אין משמרות בחודש הזה')
+    expect(monthText(monthReport('2026-11', records, workers, defs))).toContain('אין עבודות בחודש הזה')
   })
 })

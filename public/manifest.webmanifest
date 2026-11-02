@@ -1,7 +1,7 @@
 {
-  "name": "ShiftSmart - ניהול משמרות",
+  "name": "ShiftSmart - ניהול עבודות",
   "short_name": "ShiftSmart",
-  "description": "ניהול משמרות ועובדים",
+  "description": "ניהול עבודות ועובדים",
   "lang": "he",
   "dir": "rtl",
   "start_url": "/",

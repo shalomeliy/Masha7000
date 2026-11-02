@@ -74,7 +74,7 @@ function whyEmpty(slot: StaffSlot, shift: ShiftRecord, ctx: GapContext): string 
   const active = ctx.workers.filter(isActive)
   const fit = active.filter((w) => !inCrew.has(w.id) && fills(w, slot.roleId, slot, ctx.generalId))
   if (!active.some((w) => fills(w, slot.roleId, slot, ctx.generalId))) return 'אין עובד עם התפקיד וההסמכה האלה'
-  if (!fit.length) return 'כל המתאימים כבר במשמרת הזו'
+  if (!fit.length) return 'כל המתאימים כבר בעבודה הזו'
   const blocked = fit.map((w) => ({ w, c: blockingConstraint(w, shift, ctx.defs) }))
   if (blocked.every((b) => b.c)) return `לא זמינים: ${blocked.map((b) => `${fullName(b.w)} (${constraintText(b.c!)})`).join(', ')}`
   return undefined

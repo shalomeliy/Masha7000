@@ -188,7 +188,7 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
         />
       )}
       {c.when === 'always' ? (
-        <p className="text-sm text-slate-300">העובד לא ישובץ אף פעם למשמרת לילה.</p>
+        <p className="text-sm text-slate-300">העובד לא ישובץ אף פעם לעבודת לילה.</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {PARTS.map((p) => {

@@ -73,7 +73,7 @@ export function Calendar() {
     setDropRefused(null)
     const moved = moveShift(r, day)
     const busy = busyCrew(moved, workers.items, shifts.items, defs.items)
-    if (busy.length) return setDropRefused(`${busyText(busy)}. אי אפשר להעביר את המשמרת ליום הזה לפני שמחליפים ${busy.length > 1 ? 'אותם' : 'אותו'}.`)
+    if (busy.length) return setDropRefused(`${busyText(busy)}. אי אפשר להעביר את העבודה ליום הזה לפני שמחליפים ${busy.length > 1 ? 'אותם' : 'אותו'}.`)
     try {
       await shifts.save(upsert(shifts.items, moved))
     } catch (e) {
@@ -83,7 +83,7 @@ export function Calendar() {
 
   return (
     <section className="space-y-4 px-4 pt-6">
-      <h1 className="text-2xl font-bold">יומן משמרות</h1>
+      <h1 className="text-2xl font-bold">יומן עבודות</h1>
 
       {failed ? (
         <DriveError error={failed.query.error} action="load" onRetry={() => lists.forEach((l) => l.query.isError && l.query.refetch())} />
@@ -101,7 +101,7 @@ export function Calendar() {
               className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-amber-500 font-semibold text-slate-950"
             >
               <Zap size={20} aria-hidden />
-              משמרת דחופה עכשיו
+              עבודה דחופה עכשיו
             </button>
             <button
               type="button"
@@ -109,7 +109,7 @@ export function Calendar() {
               className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-700 font-semibold text-slate-200"
             >
               <Plus size={20} aria-hidden />
-              משמרת חדשה
+              עבודה חדשה
             </button>
           </div>
 
@@ -131,7 +131,7 @@ export function Calendar() {
               setSharing({
                 title: 'סידור השבוע לוואטסאפ',
                 report: weekData(week.start, ctx),
-                warning: counts.missing ? `שים לב: ${counts.missing === 1 ? 'משמרת אחת עוד חסרה' : `${counts.missing} משמרות עוד חסרות`} עובדים.` : undefined,
+                warning: counts.missing ? `שים לב: ${counts.missing === 1 ? 'עבודה אחת עוד חסרה' : `${counts.missing} עבודות עוד חסרות`} עובדים.` : undefined,
               })
             }
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/50 text-sm font-semibold text-emerald-300"
@@ -148,7 +148,7 @@ export function Calendar() {
               className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 text-sm font-semibold text-slate-950 disabled:bg-slate-800 disabled:text-slate-400"
             >
               <Wand2 size={18} aria-hidden />
-              {toPlan.length ? `שבץ את השבוע (${toPlan.length === 1 ? 'משמרת אחת' : `${toPlan.length} משמרות`})` : 'אין משמרות פתוחות לשבץ'}
+              {toPlan.length ? `שבץ את השבוע (${toPlan.length === 1 ? 'עבודה אחת' : `${toPlan.length} עבודות`})` : 'אין עבודות פתוחות לשבץ'}
             </button>
           )}
 
@@ -210,7 +210,7 @@ export function Calendar() {
                         <span className="ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
                           <span className="sr-only">חסרים עובדים ב-</span>
                           {missingToday}
-                          <span className="sr-only"> {missingToday === 1 ? 'משמרת' : 'משמרות'}</span>
+                          <span className="sr-only"> {missingToday === 1 ? 'עבודה' : 'עבודות'}</span>
                         </span>
                       )}
                     </h2>
@@ -226,7 +226,7 @@ export function Calendar() {
                     )}
                   </div>
                   {dayShifts.length === 0 ? (
-                    <p className="text-sm text-slate-600">אין משמרות</p>
+                    <p className="text-sm text-slate-600">אין עבודות</p>
                   ) : (
                     <ul className="space-y-2">
                       {dayShifts.map((r) => (
@@ -298,7 +298,7 @@ function ShiftCard({
   const missing = gaps.missing.length > 0
   const warnIds = new Set([...gaps.doubleIds, ...gaps.nightIds])
   const warnOf = (id: string) =>
-    [gaps.doubleIds.includes(id) && 'כבר במשמרת אחרת באותו זמן', gaps.nightIds.includes(id) && 'מעל 2 לילות השבוע'].filter(Boolean).join(', ')
+    [gaps.doubleIds.includes(id) && 'כבר בעבודה אחרת באותו זמן', gaps.nightIds.includes(id) && 'מעל 2 לילות השבוע'].filter(Boolean).join(', ')
   const showClose = night && (canClose || !!r.closure)
 
   return (
@@ -363,7 +363,7 @@ function ShiftCard({
                 {constraint.note && ` (${constraint.note})`}
               </span>
             ))}
-            <span className="block text-orange-400">לחץ על המשמרת כדי להחליף {blocked.length > 1 ? 'אותם' : 'אותו'}</span>
+            <span className="block text-orange-400">לחץ על העבודה כדי להחליף {blocked.length > 1 ? 'אותם' : 'אותו'}</span>
           </span>
         )}
       </button>
@@ -429,7 +429,7 @@ function WeekStatus({ counts, filter, onFilter }: { counts: Record<GapKind, numb
     return (
       <p role="status" className="flex min-h-11 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-300">
         <Check size={18} aria-hidden />
-        כל המשמרות השבוע מאוישות
+        כל העבודות השבוע מאוישות
       </p>
     )
   return (

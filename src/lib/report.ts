@@ -31,7 +31,7 @@ export interface ReportDay {
 }
 
 export interface Report {
-  title: string // "סידור משמרות" / "סידור משמרות לשבוע"
+  title: string // "סידור עבודות" / "סידור עבודות לשבוע"
   subtitle: string // the date or the week range ("1.11 עד 7.11.2026"), with the year
   days: ReportDay[]
 }
@@ -47,7 +47,7 @@ function reportShift(r: ShiftRecord, ctx: ReportContext): ReportShift {
   const kind: ShiftKind = r.urgent ? 'urgent' : !def ? 'other' : endsNextDay(def) ? 'night' : 'day'
   return {
     kind,
-    kindLabel: r.urgent ? `דחופה מ-${r.startTime}` : (def?.name ?? 'משמרת'),
+    kindLabel: r.urgent ? `דחופה מ-${r.startTime}` : (def?.name ?? 'עבודה'),
     location: r.location,
     until: r.urgent && r.endDate ? `עד יום ${dayName(r.endDate)} ${showDate(r.endDate)} ${r.endTime ?? ''}`.trim() : undefined,
     job: r.jobDescription,
@@ -65,13 +65,13 @@ function reportDay(date: string, ctx: ReportContext): ReportDay {
 }
 
 export function dayData(date: string, ctx: ReportContext): Report {
-  return { title: 'סידור משמרות', subtitle: `יום ${dayName(date)}, ${showDate(date)}.${year(date)}`, days: [reportDay(date, ctx)] }
+  return { title: 'סידור עבודות', subtitle: `יום ${dayName(date)}, ${showDate(date)}.${year(date)}`, days: [reportDay(date, ctx)] }
 }
 
 export function weekData(anyDay: string, ctx: ReportContext): Report {
   const week = weekOf(anyDay)
   return {
-    title: 'סידור משמרות לשבוע',
+    title: 'סידור עבודות לשבוע',
     // A Hebrew word between the dates: "1.11 - 7.11" shows reversed in a right-to-left line.
     subtitle: `${showDate(week.start)} עד ${showDate(week.end)}.${year(week.end)}`,
     days: week.days.map((d) => reportDay(d, ctx)),
@@ -93,7 +93,7 @@ function shiftText(s: ReportShift): string[] {
 }
 
 function dayText(day: ReportDay): string[] {
-  if (day.shifts.length === 0) return ['_אין משמרות_']
+  if (day.shifts.length === 0) return ['_אין עבודות_']
   return day.shifts.flatMap((s, i) => [...(i ? [''] : []), ...shiftText(s)])
 }
 

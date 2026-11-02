@@ -19,7 +19,7 @@ interface Item {
 const TEXT: Record<Kind, { field: TextField; explain: string; add: string; edit: string; fresh: string; label: string; one: string }> = {
   places: {
     field: 'location',
-    explain: 'מקומות שחוזרים על עצמם. כשממלאים מיקום במשמרת או בעבודה, הם מופיעים מתחת לשדה ואפשר לבחור בלחיצה.',
+    explain: 'מקומות שחוזרים על עצמם. כשממלאים מיקום בעבודה ביומן או בעבודה לשיבוץ, הם מופיעים מתחת לשדה ואפשר לבחור בלחיצה.',
     add: 'הוספת מקום',
     edit: 'עריכת מקום',
     fresh: 'מקום חדש',
@@ -37,11 +37,11 @@ const TEXT: Record<Kind, { field: TextField; explain: string; add: string; edit:
   },
 }
 
-// A number after a Hebrew prefix letter takes a hyphen: "ב-2 משמרות", "ועבודה אחת".
+// A number after a Hebrew prefix letter takes a hyphen: "ב-2 עבודות ביומן", "ועבודה אחת".
 const withPrefix = (prefix: string, n: number, one: string, many: string) => (n === 1 ? `${prefix}${one}` : `${prefix}${prefix ? '-' : ''}${n} ${many}`)
 
 const usageText = (u: { shifts: number; jobs: number }, prefix = '') =>
-  [u.shifts && withPrefix(prefix, u.shifts, 'משמרת אחת', 'משמרות'), u.jobs && withPrefix(u.shifts ? 'ו' : prefix, u.jobs, 'עבודה אחת לשיבוץ', 'עבודות לשיבוץ')]
+  [u.shifts && withPrefix(prefix, u.shifts, 'עבודה אחת ביומן', 'עבודות ביומן'), u.jobs && withPrefix(u.shifts ? 'ו' : prefix, u.jobs, 'עבודה אחת לשיבוץ', 'עבודות לשיבוץ')]
     .filter(Boolean)
     .join(' ')
 
@@ -71,7 +71,7 @@ export function NameListSection({ kind }: { kind: Kind }) {
           text={t.explain}
           addLabel={t.add}
           onAdd={() => setEditing({ id: newId(), name: '' })}
-          starterLabel={used.length ? `להתחיל עם מה שכבר כתוב במשמרות: ${used.slice(0, 5).join(', ')}${used.length > 5 ? ' ועוד' : ''}` : undefined}
+          starterLabel={used.length ? `להתחיל עם מה שכבר כתוב ביומן: ${used.slice(0, 5).join(', ')}${used.length > 5 ? ' ועוד' : ''}` : undefined}
           onStarter={used.length ? addUsed : undefined}
           starterBusy={list.saving}
           starterError={starterError}

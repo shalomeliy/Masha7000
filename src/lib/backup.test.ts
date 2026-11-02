@@ -67,7 +67,7 @@ describe('backup file', () => {
     const { places: _, ...files } = b.files
     expect(() => parseBackup(JSON.stringify({ ...b, files }))).toThrow(/מקומות/)
     expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, workers: [{ firstName: 'x' }] } }))).toThrow(/עובדים/)
-    expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, shifts: [{ id: 'x' }] } }))).toThrow(/משמרות/)
+    expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, shifts: [{ id: 'x' }] } }))).toThrow(/עבודות/)
     expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, roles: ['x'] } }))).toThrow(/תפקידים/)
     // A name that is not text would break the screen that shows it.
     expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, workers: [{ id: 'w', firstName: {} }] } }))).toThrow(/עובדים/)
@@ -80,8 +80,8 @@ describe('backup file', () => {
   it('counts what the preview shows', () => {
     const c = backupCounts(makeBackup(data, now))
     expect(c).toEqual({ workers: 1, shifts: 2, pendingJobs: 1 })
-    expect(countsText(c)).toBe('עובד אחד, 2 משמרות, משימה אחת לשיבוץ')
-    expect(countsText({ workers: 18, shifts: 412, pendingJobs: 6 })).toBe('18 עובדים, 412 משמרות, 6 משימות לשיבוץ')
+    expect(countsText(c)).toBe('עובד אחד, 2 עבודות, משימה אחת לשיבוץ')
+    expect(countsText({ workers: 18, shifts: 412, pendingJobs: 6 })).toBe('18 עובדים, 412 עבודות, 6 משימות לשיבוץ')
   })
 
   it('names and dates the file', () => {

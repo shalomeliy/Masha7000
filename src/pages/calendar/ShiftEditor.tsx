@@ -23,7 +23,7 @@ export function ShiftSheet({ editing, onClose }: { editing: ShiftRecord | null; 
   return (
     <Sheet
       open={editing !== null}
-      title={exists ? 'עריכת משמרת' : editing?.urgent ? 'משמרת דחופה מעכשיו' : 'משמרת חדשה'}
+      title={exists ? 'עריכת עבודה' : editing?.urgent ? 'עבודה דחופה מעכשיו' : 'עבודה חדשה'}
       onClose={onClose}
       locked={shifts.saving || pending.saving}
     >
@@ -32,9 +32,9 @@ export function ShiftSheet({ editing, onClose }: { editing: ShiftRecord | null; 
   )
 }
 
-const plural = (n: number) => (n === 0 ? 'אין לו משמרות השבוע' : n === 1 ? 'כבר משמרת אחת השבוע' : `כבר ${n} משמרות השבוע`)
+const plural = (n: number) => (n === 0 ? 'אין לו עבודות השבוע' : n === 1 ? 'כבר עבודה אחת השבוע' : `כבר ${n} עבודות השבוע`)
 
-// "דני כהן · כבר משמרת אחת השבוע · כבר שובץ ל-2 לילות השבוע" for the worker pickers.
+// "דני כהן · כבר עבודה אחת השבוע · כבר שובץ ל-2 לילות השבוע" for the worker pickers.
 const pickLabel = (w: Worker, load: WorkerLoad) => [fullName(w), plural(load.week), loadWarning(load)].filter(Boolean).join(' · ')
 
 const DefIcon = ({ def }: { def: ShiftDefinition }) => {
@@ -107,7 +107,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       !datesValid.date || !datesValid.end
         ? 'יש תאריך לא תקין'
         : clean.closure && !isNightShift(clean, defs.items)
-          ? 'העבודה הזו כבר נסגרה, ולכן היא נשארת משמרת לילה. כדי לשנות, קודם פתח מחדש את הסגירה.'
+          ? 'העבודה הזו כבר נסגרה, ולכן היא נשארת עבודת לילה. כדי לשנות, קודם פתח מחדש את הסגירה.'
           : shiftRecordError(clean, workers.items, roles.items.map((r) => r.id), general) ?? busyError(clean)
     setError(err)
     if (err) return
@@ -182,7 +182,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         <>
           <DateField label="תאריך" value={draft.date} required onChange={(date, ok) => (set('date', date), setDatesValid((v) => ({ ...v, date: ok })))} />
           <fieldset className="space-y-2 rounded-2xl border-2 border-sky-500/60 bg-sky-500/5 p-3">
-            <legend className="px-1 text-base font-semibold text-slate-100">סוג משמרת</legend>
+            <legend className="px-1 text-base font-semibold text-slate-100">תבנית עבודה</legend>
             {defs.items.length ? (
               <div className="grid grid-cols-3 gap-2">
                 {defs.items.map((d) => {
@@ -204,7 +204,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
                 })}
               </div>
             ) : (
-              <p className="text-sm text-amber-300">עוד אין סוגי משמרות. אפשר להוסיף אותם בלשונית "עובדים", "משמרות".</p>
+              <p className="text-sm text-amber-300">עוד אין תבניות עבודה. אפשר להוסיף אותן בלשונית "עובדים", "תבניות".</p>
             )}
           </fieldset>
         </>
@@ -230,7 +230,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
 
       <div className="space-y-2">
         <span className="text-sm text-slate-300">
-          עובדים במשמרת ({draft.crew.length} מתוך {draft.staffing.length})
+          עובדים בעבודה ({draft.crew.length} מתוך {draft.staffing.length})
         </span>
         {draft.crew.map((c, i) => {
           const w = workers.items.find((x) => x.id === c.workerId)
@@ -273,7 +273,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
               </button>
               <button
                 type="button"
-                aria-label="הוצאה מהמשמרת"
+                aria-label="הוצאה מהעבודה"
                 onClick={() => set('crew', draft.crew.filter((_, j) => j !== i))}
                 className="flex size-11 items-center justify-center rounded-lg text-slate-400"
               >
@@ -305,7 +305,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         {workers.items.length > 0 && draft.crew.length === 0 && <p className="text-sm text-slate-400">לחץ "שבץ" והמערכת תבחר את העובדים לבד.</p>}
         {draft.crew.length > 0 && available.length > 0 ? (
           <select
-            aria-label="הוספת עובד למשמרת"
+            aria-label="הוספת עובד לעבודה"
             value=""
             onChange={(e) => addWorker(e.target.value)}
             className={`${inputClass} text-slate-300`}
@@ -344,8 +344,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         onSave={save}
         onCancel={onDone}
         onDelete={exists ? remove : undefined}
-        deleteWarning={`לבטל את המשמרת? היא תימחק מהיומן.${shift.fromJobId ? ' העבודה תחזור ללשונית "לשיבוץ".' : ''}`}
-        deleteLabel="ביטול משמרת"
+        deleteWarning={`לבטל את העבודה? היא תימחק מהיומן${shift.fromJobId ? ' ותחזור ללשונית "לשיבוץ"' : ''}.`}
+        deleteLabel="ביטול עבודה"
         confirmLabel="כן, לבטל"
         busy={busy}
         error={error}

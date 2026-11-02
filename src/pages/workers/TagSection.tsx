@@ -159,7 +159,7 @@ function TagForm({ kind, tag, onDone }: { kind: TagKind; tag: Tag; onDone: () =>
 
   // "ממנו" for one worker, "ממנה" for one shift, "מהם" for more.
   const fromThem = u.workers + u.shifts > 1 ? 'מהם' : u.workers ? 'ממנו' : 'ממנה'
-  const parts = [u.workers && toCount(u.workers, 'עובד אחד', 'עובדים'), u.shifts && toCount(u.shifts, 'משמרת אחת', 'משמרות')].filter(Boolean)
+  const parts = [u.workers && toCount(u.workers, 'עובד אחד', 'עובדים'), u.shifts && toCount(u.shifts, 'עבודה אחת', 'עבודות')].filter(Boolean)
 
   return (
     <>

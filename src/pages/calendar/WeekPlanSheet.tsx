@@ -63,7 +63,7 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
     <>
       <p className="text-sm text-slate-300">
         {changed.length
-          ? `${changed.length === 1 ? 'משמרת אחת תקבל' : `${changed.length} משמרות יקבלו`} עובדים. עובדים ששמת בעצמך נשארים. שום דבר לא נשמר עד "שמור הכול".`
+          ? `${changed.length === 1 ? 'עבודה אחת תקבל' : `${changed.length} עבודות יקבלו`} עובדים. עובדים ששמת בעצמך נשארים. שום דבר לא נשמר עד "שמור הכול".`
           : 'לא נמצאו עובדים מתאימים למקומות הפנויים. שום דבר לא ישתנה.'}
       </p>
       <ul className="space-y-2">

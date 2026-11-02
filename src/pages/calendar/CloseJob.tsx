@@ -141,7 +141,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         </>
       )}
       {outcome === 'postponed' && <DictationField label="פרטים נוספים (לא חובה אם בחרת סיבה)" value={note} onChange={setNote} />}
-      {outcome && outcome !== 'done' && <p className="text-sm text-slate-400">העבודה תופיע בלשונית "לשיבוץ" עד שתשבץ אותה למשמרת.</p>}
+      {outcome && outcome !== 'done' && <p className="text-sm text-slate-400">העבודה תופיע בלשונית "לשיבוץ" עד שתשבץ אותה ביומן.</p>}
 
       <SheetActions
         onSave={save}

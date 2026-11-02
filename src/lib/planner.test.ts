@@ -120,7 +120,7 @@ describe('autoAssign', () => {
     ]
     const p = autoAssign(shift('s', '2026-10-28'), [{ roleId: G }], ctx([worker('a'), worker('b')], records))
     expect(ids(p)).toEqual(['b'])
-    expect(loadWarning(workerLoad(worker('a'), shift('s', '2026-10-28'), ctx([], records)))).toBe('כבר במשמרת אחרת באותו זמן')
+    expect(loadWarning(workerLoad(worker('a'), shift('s', '2026-10-28'), ctx([], records)))).toBe('כבר בעבודה אחרת באותו זמן')
   })
 
   it('keeps workers the manager already put in, and fills only the empty places', () => {
@@ -193,7 +193,7 @@ describe('constraints in autoAssign', () => {
 
   it('tells a missing role apart from a crew that already holds everyone', () => {
     const p = autoAssign(shift('s', '2026-10-28'), [{ roleId: G }, { roleId: G }, { roleId: 'climber' }], ctx([worker('a')]))
-    expect(p.why).toEqual(['כל המתאימים כבר במשמרת הזו', 'אין עובד עם התפקיד וההסמכה האלה'])
+    expect(p.why).toEqual(['כל המתאימים כבר בעבודה הזו', 'אין עובד עם התפקיד וההסמכה האלה'])
   })
 })
 
@@ -245,7 +245,7 @@ describe('never two shifts at the same time', () => {
     const records = [shift('n', '2026-10-27', { shiftDefinitionId: 'night', crew: on('a') })]
     const p = autoAssign(shift('s', '2026-10-28'), [{ roleId: G }], ctx([worker('a')], records))
     expect(p.crew).toEqual([])
-    expect(p.why).toEqual(['במשמרת אחרת באותו זמן: a'])
+    expect(p.why).toEqual(['בעבודה אחרת באותו זמן: a'])
   })
 
   it('busyCrew names the crew member and the other shift; a shift on another day is not a clash', () => {
@@ -253,7 +253,7 @@ describe('never two shifts at the same time', () => {
     const d = shift('d', '2026-10-28', { crew: on('a', 'b') })
     const busy = busyCrew(d, [worker('a'), worker('b')], [n, d], [day, night])
     expect(busy.map((b) => [b.worker.id, b.other.id])).toEqual([['a', 'n']])
-    expect(busyText(busy)).toBe('a כבר במשמרת ביום שלישי 27.10 (חיפה)')
+    expect(busyText(busy)).toBe('a כבר בעבודה ביום שלישי 27.10 (חיפה)')
     expect(busyCrew({ ...d, date: '2026-10-29' }, [worker('a')], [n, d], [day, night])).toEqual([])
   })
 })

@@ -31,7 +31,7 @@ describe('dayReport', () => {
   it('lists the date, place, job, workers and their roles', () => {
     expect(dayReport('2026-11-01', ctx)).toBe(
       [
-        '📋 *סידור משמרות*',
+        '📋 *סידור עבודות*',
         '*יום ראשון, 1.11.2026*',
         '━━━━━━━━━━━━━━',
         '',
@@ -54,14 +54,14 @@ describe('dayReport', () => {
   })
 
   it('says so on a day with no shifts', () => {
-    expect(dayReport('2026-11-02', ctx)).toContain('_אין משמרות_')
+    expect(dayReport('2026-11-02', ctx)).toContain('_אין עבודות_')
   })
 })
 
 describe('weekReport', () => {
   it('covers Sunday to Saturday of the given day', () => {
     const text = weekReport('2026-11-04', ctx)
-    expect(text.split('\n').slice(0, 2)).toEqual(['📋 *סידור משמרות לשבוע*', '*1.11 עד 7.11.2026*'])
+    expect(text.split('\n').slice(0, 2)).toEqual(['📋 *סידור עבודות לשבוע*', '*1.11 עד 7.11.2026*'])
     expect(text).toContain('🗓️ *יום ראשון 1.11*')
     expect(text).toContain('🗓️ *יום שבת 7.11*')
     expect(text).toContain('   • דני כהן · _טפסן_')

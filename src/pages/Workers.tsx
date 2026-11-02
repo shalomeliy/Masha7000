@@ -12,7 +12,7 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: 'workers', label: 'עובדים' },
   { id: 'roles', label: 'תפקידים' },
   { id: 'certifications', label: 'הסמכות' },
-  { id: 'shifts', label: 'משמרות' },
+  { id: 'shifts', label: 'תבניות' },
 ]
 
 export function Workers() {
@@ -24,7 +24,7 @@ export function Workers() {
 
   return (
     <section className="space-y-4 px-4 pt-6">
-      <h1 className="text-2xl font-bold">עובדים ומשמרות</h1>
+      <h1 className="text-2xl font-bold">עובדים ותבניות עבודה</h1>
 
       <div role="tablist" aria-label="מה להציג" className="grid grid-cols-4 rounded-xl bg-slate-900 p-1">
         {SECTIONS.map((s) => (

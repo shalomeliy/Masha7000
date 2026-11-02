@@ -729,7 +729,7 @@ function StatusSheet({
               {st.name}
               {st.id === "inactive" && (
                 <span className="block text-xs text-slate-400">
-                  לא יופיע ברשימת העובדים ולא ישובץ למשמרות
+                  לא יופיע ברשימת העובדים ולא ישובץ לעבודות
                 </span>
               )}
             </button>

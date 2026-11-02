@@ -60,11 +60,11 @@ export function busyCrew(shift: ShiftRecord, workers: Worker[], records: ShiftRe
   })
 }
 
-/** "דני כהן כבר במשמרת ביום שני 26.10 (חיפה)" for each busy crew member, or null when none is. */
+/** "דני כהן כבר בעבודה ביום שני 26.10 (חיפה)" for each busy crew member, or null when none is. */
 export function busyText(busy: { worker: Worker; other: ShiftRecord }[]): string | null {
   if (!busy.length) return null
   return busy
-    .map(({ worker, other }) => `${fullName(worker)} כבר במשמרת ביום ${dayName(other.date)} ${showDate(other.date)}${other.location ? ` (${other.location})` : ''}`)
+    .map(({ worker, other }) => `${fullName(worker)} כבר בעבודה ביום ${dayName(other.date)} ${showDate(other.date)}${other.location ? ` (${other.location})` : ''}`)
     .join(', ')
 }
 
@@ -87,7 +87,7 @@ export function workerLoad(worker: Worker, shift: ShiftRecord, ctx: Pick<PlanCon
 /** Warning to show next to a worker in this shift, or null. */
 export function loadWarning(load: WorkerLoad): string | null {
   if (load.blocked) return `${constraintText(load.blocked)}${load.blocked.note ? ` (${load.blocked.note})` : ''}`
-  if (load.busy) return 'כבר במשמרת אחרת באותו זמן'
+  if (load.busy) return 'כבר בעבודה אחרת באותו זמן'
   if (load.overNightLimit) return `כבר שובץ ל-${load.nights} לילות השבוע`
   return null
 }
@@ -179,12 +179,12 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
       if (blocked.length || busy.length)
         return [
           blocked.length && `לא זמינים: ${blocked.map((c) => `${fullName(c.worker)} (${constraintText(c.load.blocked!)})`).join(', ')}`,
-          busy.length && `במשמרת אחרת באותו זמן: ${busy.map((c) => fullName(c.worker)).join(', ')}`,
+          busy.length && `בעבודה אחרת באותו זמן: ${busy.map((c) => fullName(c.worker)).join(', ')}`,
         ]
           .filter(Boolean)
           .join(' · ')
       return fit.length || candidates.some((c) => fitsSlot(c.worker, slot, ctx.generalId))
-        ? 'כל המתאימים כבר במשמרת הזו'
+        ? 'כל המתאימים כבר בעבודה הזו'
         : 'אין עובד עם התפקיד וההסמכה האלה'
     }),
   }

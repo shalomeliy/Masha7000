@@ -38,8 +38,8 @@ export function ShiftsSection() {
     <>
       {shifts.items.length === 0 ? (
         <EmptyState
-          text="סוג משמרת אומר אם היא נגמרת באותו יום או למחרת, כמה אנשים צריך בה ואילו תפקידים והסמכות חייבים להיות בה."
-          addLabel="הוספת סוג משמרת"
+          text="תבנית עבודה אומרת אם העבודה נגמרת באותו יום או למחרת, כמה אנשים צריך בה ואילו תפקידים והסמכות חייבים להיות בה."
+          addLabel="הוספת תבנית עבודה"
           onAdd={() => setEditing(blankShift())}
           starterLabel="להתחיל עם: יום (עד 16:00), לילה (עד 16:00 למחרת), לילה+ (לילה ואז עוד עבודה)"
           onStarter={addStarter}
@@ -75,13 +75,13 @@ export function ShiftsSection() {
               )
             })}
           </ul>
-          <AddButton label="הוספת סוג משמרת" onClick={() => setEditing(blankShift())} />
+          <AddButton label="הוספת תבנית עבודה" onClick={() => setEditing(blankShift())} />
         </>
       )}
 
       <Sheet
         open={editing !== null}
-        title={editing && shifts.items.some((s) => s.id === editing.id) ? 'עריכת סוג משמרת' : 'סוג משמרת חדש'}
+        title={editing && shifts.items.some((s) => s.id === editing.id) ? 'עריכת תבנית עבודה' : 'תבנית עבודה חדשה'}
         onClose={() => setEditing(null)}
         locked={shifts.saving}
       >
@@ -136,12 +136,12 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
 
   return (
     <>
-      <Field label="שם המשמרת">
+      <Field label="שם התבנית">
         <input autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className={inputClass} />
       </Field>
       {draft.thenJob ? (
         <p className="text-sm text-slate-300">
-          לילה, ואחריו הצוות עושה עוד עבודה לפני החזרה לבסיס. נספרת כמשמרת לילה.
+          לילה, ואחריו הצוות עושה עוד עבודה לפני החזרה לבסיס. נספרת כעבודת לילה.
         </p>
       ) : (
         <label className="flex min-h-11 items-center gap-3">
@@ -160,7 +160,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
       <label className="flex min-h-11 items-center gap-3">
         <input type="checkbox" checked={!!draft.isStandby} onChange={(e) => toggleStandby(e.target.checked)} className="size-5 accent-sky-500" />
         <span>
-          משמרת כוננות
+          עבודת כוננות
           <span className="block text-xs text-slate-400">אנשי הצוות ממתינים בבית לקריאה</span>
         </span>
       </label>
@@ -168,7 +168,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
         <input type="number" min={1} inputMode="numeric" value={headcount} onChange={(e) => setHeadcount(e.target.value)} className={inputClass} />
       </Field>
       <div className="space-y-1">
-        <span className="text-sm text-slate-300">תפקידים שחייבים להיות במשמרת</span>
+        <span className="text-sm text-slate-300">תפקידים שחייבים להיות בעבודה</span>
         {roles.items.length ? (
           <Chips options={roles.items} selected={draft.requiredRoleIds} onToggle={toggleIn('requiredRoleIds')} />
         ) : (
@@ -176,7 +176,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
         )}
       </div>
       <div className="space-y-1">
-        <span className="text-sm text-slate-300">הסמכות שחייבות להיות במשמרת</span>
+        <span className="text-sm text-slate-300">הסמכות שחייבות להיות בעבודה</span>
         {certs.items.length ? (
           <Chips options={certs.items} selected={draft.requiredCertificationIds} onToggle={toggleIn('requiredCertificationIds')} />
         ) : (
@@ -187,7 +187,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
         onSave={save}
         onCancel={onDone}
         onDelete={exists && !shift.thenJob ? () => write(shifts.items.filter((s) => s.id !== shift.id)) : undefined}
-        deleteWarning={`למחוק את סוג המשמרת "${shift.name}"? אי אפשר לבטל את זה.${inUse ? ` ${countText(inUse, 'משמרת אחת ביומן היא', `משמרות ביומן הן`)} מהסוג הזה: הן יישארו ביומן בלי סוג, כמשמרת יום רגילה.` : ''}`}
+        deleteWarning={`למחוק את תבנית העבודה "${shift.name}"? אי אפשר לבטל את זה.${inUse ? ` ${countText(inUse, 'עבודה אחת ביומן היא', `עבודות ביומן הן`)} מהתבנית הזו: הן יישארו ביומן בלי תבנית, כעבודת יום רגילה.` : ''}`}
         busy={busy}
         error={error}
         saveError={saveError}

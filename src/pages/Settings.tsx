@@ -93,7 +93,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
   },
   {
     id: 'shiftDefinitions',
-    title: 'סוגי משמרות',
+    title: 'תבניות עבודה',
     explain: 'יום, לילה, כוננות',
   },
   {

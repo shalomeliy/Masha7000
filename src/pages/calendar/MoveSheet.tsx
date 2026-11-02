@@ -14,7 +14,7 @@ import type { ShiftRecord } from '../../types/models'
 export function MoveSheet({ shift, onClose }: { shift: ShiftRecord | null; onClose: () => void }) {
   const shifts = useDriveList('shifts')
   return (
-    <Sheet open={shift !== null} title="העברת משמרת ליום אחר" onClose={onClose} locked={shifts.saving}>
+    <Sheet open={shift !== null} title="העברת עבודה ליום אחר" onClose={onClose} locked={shifts.saving}>
       {shift && <MoveForm key={shift.id} shift={shift} onDone={onClose} />}
     </Sheet>
   )
@@ -40,9 +40,9 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
     const err = !valid
       ? 'התאריך לא תקין'
       : date === shift.date
-        ? 'בחר יום אחר מהיום של המשמרת'
+        ? 'בחר יום אחר מהיום של העבודה'
         : clashes.length
-          ? `${busyText(clashes)}. אי אפשר להעביר: קודם החלף ${clashes.length > 1 ? 'אותם' : 'אותו'} בעריכת המשמרת.`
+          ? `${busyText(clashes)}. אי אפשר להעביר: קודם החלף ${clashes.length > 1 ? 'אותם' : 'אותו'} בעריכת העבודה.`
           : null
     setError(err)
     if (err) return
@@ -61,8 +61,8 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   return (
     <>
       <p className="text-sm text-slate-300">
-        המשמרת עוברת עם כל העובדים שבה.
-        {isNightShift(shift, defs.items) && ' משמרת לילה ממשיכה גם ביום שאחריו, כמו קודם.'}
+        העבודה עוברת עם כל העובדים שבה.
+        {isNightShift(shift, defs.items) && ' עבודת לילה ממשיכה גם ביום שאחריו, כמו קודם.'}
       </p>
       <div className="flex flex-wrap gap-2">
         {days.map((d) => (
@@ -81,7 +81,7 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
       <DateField label="או תאריך אחר" value={date} required onChange={(d, ok) => (setDate(d), setValid(ok))} />
       {clashes.length > 0 && (
         <p role="status" className="rounded-xl border border-red-500/60 bg-red-500/10 p-3 text-sm text-red-200">
-          {busyText(clashes)}. עובד לא יכול להיות בשתי משמרות באותו זמן.
+          {busyText(clashes)}. עובד לא יכול להיות בשתי עבודות באותו זמן.
         </p>
       )}
       {blocked.length > 0 && (
@@ -93,7 +93,7 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
               {constraint.note && ` (${constraint.note})`}
             </p>
           ))}
-          <p className="text-orange-300">אפשר להעביר בכל זאת, ואז להחליף אותם בעריכת המשמרת.</p>
+          <p className="text-orange-300">אפשר להעביר בכל זאת, ואז להחליף אותם בעריכת העבודה.</p>
         </div>
       )}
       <SheetActions onSave={save} onCancel={onDone} saveLabel="העברה" busy={busy} error={error} saveError={saveError} />

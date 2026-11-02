@@ -100,7 +100,7 @@ export function moveShift(r: ShiftRecord, date: string): ShiftRecord {
 export function shiftRecordError(r: ShiftRecord, workers: Worker[], roleIds?: string[], generalId = GENERAL_ROLE_ID): string | null {
   const d = dateError(r.date, { required: true })
   if (d) return d
-  if (!r.urgent && !r.shiftDefinitionId) return 'צריך לבחור סוג משמרת'
+  if (!r.urgent && !r.shiftDefinitionId) return 'צריך לבחור תבנית עבודה'
   if (!r.location.trim() && !r.jobDescription.trim()) return 'צריך למלא מיקום או מהות עבודה'
   if (r.urgent) {
     if (!r.startTime || !TIME.test(r.startTime)) return 'צריך שעת התחלה'
@@ -111,10 +111,10 @@ export function shiftRecordError(r: ShiftRecord, workers: Worker[], roleIds?: st
   }
   const seen = new Set<string>()
   for (const c of r.crew) {
-    if (seen.has(c.workerId)) return 'אותו עובד מופיע פעמיים במשמרת'
+    if (seen.has(c.workerId)) return 'אותו עובד מופיע פעמיים בעבודה'
     seen.add(c.workerId)
     const w = workers.find((x) => x.id === c.workerId)
-    if (!w) return 'אחד העובדים במשמרת כבר לא קיים'
+    if (!w) return 'אחד העובדים בעבודה כבר לא קיים'
     const held = [generalId, ...(roleIds ? w.roleIds.filter((id) => roleIds.includes(id)) : w.roleIds)]
     if (!held.includes(c.roleId)) return `צריך לבחור תפקיד ל${fullName(w)}`
   }

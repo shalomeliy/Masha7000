@@ -102,7 +102,7 @@ describe('shiftGaps', () => {
     const g = shiftGaps(s, ctx([off], [s]))
     expect(g.blockedIds).toEqual(['b'])
     expect(g.kinds).toEqual(['missing', 'blocked'])
-    expect(g.missing[0].why).toBe('כל המתאימים כבר במשמרת הזו')
+    expect(g.missing[0].why).toBe('כל המתאימים כבר בעבודה הזו')
     const t = shift('t', '2026-10-27', { staffing: [{ roleId: G }] })
     expect(shiftGaps(t, ctx([off], [t])).missing[0].why).toMatch(/^לא זמינים: b/)
   })
