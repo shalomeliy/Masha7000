@@ -388,8 +388,18 @@ function ShiftCard({
       )}
       {(showClose || !r.closure) && (
         <div className="flex border-t border-slate-800">
+          {!r.closure && (
+            <button
+              type="button"
+              onClick={onMove}
+              className={`flex min-h-12 items-center gap-1.5 px-4 text-sm text-slate-300 ${showClose ? '' : 'flex-1'}`}
+            >
+              <CalendarArrowUp size={16} aria-hidden />
+              העברה ליום אחר
+            </button>
+          )}
           {showClose && (
-            <button type="button" onClick={onCloseJob} className="flex min-h-12 min-w-0 flex-1 items-center gap-2 px-4 text-start text-sm">
+            <button type="button" onClick={onCloseJob} className={`flex min-h-12 min-w-0 flex-1 items-center gap-2 px-4 text-sm ${r.closure ? 'text-start' : 'justify-end border-s border-slate-800 text-end'}`}>
               {outcome ? (
                 <>
                   <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold ${outcome.tone}`}>{outcome.label}</span>
@@ -398,16 +408,6 @@ function ShiftCard({
               ) : (
                 <span className="font-semibold text-sky-400">סגירת עבודה</span>
               )}
-            </button>
-          )}
-          {!r.closure && (
-            <button
-              type="button"
-              onClick={onMove}
-              className={`flex min-h-12 items-center gap-1.5 px-4 text-sm text-slate-300 ${showClose ? 'border-s border-slate-800' : 'flex-1'}`}
-            >
-              <CalendarArrowUp size={16} aria-hidden />
-              העברה ליום אחר
             </button>
           )}
         </div>
