@@ -47,7 +47,7 @@ export function isNightShift(r: ShiftRecord, defs: ShiftDefinition[]): boolean {
 /** A new urgent shift opened now: starts today at this minute, ends tomorrow 16:00 unless edited. */
 export function urgentShift(now: Date, defs: ShiftDefinition[]): ShiftRecord {
   const date = todayIso(now)
-  const night = defs.find((d) => endsNextDay(d))
+  const night = defs.find((d) => endsNextDay(d) && !d.thenJob) ?? defs.find((d) => endsNextDay(d))
   return {
     id: newId(),
     date,
