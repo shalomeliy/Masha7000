@@ -72,6 +72,7 @@ export function blankShift(date: string, from?: PendingJob): ShiftRecord {
     crew: [],
     staffing: from?.staffing ?? [],
     shiftDefinitionId: from?.shiftDefinitionId,
+    workKindIds: from?.workKindIds,
     fromJobId: from?.id,
   }
 }
@@ -164,6 +165,8 @@ export function applyClosure(
     jobDescription: closure.followUp?.jobDescription ?? shift.jobDescription,
     followUp: closure.followUp ? true : undefined,
     staffing: existing?.staffing.length ? existing.staffing : shift.staffing,
+    // The kinds go with the places they added.
+    workKindIds: existing?.staffing.length ? existing.workKindIds : shift.workKindIds,
     fromShiftId: shiftId,
     outcome: closure.outcome,
     note: closure.note,

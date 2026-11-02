@@ -4,7 +4,7 @@ import { DictationField } from '../components/DictationField'
 import { DriveError } from '../components/DriveError'
 import { Field, inputClass, Sheet, SheetActions } from '../components/Sheet'
 import { Suggestions } from '../components/Suggestions'
-import { defaultShiftDef, nameError, newId, staffingFor, staffingText, tagNames, upsert } from '../lib/catalog'
+import { defaultShiftDef, generalRoleId, nameError, newId, staffingFor, staffingText, tagNames, upsert } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { blankShift, dayName, isWaiting, showDate, STARTER_POSTPONE_REASONS, taskHistory } from '../lib/shifts'
@@ -13,6 +13,8 @@ import { OUTCOMES } from './calendar/outcomes'
 import { ShiftSheet } from './calendar/ShiftEditor'
 import { ShiftDefField } from './calendar/ShiftDefField'
 import { StaffingField } from './calendar/StaffingField'
+import { WorkKindField } from './calendar/WorkKindField'
+import { toggleKind } from '../lib/workKinds'
 import { AddButton, EditMark, EmptyState } from './workers/common'
 
 // "לשיבוץ": jobs that still need a shift (left over from partial or postponed night jobs, or added
@@ -228,6 +230,7 @@ function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
       <Suggestions list="places" value={draft.location} onPick={(location) => setDraft((d) => ({ ...d, location }))} />
       <DictationField label="מהות העבודה" value={draft.jobDescription} onChange={(v) => setDraft((d) => ({ ...d, jobDescription: v }))} />
       <Suggestions list="jobTypes" value={draft.jobDescription} onPick={(jobDescription) => setDraft((d) => ({ ...d, jobDescription }))} />
+      <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind, generalRoleId(roles.items)) }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => setDraft((d) => ({ ...d, staffing }))} />
       <DictationField label="הערות" value={draft.note ?? ''} onChange={(v) => setDraft((d) => ({ ...d, note: v }))} />
       <SheetActions

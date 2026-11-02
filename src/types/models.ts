@@ -139,6 +139,7 @@ export interface PendingJob {
   jobDescription: string
   staffing: StaffSlot[] // who the job needs; carried into the shift it is scheduled to
   shiftDefinitionId?: string // its "תבנית עבודה", chosen when the job is created; carried into the shift
+  workKindIds?: string[] // its "סוג עבודה", chosen when the job is created; their places are in `staffing`
   fromShiftId?: string
   outcome?: Exclude<ClosureOutcome, 'done'>
   note?: string
