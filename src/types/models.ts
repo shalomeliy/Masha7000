@@ -29,6 +29,9 @@ export interface Constraint {
   note?: string // free text, a pasted WhatsApp message or dictation
 }
 
+// Absent on workers saved before statuses existed; read as 'active' (`normalizeWorker`).
+export type WorkerStatus = 'active' | 'sick' | 'inactive'
+
 // The spec's single `name` is split into first and last name; the contact fields are the user's list.
 export interface Worker {
   id: string
@@ -44,6 +47,8 @@ export interface Worker {
   certificationIds: string[]
   notes?: string
   constraints: Constraint[]
+  status?: WorkerStatus // absent = active. Inactive: hidden from the list and never picked for a shift
+  sickUntil?: string // YYYY-MM-DD, `sick` only: not picked for shifts up to and including this day
 }
 
 export interface ShiftDefinition {

@@ -133,7 +133,11 @@ describe('normalize older files', () => {
     expect(fullName(w)).toBe('דנה בת כהן')
   })
   it('leaves a current worker unchanged', () => {
-    expect(normalizeWorker(workers[1])).toEqual(workers[1])
+    const w: Worker = { ...workers[1], mobilePhone: '050', status: 'sick', sickUntil: '2026-11-05' }
+    expect(normalizeWorker(w)).toEqual(w)
+  })
+  it('a worker saved before statuses is active', () => {
+    expect(normalizeWorker(workers[1]).status).toBe('active')
   })
   it('adds missing certification requirements to a shift', () => {
     const { requiredCertificationIds: _, ...old } = shifts[0]

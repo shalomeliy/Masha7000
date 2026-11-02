@@ -1,4 +1,4 @@
-import { fullName, workerHasRole } from './catalog'
+import { fullName, isActive, workerHasRole } from './catalog'
 import { blockingConstraint, constraintText } from './constraints'
 import { addDays, dayName, isNightShift, showDate, weekOf, weekShiftCount } from './shifts'
 import type { Constraint, CrewMember, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
@@ -92,9 +92,10 @@ export function loadWarning(load: WorkerLoad): string | null {
   return null
 }
 
-/** Every worker, fairest pick first. Also the order of the screen's worker lists. */
+/** Every active worker, fairest pick first. Also the order of the screen's worker lists. */
 export function candidateOrder(shift: ShiftRecord, ctx: PlanContext): { worker: Worker; load: WorkerLoad }[] {
   return ctx.workers
+    .filter(isActive)
     .map((worker) => ({ worker, load: workerLoad(worker, shift, ctx) }))
     .sort(
       (a, b) =>

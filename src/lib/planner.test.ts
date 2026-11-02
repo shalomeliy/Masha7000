@@ -257,3 +257,25 @@ describe('never two shifts at the same time', () => {
     expect(busyCrew({ ...d, date: '2026-10-29' }, [worker('a')], [n, d], [day, night])).toEqual([])
   })
 })
+
+describe('worker status', () => {
+  const slot = [{ roleId: G }]
+  it('never picks an inactive worker, nor lists them', () => {
+    const c = ctx([{ ...worker('a'), status: 'inactive' }, worker('b')])
+    expect(ids(autoAssign(shift('s', '2026-10-28'), slot, c))).toEqual(['b'])
+    expect(candidateOrder(shift('s', '2026-10-28'), c).map((x) => x.worker.id)).toEqual(['b'])
+  })
+
+  it('a sick worker is blocked up to and including the last sick day, then picked again', () => {
+    const sick: Worker = { ...worker('a'), status: 'sick', sickUntil: '2026-10-28' }
+    const p = autoAssign(shift('s', '2026-10-28'), slot, ctx([sick]))
+    expect(p.unfilled).toEqual(slot)
+    expect(p.why[0]).toContain('במחלה עד 28.10')
+    expect(ids(autoAssign(shift('s', '2026-10-29'), slot, ctx([sick])))).toEqual(['a'])
+  })
+
+  it('a night job that ends on a sick day is blocked too', () => {
+    const sick: Worker = { ...worker('a'), status: 'sick', sickUntil: '2026-10-29' }
+    expect(autoAssign(shift('s', '2026-10-28', { shiftDefinitionId: 'night' }), slot, ctx([sick])).unfilled).toEqual(slot)
+  })
+})

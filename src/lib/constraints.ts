@@ -48,7 +48,17 @@ const dayList = (days: number[]) => {
 export const PART_NAMES: Record<DayPart, string> = { morning: 'בבוקר', noon: 'בצהריים', evening: 'בערב' }
 
 /** "לא זמין 1.11 עד 5.11", "לא זמין בערב ב-2.11", "בלי לילות בימי שלישי", "בלי לילות בכלל". The note is not included. */
+// Sickness is the worker's status, not a constraint the manager typed; the planner and the screens
+// read it as one, so it blocks and explains itself like any other.
+const SICK_ID = 'sick'
+
+/** The worker's sickness as a constraint up to `sickUntil`, or null when they are not sick. */
+export function sickConstraint(w: Pick<Worker, 'status' | 'sickUntil'>): Constraint | null {
+  return w.status === 'sick' && w.sickUntil ? { id: SICK_ID, when: 'dates', from: '0000-01-01', to: w.sickUntil } : null
+}
+
 export function constraintText(c: Constraint): string {
+  if (c.id === SICK_ID) return `במחלה עד ${showDate(c.to!)}`
   const what = c.nightsOnly ? 'בלי לילות' : c.part ? `לא זמין ${PART_NAMES[c.part]}` : 'לא זמין'
   if (c.when === 'always') return 'בלי לילות בכלל'
   if (c.when === 'weekdays') return `${what} ${c.weekdays?.length === 1 ? 'ביום' : 'בימי'} ${dayList(c.weekdays ?? [])}${c.to ? ` עד ${showDate(c.to)}` : ''}`
@@ -77,14 +87,15 @@ export function shiftDays(r: ShiftRecord, defs: ShiftDefinition[]): string[] {
  * one blocks only a day the shift runs past: not the last day, which ends at 16:00, unless an urgent
  * shift ends later. A nights-only one blocks a night job that starts on one of its days.
  */
-export function blockingConstraint(w: Pick<Worker, 'constraints'>, shift: ShiftRecord, defs: ShiftDefinition[]): Constraint | null {
+export function blockingConstraint(w: Pick<Worker, 'constraints' | 'status' | 'sickUntil'>, shift: ShiftRecord, defs: ShiftDefinition[]): Constraint | null {
   const night = isNightShift(shift, defs)
   const days = shiftDays(shift, defs)
   const endTime = shift.urgent ? shift.endTime : defs.find((d) => d.id === shift.shiftDefinitionId)?.endTime
   const endsInEvening = (endTime ?? '16:00') >= EVENING_FROM
   const blocks = (c: Constraint, d: string, last: boolean) => onDay(c, d) && (c.part !== 'evening' || !last || endsInEvening)
+  const sick = sickConstraint(w)
   return (
-    w.constraints.find((c) => (c.nightsOnly ? night && onDay(c, shift.date) : days.some((d, i) => blocks(c, d, i === days.length - 1)))) ?? null
+    [...(sick ? [sick] : []), ...w.constraints].find((c) => (c.nightsOnly ? night && onDay(c, shift.date) : days.some((d, i) => blocks(c, d, i === days.length - 1)))) ?? null
   )
 }
 

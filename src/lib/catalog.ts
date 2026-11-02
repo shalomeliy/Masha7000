@@ -149,6 +149,9 @@ export function filterWorkers(workers: Worker[], roleIds: string[], certificatio
 }
 
 /** Fills fields missing from older files (v0.2 workers had a single `name` and no certifications). */
+/** An inactive worker is hidden from the list and never offered for a shift. */
+export const isActive = (w: Pick<Worker, 'status'>) => w.status !== 'inactive'
+
 export function normalizeWorker(raw: Partial<Worker> & { name?: string; phone?: string }): Worker {
   const { name, phone, ...w } = raw
   const [first = '', ...rest] = (name ?? '').trim().split(/\s+/)
@@ -161,6 +164,7 @@ export function normalizeWorker(raw: Partial<Worker> & { name?: string; phone?: 
     roleIds: w.roleIds ?? [],
     certificationIds: w.certificationIds ?? [],
     constraints: (w.constraints ?? []).map(normalizeConstraint),
+    status: w.status ?? 'active',
   }
 }
 

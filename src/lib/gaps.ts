@@ -1,4 +1,4 @@
-import { fullName, staffingFor, workerHasRole } from './catalog'
+import { fullName, isActive, staffingFor, workerHasRole } from './catalog'
 import { blockedCrew, blockingConstraint, constraintText } from './constraints'
 import { workerLoad } from './planner'
 import type { Certification, Role, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
@@ -71,8 +71,9 @@ export function crewPlaces(shift: ShiftRecord, staffing: StaffSlot[], workers: W
 /** Why no one can fill this place, or undefined when some worker outside the crew still could. */
 function whyEmpty(slot: StaffSlot, shift: ShiftRecord, ctx: GapContext): string | undefined {
   const inCrew = new Set(shift.crew.map((c) => c.workerId))
-  const fit = ctx.workers.filter((w) => !inCrew.has(w.id) && fills(w, slot.roleId, slot, ctx.generalId))
-  if (!ctx.workers.some((w) => fills(w, slot.roleId, slot, ctx.generalId))) return 'אין עובד עם התפקיד וההסמכה האלה'
+  const active = ctx.workers.filter(isActive)
+  const fit = active.filter((w) => !inCrew.has(w.id) && fills(w, slot.roleId, slot, ctx.generalId))
+  if (!active.some((w) => fills(w, slot.roleId, slot, ctx.generalId))) return 'אין עובד עם התפקיד וההסמכה האלה'
   if (!fit.length) return 'כל המתאימים כבר במשמרת הזו'
   const blocked = fit.map((w) => ({ w, c: blockingConstraint(w, shift, ctx.defs) }))
   if (blocked.every((b) => b.c)) return `לא זמינים: ${blocked.map((b) => `${fullName(b.w)} (${constraintText(b.c!)})`).join(', ')}`
