@@ -5,7 +5,7 @@ import { Sheet, SheetActions } from '../../components/Sheet'
 import { fullName, generalRoleId, upsert } from '../../lib/catalog'
 import { blockedCrew, constraintText } from '../../lib/constraints'
 import { shiftGaps, type GapContext } from '../../lib/gaps'
-import { ADVICE_DAYS, fitsAsIs, MAX_SWAPS, moveAdvice, swapRecords, type MoveAdvice, type SwapAdvice } from '../../lib/moveAdvice'
+import { ADVICE_DAYS, fitsAsIs, MAX_SWAPS, moveAdvice, swapOn, swapRecords, type MoveAdvice, type SwapAdvice } from '../../lib/moveAdvice'
 import { busyCrew, busyText, pullFrom } from '../../lib/planner'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { todayIso } from '../../lib/dates'
@@ -59,7 +59,10 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   const fitDays = new Set(days.filter((d) => d !== shift.date && fitsAsIs(shift, d, gapCtx)))
   const troubled = shiftGaps(shift, gapCtx).kinds.some((k) => k !== 'nights')
   const advice = useMemo(() => (troubled ? moveAdvice(shift, today, gapCtx) : null), [troubled, shift, gapCtx, today])
-  const pickedFits = valid && date !== shift.date && fitsAsIs(shift, date, gapCtx)
+  // Once another day is picked, the top box speaks about that day, not the job's own.
+  const chosen = valid && date !== shift.date && date >= today
+  const pickedFits = chosen && fitsAsIs(shift, date, gapCtx)
+  const dayFix = chosen && !pickedFits ? (swapOn(shift, date, gapCtx) ?? swapOn(shift, date, gapCtx, true)) : null
   const pick = (d: string) => (setDate(d), setValid(true))
 
   const saveSwap = async (swap: SwapAdvice) => {
@@ -110,7 +113,26 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
         העבודה עוברת עם כל העובדים שבה.
         {isNightShift(shift, defs.items) && ' עבודת לילה ממשיכה גם ביום שאחריו, כמו קודם.'}
       </p>
-      {advice && <AdviceBox advice={advice} roles={roles.items} workers={workers.items} busy={busy} onPick={pick} onSwap={saveSwap} />}
+      {chosen ? (
+        pickedFits ? (
+          <p role="status" className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+            ביום {dayName(date)} {showDate(date)} כל העובדים זמינים וכל המקומות בעבודה מלאים. אפשר ללחוץ "העברה".
+          </p>
+        ) : (
+          <div role="status" className="space-y-3 rounded-xl border border-orange-500/60 bg-orange-500/10 p-3 text-sm text-orange-100">
+            <p className="font-semibold">
+              ביום {dayName(date)} {showDate(date)} העבודה לא מסתדרת עם אותם עובדים.
+            </p>
+            {dayFix ? (
+              <SwapChoice swap={dayFix} title="כדי שתסתדר ביום הזה" roles={roles.items} workers={workers.items} busy={busy} onSwap={saveSwap} />
+            ) : (
+              <p>גם עם החלפה של עד {MAX_SWAPS} עובדים אי אפשר להשלים אותה ביום הזה.</p>
+            )}
+          </div>
+        )
+      ) : (
+        advice && <AdviceBox advice={advice} roles={roles.items} workers={workers.items} busy={busy} onPick={pick} onSwap={saveSwap} />
+      )}
       <div className="flex flex-wrap gap-2">
         {days.map((d) => (
           <button
@@ -134,11 +156,6 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
       </div>
       {fitDays.size > 0 && <p className="text-xs text-emerald-300">ימים עם סימן וי: העבודה מתאימה בהם עם אותם עובדים, בלי להחליף אף אחד.</p>}
       <DateField label="או תאריך אחר" value={date} min={today} required onChange={(d, ok) => (setDate(d), setValid(ok))} />
-      {pickedFits && (
-        <p role="status" className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 p-3 text-sm text-emerald-200">
-          ביום הזה כל העובדים זמינים וכל המקומות בעבודה מלאים.
-        </p>
-      )}
       {clashes.length > 0 && (
         <p role="status" className="rounded-xl border border-red-500/60 bg-red-500/10 p-3 text-sm text-red-200">
           {busyText(clashes)}. עובד לא יכול להיות בשתי עבודות באותו זמן.
@@ -180,31 +197,14 @@ function AdviceBox({
 }) {
   const when = (d: string) => `יום ${dayName(d)} ${showDate(d)}`
   const { fitDate, swap, pull } = advice
-  const [asking, setAsking] = useState(false)
   return (
     <div role="status" className="space-y-3 rounded-xl border border-sky-500/60 bg-sky-500/10 p-3 text-sm text-sky-100">
       <p className="flex items-center gap-2 font-semibold">
         <Lightbulb size={16} aria-hidden />
         המלצה להעברה
       </p>
-      {pull && (
-        <SwapOption
-          swap={pull}
-          title="הכי מוקדם, אם מעבירים עובד מעבודה אחרת"
-          roles={roles}
-          workers={workers}
-          busy={busy}
-          onSwap={() => setAsking(true)}
-        />
-      )}
-      {pull && asking && (
-        <PullConfirm
-          pulls={pull.swaps.flatMap((x) => (x.from ? [{ worker: x.in, other: x.from }] : []))}
-          onYes={() => (setAsking(false), onSwap(pull))}
-          onNo={() => setAsking(false)}
-        />
-      )}
-      {swap && <SwapOption swap={swap} title={pull ? 'בלי לגעת בעבודות אחרות' : 'הכי מוקדם'} roles={roles} workers={workers} busy={busy} onSwap={() => onSwap(swap)} />}
+      {pull && <SwapChoice swap={pull} title="הכי מוקדם, אם מעבירים עובד מעבודה אחרת" roles={roles} workers={workers} busy={busy} onSwap={onSwap} />}
+      {swap && <SwapChoice swap={swap} title={pull ? 'בלי לגעת בעבודות אחרות' : 'הכי מוקדם'} roles={roles} workers={workers} busy={busy} onSwap={onSwap} />}
       {fitDate ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p>
@@ -222,6 +222,19 @@ function AdviceBox({
         </p>
       )}
     </div>
+  )
+}
+
+// A swap to offer; one that takes a worker out of another job asks first.
+function SwapChoice(props: { swap: SwapAdvice; title: string; roles: Role[]; workers: Worker[]; busy: boolean; onSwap: (swap: SwapAdvice) => void }) {
+  const { swap, onSwap } = props
+  const [asking, setAsking] = useState(false)
+  const pulls = swap.swaps.flatMap((x) => (x.from ? [{ worker: x.in, other: x.from }] : []))
+  return (
+    <>
+      <SwapOption {...props} onSwap={() => (pulls.length ? setAsking(true) : onSwap(swap))} />
+      {asking && <PullConfirm pulls={pulls} onYes={() => (setAsking(false), onSwap(swap))} onNo={() => setAsking(false)} />}
+    </>
   )
 }
 
