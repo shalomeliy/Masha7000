@@ -206,9 +206,14 @@ describe('staffing', () => {
 
   it('a deleted role falls back to general and a deleted certification is dropped', () => {
     expect(staffingFor([{ roleId: 'gone', certificationId: 'c-gone' }, { roleId: 'r1', certificationId: 'c1' }], roles, ['c1'])).toEqual([
-      { roleId: 'general', certificationId: undefined },
-      { roleId: 'r1', certificationId: 'c1' },
+      { roleId: 'general' },
+      { roleId: 'r1', certificationIds: ['c1'] },
     ])
+  })
+
+  it('a place may need several certifications and more roles of the same person', () => {
+    const slot = { roleId: 'r1', certificationIds: ['c1', 'c-gone'], alsoRoleIds: ['r2', 'r1', 'gone'] }
+    expect(staffingFor([slot], [...roles, { id: 'r2', name: 'מנהל' }], ['c1'])).toEqual([{ roleId: 'r1', certificationIds: ['c1'], alsoRoleIds: ['r2'] }])
   })
 
   it('grows with general slots, shrinks from the end, and stays between 1 and 20', () => {

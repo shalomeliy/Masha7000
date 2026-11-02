@@ -4,7 +4,7 @@ import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { Suggestions } from '../../components/Suggestions'
-import { defaultShiftDef, fullName, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
+import { defaultShiftDef, fullName, placeText, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
 import { crewSwaps } from '../../lib/archive'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { crewCover } from '../../lib/gaps'
@@ -162,11 +162,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     const { crew, unfilled, why } = autoAssign(draft, draft.staffing, planCtx)
     set('crew', crew)
     setSwapping(null)
-    const lines = unfilled.map((s, i) => {
-      const role = roles.items.find((r) => r.id === s.roleId)?.name ?? ''
-      const cert = certs.items.find((c) => c.id === s.certificationId)?.name
-      return `${cert ? `${role} (${cert})` : role}: ${why[i]}`
-    })
+    const lines = unfilled.map((s, i) => `${placeText(s, roles.items, certs.items)}: ${why[i]}`)
     setPlanNote(lines.length ? lines : null)
   }
 

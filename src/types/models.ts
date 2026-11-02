@@ -71,7 +71,9 @@ export interface ShiftDefinition {
 // The automatic planner will read this. The role is never empty: the default is "כללי".
 export interface StaffSlot {
   roleId: string
-  certificationId?: string
+  certificationId?: string // older files: a single certification; read through slotCerts
+  certificationIds?: string[] // the person in this place holds all of them
+  alsoRoleIds?: string[] // roles the same person must also hold, e.g. a "מטפס" who is also "מנהל טיפוס"
   altRoleIds?: string[] // other roles that also fill this place, e.g. "מנהל טיפוס" in a "מטפס" place
   kindId?: string // the work kind (טיפוס, ריתוך) this place came from; absent = added by hand
 }

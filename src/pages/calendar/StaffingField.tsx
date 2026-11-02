@@ -1,10 +1,12 @@
-import { Minus, Plus } from 'lucide-react'
-import { generalRoleId, MAX_STAFF, resizeStaffing } from '../../lib/catalog'
+import { useState } from 'react'
+import { ChevronDown, Minus, Plus } from 'lucide-react'
+import { Chips } from '../../components/Sheet'
+import { generalRoleId, MAX_STAFF, resizeStaffing, slotCerts } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import type { StaffSlot } from '../../types/models'
 
-// Who a job needs: how many people, and for each one a role (default "כללי") and an optional
-// certification. The automatic planner will staff the job from this. A place that came from a work
+// Who a job needs: how many people, and for each one a role (default "כללי"), any certifications
+// and any more roles the same person must hold (one welder-climber in place of two people). The automatic planner will staff the job from this. A place that came from a work
 // kind shows the kind's name; with `alt`, a place may take a second role that also fills it.
 
 const selectClass = 'min-h-11 w-full min-w-0 rounded-lg border border-slate-700 bg-slate-900 px-2 text-sm'
@@ -16,6 +18,17 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
   const general = generalRoleId(roles.items)
   const resize = (n: number) => onChange(resizeStaffing(value, n, general))
   const setSlot = (i: number, patch: Partial<StaffSlot>) => onChange(value.map((s, j) => (j === i ? { ...s, ...patch } : s)))
+  const certNames = (s: StaffSlot) => slotCerts(s).flatMap((id) => certs.items.find((c) => c.id === id)?.name ?? [])
+  const roleNames = (s: StaffSlot) => (s.alsoRoleIds ?? []).flatMap((id) => roles.items.find((r) => r.id === id)?.name ?? [])
+  const needText = (s: StaffSlot) => [...roleNames(s).map((n) => `+ ${n}`), ...certNames(s)].join(', ')
+  // Roles a place may also ask for: not "כללי", not its own.
+  const moreRoles = (s: StaffSlot) => roles.items.filter((r) => r.id !== general && r.id !== s.roleId)
+  const toggleOff = (ids: string[] | undefined, id: string) => (ids?.includes(id) ? toggle(ids, id) : ids)
+  const [open, setOpen] = useState<number | null>(null)
+  const toggle = (ids: string[], id: string) => {
+    const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]
+    return next.length ? next : undefined
+  }
 
   return (
     <div className="space-y-2">
@@ -54,7 +67,7 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
               aria-label={`תפקיד לאדם ${i + 1}`}
               value={s.roleId}
               // A new role here replaces the place's other roles too, except in the kind editor that shows them.
-              onChange={(e) => setSlot(i, { roleId: e.target.value, altRoleIds: alt ? s.altRoleIds?.filter((id) => id !== e.target.value) : undefined })}
+              onChange={(e) => setSlot(i, { roleId: e.target.value, alsoRoleIds: toggleOff(s.alsoRoleIds, e.target.value), altRoleIds: alt ? s.altRoleIds?.filter((id) => id !== e.target.value) : undefined })}
               className={selectClass}
             >
               {roles.items.map((r) => (
@@ -63,20 +76,33 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
                 </option>
               ))}
             </select>
-            <select
-              aria-label={`הסמכה לאדם ${i + 1}`}
-              value={s.certificationId ?? ''}
-              onChange={(e) => setSlot(i, { certificationId: e.target.value || undefined })}
-              className={selectClass}
+<button
+              type="button"
+              aria-expanded={open === i}
+              aria-label={`הסמכות ותפקידים נוספים לאדם ${i + 1}`}
+              onClick={() => setOpen(open === i ? null : i)}
+              className={`${selectClass} flex items-center justify-between gap-1 text-start`}
             >
-              <option value="">בלי הסמכה</option>
-              {certs.items.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              <span className="truncate">{needText(s) || 'בלי הסמכה'}</span>
+              <ChevronDown size={16} className={`shrink-0 ${open === i ? 'rotate-180' : ''}`} aria-hidden />
+            </button>
             </div>
+            {open === i && (
+              <div className="space-y-2 ps-7">
+                <span className="block text-xs text-slate-400">הסמכות (האדם צריך את כולן)</span>
+                {certs.items.length ? (
+                  <Chips options={certs.items} selected={slotCerts(s)} onToggle={(id) => setSlot(i, { certificationId: undefined, certificationIds: toggle(slotCerts(s), id) })} />
+                ) : (
+                  <p className="text-xs text-amber-300">עוד אין הסמכות.</p>
+                )}
+                {moreRoles(s).length > 0 && (
+                  <>
+                    <span className="block text-xs text-slate-400">תפקידים שאותו אדם צריך גם להחזיק</span>
+                    <Chips options={moreRoles(s)} selected={s.alsoRoleIds ?? []} onToggle={(id) => setSlot(i, { alsoRoleIds: toggle(s.alsoRoleIds ?? [], id) })} />
+                  </>
+                )}
+              </div>
+            )}
             {alt ? (
               <select
                 aria-label={`תפקיד נוסף שמתאים לאדם ${i + 1}`}

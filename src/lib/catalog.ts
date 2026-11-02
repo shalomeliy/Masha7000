@@ -108,29 +108,39 @@ export function staffingFor(staffing: StaffSlot[] | undefined, roles: Role[], ce
   const general = generalRoleId(roles)
   const slots = staffing?.length ? staffing : [{ roleId: general }]
   return slots.map((s) => {
+    const roleId = roles.some((r) => r.id === s.roleId) ? s.roleId : general
     const alt = s.altRoleIds?.filter((id) => id !== s.roleId && roles.some((r) => r.id === id))
+    const also = s.alsoRoleIds?.filter((id) => id !== roleId && id !== general && roles.some((r) => r.id === id))
+    const certs = slotCerts(s).filter((id) => certificationIds.includes(id))
     return {
-      roleId: roles.some((r) => r.id === s.roleId) ? s.roleId : general,
-      certificationId: s.certificationId && certificationIds.includes(s.certificationId) ? s.certificationId : undefined,
+      roleId,
+      ...(certs.length ? { certificationIds: certs } : {}),
+      ...(also?.length ? { alsoRoleIds: also } : {}),
       ...(alt?.length ? { altRoleIds: alt } : {}),
       ...(s.kindId ? { kindId: s.kindId } : {}),
     }
   })
 }
 
-/** "מטפס או מנהל טיפוס" for a place that more than one role fills. */
+/** The certifications the person in a place must all hold; older files kept one in `certificationId`. */
+export const slotCerts = (slot: StaffSlot): string[] => slot.certificationIds ?? (slot.certificationId ? [slot.certificationId] : [])
+
+/** "מטפס או מנהל טיפוס" for a place that more than one role fills; "מטפס + מנהל עבודה" when one person holds both. */
 export function slotRoleNames(slot: StaffSlot, roles: Role[]): string {
   const name = (id: string) => roles.find((r) => r.id === id)?.name ?? GENERAL_ROLE_NAME
-  return [slot.roleId, ...(slot.altRoleIds ?? [])].map(name).join(' או ')
+  return [[slot.roleId, ...(slot.altRoleIds ?? [])].map(name).join(' או '), ...(slot.alsoRoleIds ?? []).map(name)].join(' + ')
+}
+
+/** "טפסן (חשמלאי מוסמך, רתך)" for one place. */
+export function placeText(slot: StaffSlot, roles: Role[], certs: { id: string; name: string }[]): string {
+  const role = slotRoleNames(slot, roles)
+  const names = slotCerts(slot).flatMap((id) => certs.find((c) => c.id === id)?.name ?? [])
+  return names.length ? `${role} (${names.join(', ')})` : role
 }
 
 /** "2 אנשים: טפסן (חשמלאי מוסמך), כללי" for a job card. */
 export function staffingText(slots: StaffSlot[], roles: Role[], certs: { id: string; name: string }[]): string {
-  const names = slots.map((s) => {
-    const role = slotRoleNames(s, roles)
-    const cert = certs.find((c) => c.id === s.certificationId)?.name
-    return cert ? `${role} (${cert})` : role
-  })
+  const names = slots.map((s) => placeText(s, roles, certs))
   return `${countText(slots.length, 'אדם אחד', 'אנשים')}: ${names.join(', ')}`
 }
 

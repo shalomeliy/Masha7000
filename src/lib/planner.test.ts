@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { autoAssign, busyCrew, busyText, candidateOrder, loadWarning, planShifts, weekPlanOrder, workerLoad, type PlanContext } from './planner'
+import { autoAssign, busyCrew, busyText, candidateOrder, loadWarning, NO_WORKER, planShifts, weekPlanOrder, workerLoad, type PlanContext } from './planner'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 const day: ShiftDefinition = {
@@ -191,9 +191,17 @@ describe('constraints in autoAssign', () => {
     expect(loadWarning(workerLoad(w, s, ctx([w])))).toBe('בלי לילות בכלל (בעיה בגב)')
   })
 
+  it('a place that needs several certifications and roles takes only a worker who holds them all', () => {
+    const slot = { roleId: 'climber', alsoRoleIds: ['manager'], certificationIds: ['weld', 'h40'] }
+    const some = worker('a', ['climber', 'manager'], ['weld'])
+    const all = worker('b', ['climber', 'manager'], ['weld', 'h40'])
+    expect(ids(autoAssign(shift('s', '2026-10-28'), [slot], ctx([some, all])))).toEqual(['b'])
+    expect(autoAssign(shift('s', '2026-10-28'), [slot], ctx([some])).why).toEqual([NO_WORKER])
+  })
+
   it('tells a missing role apart from a crew that already holds everyone', () => {
     const p = autoAssign(shift('s', '2026-10-28'), [{ roleId: G }, { roleId: G }, { roleId: 'climber' }], ctx([worker('a')]))
-    expect(p.why).toEqual(['כל המתאימים כבר בעבודה הזו', 'אין עובד עם התפקיד וההסמכה האלה'])
+    expect(p.why).toEqual(['כל המתאימים כבר בעבודה הזו', NO_WORKER])
   })
 })
 
@@ -236,7 +244,7 @@ describe('planShifts', () => {
     const s = shift('s', '2026-10-27')
     const [item] = planShifts([s], () => [{ roleId: 'climber' }], ctx(ws, [s]))
     expect(item.unfilled).toEqual([{ roleId: 'climber' }])
-    expect(item.why).toEqual(['אין עובד עם התפקיד וההסמכה האלה'])
+    expect(item.why).toEqual([NO_WORKER])
   })
 })
 

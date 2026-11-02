@@ -1,4 +1,4 @@
-import { fullName, isActive, workerHasRole } from './catalog'
+import { fullName, isActive, slotCerts, workerHasRole } from './catalog'
 import { blockingConstraint, constraintText } from './constraints'
 import { addDays, dayName, isNightShift, showDate, weekOf, weekShiftCount } from './shifts'
 import { canShare } from './workKinds'
@@ -36,7 +36,11 @@ export interface WorkerLoad {
 
 export const fitsSlot = (w: Worker, slot: StaffSlot, generalId: string) =>
   (workerHasRole(w, slot.roleId, generalId) || !!slot.altRoleIds?.some((id) => w.roleIds.includes(id))) &&
-  (!slot.certificationId || w.certificationIds.includes(slot.certificationId))
+  (slot.alsoRoleIds ?? []).every((id) => workerHasRole(w, id, generalId)) &&
+  slotCerts(slot).every((id) => w.certificationIds.includes(id))
+
+/** Why a place stays empty when no worker at all holds everything it needs, with what to do about it. */
+export const NO_WORKER = 'אין עובד שמחזיק את כל הדרישות של המקום הזה. כדאי להוסיף עובד כזה, או לסמן לעובד קיים את מה שחסר לו בלשונית "עובדים".'
 
 /** The role a worker fills a place in: the place's own role when they hold it, else the other role they hold. */
 export const roleInSlot = (w: Worker, slot: StaffSlot, generalId: string) =>
@@ -248,7 +252,7 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
           .join(' · ')
       return fit.length || candidates.some((c) => fitsSlot(c.worker, slot, ctx.generalId))
         ? 'כל המתאימים כבר בעבודה הזו'
-        : 'אין עובד עם התפקיד וההסמכה האלה'
+        : NO_WORKER
     }),
   }
 }

@@ -105,6 +105,6 @@ describe('starterKinds', () => {
     expect(r.roles.map((x) => x.name)).toEqual(['מנהל טיפוס'])
     expect(r.certs).toEqual([])
     expect(r.kinds[0].staffing[1].roleId).toBe('t')
-    expect(r.kinds[1].staffing[0].certificationId).toBe('c')
+    expect(r.kinds[1].staffing[0].certificationIds).toEqual(['c'])
   })
 })

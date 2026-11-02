@@ -1,6 +1,6 @@
-import { fullName, isActive, staffingFor } from './catalog'
+import { fullName, isActive, placeText, staffingFor } from './catalog'
 import { blockedCrew, blockingConstraint, constraintText } from './constraints'
-import { fitsSlot, workerLoad } from './planner'
+import { fitsSlot, NO_WORKER, workerLoad } from './planner'
 import { canShare } from './workKinds'
 import type { Certification, Role, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
@@ -88,7 +88,7 @@ function whyEmpty(slot: StaffSlot, shift: ShiftRecord, ctx: GapContext): string 
   const inCrew = new Set(shift.crew.map((c) => c.workerId))
   const active = ctx.workers.filter(isActive)
   const fit = active.filter((w) => !inCrew.has(w.id) && fills(w, slot.roleId, slot, ctx.generalId))
-  if (!active.some((w) => fills(w, slot.roleId, slot, ctx.generalId))) return 'אין עובד עם התפקיד וההסמכה האלה'
+  if (!active.some((w) => fills(w, slot.roleId, slot, ctx.generalId))) return NO_WORKER
   if (!fit.length) return 'כל המתאימים כבר בעבודה הזו'
   const blocked = fit.map((w) => ({ w, c: blockingConstraint(w, shift, ctx.defs) }))
   if (blocked.every((b) => b.c)) return `לא זמינים: ${blocked.map((b) => `${fullName(b.w)} (${constraintText(b.c!)})`).join(', ')}`
@@ -120,9 +120,4 @@ export function gapCounts(gaps: ShiftGaps[]): Record<GapKind, number> {
   return counts
 }
 
-/** "טפסן (אנטנה עד 40מ')" for a missing place. */
-export function placeText(slot: StaffSlot, roles: Role[], certifications: Certification[]): string {
-  const role = roles.find((r) => r.id === slot.roleId)?.name ?? ''
-  const cert = certifications.find((c) => c.id === slot.certificationId)?.name
-  return cert ? `${role} (${cert})` : role
-}
+export { placeText }

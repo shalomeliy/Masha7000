@@ -1,4 +1,4 @@
-import { generalRoleId, newId } from './catalog'
+import { generalRoleId, newId, slotCerts } from './catalog'
 import type { Certification, Role, StaffSlot, WorkKind } from '../types/models'
 
 // Work kinds ("סוג עבודה"): picking kinds in a job fills its staffing with their places.
@@ -11,7 +11,7 @@ export const canShare = (a: StaffSlot, b: StaffSlot) => !!a.kindId && !!b.kindId
 
 /** Places added by hand are kept; only the kind's own places come and go. */
 const isPlain = (staffing: StaffSlot[], generalId: string) =>
-  staffing.length === 1 && !staffing[0].kindId && staffing[0].roleId === generalId && !staffing[0].certificationId
+  staffing.length === 1 && !staffing[0].kindId && staffing[0].roleId === generalId && !slotCerts(staffing[0]).length && !staffing[0].alsoRoleIds?.length
 
 /**
  * Turns one kind on or off in a job. On: its places are added after the others (a job with only the
@@ -70,7 +70,7 @@ export function starterKinds(roles: Role[], certs: Certification[]): { roles: Ro
     certs: newCerts,
     kinds: [
       { id: newId(), name: 'טיפוס', staffing: [{ roleId: manager }, climberPlace, { ...climberPlace }] },
-      { id: newId(), name: 'ריתוך', staffing: [{ roleId: generalRoleId(roles), certificationId: welder }] },
+      { id: newId(), name: 'ריתוך', staffing: [{ roleId: generalRoleId(roles), certificationIds: [welder] }] },
     ],
   }
 }

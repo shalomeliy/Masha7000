@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { emptyPlaces, gapCounts, shiftGaps, type GapContext } from './gaps'
-import { autoAssign } from './planner'
+import { autoAssign, NO_WORKER } from './planner'
 import type { ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
 const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
@@ -46,7 +46,7 @@ describe('shiftGaps', () => {
   it('a crew member without the place\'s certification leaves it missing, with the reason', () => {
     const s = shift('s', '2026-10-27', { staffing: [{ roleId: 'climber', certificationId: 'h40' }], crew: [{ workerId: 'a', roleId: 'climber' }] })
     const g = shiftGaps(s, ctx([worker('a', ['climber'])], [s]))
-    expect(g.missing).toEqual([{ slot: { roleId: 'climber', certificationId: 'h40' }, why: 'אין עובד עם התפקיד וההסמכה האלה' }])
+    expect(g.missing).toEqual([{ slot: { roleId: 'climber', certificationIds: ['h40'] }, why: NO_WORKER }])
   })
 
   it('a shift fully staffed by "שבץ" is never missing', () => {
