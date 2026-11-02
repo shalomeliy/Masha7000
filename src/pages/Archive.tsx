@@ -10,9 +10,10 @@ import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { defaultMonth, monthDates } from '../lib/monthReport'
 import { dayName, showDate } from '../lib/shifts'
+import { defaultWeek, weekDates } from '../lib/weekReport'
 import type { ShiftRecord } from '../types/models'
 import { OUTCOMES } from './calendar/outcomes'
-import { MonthReport } from './archive/MonthReport'
+import { MonthReport, WeekReport } from './archive/PeriodReport'
 
 // The whole history of shifts: who worked, where, what the job was, how a night job ended and
 // who was swapped. Read-only; a shift is changed from "יומן".
@@ -31,10 +32,12 @@ export function Archive() {
   const [range, setRange] = useState<string>('half')
   const [filter, setFilter] = useState<ArchiveFilter>(() => ({ ...rangeDates(182, today), workerId: '', location: '', text: '' }))
   const [shown, setShown] = useState(PAGE)
-  const [mode, setMode] = useState<'list' | 'month'>('list')
+  const [mode, setMode] = useState<'list' | 'week' | 'month'>('list')
   const [month, setMonth] = useState(() => defaultMonth(today))
+  const [week, setWeek] = useState(() => defaultWeek(today))
 
   const set = (patch: Partial<ArchiveFilter>) => (setFilter((f) => ({ ...f, ...patch })), setShown(PAGE))
+  const showWorker = (workerId: string, dates: { from: string; to: string }) => (setMode('list'), setRange(''), set({ ...dates, workerId, location: '', text: '' }))
   const hits = archiveShifts(shifts.items, filter, workers.items)
   const sum = archiveSummary(hits)
   const places = archivePlaces(shifts.items)
@@ -43,10 +46,11 @@ export function Archive() {
   return (
     <section className="space-y-4 px-4 pt-6">
       <h1 className="text-2xl font-bold">ארכיון</h1>
-      <div className="grid grid-cols-2 gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1" role="group" aria-label="תצוגה">
+      <div className="grid grid-cols-3 gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1" role="group" aria-label="תצוגה">
         {(
           [
             ['list', 'עבודות'],
+            ['week', 'דוח שבועי'],
             ['month', 'דוח חודשי'],
           ] as const
         ).map(([id, label]) => (
@@ -70,12 +74,9 @@ export function Archive() {
           טוען מגוגל דרייב...
         </p>
       ) : mode === 'month' ? (
-        <MonthReport
-          month={month}
-          today={today}
-          onMonth={setMonth}
-          onWorker={(workerId) => (setMode('list'), setRange(''), set({ ...monthDates(month, today), workerId, location: '', text: '' }))}
-        />
+        <MonthReport month={month} today={today} onMonth={setMonth} onWorker={(id) => showWorker(id, monthDates(month, today))} />
+      ) : mode === 'week' ? (
+        <WeekReport week={week} today={today} onWeek={setWeek} onWorker={(id) => showWorker(id, weekDates(week, today))} />
       ) : (
         <>
           <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
