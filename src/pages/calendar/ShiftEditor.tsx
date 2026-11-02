@@ -8,10 +8,11 @@ import { defaultShiftDef, endsNextDay, fullName, generalRoleId, isGeneralRole, s
 import { crewSwaps } from '../../lib/archive'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { crewPlaces } from '../../lib/gaps'
-import { autoAssign, busyCrew, busyText, candidateOrder, fitsSlot, loadWarning, type PlanContext, type WorkerLoad } from '../../lib/planner'
-import { isNightShift, pendingAfterShiftSave, shiftRecordError } from '../../lib/shifts'
+import { autoAssign, busyCrew, busyText, busyWith, candidateOrder, fitsSlot, loadWarning, pullFrom, type PlanContext, type WorkerLoad } from '../../lib/planner'
+import { dayName, isNightShift, pendingAfterShiftSave, showDate, shiftRecordError } from '../../lib/shifts'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../../types/models'
 import { WorkerDial } from '../workers/common'
+import { PullConfirm } from './PullConfirm'
 import { StaffingField } from './StaffingField'
 
 // Create or edit one shift. A new shift that came from "לשיבוץ" removes that job when saved.
@@ -64,6 +65,9 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const [busy, setBusy] = useState(false)
   const [planNote, setPlanNote] = useState<string[] | null>(null)
   const [swapping, setSwapping] = useState<string | null>(null)
+  // Workers the manager chose to take out of another job at the same time; they leave it on save.
+  const [pulled, setPulled] = useState<string[]>([])
+  const [asking, setAsking] = useState<{ worker: Worker; other: ShiftRecord; apply: () => void } | null>(null)
   const exists = shifts.items.some((s) => s.id === shift.id)
 
   const thenJob = !draft.urgent && !!defs.items.find((d) => d.id === draft.shiftDefinitionId)?.thenJob
@@ -85,8 +89,9 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   }
 
   // A worker cannot be in two shifts that run at the same time (a night job runs into the next afternoon).
+  const pulledIn = (r: ShiftRecord) => pulled.filter((id) => r.crew.some((c) => c.workerId === id))
   const busyError = (r: ShiftRecord) => {
-    const busy = busyCrew(r, workers.items, shifts.items, defs.items)
+    const busy = busyCrew(r, workers.items, pullFrom(r, pulledIn(r), shifts.items, defs.items), defs.items)
     return busy.length ? `${busyText(busy)}. החלף ${busy.length > 1 ? 'אותם' : 'אותו'} לפני השמירה.` : null
   }
 
@@ -113,7 +118,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     if (err) return
     run(async () => {
       // Shift first: if the second write fails, saving again re-applies it (both steps are idempotent).
-      await shifts.save(upsert(shifts.items, clean))
+      // A worker pulled from another job leaves it in the same write.
+      await shifts.save(pullFrom(clean, pulledIn(clean), upsert(shifts.items, clean), defs.items))
       const nextPending = pendingAfterShiftSave(pending.items, clean)
       if (nextPending !== pending.items) await pending.save(nextPending)
     })
@@ -128,6 +134,25 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const ranked = candidateOrder(draft, planCtx)
   // Workers already in another shift at the same time are not offered at all.
   const available = ranked.filter((c) => !inCrew.has(c.worker.id) && !c.load.busy)
+  // Fitting workers in another job at the same time are offered apart; picking one asks first.
+  const others = ranked.filter((c) => !inCrew.has(c.worker.id) && c.load.busy && !c.load.blocked)
+  const choose = (id: string, apply: (id: string) => void) => {
+    const other = busyWith(id, draft, shifts.items, defs.items)
+    const worker = workers.items.find((w) => w.id === id)
+    if (!other || !worker) return apply(id)
+    setAsking({
+      worker,
+      other,
+      apply: () => {
+        apply(id)
+        setPulled((p) => [...p, id])
+      },
+    })
+  }
+  const otherText = (id: string) => {
+    const o = busyWith(id, draft, shifts.items, defs.items)
+    return o ? `ביום ${dayName(o.date)} ${showDate(o.date)}${o.location ? ` (${o.location})` : ''}` : ''
+  }
   const places = crewPlaces(draft, draft.staffing, workers.items, general)
   const loadOf = (id: string) => ranked.find((c) => c.worker.id === id)?.load
 
@@ -236,10 +261,12 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           const w = workers.items.find((x) => x.id === c.workerId)
           const options = roleOptions(w)
           const load = loadOf(c.workerId)
-          const warning = load && loadWarning(load)
+          const pulling = pulled.includes(c.workerId) && load?.busy
+          const warning = pulling ? `יעבור לכאן מהעבודה ${otherText(c.workerId)} כשתשמור` : load && loadWarning(load)
           // The replacement must fit the place this worker fills: its role and its certification.
           const place = places.has(c.workerId) ? draft.staffing[places.get(c.workerId)!] : { roleId: c.roleId }
           const swapOptions = available.filter((x) => fitsSlot(x.worker, place, general))
+          const busyOptions = others.filter((x) => fitsSlot(x.worker, place, general))
           return (
             // A constraint keeps this worker out on the shift's day: outlined in orange, swap is right there.
             <div key={c.workerId} className={`rounded-xl bg-slate-950 p-2 ${load?.blocked ? 'border-2 border-orange-500' : 'border border-slate-800'}`}>
@@ -281,20 +308,34 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
               </button>
               </div>
               {warning && (
-                <p className={`ps-1 text-xs ${load.blocked ? 'text-orange-300' : 'text-amber-300'}`}>
+                <p className={`ps-1 text-xs ${load?.blocked ? 'text-orange-300' : 'text-amber-300'}`}>
                   {warning}
-                  {load.blocked && ' · אפשר להחליף בכפתור החצים'}
+                  {load?.blocked && ' · אפשר להחליף בכפתור החצים'}
                 </p>
               )}
               {swapping === c.workerId &&
-                (swapOptions.length ? (
-                  <select aria-label={`במקום ${w ? fullName(w) : 'העובד'}`} value="" onChange={(e) => swap(i, e.target.value)} className={`${inputClass} mt-2 text-slate-300`}>
+                (swapOptions.length || busyOptions.length ? (
+                  <select
+                    aria-label={`במקום ${w ? fullName(w) : 'העובד'}`}
+                    value=""
+                    onChange={(e) => choose(e.target.value, (id) => swap(i, id))}
+                    className={`${inputClass} mt-2 text-slate-300`}
+                  >
                     <option value="">במקומו...</option>
                     {swapOptions.map(({ worker: x, load: l }) => (
                       <option key={x.id} value={x.id}>
                         {pickLabel(x, l)}
                       </option>
                     ))}
+                    {busyOptions.length > 0 && (
+                      <optgroup label="מתאימים, אבל בעבודה אחרת באותו זמן">
+                        {busyOptions.map(({ worker: x }) => (
+                          <option key={x.id} value={x.id}>
+                            {fullName(x)} · בעבודה {otherText(x.id)}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                 ) : (
                   <p className="mt-2 ps-1 text-xs text-slate-400">אין עובד פנוי אחר עם התפקיד וההסמכה של המקום הזה</p>
@@ -303,11 +344,18 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           )
         })}
         {workers.items.length > 0 && draft.crew.length === 0 && <p className="text-sm text-slate-400">לחץ "שבץ" והמערכת תבחר את העובדים לבד.</p>}
-        {draft.crew.length > 0 && available.length > 0 ? (
+        {asking && (
+          <PullConfirm
+            pulls={[{ worker: asking.worker, other: asking.other }]}
+            onYes={() => (asking.apply(), setAsking(null))}
+            onNo={() => setAsking(null)}
+          />
+        )}
+        {draft.crew.length > 0 && available.length + others.length > 0 ? (
           <select
             aria-label="הוספת עובד לעבודה"
             value=""
-            onChange={(e) => addWorker(e.target.value)}
+            onChange={(e) => choose(e.target.value, addWorker)}
             className={`${inputClass} text-slate-300`}
           >
             <option value="">+ הוספת עובד</option>
@@ -316,6 +364,15 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
                 {pickLabel(w, load)}
               </option>
             ))}
+            {others.length > 0 && (
+              <optgroup label="בעבודה אחרת באותו זמן">
+                {others.map(({ worker: w }) => (
+                  <option key={w.id} value={w.id}>
+                    {fullName(w)} · בעבודה {otherText(w.id)}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         ) : (
           workers.items.length === 0 && <p className="text-sm text-amber-300">עוד אין עובדים. אפשר להוסיף אותם בלשונית "עובדים".</p>

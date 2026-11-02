@@ -37,6 +37,7 @@ export interface Swap {
   out?: Worker // absent: an empty place gets a worker
   in: Worker
   roleId: string
+  from?: ShiftRecord // the other job `in` is taken out of, when they were busy there
 }
 
 export interface SwapAdvice {
@@ -50,15 +51,20 @@ export interface SwapAdvice {
 /**
  * The shift on `date` with its troubled members swapped and its empty places filled, the fairest
  * way "שבץ" knows; null when it already fits, when some place stays empty, or when it takes more
- * than MAX_SWAPS workers.
+ * than MAX_SWAPS workers. With `pull`, a worker in another job at the same time may be taken out
+ * of it (`Swap.from`); a constraint still keeps a worker out.
  */
-export function swapOn(shift: ShiftRecord, date: string, ctx: GapContext): SwapAdvice | null {
+export function swapOn(shift: ShiftRecord, date: string, ctx: GapContext, pull = false): SwapAdvice | null {
   const moved = moveShift(shift, date)
   const staffing = staffingOf(shift, ctx)
   const troubled = troubledCrew(moved, ctx)
   if (!troubled.length && !emptyPlaces(moved, staffing, ctx.workers, ctx.generalId).length) return null
   const kept = moved.crew.filter((c) => !troubled.includes(c.workerId))
-  const plan = autoAssign({ ...moved, crew: kept }, staffing, ctx)
+  // Pulling: the other open jobs at the same time are planned around as if empty.
+  const records = pull
+    ? ctx.records.map((r) => (r.id !== shift.id && !r.closure && r.crew.some((c) => busyWith(c.workerId, moved, [r], ctx.defs)) ? { ...r, crew: [] } : r))
+    : ctx.records
+  const plan = autoAssign({ ...moved, crew: kept }, staffing, { ...ctx, records })
   const keptIds = new Set(kept.map((c) => c.workerId))
   const added = plan.crew.filter((c) => !keptIds.has(c.workerId))
   if (plan.unfilled.length || !added.length || added.length > MAX_SWAPS) return null
@@ -73,7 +79,8 @@ export function swapOn(shift: ShiftRecord, date: string, ctx: GapContext): SwapA
   // Then any troubled one left; a new worker with none fills an empty place.
   const swaps: Swap[] = added.map((c, i) => {
     const o = sameRole[i] ?? out.shift()
-    return { in: byId(c.workerId)!, roleId: c.roleId, out: o && byId(o.workerId) }
+    const from = pull ? busyWith(c.workerId, moved, ctx.records, ctx.defs) : undefined
+    return { in: byId(c.workerId)!, roleId: c.roleId, out: o && byId(o.workerId), ...(from ? { from } : {}) }
   })
   const next = { ...moved, crew: plan.crew }
   return {
@@ -91,9 +98,14 @@ export function swapOn(shift: ShiftRecord, date: string, ctx: GapContext): SwapA
 export interface MoveAdvice {
   fitDate?: string // the earliest day the job fits with the same crew
   swap?: SwapAdvice // an earlier day, when swapping a worker or two makes the job fit there
+  pull?: SwapAdvice // an earlier day still, when one of the new workers is taken out of another job
 }
 
-/** The earliest day from `from` on, within ADVICE_DAYS, the job fits as is, and an earlier one with a swap. Its own day is skipped. */
+/**
+ * The earliest day from `from` on, within ADVICE_DAYS, the job fits as is, an earlier one with a
+ * swap of free workers, and an earlier one still when a worker is taken out of another job. Its own
+ * day is skipped.
+ */
 export function moveAdvice(shift: ShiftRecord, from: string, ctx: GapContext): MoveAdvice {
   const advice: MoveAdvice = {}
   for (let i = 0; i < ADVICE_DAYS; i++) {
@@ -101,9 +113,13 @@ export function moveAdvice(shift: ShiftRecord, from: string, ctx: GapContext): M
     if (date === shift.date) continue
     if (fitsAsIs(shift, date, ctx)) return { ...advice, fitDate: date }
     advice.swap ??= swapOn(shift, date, ctx) ?? undefined
+    if (!advice.swap) advice.pull ??= pulling(swapOn(shift, date, ctx, true))
   }
   return advice
 }
+
+// A pull that takes no one out of another job is a plain swap, already looked for.
+const pulling = (a: SwapAdvice | null) => (a?.swaps.some((s) => s.from) ? a : undefined)
 
 /** The swaps as saved in the shift's history, for the archive. Filling an empty place is not a swap. */
 export const swapRecords = (swaps: Swap[], at: string): CrewSwap[] =>

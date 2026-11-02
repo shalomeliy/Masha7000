@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GapContext } from './gaps'
 import { fitsAsIs, moveAdvice, swapOn, swapRecords, troubledCrew } from './moveAdvice'
+import { pullFrom } from './planner'
 import type { Constraint, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
 const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
@@ -119,5 +120,41 @@ describe('moveAdvice', () => {
   it('skips the job\'s own day', () => {
     const free = shift('f', '2026-10-25', { staffing: climbers(1), crew: crew('b') })
     expect(moveAdvice(free, '2026-10-25', ctx([worker('b', ['climber'])], [free])).fitDate).toBe('2026-10-26')
+  })
+})
+
+describe('taking a worker out of another job', () => {
+  // a is away all week; b fits but is in another job on Tuesday and free from Thursday.
+  const s = shift('s', '2026-10-25', { staffing: climbers(1), crew: crew('a') })
+  const other = shift('o', '2026-10-27', { crew: crew('b') })
+  const ws = [worker('a', ['climber'], [], [off('2026-10-25', '2026-10-31')]), worker('b', ['climber'], [], [off('2026-10-25', '2026-10-26'), off('2026-10-28')])]
+
+  it('swapOn with pull takes a busy worker, and says from which job', () => {
+    const c = ctx(ws, [s, other])
+    expect(swapOn(s, '2026-10-27', c)).toBeNull()
+    const advice = swapOn(s, '2026-10-27', c, true)!
+    expect(advice.swaps.map((x) => [x.out?.id, x.in.id, x.from?.id])).toEqual([['a', 'b', 'o']])
+  })
+
+  it('moveAdvice offers the pull only when it is earlier than a free swap', () => {
+    const advice = moveAdvice(s, '2026-10-25', ctx(ws, [s, other]))
+    expect(advice.pull?.date).toBe('2026-10-27')
+    expect(advice.swap?.date).toBe('2026-10-29')
+    expect(advice.fitDate).toBe('2026-11-01')
+  })
+
+  it('a constraint still keeps a busy worker out', () => {
+    expect(swapOn(s, '2026-10-28', ctx(ws, [s, shift('o2', '2026-10-28', { crew: crew('b') })]), true)).toBeNull()
+  })
+})
+
+describe('pullFrom', () => {
+  it('takes the worker out of the other job at the same time only', () => {
+    const s = shift('s', '2026-10-27', { crew: crew('b') })
+    const same = shift('o', '2026-10-27', { crew: crew('b', 'c') })
+    const later = shift('l', '2026-10-29', { crew: crew('b') })
+    const out = pullFrom(s, ['b'], [s, same, later], [day, night])
+    expect(out.map((r) => r.crew.map((c) => c.workerId))).toEqual([['b'], ['c'], ['b']])
+    expect(out[2]).toBe(later)
   })
 })

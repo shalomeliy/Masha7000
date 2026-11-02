@@ -51,6 +51,18 @@ export function busyWith(workerId: string, shift: ShiftRecord, records: ShiftRec
   })
 }
 
+/**
+ * The records with these workers taken out of every other open shift that runs at the same time as
+ * `shift`: the manager chose to move them into it. Records that do not change are the same objects.
+ */
+export function pullFrom(shift: ShiftRecord, workerIds: string[], records: ShiftRecord[], defs: ShiftDefinition[]): ShiftRecord[] {
+  return records.map((r) => {
+    if (r.id === shift.id || r.closure) return r
+    const crew = r.crew.filter((c) => !(workerIds.includes(c.workerId) && busyWith(c.workerId, shift, [r], defs)))
+    return crew.length === r.crew.length ? r : { ...r, crew }
+  })
+}
+
 /** Crew members already in another shift at the same time, each with that shift. Saving or moving is refused then. */
 export function busyCrew(shift: ShiftRecord, workers: Worker[], records: ShiftRecord[], defs: ShiftDefinition[]): { worker: Worker; other: ShiftRecord }[] {
   return shift.crew.flatMap((c) => {

@@ -6,11 +6,12 @@ import { fullName, generalRoleId, upsert } from '../../lib/catalog'
 import { blockedCrew, constraintText } from '../../lib/constraints'
 import { shiftGaps, type GapContext } from '../../lib/gaps'
 import { ADVICE_DAYS, fitsAsIs, MAX_SWAPS, moveAdvice, swapRecords, type MoveAdvice, type SwapAdvice } from '../../lib/moveAdvice'
-import { busyCrew, busyText } from '../../lib/planner'
+import { busyCrew, busyText, pullFrom } from '../../lib/planner'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { todayIso } from '../../lib/dates'
 import { addDays, dayName, isNightShift, moveShift, showDate, weekOf } from '../../lib/shifts'
 import type { Role, ShiftRecord, Worker } from '../../types/models'
+import { PullConfirm } from './PullConfirm'
 
 // Move a whole shift, workers and all, to another day. The phone-friendly way; on a computer the
 // card can also be dragged onto a day.
@@ -65,7 +66,10 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
     setSaveError(null)
     try {
       const history = [...(shift.swaps ?? []), ...swapRecords(swap.swaps, new Date().toISOString())]
-      await shifts.save(upsert(shifts.items, { ...swap.shift, ...(history.length ? { swaps: history } : {}) }))
+      const next = { ...swap.shift, ...(history.length ? { swaps: history } : {}) }
+      // A worker taken out of another job leaves it in the same save.
+      const pulled = swap.swaps.flatMap((x) => (x.from ? [x.in.id] : []))
+      await shifts.save(pullFrom(next, pulled, upsert(shifts.items, next), defs.items))
       onDone()
     } catch (e) {
       setSaveError(e)
@@ -171,58 +175,36 @@ function AdviceBox({
   onSwap: (swap: SwapAdvice) => void
 }) {
   const when = (d: string) => `יום ${dayName(d)} ${showDate(d)}`
-  const role = (id: string) => roles.find((r) => r.id === id)?.name
-  const { fitDate, swap } = advice
-  const overNights = swap ? workers.filter((w) => swap.nightIds.includes(w.id)) : []
+  const { fitDate, swap, pull } = advice
+  const [asking, setAsking] = useState(false)
   return (
     <div role="status" className="space-y-3 rounded-xl border border-sky-500/60 bg-sky-500/10 p-3 text-sm text-sky-100">
       <p className="flex items-center gap-2 font-semibold">
         <Lightbulb size={16} aria-hidden />
         המלצה להעברה
       </p>
-      {swap && (
-        <div className="space-y-2">
-          <p>
-            הכי מוקדם: <strong>{when(swap.date)}</strong>, עם {swap.swaps.length > 1 ? 'ההחלפות האלה' : 'ההחלפה הזו'}:
-          </p>
-          <ul className="space-y-1">
-            {swap.swaps.map((s) => (
-              <li key={s.in.id} className="rounded-lg bg-slate-900/60 px-3 py-2">
-                {s.out ? (
-                  <>
-                    במקום <strong>{fullName(s.out)}</strong> נכנס <strong>{fullName(s.in)}</strong>
-                  </>
-                ) : (
-                  <>
-                    למקום הריק נכנס <strong>{fullName(s.in)}</strong>
-                  </>
-                )}
-                {role(s.roleId) && <span className="text-sky-300"> ({role(s.roleId)})</span>}
-              </li>
-            ))}
-            {swap.dropped.map((w) => (
-              <li key={w.id} className="rounded-lg bg-slate-900/60 px-3 py-2">
-                <strong>{fullName(w)}</strong> יוצא מהעבודה
-              </li>
-            ))}
-          </ul>
-          {overNights.length > 0 && (
-            <p className="text-orange-200">שים לב: {overNights.map(fullName).join(', ')} כבר עם הרבה לילות השבוע.</p>
-          )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onSwap(swap)}
-            className="min-h-11 w-full rounded-xl bg-sky-600 px-4 font-semibold text-white disabled:opacity-60"
-          >
-            להעביר ל{when(swap.date)} עם {swap.swaps.length > 1 ? 'ההחלפות' : 'ההחלפה'}
-          </button>
-        </div>
+      {pull && (
+        <SwapOption
+          swap={pull}
+          title="הכי מוקדם, אם מעבירים עובד מעבודה אחרת"
+          roles={roles}
+          workers={workers}
+          busy={busy}
+          onSwap={() => setAsking(true)}
+        />
       )}
+      {pull && asking && (
+        <PullConfirm
+          pulls={pull.swaps.flatMap((x) => (x.from ? [{ worker: x.in, other: x.from }] : []))}
+          onYes={() => (setAsking(false), onSwap(pull))}
+          onNo={() => setAsking(false)}
+        />
+      )}
+      {swap && <SwapOption swap={swap} title={pull ? 'בלי לגעת בעבודות אחרות' : 'הכי מוקדם'} roles={roles} workers={workers} busy={busy} onSwap={() => onSwap(swap)} />}
       {fitDate ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p>
-            {swap ? 'בלי להחליף אף אחד' : 'היום הכי קרוב שמתאים עם אותם עובדים'}: <strong>{when(fitDate)}</strong>
+            {swap || pull ? 'בלי להחליף אף אחד' : 'היום הכי קרוב שמתאים עם אותם עובדים'}: <strong>{when(fitDate)}</strong>
           </p>
           <button type="button" onClick={() => onPick(fitDate)} className="min-h-11 rounded-xl border border-sky-500 px-4 font-semibold text-sky-200">
             לבחור את היום הזה
@@ -230,11 +212,70 @@ function AdviceBox({
         </div>
       ) : (
         <p className="text-sky-200">
-          {swap
+          {swap || pull
             ? `בלי להחליף אף אחד אין יום מתאים ב-${ADVICE_DAYS} הימים הקרובים.`
             : `לא מצאתי יום מתאים ב-${ADVICE_DAYS} הימים הקרובים, גם לא עם החלפה של עד ${MAX_SWAPS} עובדים.`}
         </p>
       )}
+    </div>
+  )
+}
+
+function SwapOption({
+  swap,
+  title,
+  roles,
+  workers,
+  busy,
+  onSwap,
+}: {
+  swap: SwapAdvice
+  title: string
+  roles: Role[]
+  workers: Worker[]
+  busy: boolean
+  onSwap: () => void
+}) {
+  const when = (d: string) => `יום ${dayName(d)} ${showDate(d)}`
+  const role = (id: string) => roles.find((r) => r.id === id)?.name
+  const overNights = workers.filter((w) => swap.nightIds.includes(w.id))
+  const many = swap.swaps.length > 1
+  return (
+    <div className="space-y-2">
+      <p>
+        {title}: <strong>{when(swap.date)}</strong>, עם {many ? 'ההחלפות האלה' : 'ההחלפה הזו'}:
+      </p>
+      <ul className="space-y-1">
+        {swap.swaps.map((s) => (
+          <li key={s.in.id} className="rounded-lg bg-slate-900/60 px-3 py-2">
+            {s.out ? (
+              <>
+                במקום <strong>{fullName(s.out)}</strong> נכנס <strong>{fullName(s.in)}</strong>
+              </>
+            ) : (
+              <>
+                למקום הריק נכנס <strong>{fullName(s.in)}</strong>
+              </>
+            )}
+            {role(s.roleId) && <span className="text-sky-300"> ({role(s.roleId)})</span>}
+            {s.from && (
+              <span className="block text-xs text-orange-300">
+                עובר מהעבודה ביום {dayName(s.from.date)} {showDate(s.from.date)}
+                {s.from.location && ` (${s.from.location})`}
+              </span>
+            )}
+          </li>
+        ))}
+        {swap.dropped.map((w) => (
+          <li key={w.id} className="rounded-lg bg-slate-900/60 px-3 py-2">
+            <strong>{fullName(w)}</strong> יוצא מהעבודה
+          </li>
+        ))}
+      </ul>
+      {overNights.length > 0 && <p className="text-orange-200">שים לב: {overNights.map(fullName).join(', ')} כבר עם הרבה לילות השבוע.</p>}
+      <button type="button" disabled={busy} onClick={onSwap} className="min-h-11 w-full rounded-xl bg-sky-600 px-4 font-semibold text-white disabled:opacity-60">
+        להעביר ל{when(swap.date)} עם {many ? 'ההחלפות' : 'ההחלפה'}
+      </button>
     </div>
   )
 }
