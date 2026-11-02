@@ -48,6 +48,13 @@ const STATUSES: { id: WorkerStatus; name: string }[] = [
   { id: "inactive", name: "לא פעיל" },
 ];
 
+const statusText = (w: Worker) =>
+  w.status === "sick" && w.sickUntil
+    ? `במחלה עד ${showDate(w.sickUntil)}`
+    : w.status === "inactive"
+      ? "לא פעיל"
+      : "פעיל";
+
 /** Sick until a day that has passed: active again, without anyone having to change it. */
 const sickNow = (w: Worker, today: string) =>
   w.status === "sick" && !!w.sickUntil && w.sickUntil >= today;
@@ -383,7 +390,7 @@ function WorkerForm({
       ? { ...worker, status: "active", sickUntil: undefined }
       : worker,
   );
-  const [sickValid, setSickValid] = useState(true);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [birthDateValid, setBirthDateValid] = useState(true);
   const [saveError, setSaveError] = useState<unknown>(null);
@@ -423,7 +430,7 @@ function WorkerForm({
               ? "תעודת הזהות לא תקינה. צריך 9 ספרות, למשל 012345678"
               : !birthDateValid
                 ? "תאריך הלידה לא תקין"
-                : draft.status === "sick" && (!draft.sickUntil || !sickValid)
+                : draft.status === "sick" && !draft.sickUntil
                   ? "צריך לבחור עד איזה תאריך העובד במחלה"
                   : null;
     setError(err);
@@ -461,31 +468,23 @@ function WorkerForm({
 
       <div className="space-y-1">
         <span className="text-sm text-slate-300">סטטוס</span>
-        <Chips
-          options={STATUSES}
-          selected={[draft.status ?? "active"]}
-          onToggle={(id) =>
-            setDraft((d) => ({ ...d, status: id as WorkerStatus }))
-          }
-        />
-        {draft.status === "inactive" && (
-          <p className="text-xs text-slate-400">
-            לא יופיע ברשימת העובדים ולא ישובץ למשמרות.
-          </p>
-        )}
+        <button
+          type="button"
+          onClick={() => setStatusOpen(true)}
+          className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-slate-700 px-3 text-start text-sm"
+        >
+          {statusText(draft)}
+          <span className="text-xs text-slate-400">לשינוי</span>
+        </button>
       </div>
-      {draft.status === "sick" && (
-        <DateField
-          label="במחלה עד (כולל היום הזה)"
-          value={draft.sickUntil ?? ""}
-          min={todayIso()}
-          required
-          onChange={(sickUntil, valid) => {
-            setDraft((d) => ({ ...d, sickUntil }));
-            setSickValid(valid);
-          }}
-        />
-      )}
+      <StatusSheet
+        open={statusOpen}
+        worker={draft}
+        onClose={() => setStatusOpen(false)}
+        onPick={(status, sickUntil) =>
+          setDraft((d) => ({ ...d, status, sickUntil }))
+        }
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="ת.ז">
@@ -654,5 +653,108 @@ function WorkerForm({
         saveError={saveError}
       />
     </>
+  );
+}
+
+// Changing a status takes two steps on purpose: first "change it?", then which one. The change
+// goes into the form and is kept when the form is saved.
+function StatusSheet({
+  open,
+  worker,
+  onClose,
+  onPick,
+}: {
+  open: boolean;
+  worker: Worker;
+  onClose: () => void;
+  onPick: (status: WorkerStatus, sickUntil?: string) => void;
+}) {
+  const [step, setStep] = useState<"ask" | "pick" | "date">("ask");
+  const [sickUntil, setSickUntil] = useState("");
+  const [valid, setValid] = useState(false);
+  const close = () => {
+    setStep("ask");
+    setSickUntil("");
+    onClose();
+  };
+  const pick = (status: WorkerStatus) => {
+    if (status === "sick") return setStep("date");
+    onPick(status);
+    close();
+  };
+  const choice = "min-h-11 w-full rounded-xl border px-3 text-start text-sm";
+
+  return (
+    <Sheet open={open} title="סטטוס העובד" onClose={close}>
+      {step === "ask" && (
+        <>
+          <p className="text-sm text-slate-300">
+            הסטטוס של {fullName(worker) || "העובד"} עכשיו: {statusText(worker)}. לשנות
+            אותו?
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setStep("pick")}
+              className="min-h-11 rounded-xl bg-sky-600 text-sm font-medium text-white"
+            >
+              כן, לשנות
+            </button>
+            <button
+              type="button"
+              onClick={close}
+              className="min-h-11 rounded-xl border border-slate-700 text-sm text-slate-300"
+            >
+              לא
+            </button>
+          </div>
+        </>
+      )}
+      {step === "pick" && (
+        <div className="space-y-2">
+          <p className="text-sm text-slate-300">לאיזה סטטוס?</p>
+          {STATUSES.map((st) => (
+            <button
+              key={st.id}
+              type="button"
+              onClick={() => pick(st.id)}
+              className={`${choice} ${(worker.status ?? "active") === st.id ? "border-sky-500 text-sky-300" : "border-slate-700 text-slate-200"}`}
+            >
+              {st.name}
+              {st.id === "inactive" && (
+                <span className="block text-xs text-slate-400">
+                  לא יופיע ברשימת העובדים ולא ישובץ למשמרות
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      {step === "date" && (
+        <>
+          <DateField
+            label="במחלה עד (כולל היום הזה)"
+            value={sickUntil}
+            min={todayIso()}
+            required
+            onChange={(v, ok) => {
+              setSickUntil(v);
+              setValid(ok);
+            }}
+          />
+          <button
+            type="button"
+            disabled={!sickUntil || !valid}
+            onClick={() => {
+              onPick("sick", sickUntil);
+              close();
+            }}
+            className="min-h-11 w-full rounded-xl bg-sky-600 text-sm font-medium text-white disabled:opacity-40"
+          >
+            אישור
+          </button>
+        </>
+      )}
+    </Sheet>
   );
 }
