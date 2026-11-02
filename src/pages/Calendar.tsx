@@ -9,7 +9,7 @@ import { busyCrew, busyText } from '../lib/planner'
 import { gapCounts, placeText, shiftGaps, type GapKind, type ShiftGaps } from '../lib/gaps'
 import { dayData, nextJobText, weekData } from '../lib/report'
 import type { Report } from '../lib/report'
-import { addDays, blankShift, dayName, isNightShift, moveShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
+import { addDays, blankShift, dayName, HEBREW_DAYS, weekday, isNightShift, moveShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
 import type { ShiftRecord } from '../types/models'
 import { CloseSheet } from './calendar/CloseJob'
 import { MoveSheet } from './calendar/MoveSheet'
@@ -161,6 +161,28 @@ export function Calendar() {
             </p>
           )}
 
+          {/* One tap jumps to a day's first shift; it stays on top while scrolling, so the next jump is one tap too. */}
+          <nav aria-label="קפיצה ליום" className="sticky top-0 z-10 -mx-4 grid grid-cols-7 gap-1 bg-slate-950 px-4 py-2">
+            {week.days.map((day) => {
+              const hidden = filter && !records.some((r) => r.date === day && shown(r))
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  disabled={!!hidden}
+                  onClick={() => document.getElementById(`day-${day}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  aria-label={`יום ${dayName(day)} ${showDate(day)}`}
+                  className={`flex min-h-11 flex-col items-center justify-center rounded-lg text-xs disabled:opacity-30 ${
+                    day === today ? 'bg-sky-500/20 text-sky-300' : 'bg-slate-900 text-slate-300'
+                  }`}
+                >
+                  <span className="font-semibold">{HEBREW_DAYS[weekday(day)].slice(0, 1)}'</span>
+                  <span>{Number(day.slice(8))}</span>
+                </button>
+              )
+            })}
+          </nav>
+
           <ol className="space-y-4">
             {week.days.map((day) => {
               const all = records.filter((r) => r.date === day)
@@ -170,6 +192,7 @@ export function Calendar() {
               return (
                 <li
                   key={day}
+                  id={`day-${day}`}
                   onDragOver={(e) => {
                     if (!dragId) return
                     e.preventDefault()
@@ -177,7 +200,7 @@ export function Calendar() {
                   }}
                   onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setDropDay((d) => (d === day ? null : d))}
                   onDrop={(e) => (e.preventDefault(), drop(day))}
-                  className={`space-y-2 rounded-xl ${dropDay === day ? 'outline-2 outline-offset-4 outline-dashed outline-sky-500' : ''}`}
+                  className={`scroll-mt-20 space-y-2 rounded-xl ${dropDay === day ? 'outline-2 outline-offset-4 outline-dashed outline-sky-500' : ''}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <h2 className={`text-sm font-semibold ${day === today ? 'text-sky-400' : 'text-slate-400'}`}>
