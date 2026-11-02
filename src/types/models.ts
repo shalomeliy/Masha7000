@@ -49,6 +49,9 @@ export interface Worker {
   constraints: Constraint[]
   status?: WorkerStatus // absent = active. Inactive: hidden from the list and never picked for a shift
   sickUntil?: string // YYYY-MM-DD, `sick` only: not picked for shifts up to and including this day
+  idNumber?: string // ת.ז, 9 digits
+  personalNumber?: string // מספר אישי
+  departmentId?: string // one of the departments list
 }
 
 export interface ShiftDefinition {
@@ -145,6 +148,12 @@ export interface Place {
 }
 
 export interface JobType {
+  id: string
+  name: string
+}
+
+// The department a worker belongs to. A worker holds the id, so a rename shows everywhere at once.
+export interface Department {
   id: string
   name: string
 }

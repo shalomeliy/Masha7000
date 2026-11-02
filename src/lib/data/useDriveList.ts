@@ -1,9 +1,9 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConflictError, readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
-import { normalizeShift, normalizeWorker, withGeneralRole } from '../catalog'
+import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withGeneralRole } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
-import type { Certification, JobType, PendingJob, Place, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
+import type { Certification, Department, JobType, PendingJob, Place, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
 
 // One Drive appData JSON file = one list. A missing file is an empty list.
 // Saves write the whole list, optimistically, and roll back if Drive refuses.
@@ -20,6 +20,7 @@ type ListOf = {
   postponeReasons: PostponeReason
   places: Place
   jobTypes: JobType
+  departments: Department
   constraintWords: WordGroupSetting
 }
 type ListFile = keyof ListOf
@@ -40,7 +41,9 @@ export function useDriveList<K extends ListFile>(key: K) {
   const query = useQuery({
     queryKey: ['drive', key],
     queryFn: async () => {
-      const raw = (await readJson<T[]>(file)) ?? []
+      const stored = await readJson<T[]>(file)
+      // No departments file yet: the starter list, written to the file with the first save.
+      const raw = stored ?? (key === 'departments' ? (STARTER_DEPARTMENTS as T[]) : [])
       const fix = normalizers[key] as ((r: T) => T) | undefined
       const list = fix ? raw.map(fix) : raw
       // "כללי" always exists; it is written to the file with the next save of the roles list.

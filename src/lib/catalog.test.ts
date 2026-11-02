@@ -16,6 +16,7 @@ import {
   tagNames,
   tagUsage,
   telHref,
+  isIsraeliId,
   isIsraeliMobile,
   upsert,
 } from './catalog'
@@ -212,5 +213,16 @@ describe('staffing', () => {
     expect(resizeStaffing(resizeStaffing(one, 3, 'general'), 1, 'general')).toEqual(one)
     expect(resizeStaffing(one, 0, 'general')).toHaveLength(1)
     expect(resizeStaffing(one, 99, 'general')).toHaveLength(20)
+  })
+})
+
+describe('isIsraeliId', () => {
+  it('accepts exactly 9 digits, ignoring spaces and dashes', () => {
+    expect(isIsraeliId('012345678')).toBe(true)
+    expect(isIsraeliId('01234567-8')).toBe(true)
+    expect(isIsraeliId('12345678')).toBe(false)
+    expect(isIsraeliId('1234567890')).toBe(false)
+    expect(isIsraeliId('01234567a')).toBe(false)
+    expect(isIsraeliId(undefined)).toBe(false)
   })
 })
