@@ -9,7 +9,7 @@ import { busyCrew, busyText } from '../lib/planner'
 import { gapCounts, placeText, shiftGaps, type GapKind, type ShiftGaps } from '../lib/gaps'
 import { dayData, nextJobText, weekData } from '../lib/report'
 import type { Report } from '../lib/report'
-import { addDays, blankShift, dayName, HEBREW_DAYS, weekday, isNightShift, moveShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
+import { addDays, blankShift, dayName, weekday, isNightShift, moveShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
 import type { ShiftRecord } from '../types/models'
 import { CloseSheet } from './calendar/CloseJob'
 import { MoveSheet } from './calendar/MoveSheet'
@@ -176,7 +176,7 @@ export function Calendar() {
                     day === today ? 'bg-sky-500/20 text-sky-300' : 'bg-slate-900 text-slate-300'
                   }`}
                 >
-                  <span className="font-semibold">{HEBREW_DAYS[weekday(day)].slice(0, 1)}'</span>
+                  <span className="font-semibold">{'אבגדהוש'[weekday(day)]}</span>
                   <span>{Number(day.slice(8))}</span>
                 </button>
               )

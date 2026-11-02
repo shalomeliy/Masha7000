@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Check, Lightbulb } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { Sheet, SheetActions } from '../../components/Sheet'
-import { fullName, upsert } from '../../lib/catalog'
+import { fullName, generalRoleId, upsert } from '../../lib/catalog'
 import { blockedCrew, constraintText } from '../../lib/constraints'
+import { shiftGaps, type GapContext } from '../../lib/gaps'
+import { ADVICE_DAYS, fitsAsIs, MAX_SWAPS, moveAdvice, swapRecords, type MoveAdvice, type SwapAdvice } from '../../lib/moveAdvice'
 import { busyCrew, busyText } from '../../lib/planner'
 import { useDriveList } from '../../lib/data/useDriveList'
+import { todayIso } from '../../lib/dates'
 import { addDays, dayName, isNightShift, moveShift, showDate, weekOf } from '../../lib/shifts'
-import type { ShiftRecord } from '../../types/models'
+import type { Role, ShiftRecord, Worker } from '../../types/models'
 
 // Move a whole shift, workers and all, to another day. The phone-friendly way; on a computer the
 // card can also be dragged onto a day.
@@ -24,6 +28,8 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
   const workers = useDriveList('workers')
+  const roles = useDriveList('roles')
+  const certs = useDriveList('certifications')
   const [date, setDate] = useState(shift.date)
   const [valid, setValid] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +41,38 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   const clashes = valid && date !== shift.date ? busyCrew(moved, workers.items, shifts.items, defs.items) : []
   // Quick picks: the shift's week and the week after it. Any other day goes through the date field.
   const days = [...weekOf(shift.date).days, ...weekOf(addDays(shift.date, 7)).days]
+  const gapCtx: GapContext = useMemo(
+    () => ({
+      workers: workers.items,
+      records: shifts.items,
+      defs: defs.items,
+      roles: roles.items,
+      certifications: certs.items,
+      generalId: generalRoleId(roles.items),
+    }),
+    [workers.items, shifts.items, defs.items, roles.items, certs.items],
+  )
+  // Days the job fits on with the same crew are marked; a job with problems also gets advice.
+  const fitDays = new Set(days.filter((d) => d !== shift.date && fitsAsIs(shift, d, gapCtx)))
+  const troubled = shiftGaps(shift, gapCtx).kinds.some((k) => k !== 'nights')
+  const advice = useMemo(() => (troubled ? moveAdvice(shift, todayIso(), gapCtx) : null), [troubled, shift, gapCtx])
+  const pickedFits = valid && date !== shift.date && fitsAsIs(shift, date, gapCtx)
+  const pick = (d: string) => (setDate(d), setValid(true))
+
+  const saveSwap = async (swap: SwapAdvice) => {
+    setError(null)
+    setBusy(true)
+    setSaveError(null)
+    try {
+      const history = [...(shift.swaps ?? []), ...swapRecords(swap.swaps, new Date().toISOString())]
+      await shifts.save(upsert(shifts.items, { ...swap.shift, ...(history.length ? { swaps: history } : {}) }))
+      onDone()
+    } catch (e) {
+      setSaveError(e)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const save = async () => {
     const err = !valid
@@ -64,21 +102,35 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
         העבודה עוברת עם כל העובדים שבה.
         {isNightShift(shift, defs.items) && ' עבודת לילה ממשיכה גם ביום שאחריו, כמו קודם.'}
       </p>
+      {advice && <AdviceBox advice={advice} roles={roles.items} workers={workers.items} busy={busy} onPick={pick} onSwap={saveSwap} />}
       <div className="flex flex-wrap gap-2">
         {days.map((d) => (
           <button
             key={d}
             type="button"
             aria-pressed={date === d}
-            onClick={() => (setDate(d), setValid(true))}
-            className={`min-h-11 rounded-full border px-3 text-sm ${date === d ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-slate-700 text-slate-300'}`}
+            onClick={() => pick(d)}
+            className={`flex min-h-11 items-center gap-1 rounded-full border px-3 text-sm ${
+              date === d
+                ? 'border-sky-500 bg-sky-500/15 text-sky-300'
+                : fitDays.has(d)
+                  ? 'border-emerald-500/70 bg-emerald-500/10 text-emerald-200'
+                  : 'border-slate-700 text-slate-300'
+            }`}
           >
+            {fitDays.has(d) && <Check size={14} aria-label="מתאים עם אותם עובדים" />}
             {dayName(d)} {showDate(d)}
             {d === shift.date && ' (עכשיו)'}
           </button>
         ))}
       </div>
+      {fitDays.size > 0 && <p className="text-xs text-emerald-300">ימים עם סימן וי: העבודה מתאימה בהם עם אותם עובדים, בלי להחליף אף אחד.</p>}
       <DateField label="או תאריך אחר" value={date} required onChange={(d, ok) => (setDate(d), setValid(ok))} />
+      {pickedFits && (
+        <p role="status" className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+          ביום הזה כל העובדים זמינים וכל המקומות בעבודה מלאים.
+        </p>
+      )}
       {clashes.length > 0 && (
         <p role="status" className="rounded-xl border border-red-500/60 bg-red-500/10 p-3 text-sm text-red-200">
           {busyText(clashes)}. עובד לא יכול להיות בשתי עבודות באותו זמן.
