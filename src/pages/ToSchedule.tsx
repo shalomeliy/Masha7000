@@ -82,7 +82,8 @@ function JobsSection() {
   const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const defs = useDriveList('shiftDefinitions')
-  const waiting = jobs.items.filter((j) => isWaiting(j, shifts.items))
+  // Newest first: the job added last is on top.
+  const waiting = jobs.items.filter((j) => isWaiting(j, shifts.items)).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
   const [editing, setEditing] = useState<PendingJob | null>(null)
   const [scheduling, setScheduling] = useState<ShiftRecord | null>(null)
 
@@ -96,7 +97,8 @@ function JobsSection() {
         />
       ) : (
         <>
-          <ul className="space-y-2">
+          <AddButton label="הוספת עבודה" onClick={() => setEditing(blankJob())} />
+          <ul className="mt-3 space-y-2">
             {waiting.map((j) => {
               const outcome = OUTCOMES.find((o) => o.id === j.outcome)
               const why = [tagNames(j.reasonIds, reasons.items).join(', '), j.note].filter(Boolean).join(' · ')
@@ -134,7 +136,6 @@ function JobsSection() {
               )
             })}
           </ul>
-          <AddButton label="הוספת עבודה" onClick={() => setEditing(blankJob())} />
         </>
       )}
 
