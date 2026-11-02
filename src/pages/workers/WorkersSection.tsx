@@ -454,6 +454,16 @@ function WorkerForm({
 
   return (
     <>
+      <ConstraintsField
+        value={draft.constraints}
+        onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
+        onNotes={(text) =>
+          setDraft((d) => ({
+            ...d,
+            notes: [d.notes?.trim(), text].filter(Boolean).join("\n"),
+          }))
+        }
+      />
       <div className="grid grid-cols-2 gap-3">
         <Field label="שם פרטי (חובה)">
           <input
@@ -472,12 +482,13 @@ function WorkerForm({
         </Field>
       </div>
 
-      <p className="text-sm text-slate-300">
+      {/* Small on purpose: a line of its own under the name, not a full form row. */}
+      <p className="-mt-3 text-xs text-slate-400">
         סטטוס:{" "}
         <button
           type="button"
           onClick={() => setStatusOpen(true)}
-          className={`min-h-11 font-semibold ${STATUS_COLOR[draft.status ?? "active"]}`}
+          className={`py-1 font-semibold ${STATUS_COLOR[draft.status ?? "active"]}`}
         >
           {statusText(draft)}
         </button>
@@ -617,16 +628,6 @@ function WorkerForm({
           setDraft((d) => ({ ...d, birthDate }));
           setBirthDateValid(valid);
         }}
-      />
-      <ConstraintsField
-        value={draft.constraints}
-        onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
-        onNotes={(text) =>
-          setDraft((d) => ({
-            ...d,
-            notes: [d.notes?.trim(), text].filter(Boolean).join("\n"),
-          }))
-        }
       />
       <Field label="כתובת">
         <input
