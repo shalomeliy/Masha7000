@@ -99,6 +99,13 @@ function shiftCard(c: Ctx, draw: boolean, s: ReportShift, top: number): number {
         yy += 46
       }
     }
+    if (s.next) {
+      c.font = font(500, 32)
+      for (const line of wrap(c, `אחרי הלילה: ${s.next}`, maxW)) {
+        text(c, d, line, inR, yy + 18, font(500, 32), '#6d28d9')
+        yy += 44
+      }
+    }
     yy += 12
     if (d) {
       c.fillStyle = '#e2e8f0'

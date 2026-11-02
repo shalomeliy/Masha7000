@@ -1,16 +1,16 @@
 import { useState } from 'react'
-import { ArrowLeftRight, Sparkles, X } from 'lucide-react'
+import { ArrowLeftRight, Check, Moon, MoonStar, Sparkles, Sun, X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { Suggestions } from '../../components/Suggestions'
-import { fullName, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
+import { defaultShiftDef, endsNextDay, fullName, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
 import { crewSwaps } from '../../lib/archive'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { crewPlaces } from '../../lib/gaps'
 import { autoAssign, busyCrew, busyText, candidateOrder, fitsSlot, loadWarning, type PlanContext, type WorkerLoad } from '../../lib/planner'
 import { isNightShift, pendingAfterShiftSave, shiftRecordError } from '../../lib/shifts'
-import type { ShiftRecord, Worker } from '../../types/models'
+import type { ShiftDefinition, ShiftRecord, Worker } from '../../types/models'
 import { WorkerDial } from '../workers/common'
 import { StaffingField } from './StaffingField'
 
@@ -37,6 +37,11 @@ const plural = (n: number) => (n === 0 ? 'אין לו משמרות השבוע' :
 // "דני כהן · כבר משמרת אחת השבוע · כבר שובץ ל-2 לילות השבוע" for the worker pickers.
 const pickLabel = (w: Worker, load: WorkerLoad) => [fullName(w), plural(load.week), loadWarning(load)].filter(Boolean).join(' · ')
 
+const DefIcon = ({ def }: { def: ShiftDefinition }) => {
+  const Icon = def.thenJob ? MoonStar : endsNextDay(def) ? Moon : Sun
+  return <Icon size={18} aria-hidden />
+}
+
 function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }) {
   const shifts = useDriveList('shifts')
   const pending = useDriveList('pendingJobs')
@@ -48,6 +53,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   // Crew saved before "כללי" existed may have no role; they are "כללי" now.
   const [draft, setDraft] = useState(() => ({
     ...shift,
+    // A new planned shift starts as "יום": the manager kept saving without noticing the type.
+    shiftDefinitionId: shift.shiftDefinitionId ?? (shift.urgent ? undefined : defaultShiftDef(defs.items)?.id),
     crew: shift.crew.map((c) => (c.roleId ? c : { ...c, roleId: general })),
     staffing: staffingFor(shift.staffing, roles.items, certs.items.map((c) => c.id)),
   }))
@@ -58,6 +65,9 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const [planNote, setPlanNote] = useState<string[] | null>(null)
   const [swapping, setSwapping] = useState<string | null>(null)
   const exists = shifts.items.some((s) => s.id === shift.id)
+
+  const thenJob = !draft.urgent && !!defs.items.find((d) => d.id === draft.shiftDefinitionId)?.thenJob
+  const nextJob = draft.nextJob ?? { location: '', jobDescription: '' }
 
   const set = <K extends keyof ShiftRecord>(key: K, value: ShiftRecord[K]) => setDraft((d) => ({ ...d, [key]: value }))
 
@@ -84,10 +94,13 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     // A worker replaced in a saved shift is kept in its history, for the archive.
     const saved = shifts.items.find((s) => s.id === shift.id)
     const swaps = saved ? crewSwaps(saved.crew, draft.crew, new Date().toISOString()) : []
+    const next = { location: nextJob.location.trim(), jobDescription: nextJob.jobDescription.trim() }
     const clean: ShiftRecord = {
       ...draft,
       location: draft.location.trim(),
       jobDescription: draft.jobDescription.trim(),
+      // Only "לילה+" carries the job after the night; switching type away drops it.
+      nextJob: thenJob && (next.location || next.jobDescription) ? next : undefined,
       ...(swaps.length ? { swaps: [...(draft.swaps ?? []), ...swaps] } : {}),
     }
     const err =
@@ -168,28 +181,32 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       ) : (
         <>
           <DateField label="תאריך" value={draft.date} required onChange={(date, ok) => (set('date', date), setDatesValid((v) => ({ ...v, date: ok })))} />
-          <div className="space-y-1">
-            <span className="text-sm text-slate-300">סוג משמרת</span>
+          <fieldset className="space-y-2 rounded-2xl border-2 border-sky-500/60 bg-sky-500/5 p-3">
+            <legend className="px-1 text-base font-semibold text-slate-100">סוג משמרת</legend>
             {defs.items.length ? (
-              <div className="flex flex-wrap gap-2">
-                {defs.items.map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    aria-pressed={draft.shiftDefinitionId === d.id}
-                    onClick={() => set('shiftDefinitionId', d.id)}
-                    className={`min-h-11 rounded-full border px-4 text-sm ${
-                      draft.shiftDefinitionId === d.id ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {d.name}
-                  </button>
-                ))}
+              <div className="grid grid-cols-3 gap-2">
+                {defs.items.map((d) => {
+                  const on = draft.shiftDefinitionId === d.id
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => set('shiftDefinitionId', d.id)}
+                      className={`flex min-h-14 items-center justify-center gap-1.5 rounded-xl border-2 px-2 text-base font-semibold ${
+                        on ? 'border-sky-400 bg-sky-500 text-slate-950 shadow-lg shadow-sky-500/30' : 'border-slate-600 bg-slate-900 text-slate-300'
+                      }`}
+                    >
+                      {on ? <Check size={18} strokeWidth={3} aria-hidden /> : <DefIcon def={d} />}
+                      {d.name}
+                    </button>
+                  )
+                })}
               </div>
             ) : (
               <p className="text-sm text-amber-300">עוד אין סוגי משמרות. אפשר להוסיף אותם בלשונית "עובדים", "משמרות".</p>
             )}
-          </div>
+          </fieldset>
         </>
       )}
 
@@ -199,6 +216,16 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       <Suggestions list="places" value={draft.location} onPick={(v) => set('location', v)} />
       <DictationField label="מהות העבודה" value={draft.jobDescription} onChange={(v) => set('jobDescription', v)} />
       <Suggestions list="jobTypes" value={draft.jobDescription} onPick={(v) => set('jobDescription', v)} />
+      {thenJob && (
+        <div className="space-y-2 rounded-2xl border border-violet-500/50 bg-violet-500/10 p-3">
+          <p className="text-sm font-medium text-violet-200">אחרי הלילה, לפני החזרה לבסיס</p>
+          <Field label="מיקום העבודה הנוספת">
+            <input value={nextJob.location} onChange={(e) => set('nextJob', { ...nextJob, location: e.target.value })} className={inputClass} />
+          </Field>
+          <Suggestions list="places" value={nextJob.location} onPick={(v) => set('nextJob', { ...nextJob, location: v })} />
+          <DictationField label="מהות העבודה הנוספת" value={nextJob.jobDescription} onChange={(v) => set('nextJob', { ...nextJob, jobDescription: v })} />
+        </div>
+      )}
       <StaffingField value={draft.staffing} onChange={(staffing) => set('staffing', staffing)} />
 
       <div className="space-y-2">

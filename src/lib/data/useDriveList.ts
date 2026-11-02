@@ -1,7 +1,7 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConflictError, readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
-import { normalizeShift, normalizeWorker, withGeneralRole } from '../catalog'
+import { normalizeShift, normalizeWorker, withGeneralRole, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
 import type { Certification, JobType, PendingJob, Place, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
 
@@ -43,8 +43,10 @@ export function useDriveList<K extends ListFile>(key: K) {
       const raw = (await readJson<T[]>(file)) ?? []
       const fix = normalizers[key] as ((r: T) => T) | undefined
       const list = fix ? raw.map(fix) : raw
-      // "כללי" always exists; it is written to the file with the next save of the roles list.
-      return key === 'roles' ? (withGeneralRole(list as Role[]) as T[]) : list
+      // "כללי" and "לילה+" always exist; they are written to the file with the next save of their list.
+      if (key === 'roles') return withGeneralRole(list as Role[]) as T[]
+      if (key === 'shiftDefinitions') return withNightPlus(list as ShiftDefinition[]) as T[]
+      return list
     },
     staleTime: Infinity,
   })

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  defaultShiftDef,
   endsNextDay,
+  NIGHT_PLUS,
+  NIGHT_PLUS_ID,
+  withNightPlus,
   filterWorkers,
   generalRoleId,
   resizeStaffing,
@@ -212,5 +216,34 @@ describe('staffing', () => {
     expect(resizeStaffing(resizeStaffing(one, 3, 'general'), 1, 'general')).toEqual(one)
     expect(resizeStaffing(one, 0, 'general')).toHaveLength(1)
     expect(resizeStaffing(one, 99, 'general')).toHaveLength(20)
+  })
+})
+
+describe('לילה+', () => {
+  const day = { id: 'd', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
+  const night = { ...day, id: 'n', name: 'לילה', endsNextDay: true }
+
+  it('is added last to a list saved before it existed, and counts as a night', () => {
+    const defs = withNightPlus([day, night])
+    expect(defs.map((d) => d.id)).toEqual(['d', 'n', NIGHT_PLUS_ID])
+    expect(endsNextDay(defs[2])).toBe(true)
+  })
+
+  it('leaves an empty list empty and a list that has it as it is', () => {
+    expect(withNightPlus([])).toEqual([])
+    const list = [day, NIGHT_PLUS]
+    expect(withNightPlus(list)).toBe(list)
+  })
+
+  it('marks a type the manager already named "לילה+" instead of adding a second one', () => {
+    const own = { ...day, id: 'mine', name: ' לילה+ ' }
+    const defs = withNightPlus([day, own])
+    expect(defs).toHaveLength(2)
+    expect(defs[1]).toMatchObject({ id: 'mine', thenJob: true, endsNextDay: true })
+  })
+
+  it('a new shift starts as "יום"', () => {
+    expect(defaultShiftDef([night, NIGHT_PLUS, day])?.id).toBe('d')
+    expect(defaultShiftDef([night, { ...day, name: 'בוקר' }])?.name).toBe('בוקר')
   })
 })
