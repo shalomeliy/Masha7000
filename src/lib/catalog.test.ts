@@ -20,6 +20,7 @@ import {
   tagNames,
   tagUsage,
   telHref,
+  isIsraeliId,
   isIsraeliMobile,
   upsert,
 } from './catalog'
@@ -245,5 +246,16 @@ describe('לילה+', () => {
   it('a new shift starts as "יום"', () => {
     expect(defaultShiftDef([night, NIGHT_PLUS, day])?.id).toBe('d')
     expect(defaultShiftDef([night, { ...day, name: 'בוקר' }])?.name).toBe('בוקר')
+  })
+})
+
+describe('isIsraeliId', () => {
+  it('accepts exactly 9 digits, ignoring spaces and dashes', () => {
+    expect(isIsraeliId('012345678')).toBe(true)
+    expect(isIsraeliId('01234567-8')).toBe(true)
+    expect(isIsraeliId('12345678')).toBe(false)
+    expect(isIsraeliId('1234567890')).toBe(false)
+    expect(isIsraeliId('01234567a')).toBe(false)
+    expect(isIsraeliId(undefined)).toBe(false)
   })
 })

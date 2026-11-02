@@ -1,7 +1,7 @@
 import { DRIVE_FILES } from './google/config'
 import { createCopy, deleteCopy, forgetVersions, listCopies, peekJson, readCopy, writeJson } from './google/drive'
 import type { DriveCopy } from './google/drive'
-import { countText, normalizeShift, normalizeWorker } from './catalog'
+import { countText, normalizeShift, normalizeWorker, STARTER_DEPARTMENTS } from './catalog'
 import { normalizePendingJob, normalizeShiftRecord } from './shifts'
 
 // One file with every list, to keep outside the app or as a copy inside the app's Drive folder.
@@ -20,6 +20,7 @@ export const BACKUP_LISTS = [
   'postponeReasons',
   'places',
   'jobTypes',
+  'departments',
   'constraintWords',
   'workers',
   'pendingJobs',
@@ -34,6 +35,7 @@ export const LIST_TITLES: Record<BackupList, string> = {
   postponeReasons: 'סיבות דחייה',
   places: 'מקומות',
   jobTypes: 'סוגי עבודה',
+  departments: 'מחלקות',
   constraintWords: 'מילים לקריאת אילוצים',
   workers: 'עובדים',
   pendingJobs: 'משימות לשיבוץ',
@@ -52,14 +54,14 @@ export class BackupError extends Error {}
 
 export function makeBackup(files: Partial<Record<BackupList, unknown[] | null>>, now = new Date()): Backup {
   const all = {} as Backup['files']
-  for (const k of BACKUP_LISTS) all[k] = (files[k] ?? []) as Record<string, unknown>[]
+  for (const k of BACKUP_LISTS) all[k] = (files[k] ?? (k === 'departments' ? STARTER_DEPARTMENTS : [])) as Record<string, unknown>[]
   return { app: APP_MARKER, version: BACKUP_VERSION, createdAt: now.toISOString(), files: all }
 }
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
 // Fields the screens show as text: anything else there would break the screen.
-const TEXT_FIELDS = ['name', 'firstName', 'lastName', 'mobilePhone', 'location', 'jobDescription', 'notes', 'address']
+const TEXT_FIELDS = ['name', 'firstName', 'lastName', 'mobilePhone', 'location', 'jobDescription', 'notes', 'address', 'idNumber', 'personalNumber', 'departmentId']
 const textFieldsOk = (item: Record<string, unknown>) => TEXT_FIELDS.every((f) => item[f] === undefined || item[f] === null || typeof item[f] === 'string')
 
 // The same fill-in the app reads with, so older backups gain the fields added since.
@@ -83,7 +85,8 @@ export function parseBackup(text: string): Backup {
   if (Number.isNaN(Date.parse(raw.createdAt))) throw new BackupError(NOT_A_BACKUP)
   const files = {} as Backup['files']
   for (const k of BACKUP_LISTS) {
-    const list = raw.files[k]
+    // Backups made before departments existed: the starter list, as the app would read it.
+    const list = k === 'departments' && raw.files[k] === undefined ? STARTER_DEPARTMENTS : raw.files[k]
     if (!Array.isArray(list)) throw new BackupError(`${NOT_A_BACKUP} חסרה בו הרשימה "${LIST_TITLES[k]}".`)
     for (const item of list)
       if (!isObject(item) || typeof item.id !== 'string' || (k === 'shifts' && typeof item.date !== 'string') || !textFieldsOk(item))

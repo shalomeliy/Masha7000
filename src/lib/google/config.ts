@@ -20,6 +20,7 @@ export const DRIVE_FILES = {
   postponeReasons: 'postpone_reasons.json',
   places: 'places.json',
   jobTypes: 'job_types.json',
+  departments: 'departments.json',
   constraintWords: 'constraint_words.json',
   settings: 'settings.json',
 } as const

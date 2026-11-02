@@ -10,6 +10,7 @@ import { authMode } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
 import { AccessSection } from './settings/AccessSection'
 import { BackupSection } from './settings/BackupSection'
+import { DepartmentsSection } from './settings/DepartmentsSection'
 import { NameListSection } from './settings/NameListSection'
 import { WordsSection } from './settings/WordsSection'
 import { ReasonsSection } from './ToSchedule'
@@ -77,7 +78,7 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
 
 // Every list the manager can change, in one place. Each one is also where it is used (roles in
 // "עובדים", postpone reasons in "לשיבוץ"); this screen opens the same editors.
-type ListId = 'roles' | 'certifications' | 'shiftDefinitions' | 'postponeReasons' | 'places' | 'jobTypes' | 'constraintWords'
+type ListId = 'roles' | 'certifications' | 'shiftDefinitions' | 'postponeReasons' | 'places' | 'jobTypes' | 'departments' | 'constraintWords'
 
 const LISTS: { id: ListId; title: string; explain: string }[] = [
   {
@@ -111,6 +112,11 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
     explain: 'עבודות שחוזרות, לבחירה מהירה',
   },
   {
+    id: 'departments',
+    title: 'מחלקות',
+    explain: 'המחלקה של כל עובד',
+  },
+  {
     id: 'constraintWords',
     title: 'מילים לקריאת אילוצים',
     explain: 'איך מבינים תשובה מוואטסאפ',
@@ -129,6 +135,7 @@ export function Settings() {
     postponeReasons: useDriveList('postponeReasons'),
     places: useDriveList('places'),
     jobTypes: useDriveList('jobTypes'),
+    departments: useDriveList('departments'),
     constraintWords: useDriveList('constraintWords'),
     workers: useDriveList('workers'),
     shifts: useDriveList('shifts'),
@@ -165,6 +172,7 @@ export function Settings() {
         {current.id === 'postponeReasons' && <ReasonsSection />}
         {current.id === 'places' && <NameListSection kind="places" />}
         {current.id === 'jobTypes' && <NameListSection kind="jobTypes" />}
+        {current.id === 'departments' && <DepartmentsSection />}
         {current.id === 'constraintWords' && <WordsSection />}
       </section>
     )

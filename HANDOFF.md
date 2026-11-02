@@ -237,3 +237,10 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - "שחזור מגיבוי" (owner only, or anyone in popup mode): file is checked as untrusted (20 MB, app marker, version, each list's shape, text fields), preview with counts, then a "before restore" copy, then each list written with the normal conflict check. A partial failure shows what was restored and offers "נסה שוב" (the retry skips the conflict check for the remaining lists).
 - Automatic copies in the appDataFolder, `backup-weekly-*.json` / `backup-beforeRestore-*.json`, counts in Drive appProperties; 8 weekly + 3 before-restore kept. Weekly copy on the first open of each week (`WeeklyCopy` in App.tsx), skipped for an empty account.
 - Not done: the `security-expert` agent does not exist in this project, so no separate security review; change-reviewer's findings were fixed. Week is counted in the device's time zone. Not yet tried on a real iPhone.
+
+## Worker ID, personal number and department (2026-11-02)
+
+- Worker form: "ת.ז" (`idNumber`, optional, exactly 9 digits after removing spaces and dashes, `isIsraeliId`), "מספר אישי" (`personalNumber`, optional free text), "מחלקה" (`departmentId`, at most one; tapping the chosen chip clears it). The department shows as a blue chip on the worker card. Older workers simply have the three fields empty.
+- Departments list: `departments.json`, Settings > "מחלקות" (`src/pages/settings/DepartmentsSection.tsx`). No file yet = `STARTER_DEPARTMENTS` (תקשורת, תרנים, רוקק, נתיבי חדירה, רובוטים, רחפנים, fixed ids). Rename by id; delete clears the department from its workers first.
+- Backup: `departments` added to `BACKUP_LISTS`; a backup made before this gets the starter list instead of being rejected.
+- Spike skipped: same pattern as roles and places, every part already proven. Built in a separate clone because the "לילה+" work was uncommitted in the main folder. Browser not checked (sign-in needs Google); `npm run verify` green.

@@ -37,6 +37,15 @@ describe('backup file', () => {
     for (const k of BACKUP_LISTS) expect(Array.isArray(back.files[k])).toBe(true)
   })
 
+  it('keeps the departments, and gives a backup without them the starter list', () => {
+    const departments = [{ id: 'd1', name: 'רחפנים' }]
+    expect(parseBackup(JSON.stringify(makeBackup({ ...data, departments }, now))).files.departments).toEqual(departments)
+    const b = makeBackup(data, now)
+    expect(b.files.departments.map((d) => d.name)).toContain('תקשורת')
+    const { departments: _, ...older } = b.files
+    expect(parseBackup(JSON.stringify({ ...b, files: older })).files.departments).toHaveLength(6)
+  })
+
   it('fills fields an older backup lacks, as the app does on read', () => {
     const b = makeBackup({ workers: [{ id: 'w1', name: 'דני כהן לוי' }], shifts: [{ id: 's1', date: '2026-01-01' }] }, now)
     const back = parseBackup(JSON.stringify(b))

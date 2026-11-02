@@ -15,6 +15,7 @@ import {
   generalRoleId,
   isActive,
   isGeneralRole,
+  isIsraeliId,
   isIsraeliMobile,
   newId,
   tagNames,
@@ -228,6 +229,7 @@ function WorkerCard({
 }) {
   const roles = useDriveList("roles");
   const certs = useDriveList("certifications");
+  const departments = useDriveList("departments");
   // Every worker is "כללי"; it is shown only when they hold no other role, so the card is never empty.
   const specific = tagNames(
     w.roleIds,
@@ -235,6 +237,9 @@ function WorkerCard({
   );
   const roleList = specific.length ? specific : [GENERAL_ROLE_NAME];
   const certList = tagNames(w.certificationIds, certs.items);
+  const department = departments.items.find(
+    (d) => d.id === w.departmentId,
+  )?.name;
   const today = todayIso();
   const active = w.constraints.filter((c) => !isOver(c, today));
 
@@ -267,6 +272,11 @@ function WorkerCard({
           </span>
         )}
         <span className="flex flex-wrap gap-1">
+          {department && (
+            <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs text-sky-200">
+              {department}
+            </span>
+          )}
           {roleList.map((n) => (
             <span
               key={n}
@@ -350,6 +360,8 @@ const OPTIONAL_TEXT = [
   "birthDate",
   "address",
   "notes",
+  "idNumber",
+  "personalNumber",
   ...PHONES.map(([f]) => f),
 ] as const;
 type TextField = "firstName" | "lastName" | (typeof OPTIONAL_TEXT)[number];
@@ -364,6 +376,7 @@ function WorkerForm({
   const workers = useDriveList("workers");
   const roles = useDriveList("roles");
   const certs = useDriveList("certifications");
+  const departments = useDriveList("departments");
   // A sickness that has ended opens as active, so the form shows what is true today.
   const [draft, setDraft] = useState<Worker>(() =>
     worker.status === "sick" && !sickNow(worker, todayIso())
@@ -406,11 +419,13 @@ function WorkerForm({
           ? "צריך למלא טלפון נייד"
           : !isIsraeliMobile(draft.mobilePhone)
             ? "הטלפון הנייד לא תקין. צריך 10 ספרות שמתחילות ב-05, למשל 050-1234567"
-            : !birthDateValid
-              ? "תאריך הלידה לא תקין"
-              : draft.status === "sick" && (!draft.sickUntil || !sickValid)
-                ? "צריך לבחור עד איזה תאריך העובד במחלה"
-                : null;
+            : draft.idNumber?.trim() && !isIsraeliId(draft.idNumber)
+              ? "תעודת הזהות לא תקינה. צריך 9 ספרות, למשל 012345678"
+              : !birthDateValid
+                ? "תאריך הלידה לא תקין"
+                : draft.status === "sick" && (!draft.sickUntil || !sickValid)
+                  ? "צריך לבחור עד איזה תאריך העובד במחלה"
+                  : null;
     setError(err);
     if (err) return;
     const clean: Worker = {
@@ -419,6 +434,7 @@ function WorkerForm({
       lastName: draft.lastName.trim(),
     };
     for (const f of OPTIONAL_TEXT) clean[f] = clean[f]?.trim() || undefined;
+    clean.idNumber = clean.idNumber?.replace(/[\s-]/g, "") || undefined;
     if (clean.status !== "sick") clean.sickUntil = undefined;
     write(upsert(workers.items, clean));
   };
@@ -470,6 +486,48 @@ function WorkerForm({
           }}
         />
       )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="ת.ז">
+          <input
+            dir="ltr"
+            inputMode="numeric"
+            maxLength={11}
+            value={draft.idNumber ?? ""}
+            onChange={set("idNumber")}
+            className={`${inputClass} text-right`}
+          />
+        </Field>
+        <Field label="מספר אישי">
+          <input
+            dir="ltr"
+            inputMode="numeric"
+            value={draft.personalNumber ?? ""}
+            onChange={set("personalNumber")}
+            className={`${inputClass} text-right`}
+          />
+        </Field>
+      </div>
+      <div className="space-y-1">
+        <span className="text-sm text-slate-300">מחלקה</span>
+        {departments.items.length ? (
+          <Chips
+            options={departments.items}
+            selected={draft.departmentId ? [draft.departmentId] : []}
+            // One department at most: tapping the chosen one again clears it.
+            onToggle={(id) =>
+              setDraft((d) => ({
+                ...d,
+                departmentId: d.departmentId === id ? undefined : id,
+              }))
+            }
+          />
+        ) : (
+          <p className="text-sm text-amber-300">
+            עוד אין מחלקות. אפשר להוסיף אותן בהגדרות, "מחלקות".
+          </p>
+        )}
+      </div>
 
       <div className="space-y-1">
         <span className="text-sm text-slate-300">תפקידים</span>

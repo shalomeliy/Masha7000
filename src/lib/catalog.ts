@@ -1,4 +1,4 @@
-import type { Role, ShiftDefinition, StaffSlot, Worker } from '../types/models'
+import type { Department, Role, ShiftDefinition, StaffSlot, Worker } from '../types/models'
 import { normalizeConstraint } from './constraints'
 
 // Pure rules for the master lists (roles, certifications, workers, shift types). No I/O here.
@@ -14,6 +14,19 @@ export const STARTER_CERTIFICATIONS = [
   'חשמלאי מוסמך',
   'מהנדס חשמל',
 ]
+
+// The departments list before the manager changes it. Fixed ids, so a restored backup still matches its workers.
+export const STARTER_DEPARTMENTS: Department[] = [
+  { id: 'dept-communication', name: 'תקשורת' },
+  { id: 'dept-masts', name: 'תרנים' },
+  { id: 'dept-rokek', name: 'רוקק' },
+  { id: 'dept-penetration', name: 'נתיבי חדירה' },
+  { id: 'dept-robots', name: 'רובוטים' },
+  { id: 'dept-drones', name: 'רחפנים' },
+]
+
+/** An Israeli ID number (ת.ז): exactly 9 digits. Spaces and dashes are ignored. */
+export const isIsraeliId = (id: string | undefined) => /^\d{9}$/.test((id ?? '').replace(/[\s-]/g, ''))
 
 // The user does not care about exact hours for now: a shift starts in the morning and ends at 16:00,
 // either the same day or (a night job) the next day. Times are stored for the calendar later.
