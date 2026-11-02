@@ -67,6 +67,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const [swapping, setSwapping] = useState<string | null>(null)
   // Workers the manager chose to take out of another job at the same time; they leave it on save.
   const [pulled, setPulled] = useState<string[]>([])
+  // Who takes a pulled worker's place in the job they leave; none leaves it empty.
+  const [fillIns, setFillIns] = useState<Record<string, string>>({})
   const [asking, setAsking] = useState<{ worker: Worker; other: ShiftRecord; apply: () => void } | null>(null)
   const exists = shifts.items.some((s) => s.id === shift.id)
 
@@ -91,7 +93,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   // A worker cannot be in two shifts that run at the same time (a night job runs into the next afternoon).
   const pulledIn = (r: ShiftRecord) => pulled.filter((id) => r.crew.some((c) => c.workerId === id))
   const busyError = (r: ShiftRecord) => {
-    const busy = busyCrew(r, workers.items, pullFrom(r, pulledIn(r), shifts.items, defs.items), defs.items)
+    const busy = busyCrew(r, workers.items, pullFrom(r, pulledIn(r), shifts.items, defs.items, fillIns), defs.items)
     return busy.length ? `${busyText(busy)}. החלף ${busy.length > 1 ? 'אותם' : 'אותו'} לפני השמירה.` : null
   }
 
@@ -119,7 +121,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     run(async () => {
       // Shift first: if the second write fails, saving again re-applies it (both steps are idempotent).
       // A worker pulled from another job leaves it in the same write.
-      await shifts.save(pullFrom(clean, pulledIn(clean), upsert(shifts.items, clean), defs.items))
+      await shifts.save(pullFrom(clean, pulledIn(clean), upsert(shifts.items, clean), defs.items, fillIns))
       const nextPending = pendingAfterShiftSave(pending.items, clean)
       if (nextPending !== pending.items) await pending.save(nextPending)
     })
@@ -262,7 +264,10 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           const options = roleOptions(w)
           const load = loadOf(c.workerId)
           const pulling = pulled.includes(c.workerId) && load?.busy
-          const warning = pulling ? `יעבור לכאן מהעבודה ${otherText(c.workerId)} כשתשמור` : load && loadWarning(load)
+          const fillIn = workers.items.find((x) => x.id === fillIns[c.workerId])
+          const warning = pulling
+            ? `יעבור לכאן מהעבודה ${otherText(c.workerId)} כשתשמור${fillIn ? `, ושם ייכנס במקומו ${fullName(fillIn)}` : ', ושם יישאר מקום ריק'}`
+            : load && loadWarning(load)
           // The replacement must fit the place this worker fills: its role and its certification.
           const place = places.has(c.workerId) ? draft.staffing[places.get(c.workerId)!] : { roleId: c.roleId }
           const swapOptions = available.filter((x) => fitsSlot(x.worker, place, general))
@@ -347,7 +352,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         {asking && (
           <PullConfirm
             pulls={[{ worker: asking.worker, other: asking.other }]}
-            onYes={() => (asking.apply(), setAsking(null))}
+            exclude={draft.crew.map((c) => c.workerId).concat(Object.values(fillIns))}
+            onYes={(chosen) => (asking.apply(), setFillIns((f) => ({ ...f, ...chosen })), setAsking(null))}
             onNo={() => setAsking(null)}
           />
         )}

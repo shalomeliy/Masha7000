@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GapContext } from './gaps'
-import { fitsAsIs, moveAdvice, swapOn, swapRecords, troubledCrew } from './moveAdvice'
+import { fillInsFor, fitsAsIs, moveAdvice, swapOn, swapRecords, troubledCrew } from './moveAdvice'
 import { pullFrom } from './planner'
 import type { Constraint, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
@@ -156,5 +156,28 @@ describe('pullFrom', () => {
     const out = pullFrom(s, ['b'], [s, same, later], [day, night])
     expect(out.map((r) => r.crew.map((c) => c.workerId))).toEqual([['b'], ['c'], ['b']])
     expect(out[2]).toBe(later)
+  })
+})
+
+describe('filling the place a pulled worker leaves', () => {
+  const s = shift('s', '2026-10-27', { staffing: climbers(1), crew: crew('b') })
+  const other = shift('o', '2026-10-27', { staffing: [{ roleId: 'climber', certificationId: 'h40' }], crew: crew('b') })
+
+  it('pullFrom puts the fill-in in the pulled worker\'s place and keeps it in the history', () => {
+    const out = pullFrom(s, ['b'], [s, other], [day, night], { b: 'c' }, 'T')
+    expect(out[1].crew).toEqual([{ workerId: 'c', roleId: 'climber' }])
+    expect(out[1].swaps).toEqual([{ at: 'T', outId: 'b', inId: 'c', roleId: 'climber' }])
+  })
+
+  it('fillInsFor offers free workers with the place\'s role and certification only', () => {
+    const ws = [
+      worker('b', ['climber'], ['h40']),
+      worker('c', ['climber'], ['h40']),
+      worker('d', ['climber']), // no certification
+      worker('e', ['climber'], ['h40'], [off('2026-10-27')]), // off that day
+      worker('f', ['climber'], ['h40']), // in the job b moves into
+    ]
+    const fillIns = fillInsFor(other, 'b', ctx(ws, [s, other]), ['b', 'f'])
+    expect(fillIns.map((w) => w.id)).toEqual(['c'])
   })
 })

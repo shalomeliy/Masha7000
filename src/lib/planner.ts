@@ -53,13 +53,25 @@ export function busyWith(workerId: string, shift: ShiftRecord, records: ShiftRec
 
 /**
  * The records with these workers taken out of every other open shift that runs at the same time as
- * `shift`: the manager chose to move them into it. Records that do not change are the same objects.
+ * `shift`: the manager chose to move them into it. `fillIns` maps a pulled worker to the one who
+ * takes their place there (kept in that shift's swap history); without one the place is left empty.
+ * Records that do not change are the same objects.
  */
-export function pullFrom(shift: ShiftRecord, workerIds: string[], records: ShiftRecord[], defs: ShiftDefinition[]): ShiftRecord[] {
+export function pullFrom(
+  shift: ShiftRecord,
+  workerIds: string[],
+  records: ShiftRecord[],
+  defs: ShiftDefinition[],
+  fillIns: Record<string, string> = {},
+  at = new Date().toISOString(),
+): ShiftRecord[] {
   return records.map((r) => {
     if (r.id === shift.id || r.closure) return r
-    const crew = r.crew.filter((c) => !(workerIds.includes(c.workerId) && busyWith(c.workerId, shift, [r], defs)))
-    return crew.length === r.crew.length ? r : { ...r, crew }
+    const pulled = r.crew.filter((c) => workerIds.includes(c.workerId) && busyWith(c.workerId, shift, [r], defs))
+    if (!pulled.length) return r
+    const crew = r.crew.flatMap((c) => (!pulled.includes(c) ? [c] : fillIns[c.workerId] ? [{ ...c, workerId: fillIns[c.workerId] }] : []))
+    const swaps = pulled.flatMap((c) => (fillIns[c.workerId] ? [{ at, outId: c.workerId, inId: fillIns[c.workerId], roleId: c.roleId }] : []))
+    return { ...r, crew, ...(swaps.length ? { swaps: [...(r.swaps ?? []), ...swaps] } : {}) }
   })
 }
 

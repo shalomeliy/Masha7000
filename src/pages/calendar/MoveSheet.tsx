@@ -65,16 +65,17 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   const dayFix = chosen && !pickedFits ? (swapOn(shift, date, gapCtx) ?? swapOn(shift, date, gapCtx, true)) : null
   const pick = (d: string) => (setDate(d), setValid(true))
 
-  const saveSwap = async (swap: SwapAdvice) => {
+  const saveSwap = async (swap: SwapAdvice, fillIns: Record<string, string> = {}) => {
     setError(null)
     setBusy(true)
     setSaveError(null)
     try {
-      const history = [...(shift.swaps ?? []), ...swapRecords(swap.swaps, new Date().toISOString())]
+      const at = new Date().toISOString()
+      const history = [...(shift.swaps ?? []), ...swapRecords(swap.swaps, at)]
       const next = { ...swap.shift, ...(history.length ? { swaps: history } : {}) }
-      // A worker taken out of another job leaves it in the same save.
+      // A worker taken out of another job leaves it in the same save, with the fill-in the manager picked.
       const pulled = swap.swaps.flatMap((x) => (x.from ? [x.in.id] : []))
-      await shifts.save(pullFrom(next, pulled, upsert(shifts.items, next), defs.items))
+      await shifts.save(pullFrom(next, pulled, upsert(shifts.items, next), defs.items, fillIns, at))
       onDone()
     } catch (e) {
       setSaveError(e)
@@ -193,7 +194,7 @@ function AdviceBox({
   workers: Worker[]
   busy: boolean
   onPick: (date: string) => void
-  onSwap: (swap: SwapAdvice) => void
+  onSwap: (swap: SwapAdvice, fillIns?: Record<string, string>) => void
 }) {
   const when = (d: string) => `יום ${dayName(d)} ${showDate(d)}`
   const { fitDate, swap, pull } = advice
@@ -226,14 +227,28 @@ function AdviceBox({
 }
 
 // A swap to offer; one that takes a worker out of another job asks first.
-function SwapChoice(props: { swap: SwapAdvice; title: string; roles: Role[]; workers: Worker[]; busy: boolean; onSwap: (swap: SwapAdvice) => void }) {
+function SwapChoice(props: {
+  swap: SwapAdvice
+  title: string
+  roles: Role[]
+  workers: Worker[]
+  busy: boolean
+  onSwap: (swap: SwapAdvice, fillIns?: Record<string, string>) => void
+}) {
   const { swap, onSwap } = props
   const [asking, setAsking] = useState(false)
   const pulls = swap.swaps.flatMap((x) => (x.from ? [{ worker: x.in, other: x.from }] : []))
   return (
     <>
       <SwapOption {...props} onSwap={() => (pulls.length ? setAsking(true) : onSwap(swap))} />
-      {asking && <PullConfirm pulls={pulls} onYes={() => (setAsking(false), onSwap(swap))} onNo={() => setAsking(false)} />}
+      {asking && (
+        <PullConfirm
+          pulls={pulls}
+          exclude={swap.shift.crew.map((c) => c.workerId)}
+          onYes={(fillIns) => (setAsking(false), onSwap(swap, fillIns))}
+          onNo={() => setAsking(false)}
+        />
+      )}
     </>
   )
 }

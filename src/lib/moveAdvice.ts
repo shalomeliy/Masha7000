@@ -1,7 +1,7 @@
 import { isActive, staffingFor } from './catalog'
 import { blockingConstraint } from './constraints'
-import { emptyPlaces, type GapContext } from './gaps'
-import { autoAssign, busyWith, workerLoad } from './planner'
+import { crewPlaces, emptyPlaces, type GapContext } from './gaps'
+import { autoAssign, busyWith, candidateOrder, fitsSlot, workerLoad } from './planner'
 import { addDays, moveShift } from './shifts'
 import type { CrewSwap, ShiftRecord, Worker } from '../types/models'
 
@@ -120,6 +120,21 @@ export function moveAdvice(shift: ShiftRecord, from: string, ctx: GapContext): M
 
 // A pull that takes no one out of another job is a plain swap, already looked for.
 const pulling = (a: SwapAdvice | null) => (a?.swaps.some((s) => s.from) ? a : undefined)
+
+/**
+ * Who can take `workerId`'s place in `other` once they are pulled out of it, fairest first: active,
+ * free at that time, not blocked, with the place's role and certification. `exclude` are workers
+ * already spoken for (the crew of the job they move into).
+ */
+export function fillInsFor(other: ShiftRecord, workerId: string, ctx: GapContext, exclude: string[]): Worker[] {
+  const staffing = staffingOf(other, ctx)
+  const at = crewPlaces(other, staffing, ctx.workers, ctx.generalId).get(workerId)
+  const place = at !== undefined ? staffing[at] : { roleId: other.crew.find((c) => c.workerId === workerId)?.roleId ?? ctx.generalId }
+  const taken = new Set([...exclude, ...other.crew.map((c) => c.workerId)])
+  return candidateOrder(other, ctx)
+    .filter((c) => !taken.has(c.worker.id) && !c.load.blocked && !c.load.busy && fitsSlot(c.worker, place, ctx.generalId))
+    .map((c) => c.worker)
+}
 
 /** The swaps as saved in the shift's history, for the archive. Filling an empty place is not a swap. */
 export const swapRecords = (swaps: Swap[], at: string): CrewSwap[] =>
