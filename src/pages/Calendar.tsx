@@ -7,7 +7,7 @@ import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { busyCrew, busyText } from '../lib/planner'
 import { gapCounts, placeText, shiftGaps, type GapKind, type ShiftGaps } from '../lib/gaps'
-import { dayData, weekData } from '../lib/report'
+import { dayData, nextJobText, weekData } from '../lib/report'
 import type { Report } from '../lib/report'
 import { addDays, blankShift, dayName, isNightShift, moveShift, showDate, sortShifts, urgentShift, weekOf } from '../lib/shifts'
 import type { ShiftRecord } from '../types/models'
@@ -309,6 +309,7 @@ function ShiftCard({
         </span>
         {r.location && <span className="block font-semibold">{r.location}</span>}
         {r.jobDescription && <span className="block text-sm text-slate-300">{r.jobDescription}</span>}
+        {nextJobText(r) && <span className="block text-sm text-violet-300">אחרי הלילה: {nextJobText(r)}</span>}
         {missing && (
           <span className="block space-y-0.5 text-xs text-red-300">
             {gaps.missing.map((m, i) => (

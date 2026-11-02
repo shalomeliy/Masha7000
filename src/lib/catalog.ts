@@ -47,6 +47,33 @@ export const STARTER_SHIFTS: Omit<ShiftDefinition, 'id'>[] = [
   },
 ]
 
+// "לילה+": a night job after which the same crew goes on to another job before returning to base.
+// It counts as a night everywhere. Built in: lists saved before it existed get it on read.
+export const NIGHT_PLUS_ID = 'night-plus'
+export const NIGHT_PLUS_NAME = 'לילה+'
+export const NIGHT_PLUS: ShiftDefinition = {
+  id: NIGHT_PLUS_ID,
+  name: NIGHT_PLUS_NAME,
+  startTime: SHIFT_START,
+  endTime: SHIFT_END,
+  endsNextDay: true,
+  thenJob: true,
+  requiredHeadcount: 1,
+  requiredRoleIds: [],
+  requiredCertificationIds: [],
+}
+
+/** The shift types with "לילה+" in them: a type already named so is marked, else it is added last. */
+export function withNightPlus(defs: ShiftDefinition[]): ShiftDefinition[] {
+  if (defs.length === 0 || defs.some((d) => d.thenJob)) return defs
+  const named = defs.find((d) => normalize(d.name) === normalize(NIGHT_PLUS_NAME))
+  return named ? defs.map((d) => (d === named ? { ...d, endsNextDay: true, thenJob: true } : d)) : [...defs, NIGHT_PLUS]
+}
+
+/** The type a new planned shift starts with: "יום", or the first type that ends the same day. */
+export const defaultShiftDef = (defs: ShiftDefinition[]) =>
+  defs.find((d) => d.name.trim() === 'יום') ?? defs.find((d) => !endsNextDay(d)) ?? defs[0]
+
 export const newId = () => crypto.randomUUID()
 
 const normalize = (name: string) => name.trim().toLocaleLowerCase()
@@ -184,7 +211,7 @@ export function normalizeWorker(raw: Partial<Worker> & { name?: string; phone?: 
 export function normalizeShift(raw: Omit<ShiftDefinition, 'requiredCertificationIds'> & Partial<ShiftDefinition>): ShiftDefinition {
   return {
     ...raw,
-    endsNextDay: endsNextDay(raw),
+    endsNextDay: raw.thenJob || endsNextDay(raw),
     requiredRoleIds: raw.requiredRoleIds ?? [],
     requiredCertificationIds: raw.requiredCertificationIds ?? [],
   }

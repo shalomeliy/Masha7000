@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
-import { countText, endsNextDay, newId, SHIFT_END, SHIFT_START, shiftError, STANDBY_HEADCOUNT, STARTER_SHIFTS, tagNames, upsert } from '../../lib/catalog'
+import { countText, endsNextDay, newId, NIGHT_PLUS, SHIFT_END, SHIFT_START, shiftError, STANDBY_HEADCOUNT, STARTER_SHIFTS, tagNames, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import type { ShiftDefinition } from '../../types/models'
 import { AddButton, EditMark, EmptyState } from './common'
@@ -15,7 +15,8 @@ const blankShift = (): ShiftDefinition => ({
   requiredCertificationIds: [],
 })
 
-const hoursText = (s: ShiftDefinition) => `נגמרת ב-${s.endTime}${endsNextDay(s) ? ' למחרת' : ''}`
+const hoursText = (s: ShiftDefinition) =>
+  `נגמרת ב-${s.endTime}${endsNextDay(s) ? ' למחרת' : ''}${s.thenJob ? ', ואז עוד עבודה לפני החזרה לבסיס' : ''}`
 
 export function ShiftsSection() {
   const shifts = useDriveList('shiftDefinitions')
@@ -27,7 +28,7 @@ export function ShiftsSection() {
   const addStarter = async () => {
     setStarterError(null)
     try {
-      await shifts.save(STARTER_SHIFTS.map((s) => ({ ...s, id: newId() })))
+      await shifts.save([...STARTER_SHIFTS.map((s) => ({ ...s, id: newId() })), NIGHT_PLUS])
     } catch (e) {
       setStarterError(e)
     }
@@ -40,7 +41,7 @@ export function ShiftsSection() {
           text="סוג משמרת אומר אם היא נגמרת באותו יום או למחרת, כמה אנשים צריך בה ואילו תפקידים והסמכות חייבים להיות בה."
           addLabel="הוספת סוג משמרת"
           onAdd={() => setEditing(blankShift())}
-          starterLabel="להתחיל עם: יום (עד 16:00), לילה (עד 16:00 למחרת)"
+          starterLabel="להתחיל עם: יום (עד 16:00), לילה (עד 16:00 למחרת), לילה+ (לילה ואז עוד עבודה)"
           onStarter={addStarter}
           starterBusy={shifts.saving}
           starterError={starterError}
@@ -138,18 +139,24 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
       <Field label="שם המשמרת">
         <input autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className={inputClass} />
       </Field>
-      <label className="flex min-h-11 items-center gap-3">
-        <input
-          type="checkbox"
-          checked={endsNextDay(draft)}
-          onChange={(e) => setDraft((d) => ({ ...d, endsNextDay: e.target.checked }))}
-          className="size-5 accent-sky-500"
-        />
-        <span>
-          נגמרת למחרת
-          <span className="block text-xs text-slate-400">עבודת לילה: נגמרת ב-16:00 ביום שאחרי</span>
-        </span>
-      </label>
+      {draft.thenJob ? (
+        <p className="text-sm text-slate-300">
+          לילה, ואחריו הצוות עושה עוד עבודה לפני החזרה לבסיס. נספרת כמשמרת לילה.
+        </p>
+      ) : (
+        <label className="flex min-h-11 items-center gap-3">
+          <input
+            type="checkbox"
+            checked={endsNextDay(draft)}
+            onChange={(e) => setDraft((d) => ({ ...d, endsNextDay: e.target.checked }))}
+            className="size-5 accent-sky-500"
+          />
+          <span>
+            נגמרת למחרת
+            <span className="block text-xs text-slate-400">עבודת לילה: נגמרת ב-16:00 ביום שאחרי</span>
+          </span>
+        </label>
+      )}
       <label className="flex min-h-11 items-center gap-3">
         <input type="checkbox" checked={!!draft.isStandby} onChange={(e) => toggleStandby(e.target.checked)} className="size-5 accent-sky-500" />
         <span>
@@ -179,7 +186,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
       <SheetActions
         onSave={save}
         onCancel={onDone}
-        onDelete={exists ? () => write(shifts.items.filter((s) => s.id !== shift.id)) : undefined}
+        onDelete={exists && !shift.thenJob ? () => write(shifts.items.filter((s) => s.id !== shift.id)) : undefined}
         deleteWarning={`למחוק את סוג המשמרת "${shift.name}"? אי אפשר לבטל את זה.${inUse ? ` ${countText(inUse, 'משמרת אחת ביומן היא', `משמרות ביומן הן`)} מהסוג הזה: הן יישארו ביומן בלי סוג, כמשמרת יום רגילה.` : ''}`}
         busy={busy}
         error={error}

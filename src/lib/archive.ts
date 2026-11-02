@@ -30,12 +30,12 @@ const norm = (s: string) => s.trim().toLocaleLowerCase()
 /** Worked in the shift, or was in it and swapped out. */
 export const touchesWorker = (r: ShiftRecord, workerId: string) => r.crew.some((c) => c.workerId === workerId) || (r.swaps ?? []).some((s) => s.outId === workerId)
 
-/** Everything a free-text search looks in: place, work, closing note, follow-up task, worker names. */
+/** Everything a free-text search looks in: place, work, closing note, follow-up task, the job after a "לילה+", worker names. */
 function searchText(r: ShiftRecord, workers: Worker[]): string {
   const ids = [...r.crew.map((c) => c.workerId), ...(r.swaps ?? []).map((s) => s.outId)]
   const names = ids.map((id) => workers.find((w) => w.id === id)).filter((w): w is Worker => !!w).map(fullName)
   const f = r.closure?.followUp
-  return norm([r.location, r.jobDescription, r.closure?.note ?? '', f?.location ?? '', f?.jobDescription ?? '', ...names].join(' '))
+  return norm([r.location, r.jobDescription, r.closure?.note ?? '', f?.location ?? '', f?.jobDescription ?? '', r.nextJob?.location ?? '', r.nextJob?.jobDescription ?? '', ...names].join(' '))
 }
 
 /** The matching shifts, newest first. */

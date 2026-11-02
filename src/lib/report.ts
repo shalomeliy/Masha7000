@@ -20,6 +20,7 @@ export interface ReportShift {
   location: string
   until?: string // urgent only: "עד יום רביעי 4.11 16:00"
   job: string
+  next?: string // "לילה+": the job after the night, "place · work"
   crew: { name: string; role: string }[]
 }
 
@@ -37,6 +38,10 @@ export interface Report {
 
 const year = (date: string) => date.slice(0, 4)
 
+/** "חיפה · החלפת אנטנה" for the job a "לילה+" crew does after the night; undefined when there is none. */
+export const nextJobText = (r: Pick<ShiftRecord, 'nextJob'>) =>
+  [r.nextJob?.location, r.nextJob?.jobDescription].filter(Boolean).join(' · ') || undefined
+
 function reportShift(r: ShiftRecord, ctx: ReportContext): ReportShift {
   const def = ctx.defs.find((d) => d.id === r.shiftDefinitionId)
   const kind: ShiftKind = r.urgent ? 'urgent' : !def ? 'other' : endsNextDay(def) ? 'night' : 'day'
@@ -46,6 +51,7 @@ function reportShift(r: ShiftRecord, ctx: ReportContext): ReportShift {
     location: r.location,
     until: r.urgent && r.endDate ? `עד יום ${dayName(r.endDate)} ${showDate(r.endDate)} ${r.endTime ?? ''}`.trim() : undefined,
     job: r.jobDescription,
+    next: nextJobText(r),
     crew: r.crew.map((c) => {
       const w = ctx.workers.find((x) => x.id === c.workerId)
       return { name: w ? fullName(w) : 'עובד שנמחק', role: ctx.roles.find((x) => x.id === c.roleId)?.name ?? GENERAL_ROLE_NAME }
@@ -80,6 +86,7 @@ function shiftText(s: ReportShift): string[] {
   const lines = [`${KIND_ICON[s.kind]} *${s.kindLabel}*${s.location ? `  ·  📍 *${s.location}*` : ''}`]
   if (s.until) lines.push(`⏰ ${s.until}`)
   if (s.job) lines.push(`🔧 ${s.job}`)
+  if (s.next) lines.push(`➡️ אחרי הלילה: ${s.next}`)
   if (s.crew.length === 0) lines.push('⚠️ _עוד לא שובצו עובדים_')
   else lines.push(`👷 *צוות (${s.crew.length}):*`, ...s.crew.map((c) => `   • ${c.name} · _${c.role}_`))
   return lines

@@ -64,6 +64,7 @@ export interface ShiftDefinition {
   startTime: string // "07:00"
   endTime: string // "16:00"
   endsNextDay?: boolean // night job: starts in the morning, ends 16:00 the next day
+  thenJob?: boolean // "לילה+": a night job, then the same crew does another job before returning to base
 }
 
 // One person a job needs: the role they fill and, optionally, a certification they must hold.
@@ -107,6 +108,7 @@ export interface ShiftRecord {
   endTime?: string // urgent shifts: default 16:00
   fromJobId?: string // scheduled from a job waiting in "לשיבוץ"
   closure?: ShiftClosure
+  nextJob?: { location: string; jobDescription: string } // "לילה+" only: the job after the night
   swaps?: CrewSwap[] // workers replaced after the shift was first saved, oldest first; for the archive
 }
 

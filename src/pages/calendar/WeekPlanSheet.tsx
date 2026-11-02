@@ -4,6 +4,7 @@ import { fullName, generalRoleId, staffingFor, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { placeText } from '../../lib/gaps'
 import { planShifts } from '../../lib/planner'
+import { nextJobText } from '../../lib/report'
 import { dayName, showDate } from '../../lib/shifts'
 import type { ShiftRecord } from '../../types/models'
 
@@ -73,6 +74,7 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
               {r.location && ` · ${r.location}`}
             </p>
             {r.jobDescription && <p className="text-slate-400">{r.jobDescription}</p>}
+            {nextJobText(r) && <p className="text-violet-300">אחרי הלילה: {nextJobText(r)}</p>}
             {added.map((c) => (
               <p key={c.workerId} className="text-emerald-300">
                 + {name(c.workerId)}
