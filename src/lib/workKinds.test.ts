@@ -50,6 +50,14 @@ describe('toggleKind', () => {
     expect(off.workKindIds).toEqual([])
   })
 
+  it('replaces several bare "כללי" places too, so a second tap never piles places up', () => {
+    const three = { staffing: [{ roleId: G }, { roleId: G }, { roleId: G }] }
+    const on = toggleKind(toggleKind(three, welding, G), climbing, G)
+    expect(on.staffing).toHaveLength(4)
+    expect(on.staffing.every((s) => s.kindId)).toBe(true)
+    expect(toggleKind(toggleKind(on, welding, G), climbing, G).staffing).toEqual([{ roleId: G }])
+  })
+
   it('leaves one "כללי" place when the last kind goes', () => {
     expect(toggleKind(toggleKind({ staffing: [{ roleId: G }] }, welding, G), welding, G).staffing).toEqual([{ roleId: G }])
   })

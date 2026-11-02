@@ -9,13 +9,16 @@ const same = (a: string, b: string) => a.trim().replace(/\s+/g, ' ') === b.trim(
 /** Two places may be filled by one worker only when they came from two different kinds. */
 export const canShare = (a: StaffSlot, b: StaffSlot) => !!a.kindId && !!b.kindId && a.kindId !== b.kindId
 
-/** Places added by hand are kept; only the kind's own places come and go. */
+/**
+ * Places with a need of their own are kept; only the kind's own places come and go. Bare "כללי"
+ * places (a job from "לשיבוץ" often comes with a few) are only a head count, so a kind replaces them.
+ */
 const isPlain = (staffing: StaffSlot[], generalId: string) =>
-  staffing.length === 1 && !staffing[0].kindId && staffing[0].roleId === generalId && !slotCerts(staffing[0]).length && !staffing[0].alsoRoleIds?.length
+  staffing.every((s) => !s.kindId && s.roleId === generalId && !slotCerts(s).length && !s.alsoRoleIds?.length)
 
 /**
- * Turns one kind on or off in a job. On: its places are added after the others (a job with only the
- * default single "כללי" place gets just the kind's places). Off: its places are removed.
+ * Turns one kind on or off in a job. On: its places are added after the others (a job with only bare
+ * "כללי" places gets just the kind's places). Off: its places are removed.
  */
 export function toggleKind(
   job: { staffing: StaffSlot[]; workKindIds?: string[] },
