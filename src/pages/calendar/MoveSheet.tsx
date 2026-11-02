@@ -41,7 +41,9 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   // A worker cannot be in two shifts at the same time: that move is refused until they are swapped.
   const clashes = valid && date !== shift.date ? busyCrew(moved, workers.items, shifts.items, defs.items) : []
   // Quick picks: the shift's week and the week after it. Any other day goes through the date field.
-  const days = [...weekOf(shift.date).days, ...weekOf(addDays(shift.date, 7)).days]
+  // A job never moves into the past, so past days are not offered.
+  const today = todayIso()
+  const days = [...weekOf(shift.date).days, ...weekOf(addDays(shift.date, 7)).days].filter((d) => d >= today || d === shift.date)
   const gapCtx: GapContext = useMemo(
     () => ({
       workers: workers.items,
@@ -56,7 +58,7 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   // Days the job fits on with the same crew are marked; a job with problems also gets advice.
   const fitDays = new Set(days.filter((d) => d !== shift.date && fitsAsIs(shift, d, gapCtx)))
   const troubled = shiftGaps(shift, gapCtx).kinds.some((k) => k !== 'nights')
-  const advice = useMemo(() => (troubled ? moveAdvice(shift, todayIso(), gapCtx) : null), [troubled, shift, gapCtx])
+  const advice = useMemo(() => (troubled ? moveAdvice(shift, today, gapCtx) : null), [troubled, shift, gapCtx, today])
   const pickedFits = valid && date !== shift.date && fitsAsIs(shift, date, gapCtx)
   const pick = (d: string) => (setDate(d), setValid(true))
 
@@ -83,7 +85,9 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
       ? 'התאריך לא תקין'
       : date === shift.date
         ? 'בחר יום אחר מהיום של העבודה'
-        : clashes.length
+        : date < today
+          ? 'אי אפשר להעביר עבודה ליום שכבר עבר'
+          : clashes.length
           ? `${busyText(clashes)}. אי אפשר להעביר: קודם החלף ${clashes.length > 1 ? 'אותם' : 'אותו'} בעריכת העבודה.`
           : null
     setError(err)
@@ -129,7 +133,7 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
         ))}
       </div>
       {fitDays.size > 0 && <p className="text-xs text-emerald-300">ימים עם סימן וי: העבודה מתאימה בהם עם אותם עובדים, בלי להחליף אף אחד.</p>}
-      <DateField label="או תאריך אחר" value={date} required onChange={(d, ok) => (setDate(d), setValid(ok))} />
+      <DateField label="או תאריך אחר" value={date} min={today} required onChange={(d, ok) => (setDate(d), setValid(ok))} />
       {pickedFits && (
         <p role="status" className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 p-3 text-sm text-emerald-200">
           ביום הזה כל העובדים זמינים וכל המקומות בעבודה מלאים.

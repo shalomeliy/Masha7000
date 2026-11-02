@@ -71,6 +71,7 @@ export function Calendar() {
     if (!r || r.date === day) return
     setDropError(null)
     setDropRefused(null)
+    if (day < today) return setDropRefused('אי אפשר להעביר עבודה ליום שכבר עבר.')
     const moved = moveShift(r, day)
     const busy = busyCrew(moved, workers.items, shifts.items, defs.items)
     if (busy.length) return setDropRefused(`${busyText(busy)}. אי אפשר להעביר את העבודה ליום הזה לפני שמחליפים ${busy.length > 1 ? 'אותם' : 'אותו'}.`)
