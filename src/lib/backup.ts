@@ -3,6 +3,8 @@ import { createCopy, deleteCopy, forgetVersions, listCopies, peekJson, readCopy,
 import type { DriveCopy } from './google/drive'
 import { countText, normalizeShift, normalizeWorker, STARTER_DEPARTMENTS } from './catalog'
 import { normalizePendingJob, normalizeShiftRecord } from './shifts'
+import { peekShifts, restoreShifts } from './data/shiftMonths'
+import type { ShiftRecord } from '../types/models'
 
 // One file with every list, to keep outside the app or as a copy inside the app's Drive folder.
 // A restore replaces every list with the backup's. A backup file comes from outside the app, so it is
@@ -163,7 +165,7 @@ export function hasWeeklyCopy(copies: CopyInfo[], now = new Date()): boolean {
 
 /** Today's data straight from Drive (not the screens' cache). */
 export async function readAll(now = new Date()): Promise<Backup> {
-  const lists = await Promise.all(BACKUP_LISTS.map((k) => peekJson<unknown[]>(DRIVE_FILES[k])))
+  const lists = await Promise.all(BACKUP_LISTS.map((k) => (k === 'shifts' ? peekShifts() : peekJson<unknown[]>(DRIVE_FILES[k]))))
   return makeBackup(Object.fromEntries(BACKUP_LISTS.map((k, i) => [k, lists[i]])), now)
 }
 
@@ -207,7 +209,8 @@ export async function restoreLists(b: Backup, done: ReadonlySet<BackupList>, onD
   if (retry) forgetVersions(BACKUP_LISTS.filter((k) => !done.has(k)).map((k) => DRIVE_FILES[k]))
   for (const k of BACKUP_LISTS) {
     if (done.has(k)) continue
-    await writeJson(DRIVE_FILES[k], b.files[k])
+    if (k === 'shifts') await restoreShifts(b.files.shifts as unknown as ShiftRecord[], retry)
+    else await writeJson(DRIVE_FILES[k], b.files[k])
     onDone(k)
   }
 }

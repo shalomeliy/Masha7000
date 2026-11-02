@@ -3,7 +3,7 @@ import { addDays, sortShifts } from './shifts'
 import type { CrewSwap, PendingJob, ShiftRecord, Worker } from '../types/models'
 
 // The archive: every shift ever saved, searched by dates, worker, place and free text.
-// Pure rules, no I/O. Shifts are never pruned from shifts.json, so the archive is the whole history.
+// Pure rules, no I/O. Shifts are never pruned from their month files, so the archive is the whole history.
 
 export interface ArchiveFilter {
   from: string // YYYY-MM-DD; empty = from the first shift

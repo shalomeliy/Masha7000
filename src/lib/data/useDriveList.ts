@@ -1,11 +1,12 @@
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConflictError, readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
+import { readShifts, saveShifts } from './shiftMonths'
 import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withGeneralRole, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
 import type { Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
 
-// One Drive appData JSON file = one list. A missing file is an empty list.
+// One Drive appData JSON file = one list (shifts: one file per month). A missing file is an empty list.
 // Saves write the whole list, optimistically, and roll back if Drive refuses.
 // Saves to one file run one at a time (mutation scope): two whole-list writes in flight
 // could land out of order, or both create the file when it does not exist yet.
@@ -45,7 +46,7 @@ export function useDriveList<K extends ListFile>(key: K) {
   const query = useQuery({
     queryKey: ['drive', key],
     queryFn: async () => {
-      const stored = await readJson<T[]>(file)
+      const stored = key === 'shifts' ? await readShifts<ShiftRecord>() as T[] | null : await readJson<T[]>(file)
       if (stored === null) missingFiles.add(key)
       else missingFiles.delete(key)
       // No departments file yet: the starter list, written to the file with the first save.
@@ -64,7 +65,8 @@ export function useDriveList<K extends ListFile>(key: K) {
     mutationKey: ['drive', key],
     scope: { id: `drive-${key}` },
     mutationFn: async (next: T[]) => {
-      await writeJson(file, next)
+      if (key === 'shifts') await saveShifts(next as ShiftRecord[])
+      else await writeJson(file, next)
       missingFiles.delete(key)
     },
     onMutate: async (next) => {
@@ -77,7 +79,8 @@ export function useDriveList<K extends ListFile>(key: K) {
     // Someone else saved this file first: load their version, so the change can be redone on it.
     onError: (e, next, ctx) => {
       if (qc.getQueryData(['drive', key]) === next) qc.setQueryData(['drive', key], ctx?.previous)
-      if (e instanceof ConflictError) void qc.invalidateQueries({ queryKey: ['drive', key] })
+      // Shifts: some months may already be saved when another fails, so read back what Drive has.
+      if (e instanceof ConflictError || key === 'shifts') void qc.invalidateQueries({ queryKey: ['drive', key] })
     },
   })
 

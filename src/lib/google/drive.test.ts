@@ -3,16 +3,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // A fake Drive: one file whose version rises on every write; "someone else" can bump it.
 let file: { version: number; body: string } | null
 let writes: number
+let downloads: number
+let md5: boolean // whether the fake Drive reports content checksums
+const sum = (body: string) => `md5:${body}`
 
 vi.mock('./auth', () => ({
   googleFetch: async (url: string, init?: RequestInit) => {
     const json = (b: unknown) => new Response(JSON.stringify(b))
-    if (url.includes('?spaces=appDataFolder')) return json({ files: file ? [{ id: 'f1', version: String(file.version) }] : [] })
-    if (url.includes('alt=media')) return new Response(file!.body)
+    const meta = () => ({ version: String(file!.version), ...(md5 ? { md5Checksum: sum(file!.body) } : {}) })
+    if (url.includes('?spaces=appDataFolder')) return json({ files: file ? [{ id: 'f1', ...meta() }] : [] })
+    if (url.includes('alt=media')) {
+      downloads++
+      return new Response(file!.body)
+    }
     writes++
     if (init?.method === 'PATCH') file = { version: file!.version + 1, body: String(init.body) }
     else file = { version: 1, body: '[]' }
-    return json({ version: String(file.version) })
+    return json(meta())
   },
 }))
 
@@ -22,6 +29,8 @@ beforeEach(() => {
   vi.resetModules()
   file = { version: 5, body: '[1]' }
   writes = 0
+  downloads = 0
+  md5 = false
 })
 
 describe('writeJson version check', () => {
@@ -49,6 +58,26 @@ describe('writeJson version check', () => {
     file = { version: file!.version + 1, body: file!.body } // Drive's own late bump after the upload
     await drive.writeJson('a.json', [1, 2, 3])
     expect(file.body).toBe('[1,2,3]')
+  })
+
+  it("tells a bare version bump from Drive's checksum, without downloading the file", async () => {
+    const drive = await load()
+    await drive.readJson('a.json')
+    downloads = 0
+    md5 = true
+    await drive.writeJson('a.json', [1, 2])
+    file = { version: file!.version + 1, body: file!.body }
+    await drive.writeJson('a.json', [1, 2, 3])
+    expect(file.body).toBe('[1,2,3]')
+    expect(downloads).toBe(0)
+  })
+
+  it('refuses a change someone else saved when the checksums differ', async () => {
+    md5 = true
+    const drive = await load()
+    await drive.readJson('a.json')
+    file = { version: 6, body: '[9]' }
+    await expect(drive.writeJson('a.json', [1, 2])).rejects.toBeInstanceOf(drive.ConflictError)
   })
 
   it('refuses when someone created the file after this screen saw none', async () => {
