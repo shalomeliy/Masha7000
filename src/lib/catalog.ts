@@ -47,10 +47,12 @@ export const STARTER_SHIFTS: Omit<ShiftDefinition, 'id'>[] = [
   },
 ]
 
-// "לילה+": a night job after which the same crew goes on to another job before returning to base.
+// "לינה": a night job after which the same crew goes on to another job before returning to base.
 // It counts as a night everywhere. Built in: lists saved before it existed get it on read.
+// It was called "לילה+" before; a type still named so is renamed on read.
 export const NIGHT_PLUS_ID = 'night-plus'
-export const NIGHT_PLUS_NAME = 'לילה+'
+export const NIGHT_PLUS_NAME = 'לינה'
+const OLD_NIGHT_PLUS_NAME = 'לילה+'
 export const NIGHT_PLUS: ShiftDefinition = {
   id: NIGHT_PLUS_ID,
   name: NIGHT_PLUS_NAME,
@@ -63,8 +65,10 @@ export const NIGHT_PLUS: ShiftDefinition = {
   requiredCertificationIds: [],
 }
 
-/** The shift types with "לילה+" in them: a type already named so is marked, else it is added last. */
-export function withNightPlus(defs: ShiftDefinition[]): ShiftDefinition[] {
+/** The shift types with "לינה" in them: a type already named so is marked, else it is added last. */
+export function withNightPlus(saved: ShiftDefinition[]): ShiftDefinition[] {
+  const old = saved.some((d) => normalize(d.name) === OLD_NIGHT_PLUS_NAME)
+  const defs = old ? saved.map((d) => (normalize(d.name) === OLD_NIGHT_PLUS_NAME ? { ...d, name: NIGHT_PLUS_NAME } : d)) : saved
   if (defs.length === 0 || defs.some((d) => d.thenJob)) return defs
   const named = defs.find((d) => normalize(d.name) === normalize(NIGHT_PLUS_NAME))
   return named ? defs.map((d) => (d === named ? { ...d, endsNextDay: true, thenJob: true } : d)) : [...defs, NIGHT_PLUS]

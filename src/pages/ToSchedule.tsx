@@ -4,13 +4,14 @@ import { DictationField } from '../components/DictationField'
 import { DriveError } from '../components/DriveError'
 import { Field, inputClass, Sheet, SheetActions } from '../components/Sheet'
 import { Suggestions } from '../components/Suggestions'
-import { nameError, newId, staffingFor, staffingText, tagNames, upsert } from '../lib/catalog'
+import { defaultShiftDef, nameError, newId, staffingFor, staffingText, tagNames, upsert } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { blankShift, dayName, isWaiting, showDate, STARTER_POSTPONE_REASONS, taskHistory } from '../lib/shifts'
 import type { PendingJob, PostponeReason, ShiftRecord } from '../types/models'
 import { OUTCOMES } from './calendar/outcomes'
 import { ShiftSheet } from './calendar/ShiftEditor'
+import { ShiftDefField } from './calendar/ShiftDefField'
 import { StaffingField } from './calendar/StaffingField'
 import { AddButton, EditMark, EmptyState } from './workers/common'
 
@@ -78,6 +79,7 @@ function JobsSection() {
   const shifts = useDriveList('shifts')
   const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
+  const defs = useDriveList('shiftDefinitions')
   const waiting = jobs.items.filter((j) => isWaiting(j, shifts.items))
   const [editing, setEditing] = useState<PendingJob | null>(null)
   const [scheduling, setScheduling] = useState<ShiftRecord | null>(null)
@@ -96,6 +98,7 @@ function JobsSection() {
             {waiting.map((j) => {
               const outcome = OUTCOMES.find((o) => o.id === j.outcome)
               const why = [tagNames(j.reasonIds, reasons.items).join(', '), j.note].filter(Boolean).join(' · ')
+              const def = defs.items.find((d) => d.id === j.shiftDefinitionId)
               return (
                 <li key={j.id} className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
                   <button type="button" onClick={() => setEditing(j)} className="relative w-full space-y-1 p-4 pe-9 text-start">
@@ -106,6 +109,7 @@ function JobsSection() {
                       ) : (
                         outcome && <span className={`rounded-full border px-2 py-0.5 font-semibold ${outcome.tone}`}>{outcome.label}</span>
                       )}
+                      {def && <span className="rounded-full border border-slate-600 px-2 py-0.5 font-semibold text-slate-200">{def.name}</span>}
                       {j.createdAt && <span className="text-slate-400">מ-{showDate(todayIso(new Date(j.createdAt)))}</span>}
                     </span>
                     {j.location && <span className="block font-semibold">{j.location}</span>}
@@ -183,7 +187,13 @@ function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
   const jobs = useDriveList('pendingJobs')
   const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
-  const [draft, setDraft] = useState(() => ({ ...job, staffing: staffingFor(job.staffing, roles.items, certs.items.map((c) => c.id)) }))
+  const defs = useDriveList('shiftDefinitions')
+  // A new job starts as "יום", like a new shift in the calendar.
+  const [draft, setDraft] = useState(() => ({
+    ...job,
+    shiftDefinitionId: job.shiftDefinitionId ?? defaultShiftDef(defs.items)?.id,
+    staffing: staffingFor(job.staffing, roles.items, certs.items.map((c) => c.id)),
+  }))
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
@@ -211,6 +221,7 @@ function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
 
   return (
     <>
+      <ShiftDefField value={draft.shiftDefinitionId} onChange={(shiftDefinitionId) => setDraft((d) => ({ ...d, shiftDefinitionId }))} />
       <Field label="מיקום">
         <input autoFocus value={draft.location} onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))} className={inputClass} />
       </Field>

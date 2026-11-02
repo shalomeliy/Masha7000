@@ -20,7 +20,7 @@ export interface ReportShift {
   location: string
   until?: string // urgent only: "עד יום רביעי 4.11 16:00"
   job: string
-  next?: string // "לילה+": the job after the night, "place · work"
+  next?: string // "לינה": the job after the night, "place · work"
   crew: { name: string; role: string }[]
 }
 
@@ -38,7 +38,7 @@ export interface Report {
 
 const year = (date: string) => date.slice(0, 4)
 
-/** "חיפה · החלפת אנטנה" for the job a "לילה+" crew does after the night; undefined when there is none. */
+/** "חיפה · החלפת אנטנה" for the job a "לינה" crew does after the night; undefined when there is none. */
 export const nextJobText = (r: Pick<ShiftRecord, 'nextJob'>) =>
   [r.nextJob?.location, r.nextJob?.jobDescription].filter(Boolean).join(' · ') || undefined
 

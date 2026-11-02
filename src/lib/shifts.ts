@@ -71,6 +71,7 @@ export function blankShift(date: string, from?: PendingJob): ShiftRecord {
     jobDescription: from?.jobDescription ?? '',
     crew: [],
     staffing: from?.staffing ?? [],
+    shiftDefinitionId: from?.shiftDefinitionId,
     fromJobId: from?.id,
   }
 }

@@ -82,7 +82,7 @@ it('whatsappHref encodes Hebrew and line breaks', () => {
   expect(whatsappHref('שלום\nעולם')).toBe('https://wa.me/?text=%D7%A9%D7%9C%D7%95%D7%9D%0A%D7%A2%D7%95%D7%9C%D7%9D')
 })
 
-describe('לילה+ in the report', () => {
+describe('לינה in the report', () => {
   it('shows the job after the night', () => {
     expect(nextJobText({ nextJob: { location: 'עכו', jobDescription: 'בדיקת אנטנה' } })).toBe('עכו · בדיקת אנטנה')
     expect(nextJobText({ nextJob: { location: '', jobDescription: '' } })).toBeUndefined()

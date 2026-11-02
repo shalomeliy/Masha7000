@@ -220,7 +220,7 @@ describe('staffing', () => {
   })
 })
 
-describe('לילה+', () => {
+describe('לינה', () => {
   const day = { id: 'd', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
   const night = { ...day, id: 'n', name: 'לילה', endsNextDay: true }
 
@@ -236,11 +236,18 @@ describe('לילה+', () => {
     expect(withNightPlus(list)).toBe(list)
   })
 
-  it('marks a type the manager already named "לילה+" instead of adding a second one', () => {
-    const own = { ...day, id: 'mine', name: ' לילה+ ' }
+  it('marks a type the manager already named "לינה" instead of adding a second one', () => {
+    const own = { ...day, id: 'mine', name: ' לינה ' }
     const defs = withNightPlus([day, own])
     expect(defs).toHaveLength(2)
     expect(defs[1]).toMatchObject({ id: 'mine', thenJob: true, endsNextDay: true })
+  })
+
+  it('renames a type saved under the old name "לילה+" to "לינה"', () => {
+    expect(withNightPlus([day, { ...NIGHT_PLUS, name: 'לילה+' }])[1]).toMatchObject({ id: NIGHT_PLUS_ID, name: 'לינה', thenJob: true })
+    const own = withNightPlus([day, { ...day, id: 'mine', name: 'לילה+' }])
+    expect(own).toHaveLength(2)
+    expect(own[1]).toMatchObject({ id: 'mine', name: 'לינה', thenJob: true })
   })
 
   it('a new shift starts as "יום"', () => {

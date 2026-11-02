@@ -41,7 +41,7 @@ export function ShiftsSection() {
           text="תבנית עבודה אומרת אם העבודה נגמרת באותו יום או למחרת, כמה אנשים צריך בה ואילו תפקידים והסמכות חייבים להיות בה."
           addLabel="הוספת תבנית עבודה"
           onAdd={() => setEditing(blankShift())}
-          starterLabel="להתחיל עם: יום (עד 16:00), לילה (עד 16:00 למחרת), לילה+ (לילה ואז עוד עבודה)"
+          starterLabel="להתחיל עם: יום (עד 16:00), לילה (עד 16:00 למחרת), לינה (לילה ואז עוד עבודה)"
           onStarter={addStarter}
           starterBusy={shifts.saving}
           starterError={starterError}

@@ -52,7 +52,7 @@ export function useDriveList<K extends ListFile>(key: K) {
       const raw = stored ?? (key === 'departments' ? (STARTER_DEPARTMENTS as T[]) : [])
       const fix = normalizers[key] as ((r: T) => T) | undefined
       const list = fix ? raw.map(fix) : raw
-      // "כללי" and "לילה+" always exist; they are written to the file with the next save of their list.
+      // "כללי" and "לינה" always exist; they are written to the file with the next save of their list.
       if (key === 'roles') return withGeneralRole(list as Role[]) as T[]
       if (key === 'shiftDefinitions') return withNightPlus(list as ShiftDefinition[]) as T[]
       return list
