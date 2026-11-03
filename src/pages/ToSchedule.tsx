@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarPlus, Loader2 } from 'lucide-react'
+import { CalendarPlus, Loader2, Trash2 } from 'lucide-react'
 import { DictationField } from '../components/DictationField'
 import { DriveError } from '../components/DriveError'
 import { Field, inputClass, Sheet, SheetActions } from '../components/Sheet'
@@ -124,14 +124,7 @@ function JobsSection() {
                     </span>
                   </button>
                   <TaskHistory job={j} />
-                  <button
-                    type="button"
-                    onClick={() => setScheduling(blankShift(todayIso(), j))}
-                    className="flex min-h-12 w-full items-center gap-2 border-t border-slate-800 px-4 text-sm font-semibold text-sky-400"
-                  >
-                    <CalendarPlus size={18} aria-hidden />
-                    שיבוץ ביומן
-                  </button>
+                  <JobCardActions job={j} onSchedule={() => setScheduling(blankShift(todayIso(), j))} />
                 </li>
               )
             })}
@@ -144,6 +137,55 @@ function JobsSection() {
       </Sheet>
       <ShiftSheet editing={scheduling} onClose={() => setScheduling(null)} />
     </>
+  )
+}
+
+// The card's bottom row: schedule it, or delete it after a second tap that asks first.
+function JobCardActions({ job, onSchedule }: { job: PendingJob; onSchedule: () => void }) {
+  const jobs = useDriveList('pendingJobs')
+  const [confirming, setConfirming] = useState(false)
+  const [saveError, setSaveError] = useState<unknown>(null)
+
+  const remove = async () => {
+    setSaveError(null)
+    try {
+      await jobs.save(jobs.items.filter((j) => j.id !== job.id))
+    } catch (e) {
+      setSaveError(e)
+    }
+  }
+
+  if (confirming)
+    return (
+      <div className="space-y-3 border-t border-red-500/40 bg-red-500/10 p-3">
+        <p className="text-sm text-red-200">למחוק את העבודה מהרשימה? היא לא תחכה יותר לשיבוץ.</p>
+        {saveError != null && <DriveError error={saveError} action="save" />}
+        <div className="flex gap-2">
+          <button type="button" disabled={jobs.saving} onClick={remove} className="min-h-11 flex-1 rounded-xl bg-red-500 font-semibold text-slate-950 disabled:opacity-50">
+            {jobs.saving ? 'מוחק...' : 'כן, למחוק'}
+          </button>
+          <button type="button" disabled={jobs.saving} onClick={() => setConfirming(false)} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-slate-300 disabled:opacity-50">
+            לא
+          </button>
+        </div>
+      </div>
+    )
+
+  return (
+    <div className="flex border-t border-slate-800">
+      <button type="button" onClick={onSchedule} className="flex min-h-12 flex-1 items-center gap-2 px-4 text-sm font-semibold text-sky-400">
+        <CalendarPlus size={18} aria-hidden />
+        שיבוץ ביומן
+      </button>
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="flex min-h-12 items-center gap-2 border-s border-slate-800 px-4 text-sm font-semibold text-red-300"
+      >
+        <Trash2 size={18} aria-hidden />
+        מחיקה
+      </button>
+    </div>
   )
 }
 
