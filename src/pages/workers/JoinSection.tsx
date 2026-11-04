@@ -180,7 +180,7 @@ export function JoinPending({ onReview }: { onReview: (worker: Worker, done: () 
   const workers = useDriveList('workers')
   const [confirming, setConfirming] = useState<string | null>(null)
   const remove = useMutation({
-    mutationFn: removeSubmission,
+    mutationFn: ({ id, allowAgain }: { id: string; allowAgain: boolean }) => removeSubmission(id, allowAgain),
     onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   })
   const list = subs.data?.submissions ?? []
@@ -188,7 +188,7 @@ export function JoinPending({ onReview }: { onReview: (worker: Worker, done: () 
 
   const review = (s: Submission) => {
     const existing = matchWorker(s, workers.items)
-    onReview(workerFromSubmission(s, existing, newId), () => remove.mutate(s.id))
+    onReview(workerFromSubmission(s, existing, newId), () => remove.mutate({ id: s.id, allowAgain: false }))
   }
 
   return (
@@ -207,8 +207,8 @@ export function JoinPending({ onReview }: { onReview: (worker: Worker, done: () 
               </div>
               {confirming === s.id ? (
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => remove.mutate(s.id)} disabled={remove.isPending} className="min-h-11 flex-1 rounded-xl bg-red-500 text-sm font-semibold text-slate-950 disabled:opacity-50">
-                    כן, למחוק את הטופס
+                  <button type="button" onClick={() => remove.mutate({ id: s.id, allowAgain: true })} disabled={remove.isPending} className="min-h-11 flex-1 rounded-xl bg-red-500 text-sm font-semibold text-slate-950 disabled:opacity-50">
+                    כן, למחוק (יוכל למלא שוב)
                   </button>
                   <button type="button" onClick={() => setConfirming(null)} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-sm text-slate-300">
                     ביטול

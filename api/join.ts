@@ -1,4 +1,4 @@
-import { open, randomToken, seal } from './_lib/crypto.js'
+import { open, randomToken, seal, sha256url } from './_lib/crypto.js'
 import { readEnv, type Env } from './_lib/env.js'
 import { guarded, json, sameOrigin } from './_lib/http.js'
 import { KEYS, kv } from './_lib/kv.js'
@@ -11,6 +11,10 @@ import { isAllowed, readSession } from './_lib/session.js'
 // GET  /api/join?c=<code>                      public: the form's choice lists, or 404 when closed
 // POST /api/join { action: 'submit', code, details }   public: one worker's answer
 // POST /api/join { action: 'open' | 'close' | 'list' | 'remove', ... }   signed-in managers
+//
+// One answer per person: the mobile and ID number of everyone who sent are kept (as keyed hashes,
+// never the numbers), and a second answer with either is refused, even after a new link.
+// Only a manager throwing an answer away (remove with allowAgain) lets that person send again.
 
 export interface Tag {
   id: string
@@ -84,6 +88,14 @@ export function cleanDetails(raw: unknown, lists: FormLists): { details: Omit<Su
   return { details: out as Omit<Submission, 'id' | 'at'> }
 }
 
+const digits = (s: unknown) => String(s ?? '').replace(/\D/g, '').replace(/^972/, '0')
+
+/** Keyed hashes of the answer's mobile and ID number: who already sent, without storing the numbers. */
+export async function senderMarks(env: Env, d: { mobilePhone?: string; idNumber?: string }) {
+  const parts = [digits(d.mobilePhone) && `m:${digits(d.mobilePhone)}`, digits(d.idNumber) && `i:${digits(d.idNumber)}`].filter(Boolean)
+  return Promise.all(parts.map((p) => sha256url(`${env.sessionKey}|${p}`)))
+}
+
 const readForm = async (env: Env) => open<Form>(env.sessionKey, await kv.get(env, KEYS.joinForm))
 
 async function readSubmissions(env: Env) {
@@ -120,9 +132,12 @@ export const POST = guarded(async (req: Request) => {
     if (!form || body.code !== form.code) return json({ reason: 'closed' }, 404)
     const cleaned = cleanDetails(body.details, form.lists)
     if ('reason' in cleaned) return json({ reason: cleaned.reason }, 400)
+    const marks = await senderMarks(env, cleaned.details)
+    for (const m of marks) if (await kv.isMember(env, KEYS.joinSent, m)) return json({ reason: 'already' }, 409)
     if ((await kv.members(env, KEYS.joinSubs)).length >= MAX_PENDING) return json({ reason: 'full' }, 429)
     const sub: Submission = { ...cleaned.details, id: randomToken(9), at: Date.now() }
     await kv.add(env, KEYS.joinSubs, await seal(env.sessionKey, sub))
+    for (const m of marks) await kv.add(env, KEYS.joinSent, m)
     return json({ ok: true })
   }
 
@@ -149,7 +164,11 @@ export const POST = guarded(async (req: Request) => {
     }
     case 'remove': {
       const found = (await readSubmissions(env)).find((o) => o.sub.id === body.id)
-      if (found) await kv.remove(env, KEYS.joinSubs, found.sealed)
+      if (found) {
+        await kv.remove(env, KEYS.joinSubs, found.sealed)
+        // Thrown away (not added to the list): this person may fill the form again.
+        if (body.allowAgain === true) for (const m of await senderMarks(env, found.sub)) await kv.remove(env, KEYS.joinSent, m)
+      }
       return json({ ok: true })
     }
     default:

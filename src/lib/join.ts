@@ -89,6 +89,7 @@ export const formLists = (roles: Tag[], certifications: Tag[], departments: Tag[
 
 const REASONS: Record<string, string> = {
   closed: 'הטופס הזה כבר סגור. בקש מהמנהל קישור חדש.',
+  already: 'כבר שלחת את הפרטים שלך, ואי אפשר לשלוח שוב. אם צריך לתקן משהו, פנה למנהל.',
   name: 'צריך למלא שם פרטי ושם משפחה.',
   mobile: 'הטלפון הנייד לא תקין. צריך 10 ספרות שמתחילות ב-05.',
   id: 'תעודת הזהות לא תקינה. צריך 9 ספרות.',
@@ -116,4 +117,22 @@ export const submitForm = (code: string, details: JoinDetails) => post<{ ok: tru
 export const openForm = (lists: FormLists, renew = false) => post<{ code: string }>({ action: 'open', lists, renew })
 export const closeForm = () => post<{ code: null }>({ action: 'close' })
 export const listSubmissions = () => post<{ code: string | null; submissions: Submission[] }>({ action: 'list' })
-export const removeSubmission = (id: string) => post<{ ok: true }>({ action: 'remove', id })
+/** allowAgain: the answer was thrown away, so this person may fill the form again. */
+export const removeSubmission = (id: string, allowAgain = false) => post<{ ok: true }>({ action: 'remove', id, allowAgain })
+
+// This phone already sent an answer: the form opens on "already sent" (the server refuses a second one anyway).
+const sentKey = (code: string) => `shiftsmart.joined.${code}`
+export function markSent(code: string) {
+  try {
+    localStorage.setItem(sentKey(code), '1')
+  } catch {
+    // Storage blocked: the server still refuses a second answer.
+  }
+}
+export function wasSent(code: string) {
+  try {
+    return localStorage.getItem(sentKey(code)) === '1'
+  } catch {
+    return false
+  }
+}

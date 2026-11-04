@@ -313,4 +313,26 @@ describe('workers details form', () => {
     await post(join, s, { action: 'remove', id: submissions[0].id })
     expect((await (await post(join, s, { action: 'list' })).json()).submissions).toEqual([])
   })
+
+  it('takes one answer per person: same mobile or ID number is refused, until a manager throws it away', async () => {
+    const s = await manager()
+    const code = await openForm(s)
+    expect((await post(join, null, { action: 'submit', code, details })).status).toBe(200)
+    expect([...(store.get('join:sent') as Set<string>)].join()).not.toContain('0501234567')
+    const again = await post(join, null, { action: 'submit', code, details: { ...details, idNumber: '', mobilePhone: '+972501234567' } })
+    expect(again.status).toBe(409)
+    expect(await again.json()).toEqual({ reason: 'already' })
+    const newCode = await openForm(s, { renew: true })
+    expect((await post(join, null, { action: 'submit', code: newCode, details: { ...details, mobilePhone: '0529999999' } })).status).toBe(409)
+
+    // Added to the list: still blocked. Thrown away: may send again.
+    let [sub] = (await (await post(join, s, { action: 'list' })).json()).submissions
+    await post(join, s, { action: 'remove', id: sub.id })
+    expect((await post(join, null, { action: 'submit', code: newCode, details })).status).toBe(409)
+    store.delete('join:sent')
+    await post(join, null, { action: 'submit', code: newCode, details })
+    ;[sub] = (await (await post(join, s, { action: 'list' })).json()).submissions
+    await post(join, s, { action: 'remove', id: sub.id, allowAgain: true })
+    expect((await post(join, null, { action: 'submit', code: newCode, details })).status).toBe(200)
+  })
 })

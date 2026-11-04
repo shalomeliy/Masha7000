@@ -4,7 +4,7 @@ import { Chips, Field, inputClass } from '../components/Sheet'
 import { DateField } from '../components/DateField'
 import { isIsraeliId, isIsraeliMobile } from '../lib/catalog'
 import { todayIso } from '../lib/dates'
-import { readForm, submitForm, type FormLists, type JoinDetails } from '../lib/join'
+import { markSent, readForm, submitForm, wasSent, type FormLists, type JoinDetails } from '../lib/join'
 
 // The page a worker opens from the WhatsApp link. No sign-in: it only sends the answer to the
 // manager, who reviews it before it reaches the workers list. Nothing else of the app is reachable here.
@@ -29,14 +29,16 @@ export function JoinForm({ code }: { code: string }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
+  const [sentBefore] = useState(() => wasSent(code))
 
   useEffect(() => {
     document.title = 'טופס פרטי עובד'
+    if (sentBefore) return
     readForm(code).then(
       (r) => setLists(r.lists),
       (e: Error) => setLoadError(e.message),
     )
-  }, [code])
+  }, [code, sentBefore])
 
   const set = (k: TextKey) => (e: { target: { value: string } }) => setDraft((d) => ({ ...d, [k]: e.target.value }))
 
@@ -57,6 +59,7 @@ export function JoinForm({ code }: { code: string }) {
     setBusy(true)
     try {
       await submitForm(code, { ...draft, idNumber: draft.idNumber?.replace(/[\s-]/g, '') || undefined })
+      markSent(code)
       setSent(true)
       window.scrollTo(0, 0)
     } catch (e) {
@@ -72,6 +75,15 @@ export function JoinForm({ code }: { code: string }) {
         <CheckCircle2 size={48} className="text-emerald-400" aria-hidden />
         <h1 className="text-2xl font-bold">תודה, {draft.firstName.trim()}!</h1>
         <p className="text-slate-300">הפרטים נשלחו למנהל. אפשר לסגור את הדף.</p>
+      </main>
+    )
+
+  if (sentBefore)
+    return (
+      <main className="mx-auto flex min-h-full max-w-md flex-col items-center justify-center gap-3 px-6 text-center">
+        <CheckCircle2 size={48} className="text-emerald-400" aria-hidden />
+        <h1 className="text-2xl font-bold">כבר שלחת את הפרטים</h1>
+        <p className="text-slate-300">אי אפשר לשלוח שוב. אם צריך לתקן משהו, פנה למנהל.</p>
       </main>
     )
 

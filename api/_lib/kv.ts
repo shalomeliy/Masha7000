@@ -11,6 +11,7 @@ export const KEYS = {
   allowed: 'allowed',
   joinForm: 'join:form',
   joinSubs: 'join:subs',
+  joinSent: 'join:sent',
 } as const
 
 type Arg = string | number
