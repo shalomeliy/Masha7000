@@ -7,6 +7,7 @@ import { GET as callback } from '../auth/callback.js'
 import { POST as token } from '../token.js'
 import { POST as owner } from '../owner.js'
 import { POST as logout } from '../logout.js'
+import { GET as joinForm, POST as join } from '../join.js'
 
 const KEY = Buffer.alloc(32, 7).toString('base64')
 const ORIGIN = 'https://masha7000.vercel.app'
@@ -259,5 +260,57 @@ describe('owner controls', () => {
   it('logout clears only the session cookie', async () => {
     const res = await post(logout, null)
     expect(res.headers.getSetCookie()[0]).toMatch(/^__Host-session=; Max-Age=0/)
+  })
+})
+
+describe('workers details form', () => {
+  const lists = {
+    roles: [{ id: 'r1', name: 'חשמלאי' }],
+    certifications: [{ id: 'c1', name: 'עבודה בגובה' }],
+    departments: [{ id: 'd1', name: 'צפון' }],
+  }
+  const details = { firstName: ' דנה ', lastName: 'לוי', mobilePhone: '050-1234567', idNumber: '012345678', roleIds: ['r1', 'nope'], departmentId: 'd1', extra: 'x' }
+  const manager = async () => {
+    store.set('allowed', new Set(['deputy@example.com']))
+    return cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+  }
+  const openForm = async (s: string, extra = {}) => (await (await post(join, s, { action: 'open', lists, ...extra })).json()).code as string
+
+  it('only a signed-in manager opens it, and opening again keeps the same link', async () => {
+    expect((await post(join, null, { action: 'open', lists })).status).toBe(401)
+    const s = await manager()
+    const code = await openForm(s)
+    expect(code).toMatch(/^[\w-]{16}$/)
+    expect(await openForm(s)).toBe(code)
+    expect(await openForm(s, { renew: true })).not.toBe(code)
+  })
+
+  it('shows its lists to anyone with the link, and nothing to a wrong or closed link', async () => {
+    const s = await manager()
+    const code = await openForm(s)
+    expect(await (await joinForm(new Request(`${ORIGIN}/api/join?c=${code}`))).json()).toEqual({ lists })
+    expect((await joinForm(new Request(`${ORIGIN}/api/join?c=wrong`))).status).toBe(404)
+    await post(join, s, { action: 'close' })
+    expect((await joinForm(new Request(`${ORIGIN}/api/join?c=${code}`))).status).toBe(404)
+    expect((await post(join, null, { action: 'submit', code, details })).status).toBe(404)
+  })
+
+  it('stores a worker answer sealed and cleaned, for the manager to list and remove', async () => {
+    const s = await manager()
+    const code = await openForm(s)
+    expect((await post(join, null, { action: 'submit', code, details }, 'https://evil.example')).status).toBe(403)
+    expect((await post(join, null, { action: 'submit', code, details: { ...details, mobilePhone: '123' } })).status).toBe(400)
+    expect((await post(join, null, { action: 'submit', code, details })).status).toBe(200)
+    const stored = [...(store.get('join:subs') as Set<string>)][0]
+    expect(stored).not.toContain('012345678')
+
+    const { submissions } = await (await post(join, s, { action: 'list' })).json()
+    expect(submissions).toHaveLength(1)
+    expect(submissions[0]).toMatchObject({ firstName: 'דנה', lastName: 'לוי', roleIds: ['r1'], departmentId: 'd1', certificationIds: [] })
+    expect(submissions[0].extra).toBeUndefined()
+    expect((await post(join, null, { action: 'list' })).status).toBe(401)
+
+    await post(join, s, { action: 'remove', id: submissions[0].id })
+    expect((await (await post(join, s, { action: 'list' })).json()).submissions).toEqual([])
   })
 })

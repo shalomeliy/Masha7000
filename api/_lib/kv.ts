@@ -3,12 +3,14 @@ import type { Env } from './env.js'
 
 // The server's small store: Upstash over its REST API, or a plain Redis connection (REDIS_URL,
 // Vercel Marketplace "Redis"). Holds only: the owner's sealed refresh token, a sealed cached
-// access token, the allowed emails.
+// access token, the allowed emails, the workers' details form and its sealed answers.
 
 export const KEYS = {
   refresh: 'owner:refresh',
   access: 'owner:access',
   allowed: 'allowed',
+  joinForm: 'join:form',
+  joinSubs: 'join:subs',
 } as const
 
 type Arg = string | number

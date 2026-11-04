@@ -31,6 +31,7 @@ import type { Worker, WorkerStatus } from "../../types/models";
 import { AddButton, EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
 import { RequestSheet } from "./RequestSheet";
+import { JoinButton, JoinPending } from "./JoinSection";
 
 const blankWorker = (): Worker => ({
   id: newId(),
@@ -73,6 +74,13 @@ export function WorkersSection() {
   const roles = useDriveList("roles");
   const certs = useDriveList("certifications");
   const [editing, setEditing] = useState<Worker | null>(null);
+  // Set while the open form came from a worker's answer: run once it is saved (removes the answer).
+  const [onSaved, setOnSaved] = useState<(() => void) | null>(null);
+  const edit = (w: Worker | null, saved?: () => void) => {
+    setEditing(w);
+    setOnSaved(() => saved ?? null);
+  };
+  const review = (w: Worker, saved: () => void) => edit(w, saved);
   const [filterOpen, setFilterOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string[]>([]);
   const [certFilter, setCertFilter] = useState<string[]>([]);
@@ -97,12 +105,16 @@ export function WorkersSection() {
   if (workers.items.length === 0) {
     return (
       <>
+        <JoinPending onReview={review} />
         <EmptyState
           text="כאן נמצאת רשימת העובדים שלך. לכל עובד מסמנים את התפקידים וההסמכות שלו, ואז אפשר לחפש לפיהם."
           addLabel="הוספת עובד"
-          onAdd={() => setEditing(blankWorker())}
+          onAdd={() => edit(blankWorker())}
         />
-        <WorkerSheet editing={editing} onClose={() => setEditing(null)} />
+        <div className="mt-3">
+          <JoinButton />
+        </div>
+        <WorkerSheet editing={editing} onClose={() => edit(null)} onSaved={onSaved} />
       </>
     );
   }
@@ -129,6 +141,7 @@ export function WorkersSection() {
             בקשת אילוצים מהעובדים בוואטסאפ
           </button>
         )}
+        {!showInactive && <JoinButton />}
         <button
           type="button"
           aria-expanded={filterOpen}
@@ -186,6 +199,7 @@ export function WorkersSection() {
         )}
       </div>
 
+      {!showInactive && <JoinPending onReview={review} />}
       {showInactive && (
         <h2 className="mb-1 text-lg font-semibold">עובדים לא פעילים</h2>
       )}
@@ -211,7 +225,7 @@ export function WorkersSection() {
         <ul className="space-y-2">
           {shown.map((w) => (
             <li key={w.id}>
-              <WorkerCard worker={w} onOpen={() => setEditing(w)} />
+              <WorkerCard worker={w} onOpen={() => edit(w)} />
             </li>
           ))}
         </ul>
@@ -226,8 +240,8 @@ export function WorkersSection() {
           עובדים לא פעילים ({inactiveCount})
         </button>
       )}
-      <AddButton label="הוספת עובד" onClick={() => setEditing(blankWorker())} />
-      <WorkerSheet editing={editing} onClose={() => setEditing(null)} />
+      <AddButton label="הוספת עובד" onClick={() => edit(blankWorker())} />
+      <WorkerSheet editing={editing} onClose={() => edit(null)} onSaved={onSaved} />
       <RequestSheet open={requesting} onClose={() => setRequesting(false)} />
     </>
   );
@@ -341,9 +355,11 @@ function WorkerCard({
 function WorkerSheet({
   editing,
   onClose,
+  onSaved,
 }: {
   editing: Worker | null;
   onClose: () => void;
+  onSaved?: (() => void) | null;
 }) {
   const workers = useDriveList("workers");
   return (
@@ -357,7 +373,7 @@ function WorkerSheet({
       onClose={onClose}
       locked={workers.saving}
     >
-      {editing && <WorkerForm worker={editing} onDone={onClose} />}
+      {editing && <WorkerForm key={editing.id} worker={editing} onDone={onClose} onSaved={onSaved ?? undefined} />}
     </Sheet>
   );
 }
@@ -382,9 +398,11 @@ type TextField = "firstName" | "lastName" | (typeof OPTIONAL_TEXT)[number];
 function WorkerForm({
   worker,
   onDone,
+  onSaved,
 }: {
   worker: Worker;
   onDone: () => void;
+  onSaved?: () => void;
 }) {
   const workers = useDriveList("workers");
   const roles = useDriveList("roles");
@@ -409,11 +427,12 @@ function WorkerForm({
     setDraft((d) => ({ ...d, [field]: value }));
   };
 
-  const write = async (next: Worker[]) => {
+  const write = async (next: Worker[], saved = true) => {
     setBusy(true);
     setSaveError(null);
     try {
       await workers.save(next);
+      if (saved) onSaved?.();
       onDone();
     } catch (e) {
       setSaveError(e);
@@ -650,7 +669,7 @@ function WorkerForm({
         onCancel={onDone}
         onDelete={
           exists
-            ? () => write(workers.items.filter((w) => w.id !== worker.id))
+            ? () => write(workers.items.filter((w) => w.id !== worker.id), false)
             : undefined
         }
         deleteWarning={`למחוק את ${fullName(worker)}? אי אפשר לבטל את זה.`}
