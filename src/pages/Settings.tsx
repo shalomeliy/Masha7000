@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, HardDrive, Loader2, ShieldCheck, Users, XCircle } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
 import { groupWords, GROUPS } from '../lib/constraintWords'
 import { useDriveList } from '../lib/data/useDriveList'
@@ -131,11 +133,84 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
   },
 ]
 
+// Everything else the screen can open besides a list editor.
+type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection'
+type ItemId = ListId | PanelId
+
+// Settings grouped by the app screen they belong to (the user's choice, 2026-11-06), so the
+// manager looks for job settings under jobs and worker settings under workers.
+interface Group {
+  title: string
+  explain: string
+  icon: LucideIcon
+  items: { id: ItemId; title: string; explain: string }[]
+}
+
+const PANELS: Record<PanelId, { title: string; explain: string }> = {
+  archive: { title: 'ארכיון ודוחות', explain: 'כל העבודות שהיו: מי עבד, איפה, ודוחות שבועיים וחודשיים' },
+  access: { title: 'מי יכול להיכנס', explain: 'הוספה והסרה של אנשים שמשתמשים באפליקציה' },
+  security: { title: 'אימות דו-שלבי', explain: 'קוד מהטלפון בכל כניסה, וקודי גיבוי' },
+  backup: { title: 'גיבוי ושחזור', explain: 'שמירת עותק של כל הנתונים והחזרה שלו' },
+  connection: { title: 'בדיקת חיבור לגוגל', explain: 'בודקת שהשמירה בדרייב והיומן עובדים' },
+}
+
+const listItem = (id: ListId) => {
+  const l = LISTS.find((x) => x.id === id)!
+  return { id, title: l.title, explain: l.explain }
+}
+const panelItem = (id: PanelId) => ({ id, ...PANELS[id] })
+
+function groups(isOwner: boolean, server: boolean): Group[] {
+  const all: Group[] = [
+    {
+      title: 'עבודות ושיבוץ',
+      explain: 'מה שבוחרים כשפותחים עבודה ביומן ובמסך לשיבוץ',
+      icon: ClipboardList,
+      items: [listItem('workKinds'), listItem('shiftDefinitions'), listItem('places'), listItem('jobTypes'), listItem('postponeReasons')],
+    },
+    {
+      title: 'עובדים',
+      explain: 'מה שמתארים לכל עובד במסך העובדים',
+      icon: Users,
+      items: [listItem('roles'), listItem('certifications'), listItem('departments'), listItem('constraintWords')],
+    },
+    {
+      title: 'ארכיון',
+      explain: 'עבודות שכבר עברו',
+      icon: ArchiveIcon,
+      items: [panelItem('archive')],
+    },
+    {
+      title: 'גישה ואבטחה',
+      explain: 'מי נכנס לאפליקציה ואיך',
+      icon: ShieldCheck,
+      items: [...(isOwner ? [panelItem('access')] : []), ...(server ? [panelItem('security')] : [])],
+    },
+    {
+      title: 'נתונים וגוגל',
+      explain: 'איפה הנתונים שמורים ואיך מגבים אותם',
+      icon: HardDrive,
+      items: [panelItem('backup'), panelItem('connection')],
+    },
+  ]
+  return all.filter((g) => g.items.length > 0)
+}
+
+const isList = (id: ItemId): id is ListId => LISTS.some((l) => l.id === id)
+
 // The archive lives here too (the user's choice, 2026-11-06): the bottom bar keeps five buttons.
 export function Settings({ openArchive = false }: { openArchive?: boolean }) {
   const logout = useAuth((s) => s.logout)
   const who = useAuth((s) => s.who)
-  const [open, setOpen] = useState<ListId | 'archive' | null>(openArchive ? 'archive' : null)
+  const [open, setOpen] = useState<ItemId | null>(openArchive ? 'archive' : null)
+  // The phone's Back returns to this screen's index instead of leaving the app.
+  useEffect(() => {
+    if (!open) return
+    return holdBack(() => {
+      setOpen(null)
+      return false
+    })
+  }, [open])
   // The editors read each other's lists (names, usage counts), so they load together.
   const lists = {
     roles: useDriveList('roles'),
@@ -154,6 +229,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
   const all = Object.values(lists)
   const loading = all.some((l) => l.query.isPending)
   const failed = all.find((l) => l.query.isError)
+  const retry = () => all.forEach((l) => l.query.isError && l.query.refetch())
   const count = (id: ListId) =>
     id === 'constraintWords'
       ? GROUPS.reduce(
@@ -166,9 +242,8 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
           0,
         )
       : lists[id].items.length
-  const current = LISTS.find((l) => l.id === open)
   const back = (
-    <button type="button" onClick={() => setOpen(null)} className="flex min-h-11 items-center gap-1 px-4 pt-4 text-sky-300">
+    <button type="button" onClick={() => setOpen(null)} className="flex min-h-11 items-center gap-1 text-sky-300">
       <ChevronRight size={20} aria-hidden />
       הגדרות
     </button>
@@ -177,18 +252,35 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
   if (open === 'archive')
     return (
       <>
-        {back}
+        <div className="px-4 pt-4">{back}</div>
         <Archive />
       </>
     )
 
+  if (open && !isList(open))
+    return (
+      <section className="space-y-4 px-4 pt-6">
+        {back}
+        {open === 'access' && <AccessSection />}
+        {open === 'security' && <SecuritySection />}
+        {/* Restore replaces the owner's data for everyone; without the server, everyone is on their own Drive. */}
+        {open === 'backup' &&
+          (failed ? (
+            <DriveError error={failed.query.error} action="load" onRetry={retry} />
+          ) : loading ? (
+            <Loading />
+          ) : (
+            <BackupSection canRestore={authMode() === 'popup' || who?.isOwner === true} />
+          ))}
+        {open === 'connection' && <ConnectionCheck />}
+      </section>
+    )
+
+  const current = LISTS.find((l) => l.id === open)
   if (current)
     return (
       <section className="space-y-4 px-4 pt-6">
-        <button type="button" onClick={() => setOpen(null)} className="flex min-h-11 items-center gap-1 text-sky-300">
-          <ChevronRight size={20} aria-hidden />
-          הגדרות
-        </button>
+        {back}
         <h1 className="text-2xl font-bold">{current.title}</h1>
         {current.id === 'roles' && <TagSection kind="roles" />}
         {current.id === 'certifications' && <TagSection kind="certifications" />}
@@ -206,56 +298,45 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
     <section className="space-y-6 px-4 pt-6">
       <h1 className="text-2xl font-bold">הגדרות</h1>
 
-      <button
-        type="button"
-        onClick={() => setOpen('archive')}
-        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-2 text-start"
-      >
-        <ArchiveIcon size={22} aria-hidden className="shrink-0 text-sky-300" />
-        <span className="flex-1">
-          <span className="block font-semibold">ארכיון</span>
-          <span className="block text-xs text-slate-400">כל העבודות שהיו: מי עבד, איפה, ודוחות שבועיים וחודשיים</span>
-        </span>
-        <ChevronLeft size={18} aria-hidden className="shrink-0 text-slate-500" />
-      </button>
+      {failed && <DriveError error={failed.query.error} action="load" onRetry={retry} />}
 
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold">רשימות</h2>
-        {failed ? (
-          <DriveError error={failed.query.error} action="load" onRetry={() => all.forEach((l) => l.query.isError && l.query.refetch())} />
-        ) : loading ? (
-          <p className="flex items-center gap-2 text-slate-400">
-            <Loader2 className="animate-spin" size={18} aria-hidden />
-            טוען מגוגל דרייב...
-          </p>
-        ) : (
+      {groups(who?.isOwner === true, authMode() === 'server').map((g) => (
+        <div key={g.title} className="space-y-2">
+          <div className="flex items-start gap-2">
+            <g.icon size={20} aria-hidden className="mt-1 shrink-0 text-sky-300" />
+            <div>
+              <h2 className="text-lg font-semibold">{g.title}</h2>
+              <p className="text-xs text-slate-400">{g.explain}</p>
+            </div>
+          </div>
           <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-            {LISTS.map((l) => (
-              <li key={l.id}>
-                <button type="button" onClick={() => setOpen(l.id)} className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-start">
+            {g.items.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpen(item.id)}
+                  disabled={isList(item.id) && (loading || !!failed)}
+                  className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-start disabled:opacity-60"
+                >
                   <span className="flex-1">
-                    <span className="block font-semibold">{l.title}</span>
-                    <span className="block text-xs text-slate-400">{l.explain}</span>
+                    <span className="block font-semibold">{item.title}</span>
+                    <span className="block text-xs text-slate-400">{item.explain}</span>
                   </span>
-                  <span className="shrink-0 text-sm text-slate-400">{count(l.id)}</span>
+                  {isList(item.id) && !failed && (
+                    <span className="shrink-0 text-sm text-slate-400">
+                      {loading ? <Loader2 className="animate-spin" size={16} aria-label="טוען" /> : count(item.id)}
+                    </span>
+                  )}
                   <ChevronLeft size={18} aria-hidden className="shrink-0 text-slate-500" />
                 </button>
               </li>
             ))}
           </ul>
-        )}
-      </div>
-
-      {who?.isOwner && <AccessSection />}
-
-      {/* Restore replaces the owner's data for everyone; without the server, everyone is on their own Drive. */}
-      {!loading && !failed && <BackupSection canRestore={authMode() === 'popup' || who?.isOwner === true} />}
-
-      {authMode() === 'server' && <SecuritySection />}
-
-      <ConnectionCheck />
+        </div>
+      ))}
 
       <div className="space-y-2">
+        <h2 className="text-lg font-semibold">החשבון שלי</h2>
         {who && (
           <p className="text-sm text-slate-400">
             מחובר כ-<span dir="ltr">{who.email}</span>
@@ -267,6 +348,15 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
         {authMode() === 'server' && <p className="text-xs text-slate-500">מנתק רק את המכשיר הזה. שאר המכשירים נשארים מחוברים.</p>}
       </div>
     </section>
+  )
+}
+
+function Loading() {
+  return (
+    <p className="flex items-center gap-2 text-slate-400">
+      <Loader2 className="animate-spin" size={18} aria-hidden />
+      טוען מגוגל דרייב...
+    </p>
   )
 }
 
