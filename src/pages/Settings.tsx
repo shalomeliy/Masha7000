@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, HardDrive, Loader2, ShieldCheck, Users, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Loader2, Scale, ShieldCheck, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
@@ -196,6 +196,18 @@ function groups(isOwner: boolean, server: boolean): Group[] {
   return all.filter((g) => g.items.length > 0)
 }
 
+// Plain pages outside the app (public/*.html), so they also open without signing in.
+const LEGAL = [
+  { href: '/privacy.html', title: 'מדיניות פרטיות', explain: 'איזה מידע נשמר, איפה, מי רואה אותו, והזכויות שלך' },
+  { href: '/terms.html', title: 'תנאי שימוש', explain: 'הכללים לשימוש באפליקציה, ומי אחראי על מה' },
+  { href: '/accessibility.html', title: 'הצהרת נגישות', explain: 'מה נגיש, מה עוד לא, ואיך מדווחים על בעיה' },
+  {
+    href: 'mailto:shalom.eliy@gmail.com?subject=ShiftSmart',
+    title: 'פנייה בנושא פרטיות או נגישות',
+    explain: 'בקשה לראות, לתקן או למחוק מידע, או דיווח על בעיית נגישות',
+  },
+]
+
 const isList = (id: ItemId): id is ListId => LISTS.some((l) => l.id === id)
 
 // The archive lives here too (the user's choice, 2026-11-06): the bottom bar keeps five buttons.
@@ -334,6 +346,34 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
           </ul>
         </div>
       ))}
+
+      <div className="space-y-2">
+        <div className="flex items-start gap-2">
+          <Scale size={20} aria-hidden className="mt-1 shrink-0 text-sky-300" />
+          <div>
+            <h2 className="text-lg font-semibold">מידע משפטי ונגישות</h2>
+            <p className="text-xs text-slate-400">המסמכים שהחוק מחייב, ואיך מבקשים לראות, לתקן או למחוק מידע</p>
+          </div>
+        </div>
+        <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+          {LEGAL.map((l) => (
+            <li key={l.href}>
+              <a
+                href={l.href}
+                target={l.href.startsWith('mailto:') ? undefined : '_blank'}
+                rel="noopener"
+                className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-start"
+              >
+                <span className="flex-1">
+                  <span className="block font-semibold">{l.title}</span>
+                  <span className="block text-xs text-slate-400">{l.explain}</span>
+                </span>
+                <ExternalLink size={16} aria-hidden className="shrink-0 text-slate-500" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">החשבון שלי</h2>

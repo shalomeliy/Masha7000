@@ -103,7 +103,10 @@ export function SignIn() {
         <a href="/privacy.html" className="text-sky-300 underline">
           מדיניות הפרטיות
         </a>
-        .
+        .{' '}
+        <a href="/accessibility.html" className="text-sky-300 underline">
+          הצהרת נגישות
+        </a>
       </p>
     </main>
   )
