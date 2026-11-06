@@ -1,14 +1,14 @@
-import { Archive, CalendarDays, ClipboardList, Mic, Settings, Users } from 'lucide-react'
+import { CalendarDays, ClipboardList, Mic, Settings, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export type Tab = 'voice' | 'calendar' | 'toSchedule' | 'workers' | 'archive' | 'settings'
 
+// 'archive' has no button of its own: it opens inside "הגדרות".
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'calendar', label: 'יומן', icon: CalendarDays },
   { id: 'toSchedule', label: 'לשיבוץ', icon: ClipboardList },
   { id: 'voice', label: 'עוזר', icon: Mic },
   { id: 'workers', label: 'עובדים', icon: Users },
-  { id: 'archive', label: 'ארכיון', icon: Archive },
   { id: 'settings', label: 'הגדרות', icon: Settings },
 ]
 
@@ -17,7 +17,7 @@ export function BottomNav({ active, onChange, voice }: { active: Tab; onChange: 
   const tabs = TABS.filter((t) => voice || t.id !== 'voice')
   return (
     <nav className="fixed inset-x-0 bottom-0 border-t border-slate-800 bg-slate-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <ul className={`mx-auto grid max-w-md ${tabs.length === 6 ? 'grid-cols-6' : 'grid-cols-5'}`}>
+      <ul className={`mx-auto grid max-w-md ${tabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4'}`}>
         {tabs.map(({ id, label, icon: Icon }) => (
           <li key={id}>
             {id === 'voice' ? (
@@ -41,9 +41,9 @@ export function BottomNav({ active, onChange, voice }: { active: Tab; onChange: 
             <button
               type="button"
               onClick={() => onChange(id)}
-              aria-current={active === id ? 'page' : undefined}
+              aria-current={active === id || (id === 'settings' && active === 'archive') ? 'page' : undefined}
               className={`flex w-full flex-col items-center gap-1 py-3 text-xs ${
-                active === id ? 'text-sky-400' : 'text-slate-400'
+                active === id || (id === 'settings' && active === 'archive') ? 'text-sky-400' : 'text-slate-400'
               }`}
             >
               <Icon size={22} aria-hidden />

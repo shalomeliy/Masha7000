@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, Loader2, XCircle } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
 import { groupWords, GROUPS } from '../lib/constraintWords'
 import { useDriveList } from '../lib/data/useDriveList'
@@ -8,6 +8,7 @@ import { readJson, writeJson } from '../lib/google/drive'
 import { TIME_ZONE } from '../lib/google/config'
 import { authMode } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
+import { Archive } from './Archive'
 import { AccessSection } from './settings/AccessSection'
 import { BackupSection } from './settings/BackupSection'
 import { SecuritySection } from './settings/SecuritySection'
@@ -130,10 +131,11 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
   },
 ]
 
-export function Settings() {
+// The archive lives here too (the user's choice, 2026-11-06): the bottom bar keeps five buttons.
+export function Settings({ openArchive = false }: { openArchive?: boolean }) {
   const logout = useAuth((s) => s.logout)
   const who = useAuth((s) => s.who)
-  const [open, setOpen] = useState<ListId | null>(null)
+  const [open, setOpen] = useState<ListId | 'archive' | null>(openArchive ? 'archive' : null)
   // The editors read each other's lists (names, usage counts), so they load together.
   const lists = {
     roles: useDriveList('roles'),
@@ -165,6 +167,20 @@ export function Settings() {
         )
       : lists[id].items.length
   const current = LISTS.find((l) => l.id === open)
+  const back = (
+    <button type="button" onClick={() => setOpen(null)} className="flex min-h-11 items-center gap-1 px-4 pt-4 text-sky-300">
+      <ChevronRight size={20} aria-hidden />
+      הגדרות
+    </button>
+  )
+
+  if (open === 'archive')
+    return (
+      <>
+        {back}
+        <Archive />
+      </>
+    )
 
   if (current)
     return (
@@ -189,6 +205,19 @@ export function Settings() {
   return (
     <section className="space-y-6 px-4 pt-6">
       <h1 className="text-2xl font-bold">הגדרות</h1>
+
+      <button
+        type="button"
+        onClick={() => setOpen('archive')}
+        className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-2 text-start"
+      >
+        <ArchiveIcon size={22} aria-hidden className="shrink-0 text-sky-300" />
+        <span className="flex-1">
+          <span className="block font-semibold">ארכיון</span>
+          <span className="block text-xs text-slate-400">כל העבודות שהיו: מי עבד, איפה, ודוחות שבועיים וחודשיים</span>
+        </span>
+        <ChevronLeft size={18} aria-hidden className="shrink-0 text-slate-500" />
+      </button>
 
       <div className="space-y-2">
         <h2 className="text-lg font-semibold">רשימות</h2>

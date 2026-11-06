@@ -6,7 +6,6 @@ import type { Tab } from './components/BottomNav'
 import { ensureWeeklyCopy } from './lib/backup'
 import { applyWordSettings } from './lib/constraintWords'
 import { useDriveList } from './lib/data/useDriveList'
-import { Archive } from './pages/Archive'
 import { Calendar } from './pages/Calendar'
 import { Settings } from './pages/Settings'
 import { Workers } from './pages/Workers'
@@ -54,8 +53,7 @@ export default function App() {
       {shown === 'calendar' && <Calendar />}
       {shown === 'toSchedule' && <ToSchedule />}
       {shown === 'workers' && <Workers />}
-      {shown === 'archive' && <Archive />}
-      {shown === 'settings' && <Settings />}
+      {(shown === 'settings' || shown === 'archive') && <Settings key={shown} openArchive={shown === 'archive'} />}
       <BottomNav active={shown} onChange={setTab} voice={voice} />
     </div>
   )

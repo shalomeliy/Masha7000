@@ -291,3 +291,4 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Privacy policy: added the assistant (data goes to Anthropic only when used).
 - Verified in the browser with the fake Drive: the user's example asked for date/kind/description, proposal, correction (electrician only in Dimona + auto-assign Eilat), "כן, לאשר" saved two shifts to `shifts-2026-11.json` with a crew in Eilat; a data question answered; "תפתח לי את היומן" opened the calendar. 375 tests.
 - Next: phase 2, the scheduling advisor (up to 5 ranked solutions), likely on a stronger model.
+- 2026-11-06: bottom bar is now יומן, לשיבוץ, עוזר (raised amber button, center), עובדים, הגדרות. The archive opens from the top of הגדרות (Settings openArchive; tab id 'archive' still exists for the assistant's openScreen).
