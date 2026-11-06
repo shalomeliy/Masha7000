@@ -1,7 +1,7 @@
 import { newId } from './catalog'
 import { dateError } from './dates'
 import { addDays, HEBREW_DAYS, isNightShift, showDate, weekday } from './shifts'
-import type { Constraint, DayPart, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
+import type { AbsenceKind, Constraint, DayPart, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 // Worker constraints: when a worker cannot work. Pure rules, no I/O. The planner never places a
 // worker a constraint blocks; the screens show why.
@@ -45,6 +45,10 @@ const dayList = (days: number[]) => {
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} ו${names.at(-1)}` : names[0]
 }
 
+// The kinds of absence the manager picks from a worker's state (the user's list, 2026-11-06, plus
+// reserve duty and courses).
+export const ABSENCE_NAMES: Record<AbsenceKind, string> = { vacation: 'בחופש', study: 'בלימודים', reserve: 'במילואים', course: 'בהשתלמות' }
+
 export const PART_NAMES: Record<DayPart, string> = { morning: 'בבוקר', noon: 'בצהריים', evening: 'בערב' }
 
 /** "לא זמין 1.11 עד 5.11", "לא זמין בערב ב-2.11", "בלי לילות בימי שלישי", "בלי לילות בכלל". The note is not included. */
@@ -59,7 +63,7 @@ export function sickConstraint(w: Pick<Worker, 'status' | 'sickUntil'>): Constra
 
 export function constraintText(c: Constraint): string {
   if (c.id === SICK_ID) return `במחלה עד ${showDate(c.to!)}`
-  const what = c.nightsOnly ? 'בלי לילות' : c.part ? `לא זמין ${PART_NAMES[c.part]}` : 'לא זמין'
+  const what = c.kind ? ABSENCE_NAMES[c.kind] : c.nightsOnly ? 'בלי לילות' : c.part ? `לא זמין ${PART_NAMES[c.part]}` : 'לא זמין'
   if (c.when === 'always') return 'בלי לילות בכלל'
   if (c.when === 'weekdays') return `${what} ${c.weekdays?.length === 1 ? 'ביום' : 'בימי'} ${dayList(c.weekdays ?? [])}${c.to ? ` עד ${showDate(c.to)}` : ''}`
   if (!c.from) return what
@@ -70,7 +74,7 @@ export function constraintText(c: Constraint): string {
 /** A date range, or a weekly one with a last date, that ended before today no longer matters. */
 export const isOver = (c: Constraint, today: string) => c.when !== 'always' && !!c.to && c.to < today
 
-const onDay = (c: Constraint, date: string) =>
+export const onDay = (c: Constraint, date: string) =>
   c.when === 'always' || (c.when === 'weekdays' ? !!c.weekdays?.includes(weekday(date)) && (!c.from || c.from <= date) && (!c.to || date <= c.to) : !!c.from && c.from <= date && date <= (c.to ?? c.from))
 
 /** The days a shift runs on: a night job runs into the next afternoon, an urgent one until its end date. */

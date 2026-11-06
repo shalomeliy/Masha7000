@@ -5,11 +5,12 @@
 
 import { crewSwaps } from './archive'
 import { fullName, generalRoleId, isActive, MAX_STAFF, newId, upsert, workerHasRole } from './catalog'
-import { constraintError } from './constraints'
+import { constraintError, constraintText } from './constraints'
 import { isRealDate } from './dates'
 import { busyCrew, busyText } from './planner'
 import { applyClosure, blankShift, isNightShift, moveShift, pendingAfterShiftSave } from './shifts'
-import type { Constraint, PendingJob, StaffSlot, Worker, WorkerStatus } from '../types/models'
+import { endAbsence } from './workerState'
+import type { AbsenceKind, Constraint, PendingJob, StaffSlot, Worker, WorkerStatus } from '../types/models'
 import type { AppData } from './assistant'
 
 export interface StaffLine {
@@ -43,7 +44,7 @@ export interface Edits {
     status: '' | 'active' | 'sick' | 'inactive' // '' = unchanged
     sickUntil: string // YYYY-MM-DD, with 'sick'
   }[]
-  addConstraints: { workerId: string; from: string; to: string; nightsOnly: boolean; note: string }[]
+  addConstraints: { workerId: string; from: string; to: string; nightsOnly: boolean; note: string; kind?: AbsenceKind | '' }[] // kind: חופש, לימודים...
 }
 
 export const NO_EDITS: Edits = { editJobs: [], setCrews: [], closeJobs: [], deleteJobIds: [], editWorkers: [], addConstraints: [] }
@@ -100,6 +101,8 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       certificationIds: [...new Set([...worker.certificationIds.filter((c) => !w.removeCertificationIds.includes(c)), ...w.addCertificationIds])],
       status,
       sickUntil: status === 'sick' ? w.sickUntil || worker.sickUntil : undefined,
+      // "חזר לעבוד" also ends a vacation or the like going on today.
+      constraints: w.status === 'active' ? endAbsence(worker.constraints, at.slice(0, 10)) : worker.constraints,
     }
     d.workers = upsert(d.workers, next)
     changed.add('workers')
@@ -117,7 +120,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       when: 'dates',
       from: c.from,
       to: c.to || c.from,
-      ...(c.nightsOnly ? { nightsOnly: true } : {}),
+      ...(c.kind ? { kind: c.kind } : c.nightsOnly ? { nightsOnly: true } : {}),
       ...(c.note.trim() ? { note: c.note.trim() } : {}),
     }
     const err = constraintError(constraint)
@@ -127,7 +130,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     }
     d.workers = upsert(d.workers, { ...worker, constraints: [...worker.constraints, constraint] })
     changed.add('workers')
-    report.push(`רשמתי אילוץ ל${worker.firstName}`)
+    report.push(c.kind ? `רשמתי ש${worker.firstName} ${constraintText(constraint)}` : `רשמתי אילוץ ל${worker.firstName}`)
   }
 
   e.editJobs.forEach((j, i) => {

@@ -51,7 +51,8 @@ export const SYSTEM = `אתה סדרן עבודה ותיק בצוות שטח (א
 8. closeJobs: לסגור עבודת לילה שהסתיימה: done (בוצעה), partial (בוצעה חלקית, ההמשך חוזר ללשיבוץ), postponed (נדחתה, חוזרת ללשיבוץ), עם note אם נאמרה סיבה.
 9. deleteJobIds: למחוק עבודה מהיומן או מהממתינות. רק כשהמנהל אמר במפורש למחוק או לבטל עבודה.
 10. editWorkers: לעדכן עובד קיים: נייד, להוסיף או להוריד תפקידים והסמכות, status: sick (עם sickUntil), inactive (לא פעיל), active (חזר לעבוד). שדה ריק = בלי שינוי.
-11. addConstraints: עובד לא זמין מתאריך עד תאריך (to ריק = יום אחד), nightsOnly אם רק לילות, note לסיבה.
+11. addConstraints: עובד לא זמין מתאריך עד תאריך (to ריק = יום אחד), nightsOnly אם רק לילות, note לסיבה. kind כשזה חופש (vacation), לימודים (study), מילואים (reserve) או השתלמות/קורס (course), אחרת "". מחלה היא לא kind: היא editWorkers עם status sick. "חזר לעבוד" = editWorkers עם status active.
+   המצב של כל עובד היום נמצא ב-now (אם הוא לא כשיר). "מי בחופש", "מי חולה", "מי זמין מחר" = לפי now, cannot ו-sickUntil.
 המטרה לקצר למנהל תהליכים: כשהוא אומר כמה דברים בבת אחת ("תזיז את דימונה לרביעי, תשים שם את אבי ותסגור את ערד כבוצעה"), עשה את כולם בהצעה אחת.
 מה שנשאר רק במסכים: הגדרות, גיבוי, דוחות חודשיים, סנכרון ליומן גוגל, מחיקת עובד או פריט ברשימה. אם המנהל מבקש, פתח לו את המסך (answer עם openScreen) ותגיד בדיוק איפה ללחוץ.
 
@@ -143,7 +144,10 @@ export const TOOLS: Anthropic.Tool[] = [
           sickUntil: str,
         }),
       },
-      addConstraints: { type: 'array', items: obj({ workerId: str, from: str, to: str, nightsOnly: { type: 'boolean' }, note: str }) },
+      addConstraints: {
+        type: 'array',
+        items: obj({ workerId: str, from: str, to: str, nightsOnly: { type: 'boolean' }, note: str, kind: { type: 'string', enum: ['', 'vacation', 'study', 'reserve', 'course'] } }),
+      },
     }),
   },
   {

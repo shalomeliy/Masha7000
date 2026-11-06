@@ -315,3 +315,12 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Still screen-only: settings, backup, monthly reports, Google Calendar sync, deleting a worker or a list item (the assistant opens the screen).
 - Live flow check: `spikes/advisor/flow.live.test.ts` (LIVE=1, optional CMDS="a|b"). Haiku thinking blocks pass to Sonnet without error. Browser check (mock Drive): problem -> cost question -> deep answer -> 4 cards.
 - Short readouts (user request, same day): 'מה יש לשיבוץ' reads only waiting jobs (place + what, opens לשיבוץ); 'מה משובץ ביומן' reads the range day by day (place, first names, 'חסרים N', opens the calendar); then asks 'לפרט?'. Adding a new worker by voice already worked (propose.workers), checked live.
+
+## Done: worker state now (2026-11-06)
+
+- User request: a sign on every worker card showing their state right now (fit, sick, vacation, studies) and a table; asked for more ideas. Added reserve duty (מילואים) and course (השתלמות).
+- Model: an absence is a dated constraint with `kind` (`AbsenceKind`: vacation, study, reserve, course), so it blocks the planner and every busy/blocked check with no new code. Sick stays the worker status + sickUntil. `constraintText` reads the kind ("בחופש 8.11 עד 10.11").
+- `src/lib/workerState.ts` (tests): `workerState` (inactive > sick > absence today > fit, with the last day), `teamStates` (counts in order), `endAbsence` (back to work today).
+- Workers screen: "מצב הצוות היום" box with a chip per state and count (tap filters the list), a colored badge on every card. Worker editor status sheet: "כשיר לעבודה (חזר לעבוד)" also ends a current absence; new options חופש / לימודים / מילואים / השתלמות open a from-to date step.
+- Voice: snapshot `now` per worker when not fit; `addConstraints.kind`; "חזר לעבוד" (status active) ends today's absence.
+- Verified in the browser (mock Drive): vacation 6.11-12.11 on a worker -> badge "בחופש עד 12.11", team box "כשירים 3, בחופש 1".

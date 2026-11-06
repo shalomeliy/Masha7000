@@ -25,9 +25,9 @@ import {
 import { constraintText, isOver } from "../../lib/constraints";
 import { useDriveList } from "../../lib/data/useDriveList";
 import { todayIso } from "../../lib/dates";
-import { showDate } from "../../lib/shifts";
 import { DateField } from "../../components/DateField";
-import type { Worker, WorkerStatus } from "../../types/models";
+import type { AbsenceKind, Worker, WorkerStatus } from "../../types/models";
+import { endAbsence, STATE_NAMES, STATE_TONE, teamStates, workerState, type StateId } from "../../lib/workerState";
 import { AddButton, EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
 import { RequestSheet } from "./RequestSheet";
@@ -44,9 +44,16 @@ const blankWorker = (): Worker => ({
 });
 
 const STATUSES: { id: WorkerStatus; name: string }[] = [
-  { id: "active", name: "פעיל" },
+  { id: "active", name: "כשיר לעבודה (חזר לעבוד)" },
   { id: "sick", name: "במחלה עד תאריך" },
   { id: "inactive", name: "לא פעיל" },
+];
+
+const ABSENCES: { id: AbsenceKind; name: string }[] = [
+  { id: "vacation", name: "חופש" },
+  { id: "study", name: "לימודים" },
+  { id: "reserve", name: "מילואים" },
+  { id: "course", name: "השתלמות או קורס" },
 ];
 
 const STATUS_COLOR: Record<WorkerStatus, string> = {
@@ -54,13 +61,6 @@ const STATUS_COLOR: Record<WorkerStatus, string> = {
   sick: "text-orange-400",
   inactive: "text-red-400",
 };
-
-const statusText = (w: Worker) =>
-  w.status === "sick" && w.sickUntil
-    ? `במחלה עד ${showDate(w.sickUntil)}`
-    : w.status === "inactive"
-      ? "לא פעיל"
-      : "פעיל";
 
 /** Sick until a day that has passed: active again, without anyone having to change it. */
 const sickNow = (w: Worker, today: string) =>
@@ -86,13 +86,18 @@ export function WorkersSection() {
   const [certFilter, setCertFilter] = useState<string[]>([]);
   const [requesting, setRequesting] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [stateFilter, setStateFilter] = useState<StateId | null>(null);
+  const today = todayIso();
 
   const filtering = roleFilter.length + certFilter.length > 0;
   const inactiveCount = workers.items.filter((w) => !isActive(w)).length;
   // Inactive workers are kept (old shifts and reports name them) but listed only behind their own button.
   const listed = workers.items.filter((w) => isActive(w) !== showInactive);
+  const team = teamStates(listed, today);
   const shown = filterWorkers(
-    listed,
+    stateFilter && !showInactive
+      ? listed.filter((w) => workerState(w, today).id === stateFilter)
+      : listed,
     roleFilter,
     certFilter,
     generalRoleId(roles.items),
@@ -200,12 +205,36 @@ export function WorkersSection() {
         )}
       </div>
 
+      {/* The team's state today: a count per state; a tap shows only those workers. */}
+      {!showInactive && team.length > 0 && (
+        <section aria-label="מצב הצוות היום" className="mb-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
+          <h2 className="mb-2 text-sm font-semibold text-slate-200">מצב הצוות היום</h2>
+          <div className="flex flex-wrap gap-2">
+            {team.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                aria-pressed={stateFilter === t.id}
+                onClick={() => setStateFilter((f) => (f === t.id ? null : t.id))}
+                className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm ${
+                  stateFilter === t.id ? "border-sky-500 text-sky-200" : "border-slate-700 text-slate-200"
+                }`}
+              >
+                <span aria-hidden className={`size-2.5 rounded-full ${STATE_TONE[t.id].dot}`} />
+                {`${STATE_NAMES[t.id]} ${t.count}`}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       {!showInactive && <JoinPending onReview={review} />}
       {showInactive && (
         <h2 className="mb-1 text-lg font-semibold">עובדים לא פעילים</h2>
       )}
       <p className="mb-2 text-sm text-slate-400" aria-live="polite">
-        {filtering
+        {stateFilter && !showInactive
+          ? `${STATE_NAMES[stateFilter]}: ${shown.length} מתוך ${listed.length}`
+          : filtering
           ? `${countText(shown.length, "עובד אחד מתאים", "עובדים מתאימים")} מתוך ${listed.length}`
           : countText(
               listed.length,
@@ -270,6 +299,7 @@ function WorkerCard({
   )?.name;
   const today = todayIso();
   const active = w.constraints.filter((c) => !isOver(c, today));
+  const state = workerState(w, today);
 
   const dial = telHref(w.mobilePhone);
 
@@ -289,16 +319,12 @@ function WorkerCard({
             </span>
           )}
         </span>
-        {sickNow(w, today) && (
-          <span className="block w-fit rounded-full bg-rose-500/15 px-2 py-0.5 text-xs text-rose-200">
-            במחלה עד {showDate(w.sickUntil!)}
-          </span>
-        )}
-        {!isActive(w) && (
-          <span className="block w-fit rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-200">
-            לא פעיל
-          </span>
-        )}
+        <span
+          className={`flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-xs ${STATE_TONE[state.id].badge}`}
+        >
+          <span aria-hidden className={`size-2 rounded-full ${STATE_TONE[state.id].dot}`} />
+          {state.label}
+        </span>
         <span className="flex flex-wrap gap-1">
           {department && (
             <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs text-sky-200">
@@ -416,6 +442,7 @@ function WorkerForm({
       : worker,
   );
   const [statusOpen, setStatusOpen] = useState(false);
+  const draftState = workerState(draft, todayIso());
   const [error, setError] = useState<string | null>(null);
   const [birthDateValid, setBirthDateValid] = useState(true);
   const [saveError, setSaveError] = useState<unknown>(null);
@@ -508,9 +535,9 @@ function WorkerForm({
         <button
           type="button"
           onClick={() => setStatusOpen(true)}
-          className={`py-1 font-semibold ${STATUS_COLOR[draft.status ?? "active"]}`}
+          className={`py-1 font-semibold ${draftState.id === "fit" ? STATUS_COLOR.active : draftState.id === "inactive" ? STATUS_COLOR.inactive : STATUS_COLOR.sick}`}
         >
-          {statusText(draft)}
+          {draftState.label}
         </button>
       </p>
       <StatusSheet
@@ -518,7 +545,22 @@ function WorkerForm({
         worker={draft}
         onClose={() => setStatusOpen(false)}
         onPick={(status, sickUntil) =>
-          setDraft((d) => ({ ...d, status, sickUntil }))
+          setDraft((d) => ({
+            ...d,
+            status,
+            sickUntil,
+            // Back to work: an absence going on today ends yesterday (or goes, if it starts today).
+            constraints:
+              status === "active" ? endAbsence(d.constraints, todayIso()) : d.constraints,
+          }))
+        }
+        onAbsence={(kind, from, to) =>
+          setDraft((d) => ({
+            ...d,
+            status: d.status === "inactive" ? d.status : "active",
+            sickUntil: undefined,
+            constraints: [...d.constraints, { id: newId(), when: "dates", from, to, kind }],
+          }))
         }
       />
 
@@ -689,18 +731,26 @@ function StatusSheet({
   worker,
   onClose,
   onPick,
+  onAbsence,
 }: {
   open: boolean;
   worker: Worker;
   onClose: () => void;
   onPick: (status: WorkerStatus, sickUntil?: string) => void;
+  onAbsence: (kind: AbsenceKind, from: string, to: string) => void;
 }) {
-  const [step, setStep] = useState<"ask" | "pick" | "date">("ask");
+  const [step, setStep] = useState<"ask" | "pick" | "date" | "range">("ask");
   const [sickUntil, setSickUntil] = useState("");
   const [valid, setValid] = useState(false);
+  const [kind, setKind] = useState<AbsenceKind>("vacation");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [rangeValid, setRangeValid] = useState({ from: false, to: false });
   const close = () => {
     setStep("ask");
     setSickUntil("");
+    setFrom("");
+    setTo("");
     onClose();
   };
   const pick = (status: WorkerStatus) => {
@@ -715,7 +765,7 @@ function StatusSheet({
       {step === "ask" && (
         <>
           <p className="text-sm text-slate-300">
-            הסטטוס של {fullName(worker) || "העובד"} עכשיו: {statusText(worker)}. לשנות
+            הסטטוס של {fullName(worker) || "העובד"} עכשיו: {workerState(worker, todayIso()).label}. לשנות
             אותו?
           </p>
           <div className="grid grid-cols-2 gap-2">
@@ -754,7 +804,64 @@ function StatusSheet({
               )}
             </button>
           ))}
+          <p className="pt-1 text-sm text-slate-300">או לא זמין לכמה ימים:</p>
+          {ABSENCES.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => {
+                setKind(a.id);
+                setFrom(todayIso());
+                setTo("");
+                setRangeValid({ from: true, to: false });
+                setStep("range");
+              }}
+              className={`${choice} border-slate-700 text-slate-200`}
+            >
+              {a.name}
+            </button>
+          ))}
+          <p className="text-xs text-slate-400">
+            בימים האלה העובד לא ישובץ לעבודות, והכרטיס שלו יראה את המצב.
+          </p>
         </div>
+      )}
+      {step === "range" && (
+        <>
+          <p className="text-sm text-slate-300">
+            {ABSENCES.find((a) => a.id === kind)?.name}: מאיזה יום ועד איזה יום?
+          </p>
+          <DateField
+            label="מתאריך"
+            value={from}
+            required
+            onChange={(v, ok) => {
+              setFrom(v);
+              setRangeValid((r) => ({ ...r, from: ok }));
+            }}
+          />
+          <DateField
+            label="עד תאריך (כולל)"
+            value={to}
+            min={from || todayIso()}
+            required
+            onChange={(v, ok) => {
+              setTo(v);
+              setRangeValid((r) => ({ ...r, to: ok }));
+            }}
+          />
+          <button
+            type="button"
+            disabled={!from || !to || !rangeValid.from || !rangeValid.to || to < from}
+            onClick={() => {
+              onAbsence(kind, from, to);
+              close();
+            }}
+            className="min-h-11 w-full rounded-xl bg-sky-600 text-sm font-medium text-white disabled:opacity-40"
+          >
+            אישור
+          </button>
+        </>
       )}
       {step === "date" && (
         <>

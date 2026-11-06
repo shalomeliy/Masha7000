@@ -10,6 +10,7 @@ import { autoAssign } from './planner'
 import { addDays, dayName, isNightShift, isWaiting, showDate } from './shifts'
 import { toggleKind } from './workKinds'
 import { applyEdits, editCount, type Edits } from './assistantEdits'
+import { workerState } from './workerState'
 import type {
   AssistantNote,
   Certification,
@@ -129,6 +130,7 @@ export function snapshot(d: AppData, now = new Date()) {
       certifications: w.certificationIds.map((id) => name(id, d.certifications)).filter(Boolean),
       ...(w.departmentId && name(w.departmentId, d.departments) ? { department: name(w.departmentId, d.departments) } : {}),
       ...(w.status === 'sick' ? { sickUntil: w.sickUntil ?? '' } : {}),
+      ...(workerState(w, today).id !== 'fit' ? { now: workerState(w, today).label } : {}),
       ...(open(w).length ? { cannot: open(w).map(constraintText) } : {}),
       ...(w.notes?.trim() ? { notes: w.notes.trim().slice(0, 200) } : {}),
     })),
@@ -392,6 +394,13 @@ export function normalizeProposal(raw: unknown): Proposal {
       status: (STATUSES as readonly string[]).includes(S(w.status)) ? (S(w.status) as (typeof STATUSES)[number]) : '',
       sickUntil: S(w.sickUntil),
     })),
-    addConstraints: A(p.addConstraints, (c) => ({ workerId: S(c.workerId), from: S(c.from), to: S(c.to), nightsOnly: B(c.nightsOnly), note: S(c.note) })),
+    addConstraints: A(p.addConstraints, (c) => ({
+      workerId: S(c.workerId),
+      from: S(c.from),
+      to: S(c.to),
+      nightsOnly: B(c.nightsOnly),
+      note: S(c.note),
+      kind: (['vacation', 'study', 'reserve', 'course'] as const).find((k) => k === c.kind) ?? '',
+    })),
   }
 }
