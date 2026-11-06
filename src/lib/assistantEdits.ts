@@ -1,0 +1,245 @@
+// The voice assistant's changes to what already exists: edit, move or schedule a job, set its crew,
+// close or delete it, update a worker, add a constraint. Pure, by the same rules the screens use
+// (moveShift, crewSwaps, applyClosure, pendingAfterShiftSave, busyCrew). Run once on a copy to find
+// problems to send back to the model, and once for real after the manager says yes.
+
+import { crewSwaps } from './archive'
+import { fullName, generalRoleId, isActive, MAX_STAFF, newId, upsert, workerHasRole } from './catalog'
+import { constraintError } from './constraints'
+import { isRealDate } from './dates'
+import { busyCrew, busyText } from './planner'
+import { applyClosure, blankShift, isNightShift, moveShift, pendingAfterShiftSave } from './shifts'
+import type { Constraint, PendingJob, StaffSlot, Worker, WorkerStatus } from '../types/models'
+import type { AppData } from './assistant'
+
+export interface StaffLine {
+  roleId: string
+  count: number
+  certificationIds: string[]
+}
+
+export interface EditJob {
+  id: string // a job in the calendar, or a waiting one
+  date: string // '' = unchanged; for a waiting job: put it in the calendar on this date
+  shiftKindId: string // '' = unchanged
+  location: string // '' = unchanged
+  jobDescription: string // '' = unchanged
+  staffing: StaffLine[] // [] = unchanged
+  autoAssign: boolean
+}
+
+export interface Edits {
+  editJobs: EditJob[]
+  setCrews: { shiftId: string; crew: { workerId: string; roleId: string }[] }[]
+  closeJobs: { shiftId: string; outcome: 'done' | 'partial' | 'postponed'; note: string }[]
+  deleteJobIds: string[]
+  editWorkers: {
+    workerId: string
+    mobilePhone: string // '' = unchanged
+    addRoleIds: string[]
+    removeRoleIds: string[]
+    addCertificationIds: string[]
+    removeCertificationIds: string[]
+    status: '' | 'active' | 'sick' | 'inactive' // '' = unchanged
+    sickUntil: string // YYYY-MM-DD, with 'sick'
+  }[]
+  addConstraints: { workerId: string; from: string; to: string; nightsOnly: boolean; note: string }[]
+}
+
+export const NO_EDITS: Edits = { editJobs: [], setCrews: [], closeJobs: [], deleteJobIds: [], editWorkers: [], addConstraints: [] }
+
+export const editCount = (e: Edits) =>
+  e.editJobs.length + e.setCrews.length + e.closeJobs.length + e.deleteJobIds.length + e.editWorkers.length + e.addConstraints.length
+
+/** One place per person, like a new job's staffing. */
+export const linesToSlots = (lines: StaffLine[]): StaffSlot[] =>
+  lines
+    .flatMap((s) => Array.from({ length: Math.max(1, Math.round(s.count)) }, () => ({ roleId: s.roleId, ...(s.certificationIds.length ? { certificationIds: s.certificationIds } : {}) })))
+    .slice(0, MAX_STAFF)
+
+export interface EditResult {
+  errors: string[] // Hebrew, for the model to fix (or to ask the manager)
+  warnings: string[] // Hebrew, said after saving
+  report: string[]
+  toAssign: string[] // shift ids to fill automatically
+}
+
+const has = (list: { id: string }[], id: string) => list.some((x) => x.id === id)
+
+/** Applies `e` to `d` in place (d is the caller's copy). */
+export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof AppData>): EditResult {
+  const errors: string[] = []
+  const warnings: string[] = []
+  const report: string[] = []
+  const toAssign: string[] = []
+  const general = generalRoleId(d.roles)
+  const touched = new Set<string>()
+  const where = (r: { location: string; jobDescription: string }) => r.location || r.jobDescription || 'העבודה'
+  const lineErrors = (lines: StaffLine[], n: string) => {
+    for (const s of lines) {
+      if (!has(d.roles, s.roleId)) errors.push(`${n}: אין תפקיד עם id "${s.roleId}"`)
+      for (const c of s.certificationIds) if (!has(d.certifications, c)) errors.push(`${n}: אין הסמכה עם id "${c}"`)
+    }
+  }
+
+  // Workers first: a job may need the role just given.
+  for (const w of e.editWorkers) {
+    const worker = d.workers.find((x) => x.id === w.workerId)
+    if (!worker) {
+      errors.push(`אין עובד עם id "${w.workerId}"`)
+      continue
+    }
+    for (const r of [...w.addRoleIds, ...w.removeRoleIds]) if (!has(d.roles, r)) errors.push(`${worker.firstName}: אין תפקיד עם id "${r}"`)
+    for (const c of [...w.addCertificationIds, ...w.removeCertificationIds]) if (!has(d.certifications, c)) errors.push(`${worker.firstName}: אין הסמכה עם id "${c}"`)
+    if (w.status === 'sick' && !isRealDate(w.sickUntil)) errors.push(`${worker.firstName}: חולה עד איזה תאריך?`)
+    const status: WorkerStatus | undefined = w.status === '' ? worker.status : w.status === 'active' ? undefined : w.status
+    const next: Worker = {
+      ...worker,
+      mobilePhone: w.mobilePhone ? w.mobilePhone.replace(/[^\d+]/g, '') : worker.mobilePhone,
+      roleIds: [...new Set([...worker.roleIds.filter((r) => !w.removeRoleIds.includes(r)), ...w.addRoleIds.filter((r) => r !== general)])],
+      certificationIds: [...new Set([...worker.certificationIds.filter((c) => !w.removeCertificationIds.includes(c)), ...w.addCertificationIds])],
+      status,
+      sickUntil: status === 'sick' ? w.sickUntil || worker.sickUntil : undefined,
+    }
+    d.workers = upsert(d.workers, next)
+    changed.add('workers')
+    report.push(`עדכנתי את ${worker.firstName}`)
+  }
+
+  for (const c of e.addConstraints) {
+    const worker = d.workers.find((x) => x.id === c.workerId)
+    if (!worker) {
+      errors.push(`אין עובד עם id "${c.workerId}"`)
+      continue
+    }
+    const constraint: Constraint = {
+      id: newId(),
+      when: 'dates',
+      from: c.from,
+      to: c.to || c.from,
+      ...(c.nightsOnly ? { nightsOnly: true } : {}),
+      ...(c.note.trim() ? { note: c.note.trim() } : {}),
+    }
+    const err = constraintError(constraint)
+    if (err) {
+      errors.push(`אילוץ של ${worker.firstName}: ${err}`)
+      continue
+    }
+    d.workers = upsert(d.workers, { ...worker, constraints: [...worker.constraints, constraint] })
+    changed.add('workers')
+    report.push(`רשמתי אילוץ ל${worker.firstName}`)
+  }
+
+  e.editJobs.forEach((j, i) => {
+    const n = `עריכה ${i + 1}`
+    if (j.date && !isRealDate(j.date)) errors.push(`${n}: תאריך לא תקין "${j.date}"`)
+    if (j.shiftKindId && !has(d.shiftDefinitions, j.shiftKindId)) errors.push(`${n}: אין תבנית עבודה עם id "${j.shiftKindId}"`)
+    lineErrors(j.staffing, n)
+    const fields = <T extends { location: string; jobDescription: string; staffing: StaffSlot[]; shiftDefinitionId?: string; workKindIds?: string[] }>(r: T): T => ({
+      ...r,
+      ...(j.location.trim() ? { location: j.location.trim() } : {}),
+      ...(j.jobDescription.trim() ? { jobDescription: j.jobDescription.trim() } : {}),
+      ...(j.shiftKindId ? { shiftDefinitionId: j.shiftKindId } : {}),
+      ...(j.staffing.length ? { staffing: linesToSlots(j.staffing), workKindIds: undefined } : {}),
+    })
+    const shift = d.shifts.find((s) => s.id === j.id)
+    const job = d.pendingJobs.find((p) => p.id === j.id)
+    if (shift) {
+      let next = fields(shift)
+      if (j.date && j.date !== shift.date) next = moveShift(next, j.date)
+      if (shift.closure && !isNightShift(next, d.shiftDefinitions)) errors.push(`${n}: העבודה ב${where(shift)} כבר נסגרה, ולכן היא נשארת עבודת לילה`)
+      if (!d.shiftDefinitions.find((s) => s.id === next.shiftDefinitionId)?.thenJob) next = { ...next, nextJob: undefined }
+      d.shifts = upsert(d.shifts, next)
+      d.pendingJobs = pendingAfterShiftSave(d.pendingJobs, next)
+      changed.add('shifts').add('pendingJobs')
+      touched.add(next.id)
+      if (j.autoAssign) toAssign.push(next.id)
+      report.push(j.date && j.date !== shift.date ? `הזזתי את העבודה ב${where(next)}` : `עדכנתי את העבודה ב${where(next)}`)
+    } else if (job) {
+      const edited: PendingJob = fields(job)
+      if (j.date) {
+        const created = fields(blankShift(j.date, edited))
+        d.shifts = [...d.shifts, created]
+        d.pendingJobs = pendingAfterShiftSave(upsert(d.pendingJobs, edited), created)
+        changed.add('shifts').add('pendingJobs')
+        if (j.autoAssign) toAssign.push(created.id)
+        report.push(`שיבצתי ליומן את העבודה ב${where(created)}`)
+      } else {
+        d.pendingJobs = upsert(d.pendingJobs, edited)
+        changed.add('pendingJobs')
+        if (j.autoAssign) errors.push(`${n}: אפשר לשבץ עובדים רק לעבודה עם תאריך`)
+        report.push(`עדכנתי את העבודה הממתינה ב${where(edited)}`)
+      }
+    } else errors.push(`${n}: אין עבודה עם id "${j.id}"`)
+  })
+
+  for (const c of e.setCrews) {
+    const shift = d.shifts.find((s) => s.id === c.shiftId)
+    if (!shift) {
+      errors.push(`אין עבודה ביומן עם id "${c.shiftId}"`)
+      continue
+    }
+    const ok = c.crew.map((m) => {
+      const w = d.workers.find((x) => x.id === m.workerId)
+      if (!w) errors.push(`אין עובד עם id "${m.workerId}"`)
+      else if (!isActive(w)) errors.push(`${fullName(w)} לא פעיל`)
+      else if (!has(d.roles, m.roleId)) errors.push(`אין תפקיד עם id "${m.roleId}"`)
+      else if (!workerHasRole(w, m.roleId, general)) errors.push(`ל${fullName(w)} אין את התפקיד ${d.roles.find((r) => r.id === m.roleId)?.name}`)
+      else return true
+      return false
+    }).every(Boolean)
+    if (!ok) continue
+    const crew = c.crew.filter((m, i) => c.crew.findIndex((x) => x.workerId === m.workerId) === i)
+    const swaps = crewSwaps(shift.crew, crew, at)
+    d.shifts = upsert(d.shifts, { ...shift, crew, ...(swaps.length ? { swaps: [...(shift.swaps ?? []), ...swaps] } : {}) })
+    changed.add('shifts')
+    touched.add(shift.id)
+    report.push(crew.length ? `ב${where(shift)} שמתי את ${crew.map((m) => d.workers.find((w) => w.id === m.workerId)?.firstName).join(', ')}` : `ב${where(shift)} הורדתי את כל העובדים`)
+  }
+
+  // A worker in two jobs at once is refused, as in the calendar; a constraint is only a warning.
+  for (const id of touched) {
+    const shift = d.shifts.find((s) => s.id === id)
+    if (!shift) continue
+    const busy = busyText(busyCrew(shift, d.workers, d.shifts, d.shiftDefinitions))
+    if (busy) errors.push(busy)
+    for (const m of shift.crew) {
+      const w = d.workers.find((x) => x.id === m.workerId)
+      if (w?.status === 'sick' && w.sickUntil && w.sickUntil >= shift.date) warnings.push(`שים לב, ${w.firstName} רשום חולה עד ${w.sickUntil.slice(8)}.${Number(w.sickUntil.slice(5, 7))}`)
+    }
+  }
+
+  for (const c of e.closeJobs) {
+    const shift = d.shifts.find((s) => s.id === c.shiftId)
+    if (!shift) {
+      errors.push(`אין עבודה ביומן עם id "${c.shiftId}"`)
+      continue
+    }
+    if (!isNightShift(shift, d.shiftDefinitions)) {
+      errors.push(`סוגרים רק עבודות לילה, והעבודה ב${where(shift)} היא עבודת יום`)
+      continue
+    }
+    const out = applyClosure(d.shifts, d.pendingJobs, shift.id, { outcome: c.outcome, reasonIds: [], closedAt: at, ...(c.note.trim() ? { note: c.note.trim() } : {}) })
+    d.shifts = out.records
+    d.pendingJobs = out.pending
+    changed.add('shifts').add('pendingJobs')
+    report.push(c.outcome === 'done' ? `סגרתי את העבודה ב${where(shift)} כבוצעה` : `סגרתי את העבודה ב${where(shift)}, והמשך שלה מחכה בלשיבוץ`)
+  }
+
+  for (const id of e.deleteJobIds) {
+    const shift = d.shifts.find((s) => s.id === id)
+    const job = d.pendingJobs.find((p) => p.id === id)
+    if (shift) {
+      // A job scheduled into it comes back to "לשיבוץ" by itself (isWaiting).
+      d.shifts = d.shifts.filter((s) => s.id !== id)
+      changed.add('shifts')
+      report.push(`מחקתי את העבודה ב${where(shift)}${shift.fromJobId ? ', והיא חזרה לרשימת הממתינות' : ''}`)
+    } else if (job) {
+      d.pendingJobs = d.pendingJobs.filter((p) => p.id !== id)
+      changed.add('pendingJobs')
+      report.push(`מחקתי את העבודה הממתינה ב${where(job)}`)
+    } else errors.push(`אין עבודה עם id "${id}" למחיקה`)
+  }
+
+  return { errors, warnings, report, toAssign }
+}

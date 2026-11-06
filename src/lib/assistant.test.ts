@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyProposal, isYes, jobStaffing, proposalErrors, snapshot, type AppData, type Proposal, type ProposedJob } from './assistant'
+import { NO_EDITS } from './assistantEdits'
 import type { Worker } from '../types/models'
 
 const G = 'general'
@@ -43,7 +44,7 @@ const job = (over: Partial<ProposedJob> = {}): ProposedJob => ({
   ...over,
 })
 
-const proposal = (over: Partial<Proposal> = {}): Proposal => ({ summary: '', jobs: [], assignShiftIds: [], workers: [], listItems: [], rememberNotes: [], forgetNoteIds: [], ...over })
+const proposal = (over: Partial<Proposal> = {}): Proposal => ({ summary: '', jobs: [], assignShiftIds: [], workers: [], listItems: [], rememberNotes: [], forgetNoteIds: [], ...NO_EDITS, ...over })
 const NOW = new Date('2026-11-06T20:00:00')
 
 describe('snapshot', () => {

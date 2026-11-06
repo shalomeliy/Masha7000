@@ -22,8 +22,8 @@ function localAssistant(): Plugin {
         let raw = ''
         for await (const chunk of req) raw += chunk
         const { runAssistant } = (await server.ssrLoadModule('/api/_lib/assistant.ts')) as typeof import('./api/_lib/assistant.ts')
-        const body = JSON.parse(raw || '{}') as { messages?: unknown; context?: unknown }
-        const reply = await runAssistant(key, body.messages, body.context, env.ASSISTANT_MODEL)
+        const body = JSON.parse(raw || '{}') as { messages?: unknown; context?: unknown; smart?: unknown }
+        const reply = await runAssistant(key, body.messages, body.context, env.ASSISTANT_MODEL, body.smart === true)
         send(reply.ok ? 200 : 502, reply.ok ? reply : { reason: reply.reason })
       })
     },

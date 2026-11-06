@@ -9,6 +9,7 @@ import { todayIso } from './dates'
 import { autoAssign } from './planner'
 import { addDays, dayName, isNightShift, isWaiting, showDate } from './shifts'
 import { toggleKind } from './workKinds'
+import { applyEdits, editCount, type Edits } from './assistantEdits'
 import type {
   AssistantNote,
   Certification,
@@ -55,7 +56,7 @@ export interface ProposedJob {
   nextJob: { location: string; jobDescription: string } // "לינה" only: the job after the night; empty otherwise
 }
 
-export interface Proposal {
+export interface Proposal extends Edits {
   summary: string
   jobs: ProposedJob[]
   assignShiftIds: string[]
@@ -176,7 +177,7 @@ export function snapshot(d: AppData, now = new Date()) {
       })),
     waitingJobs: d.pendingJobs
       .filter((j) => isWaiting(j, d.shifts))
-      .map((j) => ({ location: j.location, job: j.jobDescription, kind: name(j.shiftDefinitionId ?? '', d.shiftDefinitions), needs: staffingNames(j.staffing) })),
+      .map((j) => ({ id: j.id, location: j.location, job: j.jobDescription, kind: name(j.shiftDefinitionId ?? '', d.shiftDefinitions), needs: staffingNames(j.staffing) })),
   }
 }
 
@@ -208,7 +209,9 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
     const e = nameError(item.name, d[item.list])
     if (e) errors.push(`"${item.name}": ${e}`)
   }
-  const total = p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length
+  const total = p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length + editCount(p)
+  // Edits are tried on a copy: what the screens would refuse (a worker in two jobs, a missing role) goes back.
+  errors.push(...applyEdits(p, { ...d }, new Date().toISOString(), new Set()).errors)
   if (total === 0) errors.push('אין בהצעה שום שינוי')
   return errors
 }
@@ -308,6 +311,10 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   if (calendar) report.push(calendar === 1 ? 'הוספתי עבודה ליומן' : `הוספתי ${calendar} עבודות ליומן`)
   if (waiting) report.push(waiting === 1 ? 'הוספתי עבודה לרשימת הממתינות' : `הוספתי ${waiting} עבודות לרשימת הממתינות`)
 
+  const edits = applyEdits(p, d, at, changed)
+  report.push(...edits.report)
+  toAssign.push(...edits.toAssign)
+
   for (const id of toAssign) {
     const shift = d.shifts.find((s) => s.id === id)
     if (!shift) continue
@@ -320,9 +327,71 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     report.push(names.length ? `ב${where} שיבצתי את ${names.join(', ')}` : `ב${where} לא מצאתי עובדים מתאימים`)
     if (plan.unfilled.length && names.length) report.push(`ב${where} נשארו ${plan.unfilled.length === 1 ? 'מקום אחד פנוי' : `${plan.unfilled.length} מקומות פנויים`}`)
   }
+  report.push(...edits.warnings)
   return { data: d, changed, report }
 }
 
 // "כן", "מאשר", "תאשר", "בצע", "סגור" and the like, said alone, after a proposal.
 const YES = /^(כן|כן כן|מאשר|אשר|תאשר|אישור|מאושר|בצע|תבצע|סגור|יאללה|אוקיי|אוקי|בסדר|נכון|יופי|סבבה|כן לאשר|כן תאשר|כן מאשר|לאשר)$/
 export const isYes = (said: string) => YES.test(said.trim().replace(/[.,!?]/g, '').replace(/\s+/g, ' '))
+
+// The proposal tool is not strict (its full grammar is over the API's limit), so a field may be
+// missing or of the wrong kind. Everything the app reads is given its empty value here.
+const S = (v: unknown) => (typeof v === 'string' ? v : '')
+const B = (v: unknown) => v === true
+const SS = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
+const A = <T>(v: unknown, f: (o: Record<string, unknown>) => T): T[] =>
+  Array.isArray(v) ? v.filter((o): o is Record<string, unknown> => !!o && typeof o === 'object').map(f) : []
+const lines = (v: unknown) => A(v, (s) => ({ roleId: S(s.roleId), count: Number(s.count) || 1, certificationIds: SS(s.certificationIds) }))
+const LISTS: ListName[] = ['places', 'jobTypes', 'roles', 'certifications', 'postponeReasons']
+const OUTCOMES = ['done', 'partial', 'postponed'] as const
+const STATUSES = ['', 'active', 'sick', 'inactive'] as const
+
+export function normalizeProposal(raw: unknown): Proposal {
+  const p = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  return {
+    summary: S(p.summary),
+    jobs: A(p.jobs, (j) => {
+      const next = (j.nextJob && typeof j.nextJob === 'object' ? j.nextJob : {}) as Record<string, unknown>
+      return {
+        date: S(j.date),
+        shiftKindId: S(j.shiftKindId),
+        location: S(j.location),
+        jobDescription: S(j.jobDescription),
+        staffing: lines(j.staffing),
+        workKindIds: SS(j.workKindIds),
+        note: S(j.note),
+        autoAssign: B(j.autoAssign),
+        nextJob: { location: S(next.location), jobDescription: S(next.jobDescription) },
+      }
+    }),
+    assignShiftIds: SS(p.assignShiftIds),
+    workers: A(p.workers, (w) => ({ firstName: S(w.firstName), lastName: S(w.lastName), mobilePhone: S(w.mobilePhone), roleIds: SS(w.roleIds), certificationIds: SS(w.certificationIds) })),
+    listItems: A(p.listItems, (i) => ({ list: i.list as ListName, name: S(i.name) })).filter((i) => LISTS.includes(i.list)),
+    rememberNotes: SS(p.rememberNotes),
+    forgetNoteIds: SS(p.forgetNoteIds),
+    editJobs: A(p.editJobs, (j) => ({
+      id: S(j.id),
+      date: S(j.date),
+      shiftKindId: S(j.shiftKindId),
+      location: S(j.location),
+      jobDescription: S(j.jobDescription),
+      staffing: lines(j.staffing),
+      autoAssign: B(j.autoAssign),
+    })),
+    setCrews: A(p.setCrews, (c) => ({ shiftId: S(c.shiftId), crew: A(c.crew, (m) => ({ workerId: S(m.workerId), roleId: S(m.roleId) })) })),
+    closeJobs: A(p.closeJobs, (c) => ({ shiftId: S(c.shiftId), outcome: (OUTCOMES as readonly string[]).includes(S(c.outcome)) ? (c.outcome as (typeof OUTCOMES)[number]) : 'done', note: S(c.note) })),
+    deleteJobIds: SS(p.deleteJobIds),
+    editWorkers: A(p.editWorkers, (w) => ({
+      workerId: S(w.workerId),
+      mobilePhone: S(w.mobilePhone),
+      addRoleIds: SS(w.addRoleIds),
+      removeRoleIds: SS(w.removeRoleIds),
+      addCertificationIds: SS(w.addCertificationIds),
+      removeCertificationIds: SS(w.removeCertificationIds),
+      status: (STATUSES as readonly string[]).includes(S(w.status)) ? (S(w.status) as (typeof STATUSES)[number]) : '',
+      sickUntil: S(w.sickUntil),
+    })),
+    addConstraints: A(p.addConstraints, (c) => ({ workerId: S(c.workerId), from: S(c.from), to: S(c.to), nightsOnly: B(c.nightsOnly), note: S(c.note) })),
+  }
+}

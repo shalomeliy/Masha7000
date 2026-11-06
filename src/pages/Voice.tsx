@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
+import { BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Sparkles, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
-import { applyProposal, isYes, proposalErrors, snapshot, type AppData, type Proposal, type Screen } from '../lib/assistant'
+import { applyProposal, isYes, normalizeProposal, proposalErrors, snapshot, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { askAssistant, userTurn, type AssistantAnswer, type Turn } from '../lib/assistantApi'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
@@ -12,6 +12,12 @@ import { canListen, canSpeak, listen, nextRate, rateName, speak, speechRate, sto
 // תיקון?". Only a yes (said, or the button) saves anything. Replies are spoken; the text is one tap away.
 
 type Phase = 'idle' | 'listening' | 'thinking' | 'saving'
+
+// The smart model's answer to a hard problem: up to 5 ranked solutions.
+interface Advice {
+  spoken: string
+  options: { title: string; actions: string[]; why: string; cost: string }[]
+}
 
 interface Line {
   who: 'me' | 'app'
@@ -49,6 +55,9 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [rate, setRate] = useState(speechRate)
   const [error, setError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<Proposal | null>(null)
+  const [smartAsk, setSmartAsk] = useState(false) // waiting for "yes, think deeply" (it costs more)
+  const [thinkingDeep, setThinkingDeep] = useState(false)
+  const [advice, setAdvice] = useState<Advice | null>(null)
   const [talking, setTalking] = useState(false) // a conversation is open: it can be closed without saving
   const typedRef = useRef<HTMLInputElement>(null)
   const conversation = useRef<Turn[]>([])
@@ -69,17 +78,21 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     conversation.current = []
     last.current = null
     setProposal(null)
+    setSmartAsk(false)
+    setAdvice(null)
     setTalking(false)
   }
 
   // One turn: send, then act on the tool call. Wrong proposals go back for fixing, quietly.
-  const send = async (turn: Turn, fixes = 0) => {
+  const send = async (turn: Turn, fixes = 0, smart = false) => {
     setPhase('thinking')
+    setThinkingDeep(smart)
+    setSmartAsk(false)
     setError(null)
     conversation.current = [...conversation.current, turn]
     let answer: AssistantAnswer
     try {
-      answer = await askAssistant(conversation.current, snapshot(data))
+      answer = await askAssistant(conversation.current, snapshot(data), smart)
     } catch (e) {
       conversation.current = conversation.current.slice(0, -1)
       setError((e as Error).message)
@@ -91,7 +104,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     last.current = answer
     const call = answer.call
     if (call?.name === 'propose') {
-      const p = call.input as unknown as Proposal
+      const p = normalizeProposal(call.input)
       const problems = proposalErrors(p, data)
       if (problems.length && fixes < MAX_FIXES) return send(userTurn(answer, '', `ההצעה לא תקינה: ${problems.join('; ')}. תקן והצע שוב, או שאל את המנהל.`, true), fixes + 1)
       if (problems.length) {
@@ -114,6 +127,16 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           onNavigate(screen)
           if (hint && hint in HINTS) showHint(hint)
         }, text ? 1800 : 0)
+    } else if (call?.name === 'needs_smart') {
+      // A hard problem: the smart model costs more, so the manager decides first (the user's rule).
+      setProposal(null)
+      setSmartAsk(true)
+      say('זו שאלה מורכבת, שכדאי לחשוב עליה לעומק. במודל החכם תשובה כזו עולה בערך 4 סנט, במקום רבע סנט, ולוקחת עד חצי דקה. להמשיך?')
+    } else if (call?.name === 'advise') {
+      setProposal(null)
+      const a = call.input as unknown as Advice
+      setAdvice(a)
+      say(a.spoken)
     } else if (call?.name === 'ask_user') {
       setProposal(null)
       say(String(call.input.question ?? ''))
@@ -160,7 +183,24 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       void confirm(false)
       return
     }
+    if (smartAsk && isYes(text)) {
+      thinkDeep()
+      return
+    }
     void send(userTurn(last.current, text, proposal ? 'המנהל לא אישר עדיין. התיקון שלו בהודעה הבאה.' : undefined))
+  }
+
+  const thinkDeep = () => {
+    stopSpeaking()
+    void send(userTurn(last.current, '', 'המנהל אישר לחשוב לעומק. פתור את הבעיה שתיארת ב-needs_smart, עם advise.'), 0, true)
+  }
+
+  // A picked solution goes back to the cheap model, which turns it into a proposal to confirm.
+  const pickOption = (i: number) => {
+    if (!advice) return
+    const o = advice.options[i]
+    setAdvice(null)
+    handleSaid(`תעשה את פתרון ${i + 1}: ${o.title}`)
   }
 
   const toggleMic = () => {
@@ -199,7 +239,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
 
   const busy = phase === 'thinking' || phase === 'saving' || loading
   const status =
-    phase === 'listening' ? 'מקשיב... אפשר לדבר' : phase === 'thinking' ? 'חושב...' : phase === 'saving' ? 'שומר...' : loading ? 'טוען נתונים...' : proposal ? 'לאשר, או לתקן?' : talking ? 'לחץ וענה' : 'לחץ ודבר'
+    phase === 'listening' ? 'מקשיב... אפשר לדבר' : phase === 'thinking' ? (thinkingDeep ? 'חושב לעומק, עד חצי דקה...' : 'חושב...') : phase === 'saving' ? 'שומר...' : loading ? 'טוען נתונים...' : proposal ? 'לאשר, או לתקן?' : smartAsk ? 'לחשוב לעומק?' : advice ? 'איזה פתרון לעשות?' : talking ? 'לחץ וענה' : 'לחץ ודבר'
 
   return (
     <section className="flex min-h-[calc(100dvh-6rem)] flex-col items-center px-4 pt-10">
@@ -245,6 +285,31 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
               תקן
             </button>
           </div>
+        )}
+        {smartAsk && phase === 'idle' && (
+          <button type="button" onClick={thinkDeep} className="flex min-h-12 items-center gap-2 rounded-xl bg-violet-600 px-6 font-semibold text-white">
+            <Sparkles size={20} aria-hidden />
+            כן, תחשוב לעומק (כ-4 סנט)
+          </button>
+        )}
+        {advice && phase === 'idle' && (
+          <ol className="w-full max-w-md space-y-3" aria-label="פתרונות">
+            {advice.options.map((o, i) => (
+              <li key={i} className="rounded-2xl border border-slate-700 bg-slate-800/60 p-4 text-sm text-slate-100">
+                <p className="font-semibold">{`${i + 1}. ${o.title}`}</p>
+                <ul className="mt-2 list-disc space-y-1 ps-5 text-slate-200">
+                  {o.actions.map((a, k) => (
+                    <li key={k}>{a}</li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-emerald-300">{o.why}</p>
+                <p className="mt-1 text-amber-300">{o.cost}</p>
+                <button type="button" onClick={() => pickOption(i)} className="mt-3 min-h-11 w-full rounded-xl bg-sky-600 font-semibold text-white">
+                  {`תעשה את פתרון ${i + 1}`}
+                </button>
+              </li>
+            ))}
+          </ol>
         )}
         {talking && phase === 'idle' && (
           <button type="button" onClick={cancel} className="min-h-11 px-3 text-sm text-slate-400 underline underline-offset-4">

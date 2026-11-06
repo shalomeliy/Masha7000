@@ -35,14 +35,15 @@ export function userTurn(last: AssistantAnswer | null, said: string, result = '�
   return { role: 'user', content: blocks }
 }
 
-export async function askAssistant(messages: Turn[], context: unknown): Promise<AssistantAnswer> {
+/** smart: the costlier model, used only after the manager agreed to its cost on screen. */
+export async function askAssistant(messages: Turn[], context: unknown, smart = false): Promise<AssistantAnswer> {
   let res: Response
   try {
     res = await fetch('/api/assistant', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, context }),
+      body: JSON.stringify({ messages, context, smart }),
     })
   } catch {
     throw new Error('אין חיבור לאינטרנט.')
