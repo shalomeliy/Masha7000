@@ -16,6 +16,7 @@ export const LIMITS = {
   owner: { max: 120, windowSeconds: 600 },
   mfaIp: { max: 30, windowSeconds: 900 },
   mfaEmail: { max: 8, windowSeconds: 900 },
+  mfaEmailDay: { max: 30, windowSeconds: 86_400 },
   joinRead: { max: 120, windowSeconds: 600 },
   joinSubmit: { max: 15, windowSeconds: 3600 },
   joinManage: { max: 200, windowSeconds: 600 },

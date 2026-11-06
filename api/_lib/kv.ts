@@ -20,6 +20,8 @@ export const KEYS = {
   mfa: (email: string) => `mfa:${email}`,
   mfaSetup: (email: string) => `mfa-setup:${email}`,
   rate: (bucket: string, id: string) => `rl:${bucket}:${id}`,
+  /** A code already used: a 30-second step, or a backup code's hash. */
+  mfaUsed: (email: string, what: string) => `mfa-used:${email}:${what}`,
 } as const
 
 type Arg = string | number
@@ -64,6 +66,8 @@ export const kv = {
   isMember: async (env: Env, key: string, value: string) => Number(await command<number>(env, 'SISMEMBER', key, value)) === 1,
   add: (env: Env, key: string, value: string) => command(env, 'SADD', key, value),
   remove: (env: Env, key: string, value: string) => command(env, 'SREM', key, value),
+  /** Sets the key only if it is not there yet; true when this call got it (atomic, for one-time use). */
+  claim: async (env: Env, key: string, exSeconds: number) => (await command<string | null>(env, 'SET', key, '1', 'NX', 'EX', exSeconds)) === 'OK',
   incr: async (env: Env, key: string) => Number(await command<number>(env, 'INCR', key)),
   expire: (env: Env, key: string, seconds: number) => command(env, 'EXPIRE', key, seconds),
 }

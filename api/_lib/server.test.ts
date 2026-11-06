@@ -30,7 +30,9 @@ function fakeFetch(input: string | URL | Request, init?: RequestInit) {
     const set = () => (store.get(key) as Set<string>) ?? new Set<string>()
     switch (cmd) {
       case 'GET': return reply({ result: (store.get(key) as string) ?? null })
-      case 'SET': store.set(key, rest[0]); return reply({ result: 'OK' })
+      case 'SET':
+        if (rest.includes('NX') && store.has(key)) return reply({ result: null })
+        store.set(key, rest[0]); return reply({ result: 'OK' })
       case 'DEL': [key, ...rest].forEach((k) => store.delete(k)); return reply({ result: 1 })
       case 'SMEMBERS': return reply({ result: [...set()] })
       case 'SISMEMBER': return reply({ result: set().has(rest[0]) ? 1 : 0 })
@@ -510,5 +512,18 @@ describe('sessions and two-step sign-in', () => {
     const s = await managerSession(OWNER)
     expect((await post(owner, s, { action: 'list', pad: 'x'.repeat(9000) })).status).toBe(400)
     expect((await post(mfa, s, { action: 'status', pad: 'x'.repeat(9000) })).status).toBe(400)
+  })
+})
+
+describe('codes used at the same moment', () => {
+  it('lets only one of two racing requests in with the same code', async () => {
+    store.set('allowed', new Set(['deputy@example.com']))
+    await managerSession('deputy@example.com')
+    const secret = fromBase32(phones.get('deputy@example.com')!)
+    const a = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    const b = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    const code = await codeAt(secret, currentStep() + 1)
+    const [ra, rb] = await Promise.all([post(mfa, a, { action: 'verify', code }), post(mfa, b, { action: 'verify', code })])
+    expect([ra.status, rb.status].sort()).toEqual([200, 400])
   })
 })

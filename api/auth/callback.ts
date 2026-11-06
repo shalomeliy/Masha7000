@@ -51,6 +51,7 @@ export const GET = guarded(async (req: Request) => {
     await kv.del(env, KEYS.access)
     // Keep the owner's own device session (and its two-step check) when there is one.
     if (current?.email === email) return redirect('/', [clearState])
+    if (current) await endSession(env, current)
     return redirect('/', [clearState, await createSession(env, email)])
   }
   if (!(await isAllowed(env, email))) return fail('not-allowed')

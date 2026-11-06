@@ -45,7 +45,7 @@ const tooMany = () => json({ reason: 'too-many' }, 429)
 
 /** Counts a code try for this address and this email. */
 const codeTryRefused = async (env: Env, req: Request, email: string) =>
-  (await overLimit(env, 'mfaIp', clientIp(req))) || (await overLimit(env, 'mfaEmail', email))
+  (await overLimit(env, 'mfaIp', clientIp(req))) || (await overLimit(env, 'mfaEmail', email)) || (await overLimit(env, 'mfaEmailDay', email))
 
 export const POST = guarded(async (req: Request) => {
   const env = readEnv()
@@ -110,7 +110,7 @@ async function enable(env: Env, session: Session, code: string) {
   const pending = await open<{ secret: string }>(env.sessionKey, await kv.get(env, KEYS.mfaSetup(session.email)))
   if (!pending) return json({ reason: 'setup-expired' }, 409)
   const step = await matchStep(fromBase32(pending.secret), code)
-  if (step === null) return json({ reason: 'wrong-code' }, 400)
+  if (step === null || !(await kv.claim(env, KEYS.mfaUsed(session.email, `s${step}`), 120))) return json({ reason: 'wrong-code' }, 400)
   const { codes, hashes } = await newRecovery(env)
   await saveSecret(env, session.email, { secret: pending.secret, usedStep: step, recovery: hashes })
   await kv.del(env, KEYS.mfaSetup(session.email))
@@ -124,12 +124,16 @@ async function verify(env: Env, session: Session, code: string) {
   const s = await readSecret(env, session.email)
   if (!s) return json({ reason: 'not-enrolled' }, 409)
   const step = await matchStep(fromBase32(s.secret), code, s.usedStep)
+  // Claimed atomically: two requests racing with the same code, only one gets in.
   if (step !== null) {
+    if (!(await kv.claim(env, KEYS.mfaUsed(session.email, `s${step}`), 120))) return json({ reason: 'wrong-code' }, 400)
     await saveSecret(env, session.email, { ...s, usedStep: step })
   } else {
     const hash = await recoveryHash(env, code)
     if (code.length < 8 || !s.recovery.includes(hash)) return json({ reason: 'wrong-code' }, 400)
-    await saveSecret(env, session.email, { ...s, recovery: s.recovery.filter((h) => h !== hash) })
+    if (!(await kv.claim(env, KEYS.mfaUsed(session.email, hash), 400 * 86_400))) return json({ reason: 'wrong-code' }, 400)
+    const latest = (await readSecret(env, session.email)) ?? s
+    await saveSecret(env, session.email, { ...latest, recovery: latest.recovery.filter((h) => h !== hash) })
   }
   await markVerified(env, session)
   return json({ ok: true, recoveryLeft: step !== null ? s.recovery.length : s.recovery.length - 1 })
