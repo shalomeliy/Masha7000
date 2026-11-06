@@ -51,7 +51,10 @@ const data: AppData = {
     sh('n3', '2026-11-10', 's2', 'מצפה רמון 9', 'החלפת אנטנה בגובה 40', [], ['r1', 'r1']),
     sh('n4', '2026-11-10', 's2', 'ערד 77', 'תיקון קרינה', [['w7', 'r1']], ['r1', 'r3']),
   ],
-  pendingJobs: [],
+  pendingJobs: [
+    { id: 'pj1', location: 'באר שבע 12', jobDescription: 'החלפת מצלמה', staffing: [{ roleId: 'r4' }], reasonIds: [], createdAt: '2026-11-01T00:00:00Z' },
+    { id: 'pj2', location: 'ירוחם', jobDescription: 'בדיקת קרינה', staffing: [{ roleId: 'r3' }, { roleId: 'r1' }], shiftDefinitionId: 's2', reasonIds: [], createdAt: '2026-11-02T00:00:00Z' },
+  ],
   places: [{ id: 'p1', name: 'אילת אתר 123' }, { id: 'p2', name: 'דימונה 556' }],
   jobTypes: [],
   workKinds: [],
