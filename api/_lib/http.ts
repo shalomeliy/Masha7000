@@ -45,3 +45,22 @@ export function guarded(handler: (req: Request) => Response | Promise<Response>)
 
 /** POSTs from the app's own pages only (a browser always sends Origin on a POST). */
 export const sameOrigin = (req: Request, appOrigin: string) => req.headers.get('origin') === appOrigin
+
+/** The request body as a JSON object; anything too big, broken or not an object reads as null. */
+export async function readJson(req: Request, maxBytes = 8_000): Promise<Record<string, unknown> | null> {
+  const declared = Number(req.headers.get('content-length') ?? 0)
+  if (declared > maxBytes) return null
+  const raw = await req.text().catch(() => '')
+  if (raw.length > maxBytes) return null
+  if (!raw) return {}
+  try {
+    const value: unknown = JSON.parse(raw)
+    return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+  } catch {
+    return null
+  }
+}
+
+/** The caller's address. On Vercel these headers are set by Vercel itself, not by the browser. */
+export const clientIp = (req: Request) =>
+  req.headers.get('x-real-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'

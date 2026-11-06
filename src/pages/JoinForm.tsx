@@ -30,6 +30,7 @@ export function JoinForm({ code }: { code: string }) {
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
   const [sentBefore] = useState(() => wasSent(code))
+  const [agreed, setAgreed] = useState(false)
 
   useEffect(() => {
     document.title = 'טופס פרטי עובד'
@@ -53,7 +54,9 @@ export function JoinForm({ code }: { code: string }) {
             ? 'תעודת הזהות לא תקינה. צריך 9 ספרות, למשל 012345678'
             : !birthValid
               ? 'תאריך הלידה לא תקין'
-              : null
+              : !agreed
+                ? 'צריך לסמן שקראת את ההודעה על השימוש בפרטים'
+                : null
     setError(err)
     if (err) return
     setBusy(true)
@@ -176,6 +179,20 @@ export function JoinForm({ code }: { code: string }) {
       <Field label="הערות למנהל">
         <textarea rows={3} value={draft.notes ?? ''} onChange={set('notes')} className={inputClass} />
       </Field>
+
+      {/* The notice the privacy law asks for when collecting personal details (purpose, who sees it, rights). */}
+      <div className="space-y-2 rounded-xl border border-slate-800 bg-slate-900 p-3 text-sm text-slate-300">
+        <p>
+          הפרטים נשלחים רק למנהל העבודה שלך, כדי לשבץ אותך במשמרות ולהתקשר אליך או לקרובים במקרה חירום. אין חובה חוקית למסור אותם, אבל בלי שם וטלפון המנהל לא יוכל לשבץ אותך. תוכל לבקש מהמנהל לראות, לתקן או למחוק את הפרטים.{' '}
+          <a href="/privacy.html" target="_blank" rel="noopener" className="text-sky-300 underline">
+            מדיניות הפרטיות
+          </a>
+        </p>
+        <label className="flex min-h-11 items-center gap-3">
+          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="size-5 shrink-0 accent-sky-500" />
+          <span>קראתי ואני מסכים שהפרטים יישמרו לצורך הזה</span>
+        </label>
+      </div>
 
       {error && (
         <p role="alert" className="text-sm text-red-300">

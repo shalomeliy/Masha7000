@@ -1,7 +1,7 @@
 // ShiftSmart service worker: makes the app installable and lets it open with a weak signal.
 // Pages: network first, cached copy when offline. Built files in /assets have hashed names,
 // so they are cached once and reused. Google APIs, other origins and /api (sign-in) are never touched.
-const CACHE = 'shiftsmart-v2'
+const CACHE = 'shiftsmart-v3'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.add('/')))
@@ -22,6 +22,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url)
   if (request.method !== 'GET' || url.origin !== self.location.origin) return
   if (url.pathname.startsWith('/api/')) return
+  // The privacy and terms pages are plain pages, not the app: never stored as the app's copy.
+  if (url.pathname.endsWith('.html') && url.pathname !== '/index.html') return
 
   if (request.mode === 'navigate') {
     event.respondWith(

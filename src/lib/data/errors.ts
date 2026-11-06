@@ -11,6 +11,7 @@ export function driveErrorText(e: unknown, action: 'load' | 'save'): string {
   if (isAuthExpired(e)) {
     if (e.reason === 'owner-disconnected') return 'החיבור לדרייב של המנהל נותק. המנהל צריך להתחבר מחדש.'
     if (e.reason === 'not-allowed') return 'המייל שלך כבר לא ברשימת המורשים. בקש מהמנהל להוסיף אותו.'
+    if (e.reason === 'mfa-required') return 'צריך להתחבר שוב ולהקליד קוד מאפליקציית האימות.'
     if (e.reason === 'no-session') return 'החיבור במכשיר הזה נגמר. צריך להתחבר שוב.'
     return 'החיבור לגוגל פג (זה קורה בערך כל שעה). צריך להתחבר שוב.'
   }

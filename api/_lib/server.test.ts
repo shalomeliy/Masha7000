@@ -8,6 +8,8 @@ import { POST as token } from '../token.js'
 import { POST as owner } from '../owner.js'
 import { POST as logout } from '../logout.js'
 import { GET as joinForm, POST as join } from '../join.js'
+import { POST as mfa } from '../mfa.js'
+import { codeAt, currentStep, fromBase32 } from './totp.js'
 
 const KEY = Buffer.alloc(32, 7).toString('base64')
 const ORIGIN = 'https://masha7000.vercel.app'
@@ -34,6 +36,8 @@ function fakeFetch(input: string | URL | Request, init?: RequestInit) {
       case 'SISMEMBER': return reply({ result: set().has(rest[0]) ? 1 : 0 })
       case 'SADD': store.set(key, set().add(rest[0])); return reply({ result: 1 })
       case 'SREM': { const s = set(); s.delete(rest[0]); store.set(key, s); return reply({ result: 1 }) }
+      case 'INCR': { const n = Number(store.get(key) ?? 0) + 1; store.set(key, String(n)); return reply({ result: n }) }
+      case 'EXPIRE': return reply({ result: 1 })
     }
   }
   if (url === 'https://oauth2.googleapis.com/token') {
@@ -76,6 +80,26 @@ async function signInAs(email: string) {
     }),
   )
 }
+
+/** Signs in and passes two-step: a first device sets the app up, a later one types a code. */
+async function managerSession(email: string, now = Date.now()) {
+  const s = cookieValue(await signInAs(email), '__Host-session')!
+  const secretKey = `mfa:${email}`
+  if (!store.has(secretKey)) {
+    const { secret } = await (await post(mfa, s, { action: 'setup' })).json()
+    phones.set(email, secret)
+    const res = await post(mfa, s, { action: 'enable', code: await codeAt(fromBase32(secret), currentStep(now)) })
+    if (res.status !== 200) throw new Error(`enable ${res.status}`)
+    recovery.set(email, (await res.json()).recoveryCodes)
+  } else {
+    // A code from the app works once per 30 seconds, so a later device here uses a backup code.
+    const res = await post(mfa, s, { action: 'verify', code: recovery.get(email)!.pop()! })
+    if (res.status !== 200) throw new Error(`verify ${res.status}`)
+  }
+  return s
+}
+const phones = new Map<string, string>()
+const recovery = new Map<string, string[]>()
 
 const post = (handler: (r: Request) => Response | Promise<Response>, session: string | null, body?: unknown, origin = ORIGIN) =>
   handler(
@@ -176,7 +200,7 @@ describe('token', () => {
   async function sessionFor(email: string) {
     store.set('allowed', new Set(['deputy@example.com']))
     store.set('owner:refresh', await seal(KEY, 'refresh-1'))
-    return cookieValue(await signInAs(email), '__Host-session')!
+    return managerSession(email)
   }
 
   it('refuses another site, and a missing session', async () => {
@@ -238,10 +262,10 @@ describe('owner controls', () => {
   it('only the owner can change the list', async () => {
     store.set('allowed', new Set(['deputy@example.com']))
     store.set('owner:refresh', await seal(KEY, 'refresh-1'))
-    const deputy = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    const deputy = await managerSession('deputy@example.com')
     expect((await post(owner, deputy, { action: 'add', email: 'x@example.com' })).status).toBe(403)
 
-    const boss = cookieValue(await signInAs(OWNER), '__Host-session')!
+    const boss = await managerSession(OWNER)
     const added = await post(owner, boss, { action: 'add', email: ' New@Example.com ' })
     expect(await added.json()).toEqual({ owner: OWNER, emails: ['deputy@example.com', 'new@example.com'] })
     expect((await post(owner, boss, { action: 'add', email: 'not an email' })).status).toBe(400)
@@ -251,7 +275,7 @@ describe('owner controls', () => {
 
   it('disconnect revokes the Drive token at Google', async () => {
     store.set('owner:refresh', await seal(KEY, 'refresh-1'))
-    const boss = cookieValue(await signInAs(OWNER), '__Host-session')!
+    const boss = await managerSession(OWNER)
     await post(owner, boss, { action: 'disconnect' })
     expect(google.revoked).toEqual(['refresh-1'])
     expect(store.has('owner:refresh')).toBe(false)
@@ -272,7 +296,7 @@ describe('workers details form', () => {
   const details = { firstName: ' דנה ', lastName: 'לוי', mobilePhone: '050-1234567', idNumber: '012345678', roleIds: ['r1', 'nope'], departmentId: 'd1', extra: 'x' }
   const manager = async () => {
     store.set('allowed', new Set(['deputy@example.com']))
-    return cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    return managerSession('deputy@example.com')
   }
   const openForm = async (s: string, extra = {}) => (await (await post(join, s, { action: 'open', lists, ...extra })).json()).code as string
 
@@ -334,5 +358,157 @@ describe('workers details form', () => {
     ;[sub] = (await (await post(join, s, { action: 'list' })).json()).submissions
     await post(join, s, { action: 'remove', id: sub.id, allowAgain: true })
     expect((await post(join, null, { action: 'submit', code: newCode, details })).status).toBe(200)
+  })
+})
+
+describe('one-time codes', () => {
+  it('matches the RFC 6238 test values', async () => {
+    const secret = new Uint8Array(new TextEncoder().encode('12345678901234567890'))
+    expect(await codeAt(secret, Math.floor(59 / 30), 8)).toBe('94287082')
+    expect(await codeAt(secret, Math.floor(1111111109 / 30), 8)).toBe('07081804')
+    expect(await codeAt(secret, Math.floor(2000000000 / 30), 8)).toBe('69279037')
+  })
+})
+
+describe('sessions and two-step sign-in', () => {
+  beforeEach(async () => {
+    store.set('allowed', new Set(['deputy@example.com']))
+    store.set('owner:refresh', await seal(KEY, 'refresh-1'))
+    google.tokenAnswer = { access_token: 'owner-access', expires_in: 3600 }
+  })
+  const tokenFor = async (s: string) => {
+    google.tokenAnswer = { access_token: 'owner-access', expires_in: 3600 }
+    return (await post(token, s)).json()
+  }
+
+  it('refuses the old cookie format, so everyone signs in again once', async () => {
+    const old = await seal(KEY, { email: 'deputy@example.com', iat: Date.now() })
+    expect(await tokenFor(old)).toEqual({ reason: 'no-session' })
+  })
+
+  it('gives nothing before the code, then works once the app is set up', async () => {
+    const s = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    const before = await post(token, s)
+    expect(before.status).toBe(401)
+    expect(await before.json()).toMatchObject({ reason: 'mfa-required', enrolled: false, email: 'deputy@example.com' })
+    expect((await post(owner, s, { action: 'list' })).status).toBe(401)
+    expect((await post(join, s, { action: 'list' })).status).toBe(401)
+
+    const { secret, uri } = await (await post(mfa, s, { action: 'setup' })).json()
+    expect(uri).toContain(`secret=${secret}`)
+    expect(store.get('mfa-setup:deputy@example.com')).not.toContain(secret)
+    expect((await post(mfa, s, { action: 'enable', code: '000000' })).status).toBe(400)
+    const ok = await post(mfa, s, { action: 'enable', code: await codeAt(fromBase32(secret), currentStep()) })
+    const { recoveryCodes } = await ok.json()
+    expect(recoveryCodes).toHaveLength(10)
+    expect(store.get('mfa:deputy@example.com')).not.toContain(secret)
+    expect(await tokenFor(s)).toMatchObject({ accessToken: 'owner-access' })
+  })
+
+  it('a second device types a code; a used code, a wrong one and a used backup code are refused', async () => {
+    await managerSession('deputy@example.com')
+    const secret = fromBase32(phones.get('deputy@example.com')!)
+    const s = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    expect(await (await post(token, s)).json()).toMatchObject({ reason: 'mfa-required', enrolled: true })
+    // Already set up: a device without a code cannot swap in another phone.
+    expect((await post(mfa, s, { action: 'setup' })).status).toBe(409)
+    expect((await post(mfa, s, { action: 'verify', code: '123456' })).status).toBe(400)
+    const used = await codeAt(secret, currentStep())
+    expect((await post(mfa, s, { action: 'verify', code: used })).status).toBe(400) // used by enable
+    const next = await codeAt(secret, currentStep() + 1)
+    expect((await post(mfa, s, { action: 'verify', code: next })).status).toBe(200)
+    expect(await tokenFor(s)).toMatchObject({ accessToken: 'owner-access' })
+
+    const backup = recovery.get('deputy@example.com')![0]
+    const s2 = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    expect(await (await post(mfa, s2, { action: 'verify', code: backup.toLowerCase() })).json()).toEqual({ ok: true, recoveryLeft: 9 })
+    const s3 = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    expect((await post(mfa, s3, { action: 'verify', code: backup })).status).toBe(400)
+  })
+
+  it('stops guessing after a few tries', async () => {
+    await managerSession('deputy@example.com')
+    const s = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    // 8 tries in 15 minutes, the setup code included.
+    for (let i = 0; i < 7; i++) expect((await post(mfa, s, { action: 'verify', code: '111111' })).status).toBe(400)
+    expect((await post(mfa, s, { action: 'verify', code: '111111' })).status).toBe(429)
+  })
+
+  it('signing out ends the session on the server, not just the cookie', async () => {
+    const s = await managerSession('deputy@example.com')
+    await post(logout, s)
+    expect(await tokenFor(s)).toEqual({ reason: 'no-session' })
+  })
+
+  it('a new sign-in on the same device ends the old session', async () => {
+    const old = await managerSession('deputy@example.com')
+    const s = await start(new Request(`${ORIGIN}/api/auth/start`))
+    const state = new URL(s.headers.get('location')!).searchParams.get('state')!
+    google.tokenAnswer = { id_token: idToken('deputy@example.com'), access_token: 'a', expires_in: 3600 }
+    await callback(
+      new Request(`${ORIGIN}/api/auth/callback?state=${state}&code=c`, {
+        headers: { cookie: `__Host-oauth=${cookieValue(s, '__Host-oauth')}; __Host-session=${old}` },
+      }),
+    )
+    expect(await tokenFor(old)).toEqual({ reason: 'no-session' })
+  })
+
+  it('sign out everywhere ends every device of that person only', async () => {
+    const a = await managerSession('deputy@example.com')
+    const b = await managerSession('deputy@example.com')
+    const boss = await managerSession(OWNER)
+    const res = await post(mfa, a, { action: 'logout-all' })
+    expect(res.headers.getSetCookie()[0]).toMatch(/^__Host-session=; Max-Age=0/)
+    expect(await tokenFor(a)).toEqual({ reason: 'no-session' })
+    expect(await tokenFor(b)).toEqual({ reason: 'no-session' })
+    expect(await tokenFor(boss)).toMatchObject({ accessToken: 'owner-access' })
+  })
+
+  it('removing an email signs it out everywhere and forgets its phone', async () => {
+    const deputy = await managerSession('deputy@example.com')
+    const boss = await managerSession(OWNER)
+    await post(owner, boss, { action: 'remove', email: 'deputy@example.com' })
+    expect(await tokenFor(deputy)).toEqual({ reason: 'no-session' })
+    expect(store.has('mfa:deputy@example.com')).toBe(false)
+  })
+
+  it('the owner resets a manager who lost the phone; nobody else can', async () => {
+    const deputy = await managerSession('deputy@example.com')
+    expect((await post(mfa, deputy, { action: 'reset', email: OWNER })).status).toBe(403)
+    const boss = await managerSession(OWNER)
+    expect((await post(mfa, boss, { action: 'reset', email: 'deputy@example.com' })).status).toBe(200)
+    expect(await tokenFor(deputy)).toEqual({ reason: 'no-session' })
+    const s = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    expect(await (await post(token, s)).json()).toMatchObject({ reason: 'mfa-required', enrolled: false })
+  })
+
+  it('replacing a working Drive link needs a verified owner device', async () => {
+    const s = await start(new Request(`${ORIGIN}/api/auth/start?mode=owner`))
+    const state = new URL(s.headers.get('location')!).searchParams.get('state')!
+    google.tokenAnswer = { id_token: idToken(OWNER), refresh_token: 'attacker', access_token: 'a', scope: OWNER_SCOPES }
+    const res = await callback(
+      new Request(`${ORIGIN}/api/auth/callback?state=${state}&code=c`, { headers: { cookie: `__Host-oauth=${cookieValue(s, '__Host-oauth')}` } }),
+    )
+    expect(res.headers.get('location')).toBe('/?signin=failed')
+    expect(await open(KEY, store.get('owner:refresh') as string)).toBe('refresh-1')
+  })
+
+  it('limits the public workers form per address', async () => {
+    const s = await managerSession('deputy@example.com')
+    const lists = { roles: [], certifications: [], departments: [] }
+    const { code } = await (await post(join, s, { action: 'open', lists })).json()
+    const tries: number[] = []
+    for (let i = 0; i < 16; i++) {
+      const mobilePhone = `05012345${String(i).padStart(2, '0')}`
+      tries.push((await post(join, null, { action: 'submit', code, details: { firstName: 'a', lastName: 'b', mobilePhone } })).status)
+    }
+    expect(tries.slice(0, 15).every((t) => t === 200)).toBe(true)
+    expect(tries[15]).toBe(429)
+  })
+
+  it('refuses a body that is too big', async () => {
+    const s = await managerSession(OWNER)
+    expect((await post(owner, s, { action: 'list', pad: 'x'.repeat(9000) })).status).toBe(400)
+    expect((await post(mfa, s, { action: 'status', pad: 'x'.repeat(9000) })).status).toBe(400)
   })
 })

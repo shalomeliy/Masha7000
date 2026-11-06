@@ -10,6 +10,7 @@ import { authMode } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
 import { AccessSection } from './settings/AccessSection'
 import { BackupSection } from './settings/BackupSection'
+import { SecuritySection } from './settings/SecuritySection'
 import { DepartmentsSection } from './settings/DepartmentsSection'
 import { NameListSection } from './settings/NameListSection'
 import { WordsSection } from './settings/WordsSection'
@@ -220,6 +221,8 @@ export function Settings() {
 
       {/* Restore replaces the owner's data for everyone; without the server, everyone is on their own Drive. */}
       {!loading && !failed && <BackupSection canRestore={authMode() === 'popup' || who?.isOwner === true} />}
+
+      {authMode() === 'server' && <SecuritySection />}
 
       <ConnectionCheck />
 

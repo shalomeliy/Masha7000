@@ -9,6 +9,7 @@ const NOTICES: Record<string, string> = {
   cancelled: 'ההתחברות בוטלה.',
   scopes: 'צריך לסמן את כל ההרשאות (דרייב ויומן) כדי שכולם יוכלו לעבוד על הנתונים. נסה שוב.',
   failed: 'ההתחברות לא הצליחה. נסה שוב.',
+  'too-many': 'יותר מדי ניסיונות התחברות. חכה כמה דקות ונסה שוב.',
 }
 
 export function SignIn() {
@@ -92,6 +93,18 @@ export function SignIn() {
           ההתחברות נכשלה: {error}
         </p>
       )}
+
+      <p className="text-xs text-slate-500">
+        הכניסה היא בכפוף ל
+        <a href="/terms.html" className="text-sky-300 underline">
+          תנאי השימוש
+        </a>{' '}
+        ול
+        <a href="/privacy.html" className="text-sky-300 underline">
+          מדיניות הפרטיות
+        </a>
+        .
+      </p>
     </main>
   )
 }

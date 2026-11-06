@@ -3,7 +3,8 @@ import type { Env } from './env.js'
 
 // The server's small store: Upstash over its REST API, or a plain Redis connection (REDIS_URL,
 // Vercel Marketplace "Redis"). Holds only: the owner's sealed refresh token, a sealed cached
-// access token, the allowed emails, the workers' details form and its sealed answers.
+// access token, the allowed emails, the workers' details form and its sealed answers, the sealed
+// sign-in sessions, each person's sealed two-step secret, and short-lived rate-limit counters.
 
 export const KEYS = {
   refresh: 'owner:refresh',
@@ -12,6 +13,13 @@ export const KEYS = {
   joinForm: 'join:form',
   joinSubs: 'join:subs',
   joinSent: 'join:sent',
+  /** sess:<sid> = one signed-in device; sessions:<email> = that person's sids. */
+  session: (sid: string) => `sess:${sid}`,
+  sessionsOf: (email: string) => `sessions:${email}`,
+  /** mfa:<email> = the person's two-step secret; mfa-setup:<email> = one being set up (15 minutes). */
+  mfa: (email: string) => `mfa:${email}`,
+  mfaSetup: (email: string) => `mfa-setup:${email}`,
+  rate: (bucket: string, id: string) => `rl:${bucket}:${id}`,
 } as const
 
 type Arg = string | number
@@ -56,4 +64,6 @@ export const kv = {
   isMember: async (env: Env, key: string, value: string) => Number(await command<number>(env, 'SISMEMBER', key, value)) === 1,
   add: (env: Env, key: string, value: string) => command(env, 'SADD', key, value),
   remove: (env: Env, key: string, value: string) => command(env, 'SREM', key, value),
+  incr: async (env: Env, key: string) => Number(await command<number>(env, 'INCR', key)),
+  expire: (env: Env, key: string, seconds: number) => command(env, 'EXPIRE', key, seconds),
 }

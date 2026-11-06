@@ -1,8 +1,9 @@
 import { open, randomToken, seal, sha256url } from './_lib/crypto.js'
 import { readEnv, type Env } from './_lib/env.js'
-import { guarded, json, sameOrigin } from './_lib/http.js'
+import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { KEYS, kv } from './_lib/kv.js'
-import { isAllowed, readSession } from './_lib/session.js'
+import { overLimit } from './_lib/rate.js'
+import { requireManager } from './_lib/session.js'
 
 // The workers' details form. A manager opens it and shares one link (/join/<code>) in WhatsApp.
 // Workers, not signed in to anything, fill it; each answer waits here, sealed, until a manager
@@ -107,6 +108,7 @@ async function readSubmissions(env: Env) {
 export const GET = guarded(async (req: Request) => {
   const env = readEnv()
   if (!env) return json({ reason: 'not-configured' }, 503)
+  if (await overLimit(env, 'joinRead', clientIp(req))) return json({ reason: 'too-many' }, 429)
   const code = new URL(req.url).searchParams.get('c')
   const form = await readForm(env)
   if (!form || !code || code !== form.code) return json({ reason: 'closed' }, 404)
@@ -117,17 +119,11 @@ export const POST = guarded(async (req: Request) => {
   const env = readEnv()
   if (!env) return json({ reason: 'not-configured' }, 503)
   if (!sameOrigin(req, env.appOrigin)) return json({ reason: 'bad-origin' }, 403)
-  const raw = await req.text()
-  if (raw.length > MAX_BODY) return json({ reason: 'too-big' }, 413)
-  const body = (() => {
-    try {
-      return JSON.parse(raw) as Record<string, unknown>
-    } catch {
-      return {}
-    }
-  })()
+  const body = await readJson(req, MAX_BODY)
+  if (!body) return json({ reason: 'bad-body' }, 400)
 
   if (body.action === 'submit') {
+    if (await overLimit(env, 'joinSubmit', clientIp(req))) return json({ reason: 'too-many' }, 429)
     const form = await readForm(env)
     if (!form || body.code !== form.code) return json({ reason: 'closed' }, 404)
     const cleaned = cleanDetails(body.details, form.lists)
@@ -142,9 +138,9 @@ export const POST = guarded(async (req: Request) => {
   }
 
   // Everything else is a manager's.
-  const session = await readSession(env, req)
-  if (!session) return json({ reason: 'no-session' }, 401)
-  if (!(await isAllowed(env, session.email))) return json({ reason: 'not-allowed' }, 403)
+  if (await overLimit(env, 'joinManage', clientIp(req))) return json({ reason: 'too-many' }, 429)
+  const gate = await requireManager(env, req)
+  if ('refuse' in gate) return gate.refuse
 
   switch (body.action) {
     case 'open': {

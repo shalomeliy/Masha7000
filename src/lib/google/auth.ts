@@ -13,7 +13,7 @@ interface Token {
   expiresAt: number
 }
 
-export type AuthReason = 'expired' | 'no-session' | 'not-allowed' | 'owner-disconnected'
+export type AuthReason = 'expired' | 'no-session' | 'not-allowed' | 'owner-disconnected' | 'mfa-required'
 export class AuthExpiredError extends Error {
   reason: AuthReason
   constructor(message: string, reason: AuthReason = 'expired') {
@@ -78,7 +78,7 @@ export function rememberedAccount(): Account | null {
 
 type ServerAnswer =
   | { kind: 'token'; accessToken: string; expiresIn: number; email: string; isOwner: boolean }
-  | { kind: 'refused'; reason: AuthReason; who?: Who }
+  | { kind: 'refused'; reason: AuthReason; who?: Who; enrolled?: boolean }
   | { kind: 'no-server' }
   | { kind: 'failed' }
 
@@ -109,9 +109,9 @@ async function askServer(stale = false): Promise<ServerAnswer> {
   if (body.reason === 'not-configured') return { kind: 'no-server' }
   if (res.ok && typeof body.accessToken === 'string') return { kind: 'token', ...(body as Omit<Extract<ServerAnswer, { kind: 'token' }>, 'kind'>) }
   const reason = body.reason as string
-  if (reason === 'no-session' || reason === 'not-allowed' || reason === 'owner-disconnected') {
+  if (reason === 'no-session' || reason === 'not-allowed' || reason === 'owner-disconnected' || reason === 'mfa-required') {
     const w = typeof body.email === 'string' ? { email: body.email, isOwner: body.isOwner === true } : undefined
-    return { kind: 'refused', reason, who: w }
+    return { kind: 'refused', reason, who: w, enrolled: body.enrolled === true }
   }
   return { kind: 'failed' }
 }
@@ -154,6 +154,8 @@ function renew(stale = false): Promise<string> {
 export type ResumeResult =
   | { status: 'signedIn'; who: Who | null }
   | { status: 'signedOut' | 'notAllowed' | 'ownerDisconnected' | 'failed'; who?: Who }
+  /** Signed in with Google; this device still needs a code from the authenticator app. */
+  | { status: 'needsMfa'; who?: Who; enrolled: boolean }
 
 /** At app start: is someone signed in, and through which mode? Never opens a popup. */
 export async function resume(): Promise<ResumeResult> {
@@ -176,6 +178,7 @@ export async function resume(): Promise<ResumeResult> {
     return { status: 'signedIn', who }
   }
   who = answer.who ?? null
+  if (answer.reason === 'mfa-required') return { status: 'needsMfa', who: answer.who, enrolled: answer.enrolled === true }
   const status = answer.reason === 'not-allowed' ? 'notAllowed' : answer.reason === 'owner-disconnected' ? 'ownerDisconnected' : 'signedOut'
   return { status, who: answer.who }
 }

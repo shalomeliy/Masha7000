@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { BottomNav } from './components/BottomNav'
@@ -13,6 +13,9 @@ import { Workers } from './pages/Workers'
 import { SignIn } from './pages/SignIn'
 import { ToSchedule } from './pages/ToSchedule'
 import { useAuth } from './store/auth'
+
+// Shown once per device, after Google: kept out of the first download.
+const TwoStep = lazy(() => import('./pages/TwoStep').then((m) => ({ default: m.TwoStep })))
 
 export default function App() {
   const status = useAuth((s) => s.status)
@@ -29,6 +32,12 @@ export default function App() {
         <Loader2 className="animate-spin" size={20} aria-hidden />
         מתחבר...
       </main>
+    )
+  if (status === 'needsMfa')
+    return (
+      <Suspense fallback={null}>
+        <TwoStep />
+      </Suspense>
     )
   if (status !== 'signedIn') return <SignIn />
 

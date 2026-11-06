@@ -1,11 +1,13 @@
 import { create } from 'zustand'
 import { ownerReconnect, resume, signIn, signOut, type Who } from '../lib/google/auth'
 
-export type AuthStatus = 'checking' | 'signedIn' | 'signedOut' | 'notAllowed' | 'ownerDisconnected' | 'failed'
+export type AuthStatus = 'checking' | 'signedIn' | 'signedOut' | 'notAllowed' | 'ownerDisconnected' | 'failed' | 'needsMfa'
 
 interface AuthState {
   status: AuthStatus
   who: Who | null
+  /** needsMfa: whether the authenticator app is already set up for this email. */
+  enrolled: boolean
   /** Set once from ?signin=... after the server sends the browser back from Google. */
   notice: string | null
   busy: boolean
@@ -29,12 +31,13 @@ function takeNotice(): string | null {
 export const useAuth = create<AuthState>((set) => ({
   status: 'checking',
   who: null,
+  enrolled: false,
   notice: takeNotice(),
   busy: false,
   error: null,
   check: async () => {
     const r = await resume()
-    set({ status: r.status, who: r.who ?? null })
+    set({ status: r.status, who: r.who ?? null, enrolled: r.status === 'needsMfa' && r.enrolled })
   },
   login: async () => {
     set({ busy: true, error: null, notice: null })

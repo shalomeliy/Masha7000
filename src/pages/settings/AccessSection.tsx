@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Trash2 } from 'lucide-react'
+import { Loader2, RotateCcw, Trash2 } from 'lucide-react'
 import { inputClass } from '../../components/Sheet'
 import { addAccess, disconnectDrive, listAccess, removeAccess } from '../../lib/google/owner'
 import type { AccessList } from '../../lib/google/owner'
+import { resetMfaOf } from '../../lib/google/mfa'
 import { useAuth } from '../../store/auth'
 
 // Owner only: who may sign in (they all see and edit the owner's data), and disconnecting the Drive.
@@ -12,7 +13,8 @@ export function AccessSection() {
   const qc = useQueryClient()
   const access = useQuery({ queryKey: ['access'], queryFn: listAccess })
   const [email, setEmail] = useState('')
-  const [confirm, setConfirm] = useState<string | null>(null) // email awaiting a second tap, or 'disconnect'
+  const [confirm, setConfirm] = useState<string | null>(null) // email awaiting a second tap, 'reset:<email>', or 'disconnect'
+  const [resetDone, setResetDone] = useState<string | null>(null)
   const change = useMutation({
     mutationFn: ({ action, email }: { action: 'add' | 'remove'; email: string }) =>
       action === 'add' ? addAccess(email) : removeAccess(email),
@@ -20,6 +22,13 @@ export function AccessSection() {
       qc.setQueryData(['access'], list)
       setConfirm(null)
       if (action === 'add') setEmail('')
+    },
+  })
+  const reset = useMutation({
+    mutationFn: resetMfaOf,
+    onSuccess: (_r, email) => {
+      setConfirm(null)
+      setResetDone(email)
     },
   })
   const disconnect = useMutation({
@@ -31,7 +40,7 @@ export function AccessSection() {
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">מי יכול להיכנס</h2>
       <p className="text-sm text-slate-400">
-        כל מייל ברשימה נכנס עם חשבון הגוגל שלו ורואה ועורך את אותם נתונים, מהדרייב שלך. מי שנמחק מהרשימה יוצא תוך שעה לכל היותר.
+        כל מייל ברשימה נכנס עם חשבון הגוגל שלו ורואה ועורך את אותם נתונים, מהדרייב שלך. מי שנמחק מהרשימה מנותק מיד מכל המכשירים, וגישה שכבר קיבל נגמרת תוך שעה לכל היותר.
       </p>
 
       {access.isPending ? (
@@ -52,10 +61,19 @@ export function AccessSection() {
             <span className="text-slate-400">אתה (המנהל)</span>
           </li>
           {access.data.emails.map((e) => (
-            <li key={e} className="flex min-h-12 items-center gap-2 px-4 text-sm">
-              <span className="flex-1 truncate" dir="ltr">
+            <li key={e} className="flex min-h-12 flex-wrap items-center gap-2 px-4 py-1 text-sm">
+              <span className="min-w-0 flex-1 truncate" dir="ltr">
                 {e}
               </span>
+              <button
+                type="button"
+                disabled={reset.isPending}
+                onClick={() => (confirm === `reset:${e}` ? reset.mutate(e) : setConfirm(`reset:${e}`))}
+                className={`flex min-h-11 items-center gap-1 rounded-lg px-3 ${confirm === `reset:${e}` ? 'bg-amber-500/20 text-amber-200' : 'text-slate-400'}`}
+              >
+                <RotateCcw size={16} aria-hidden />
+                {confirm === `reset:${e}` ? 'לאפס? לחץ שוב' : resetDone === e ? 'אופס' : 'איפוס אימות'}
+              </button>
               <button
                 type="button"
                 disabled={change.isPending}
@@ -92,6 +110,12 @@ export function AccessSection() {
           הוספה
         </button>
       </form>
+      <p className="text-xs text-slate-500">איפוס אימות: למי שאיבד את הטלפון. הוא ינותק מכל המכשירים, ובכניסה הבאה יגדיר את אפליקציית האימות מחדש.</p>
+      {reset.isError && (
+        <p role="alert" className="text-sm text-red-400">
+          {(reset.error as Error).message}
+        </p>
+      )}
       {change.isError && (
         <p role="alert" className="text-sm text-red-400">
           {(change.error as Error).message}
