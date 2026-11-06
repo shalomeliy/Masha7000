@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Loader2, Scale, ShieldCheck, Users, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
@@ -134,16 +134,21 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection'
+type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection' | 'account'
 type ItemId = ListId | PanelId
 
+// A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
+type Entry = { id: ItemId; title: string; explain: string } | { href: string; title: string; explain: string }
+
 // Settings grouped by the app screen they belong to (the user's choice, 2026-11-06), so the
-// manager looks for job settings under jobs and worker settings under workers.
+// manager looks for job settings under jobs and worker settings under workers. The first screen
+// shows only the topics; a topic opens its own screen, and an item opens from there.
 interface Group {
+  id: string
   title: string
   explain: string
   icon: LucideIcon
-  items: { id: ItemId; title: string; explain: string }[]
+  items: Entry[]
 }
 
 const PANELS: Record<PanelId, { title: string; explain: string }> = {
@@ -152,77 +157,104 @@ const PANELS: Record<PanelId, { title: string; explain: string }> = {
   security: { title: 'אימות דו-שלבי', explain: 'קוד מהטלפון בכל כניסה, וקודי גיבוי' },
   backup: { title: 'גיבוי ושחזור', explain: 'שמירת עותק של כל הנתונים והחזרה שלו' },
   connection: { title: 'בדיקת חיבור לגוגל', explain: 'בודקת שהשמירה בדרייב והיומן עובדים' },
+  account: { title: 'החשבון שלי', explain: 'עם איזה מייל נכנסת, והתנתקות' },
 }
 
-const listItem = (id: ListId) => {
+const listItem = (id: ListId): Entry => {
   const l = LISTS.find((x) => x.id === id)!
   return { id, title: l.title, explain: l.explain }
 }
-const panelItem = (id: PanelId) => ({ id, ...PANELS[id] })
+const panelItem = (id: PanelId): Entry => ({ id, ...PANELS[id] })
 
 function groups(isOwner: boolean, server: boolean): Group[] {
   const all: Group[] = [
     {
+      id: 'jobs',
       title: 'עבודות ושיבוץ',
       explain: 'מה שבוחרים כשפותחים עבודה ביומן ובמסך לשיבוץ',
       icon: ClipboardList,
       items: [listItem('workKinds'), listItem('shiftDefinitions'), listItem('places'), listItem('jobTypes'), listItem('postponeReasons')],
     },
     {
+      id: 'workers',
       title: 'עובדים',
       explain: 'מה שמתארים לכל עובד במסך העובדים',
       icon: Users,
       items: [listItem('roles'), listItem('certifications'), listItem('departments'), listItem('constraintWords')],
     },
     {
+      id: 'archive',
       title: 'ארכיון',
-      explain: 'עבודות שכבר עברו',
+      explain: 'עבודות שכבר עברו, ודוחות',
       icon: ArchiveIcon,
       items: [panelItem('archive')],
     },
     {
+      id: 'security',
       title: 'גישה ואבטחה',
       explain: 'מי נכנס לאפליקציה ואיך',
       icon: ShieldCheck,
       items: [...(isOwner ? [panelItem('access')] : []), ...(server ? [panelItem('security')] : [])],
     },
     {
+      id: 'data',
       title: 'נתונים וגוגל',
-      explain: 'איפה הנתונים שמורים ואיך מגבים אותם',
+      explain: 'גיבוי, ובדיקה שהחיבור לגוגל עובד',
       icon: HardDrive,
       items: [panelItem('backup'), panelItem('connection')],
+    },
+    {
+      id: 'legal',
+      title: 'מידע משפטי ונגישות',
+      explain: 'פרטיות, תנאי שימוש ונגישות',
+      icon: Scale,
+      // Plain pages outside the app, so they also open without signing in.
+      items: [
+        { href: '/privacy.html', title: 'מדיניות פרטיות', explain: 'איזה מידע נשמר, איפה, מי רואה אותו, והזכויות שלך' },
+        { href: '/terms.html', title: 'תנאי שימוש', explain: 'הכללים לשימוש באפליקציה, ומי אחראי על מה' },
+        { href: '/accessibility.html', title: 'הצהרת נגישות', explain: 'מה נגיש, מה עוד לא, ואיך מדווחים על בעיה' },
+        {
+          href: 'mailto:shalom.eliy@gmail.com?subject=ShiftSmart',
+          title: 'פנייה בנושא פרטיות או נגישות',
+          explain: 'בקשה לראות, לתקן או למחוק מידע, או דיווח על בעיית נגישות',
+        },
+      ],
+    },
+    {
+      id: 'account',
+      title: 'החשבון שלי',
+      explain: 'עם איזה מייל נכנסת, והתנתקות',
+      icon: UserCircle,
+      items: [panelItem('account')],
     },
   ]
   return all.filter((g) => g.items.length > 0)
 }
 
-// Plain pages outside the app (public/*.html), so they also open without signing in.
-const LEGAL = [
-  { href: '/privacy.html', title: 'מדיניות פרטיות', explain: 'איזה מידע נשמר, איפה, מי רואה אותו, והזכויות שלך' },
-  { href: '/terms.html', title: 'תנאי שימוש', explain: 'הכללים לשימוש באפליקציה, ומי אחראי על מה' },
-  { href: '/accessibility.html', title: 'הצהרת נגישות', explain: 'מה נגיש, מה עוד לא, ואיך מדווחים על בעיה' },
-  {
-    href: 'mailto:shalom.eliy@gmail.com?subject=ShiftSmart',
-    title: 'פנייה בנושא פרטיות או נגישות',
-    explain: 'בקשה לראות, לתקן או למחוק מידע, או דיווח על בעיית נגישות',
-  },
-]
-
 const isList = (id: ItemId): id is ListId => LISTS.some((l) => l.id === id)
+// A topic with one screen in it opens that screen straight away.
+const only = (g: Group): ItemId | null => (g.items.length === 1 && 'id' in g.items[0] ? g.items[0].id : null)
+
+// One history entry while a topic or an item is open, so the phone's Back steps out one level.
+function useBackTo(open: boolean, close: () => void) {
+  useEffect(() => {
+    if (!open) return
+    return holdBack(() => {
+      close()
+      return false
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+}
 
 // The archive lives here too (the user's choice, 2026-11-06): the bottom bar keeps five buttons.
 export function Settings({ openArchive = false }: { openArchive?: boolean }) {
   const logout = useAuth((s) => s.logout)
   const who = useAuth((s) => s.who)
+  const [groupId, setGroupId] = useState<string | null>(null)
   const [open, setOpen] = useState<ItemId | null>(openArchive ? 'archive' : null)
-  // The phone's Back returns to this screen's index instead of leaving the app.
-  useEffect(() => {
-    if (!open) return
-    return holdBack(() => {
-      setOpen(null)
-      return false
-    })
-  }, [open])
+  useBackTo(groupId !== null, () => setGroupId(null))
+  useBackTo(open !== null, () => setOpen(null))
   // The editors read each other's lists (names, usage counts), so they load together.
   const lists = {
     roles: useDriveList('roles'),
@@ -254,12 +286,17 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
           0,
         )
       : lists[id].items.length
-  const back = (
-    <button type="button" onClick={() => setOpen(null)} className="flex min-h-11 items-center gap-1 text-sky-300">
+  const topics = groups(who?.isOwner === true, authMode() === 'server')
+  const group = topics.find((g) => g.id === groupId)
+
+  const backButton = (label: string, onClick: () => void) => (
+    <button type="button" onClick={onClick} className="flex min-h-11 items-center gap-1 text-sky-300">
       <ChevronRight size={20} aria-hidden />
-      הגדרות
+      {label}
     </button>
   )
+  // From an item, Back goes to its topic; from a topic opened straight to its one item, to the first screen.
+  const back = backButton(group ? group.title : 'הגדרות', () => setOpen(null))
 
   if (open === 'archive')
     return (
@@ -285,6 +322,20 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
             <BackupSection canRestore={authMode() === 'popup' || who?.isOwner === true} />
           ))}
         {open === 'connection' && <ConnectionCheck />}
+        {open === 'account' && (
+          <div className="space-y-3">
+            <h1 className="text-2xl font-bold">החשבון שלי</h1>
+            {who && (
+              <p className="text-sm text-slate-400">
+                מחובר כ-<span dir="ltr">{who.email}</span>
+              </p>
+            )}
+            <button type="button" onClick={logout} className="w-full rounded-xl border border-slate-700 py-3 text-slate-300">
+              התנתקות
+            </button>
+            {authMode() === 'server' && <p className="text-xs text-slate-500">מנתק רק את המכשיר הזה. שאר המכשירים נשארים מחוברים.</p>}
+          </div>
+        )}
       </section>
     )
 
@@ -306,87 +357,85 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
       </section>
     )
 
-  return (
-    <section className="space-y-6 px-4 pt-6">
-      <h1 className="text-2xl font-bold">הגדרות</h1>
-
-      {failed && <DriveError error={failed.query.error} action="load" onRetry={retry} />}
-
-      {groups(who?.isOwner === true, authMode() === 'server').map((g) => (
-        <div key={g.title} className="space-y-2">
-          <div className="flex items-start gap-2">
-            <g.icon size={20} aria-hidden className="mt-1 shrink-0 text-sky-300" />
-            <div>
-              <h2 className="text-lg font-semibold">{g.title}</h2>
-              <p className="text-xs text-slate-400">{g.explain}</p>
-            </div>
-          </div>
-          <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-            {g.items.map((item) => (
-              <li key={item.id}>
+  if (group) {
+    const hasLists = group.items.some((e) => 'id' in e && isList(e.id))
+    return (
+      <section className="space-y-4 px-4 pt-6">
+        {backButton('הגדרות', () => setGroupId(null))}
+        <h1 className="text-2xl font-bold">{group.title}</h1>
+        {hasLists && failed && <DriveError error={failed.query.error} action="load" onRetry={retry} />}
+        <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+          {group.items.map((e) => {
+            const body = (
+              <span className="flex-1">
+                <span className="block font-semibold">{e.title}</span>
+                <span className="block text-xs text-slate-400">{e.explain}</span>
+              </span>
+            )
+            if ('href' in e)
+              return (
+                <li key={e.href}>
+                  <a
+                    href={e.href}
+                    target={e.href.startsWith('mailto:') ? undefined : '_blank'}
+                    rel="noopener"
+                    className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-start"
+                  >
+                    {body}
+                    <ExternalLink size={16} aria-hidden className="shrink-0 text-slate-500" />
+                  </a>
+                </li>
+              )
+            const list = isList(e.id)
+            return (
+              <li key={e.id}>
                 <button
                   type="button"
-                  onClick={() => setOpen(item.id)}
-                  disabled={isList(item.id) && (loading || !!failed)}
+                  onClick={() => setOpen(e.id)}
+                  disabled={list && (loading || !!failed)}
                   className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-start disabled:opacity-60"
                 >
-                  <span className="flex-1">
-                    <span className="block font-semibold">{item.title}</span>
-                    <span className="block text-xs text-slate-400">{item.explain}</span>
-                  </span>
-                  {isList(item.id) && !failed && (
+                  {body}
+                  {list && !failed && (
                     <span className="shrink-0 text-sm text-slate-400">
-                      {loading ? <Loader2 className="animate-spin" size={16} aria-label="טוען" /> : count(item.id)}
+                      {loading ? <Loader2 className="animate-spin" size={16} aria-label="טוען" /> : count(e.id as ListId)}
                     </span>
                   )}
                   <ChevronLeft size={18} aria-hidden className="shrink-0 text-slate-500" />
                 </button>
               </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-
-      <div className="space-y-2">
-        <div className="flex items-start gap-2">
-          <Scale size={20} aria-hidden className="mt-1 shrink-0 text-sky-300" />
-          <div>
-            <h2 className="text-lg font-semibold">מידע משפטי ונגישות</h2>
-            <p className="text-xs text-slate-400">המסמכים שהחוק מחייב, ואיך מבקשים לראות, לתקן או למחוק מידע</p>
-          </div>
-        </div>
-        <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-          {LEGAL.map((l) => (
-            <li key={l.href}>
-              <a
-                href={l.href}
-                target={l.href.startsWith('mailto:') ? undefined : '_blank'}
-                rel="noopener"
-                className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-start"
-              >
-                <span className="flex-1">
-                  <span className="block font-semibold">{l.title}</span>
-                  <span className="block text-xs text-slate-400">{l.explain}</span>
-                </span>
-                <ExternalLink size={16} aria-hidden className="shrink-0 text-slate-500" />
-              </a>
-            </li>
-          ))}
+            )
+          })}
         </ul>
-      </div>
+      </section>
+    )
+  }
 
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold">החשבון שלי</h2>
-        {who && (
-          <p className="text-sm text-slate-400">
-            מחובר כ-<span dir="ltr">{who.email}</span>
-          </p>
-        )}
-        <button type="button" onClick={logout} className="w-full rounded-xl border border-slate-700 py-3 text-slate-300">
-          התנתקות
-        </button>
-        {authMode() === 'server' && <p className="text-xs text-slate-500">מנתק רק את המכשיר הזה. שאר המכשירים נשארים מחוברים.</p>}
-      </div>
+  return (
+    <section className="space-y-4 px-4 pt-6">
+      <h1 className="text-2xl font-bold">הגדרות</h1>
+      <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+        {topics.map((g) => (
+          <li key={g.id}>
+            <button
+              type="button"
+              onClick={() => {
+                const one = only(g)
+                if (one) setOpen(one)
+                else setGroupId(g.id)
+              }}
+              className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-start"
+            >
+              <g.icon size={22} aria-hidden className="shrink-0 text-sky-300" />
+              <span className="flex-1">
+                <span className="block font-semibold">{g.title}</span>
+                <span className="block text-xs text-slate-400">{g.explain}</span>
+              </span>
+              <ChevronLeft size={18} aria-hidden className="shrink-0 text-slate-500" />
+            </button>
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }
