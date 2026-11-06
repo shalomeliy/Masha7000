@@ -4,9 +4,9 @@ import type { LucideIcon } from 'lucide-react'
 export type Tab = 'voice' | 'calendar' | 'toSchedule' | 'workers' | 'archive' | 'settings'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: 'voice', label: 'עוזר', icon: Mic },
   { id: 'calendar', label: 'יומן', icon: CalendarDays },
   { id: 'toSchedule', label: 'לשיבוץ', icon: ClipboardList },
+  { id: 'voice', label: 'עוזר', icon: Mic },
   { id: 'workers', label: 'עובדים', icon: Users },
   { id: 'archive', label: 'ארכיון', icon: Archive },
   { id: 'settings', label: 'הגדרות', icon: Settings },
@@ -20,6 +20,24 @@ export function BottomNav({ active, onChange, voice }: { active: Tab; onChange: 
       <ul className={`mx-auto grid max-w-md ${tabs.length === 6 ? 'grid-cols-6' : 'grid-cols-5'}`}>
         {tabs.map(({ id, label, icon: Icon }) => (
           <li key={id}>
+            {id === 'voice' ? (
+              // The assistant stands out: a raised round button in the middle, with a bright ring.
+              <button
+                type="button"
+                onClick={() => onChange(id)}
+                aria-current={active === id ? 'page' : undefined}
+                className="flex w-full flex-col items-center gap-0.5 pb-2 text-xs font-semibold text-amber-300"
+              >
+                <span
+                  className={`-mt-5 flex size-14 items-center justify-center rounded-full border-4 border-amber-400 shadow-lg shadow-amber-500/30 ${
+                    active === id ? 'bg-amber-400 text-slate-950' : 'bg-slate-900 text-amber-300'
+                  }`}
+                >
+                  <Icon size={26} aria-hidden />
+                </span>
+                {label}
+              </button>
+            ) : (
             <button
               type="button"
               onClick={() => onChange(id)}
@@ -31,6 +49,7 @@ export function BottomNav({ active, onChange, voice }: { active: Tab; onChange: 
               <Icon size={22} aria-hidden />
               {label}
             </button>
+            )}
           </li>
         ))}
       </ul>
