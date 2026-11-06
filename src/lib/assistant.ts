@@ -3,13 +3,16 @@
 // The server (api/_lib/assistant.ts) only proposes; every change is made here, by the same rules
 // the screens use.
 
-import { fullName, generalRoleId, isActive, MAX_STAFF, nameError, newId, staffingFor, upsert } from './catalog'
+import { endsNextDay, fullName, generalRoleId, isActive, MAX_STAFF, nameError, newId, staffingFor, upsert } from './catalog'
+import { constraintText, isOver } from './constraints'
 import { todayIso } from './dates'
 import { autoAssign } from './planner'
-import { addDays, dayName, isWaiting } from './shifts'
+import { addDays, dayName, isNightShift, isWaiting, showDate } from './shifts'
 import { toggleKind } from './workKinds'
 import type {
+  AssistantNote,
   Certification,
+  Department,
   JobType,
   PendingJob,
   Place,
@@ -33,6 +36,8 @@ export interface AppData {
   jobTypes: JobType[]
   workKinds: WorkKind[]
   postponeReasons: PostponeReason[]
+  assistantNotes: AssistantNote[]
+  departments: Department[]
 }
 
 export type ListName = 'places' | 'jobTypes' | 'roles' | 'certifications' | 'postponeReasons'
@@ -47,6 +52,7 @@ export interface ProposedJob {
   workKindIds: string[]
   note: string
   autoAssign: boolean
+  nextJob: { location: string; jobDescription: string } // "לינה" only: the job after the night; empty otherwise
 }
 
 export interface Proposal {
@@ -55,11 +61,32 @@ export interface Proposal {
   assignShiftIds: string[]
   workers: { firstName: string; lastName: string; mobilePhone: string; roleIds: string[]; certificationIds: string[] }[]
   listItems: { list: ListName; name: string }[]
+  rememberNotes: string[] // things the manager asked the assistant to remember from now on
+  forgetNoteIds: string[]
 }
 
 // Shifts this far back and ahead go to the assistant; enough for "מי עבד אתמול" and the coming weeks.
 const PAST_DAYS = 7
 const AHEAD_DAYS = 28
+// The habits of the team ("who usually goes to Eilat") come from this many days back, as counts.
+const HISTORY_DAYS = 56
+// Days listed by name and date, so "ראשון הקרוב" or "שלישי הבא" is looked up, not computed.
+const CALENDAR_DAYS = 21
+
+/** The most frequent values, most first, at most `n`. */
+function top(values: string[], n = 3): string[] {
+  const counts = new Map<string, number>()
+  for (const v of values) if (v) counts.set(v, (counts.get(v) ?? 0) + 1)
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'he')).slice(0, n).map(([v, c]) => (c > 1 ? `${v} (${c})` : v))
+}
+
+/** What each kind of job means, in the words the manager uses, so "כולל לינה" is never a name. */
+function kindMeaning(s: ShiftDefinition): string {
+  if (s.thenJob) return 'עבודת לילה ואחריה עוד עבודה לפני החזרה לבסיס. נגמרת ב-16:00 למחרת. נקראת גם "כולל לינה", "עם לינה", "לילה פלוס"'
+  if (endsNextDay(s)) return 'יוצאים בבוקר, עובדים גם בלילה, חוזרים ב-16:00 למחרת'
+  if (s.isStandby) return 'כוננות'
+  return `עבודת יום, ${s.startTime} עד ${s.endTime} באותו יום`
+}
 
 const named = (items: { id: string; name: string }[]) => items.map(({ id, name }) => ({ id, name }))
 
@@ -76,11 +103,19 @@ export function snapshot(d: AppData, now = new Date()) {
   const certIds = d.certifications.map((c) => c.id)
   const staffingNames = (staffing: StaffSlot[]) =>
     staffingFor(staffing, d.roles, certIds).map((s) => name(s.roleId, d.roles))
+  const pastFrom = addDays(today, -HISTORY_DAYS)
+  const past = d.shifts.filter((s) => s.date >= pastFrom && s.date <= today && s.crew.length)
+  const where = (s: ShiftRecord) => s.location.trim() || s.jobDescription.trim()
+  const open = (w: Worker) => w.constraints.filter((c) => !isOver(c, today))
   return {
     today: `${today} (יום ${dayName(today)})`,
+    days: Array.from({ length: CALENDAR_DAYS }, (_, i) => {
+      const date = addDays(today, i)
+      return `${date} = ${i === 0 ? 'היום, ' : i === 1 ? 'מחר, ' : ''}יום ${dayName(date)} ${showDate(date)}`
+    }),
     roles: named(d.roles),
     certifications: named(d.certifications),
-    shiftKinds: d.shiftDefinitions.map((s) => ({ id: s.id, name: s.name, night: Boolean(s.endsNextDay || s.thenJob) })),
+    shiftKinds: d.shiftDefinitions.map((s) => ({ id: s.id, name: s.name, night: endsNextDay(s), meaning: kindMeaning(s), ...(s.thenJob ? { hasNextJob: true } : {}) })),
     workKinds: d.workKinds.map((k) => ({ id: k.id, name: k.name, people: staffingNames(k.staffing) })),
     places: d.places.map((p) => p.name),
     jobTypes: d.jobTypes.map((j) => j.name),
@@ -91,8 +126,40 @@ export function snapshot(d: AppData, now = new Date()) {
       mobile: w.mobilePhone ?? '',
       roles: w.roleIds.map((id) => name(id, d.roles)).filter(Boolean),
       certifications: w.certificationIds.map((id) => name(id, d.certifications)).filter(Boolean),
+      ...(w.departmentId && name(w.departmentId, d.departments) ? { department: name(w.departmentId, d.departments) } : {}),
       ...(w.status === 'sick' ? { sickUntil: w.sickUntil ?? '' } : {}),
+      ...(open(w).length ? { cannot: open(w).map(constraintText) } : {}),
+      ...(w.notes?.trim() ? { notes: w.notes.trim().slice(0, 200) } : {}),
     })),
+    // The last 8 weeks, counted: who did how many jobs and nights, where, and with whom.
+    history: {
+      fromDate: pastFrom,
+      workers: d.workers.filter(isActive).flatMap((w) => {
+        const mine = past.filter((s) => s.crew.some((c) => c.workerId === w.id))
+        if (!mine.length) return []
+        return [
+          {
+            name: fullName(w),
+            jobs: mine.length,
+            nights: mine.filter((s) => isNightShift(s, d.shiftDefinitions)).length,
+            last: mine.map((s) => s.date).sort().at(-1),
+            places: top(mine.map(where)),
+            with: top(mine.flatMap((s) => s.crew.filter((c) => c.workerId !== w.id).map((c) => workerName(c.workerId)))),
+          },
+        ]
+      }),
+      places: [...new Set(past.map(where))].filter(Boolean).map((place) => {
+        const here = past.filter((s) => where(s) === place)
+        return {
+          place,
+          jobs: here.length,
+          last: here.map((s) => s.date).sort().at(-1),
+          work: top(here.map((s) => s.jobDescription.trim()), 2),
+          crew: top(here.flatMap((s) => s.crew.map((c) => workerName(c.workerId)))),
+        }
+      }),
+    },
+    remembered: d.assistantNotes.map((n) => ({ id: n.id, text: n.text })),
     shifts: d.shifts
       .filter((s) => s.date >= from && s.date <= to)
       .sort((a, b) => a.date.localeCompare(b.date))
@@ -104,6 +171,7 @@ export function snapshot(d: AppData, now = new Date()) {
         job: s.jobDescription,
         needs: staffingNames(s.staffing),
         crew: s.crew.map((c) => `${workerName(c.workerId)} (${name(c.roleId, d.roles)})`),
+        ...(s.nextJob ? { then: [s.nextJob.location, s.nextJob.jobDescription].filter(Boolean).join(' - ') } : {}),
         ...(s.closure ? { closed: s.closure.outcome } : {}),
       })),
     waitingJobs: d.pendingJobs
@@ -129,6 +197,7 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
     for (const k of j.workKindIds) if (!has(d.workKinds, k)) errors.push(`${n}: אין סוג עבודה עם id "${k}"`)
     if (j.autoAssign && !j.date) errors.push(`${n}: אפשר לשבץ עובדים רק לעבודה עם תאריך`)
   })
+  for (const id of p.forgetNoteIds) if (!has(d.assistantNotes, id)) errors.push(`אין הערה שמורה עם id "${id}"`)
   for (const id of p.assignShiftIds) if (!has(d.shifts, id)) errors.push(`אין עבודה ביומן עם id "${id}"`)
   p.workers.forEach((w, i) => {
     if (!w.firstName.trim()) errors.push(`עובד ${i + 1}: חסר שם פרטי`)
@@ -139,7 +208,7 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
     const e = nameError(item.name, d[item.list])
     if (e) errors.push(`"${item.name}": ${e}`)
   }
-  const total = p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length
+  const total = p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length
   if (total === 0) errors.push('אין בהצעה שום שינוי')
   return errors
 }
@@ -174,6 +243,14 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   const report: string[] = []
   const general = generalRoleId(d.roles)
   const at = now.toISOString()
+
+  const remember = p.rememberNotes.map((t) => t.trim()).filter(Boolean)
+  if (remember.length || p.forgetNoteIds.length) {
+    d.assistantNotes = [...d.assistantNotes.filter((n) => !p.forgetNoteIds.includes(n.id)), ...remember.map((text) => ({ id: newId(), text, createdAt: at }))]
+    changed.add('assistantNotes')
+    if (remember.length) report.push(remember.length === 1 ? 'רשמתי לעצמי לזכור את זה' : `רשמתי לעצמי ${remember.length} דברים לזכור`)
+    if (p.forgetNoteIds.length) report.push(p.forgetNoteIds.length === 1 ? 'מחקתי את זה מהזיכרון' : `מחקתי ${p.forgetNoteIds.length} דברים מהזיכרון`)
+  }
 
   for (const item of p.listItems) {
     const list = d[item.list] as { id: string; name: string }[]
@@ -212,13 +289,18 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
       shiftDefinitionId: j.shiftKindId,
       ...(workKindIds.length ? { workKindIds } : {}),
     }
+    const kind = d.shiftDefinitions.find((s) => s.id === j.shiftKindId)
+    const next = { location: j.nextJob.location.trim(), jobDescription: j.nextJob.jobDescription.trim() }
+    const hasNext = Boolean(kind?.thenJob && (next.location || next.jobDescription))
     if (j.date) {
-      d.shifts = [...d.shifts, { ...base, date: j.date, crew: [] }]
+      d.shifts = [...d.shifts, { ...base, date: j.date, crew: [], ...(hasNext ? { nextJob: next } : {}) }]
       changed.add('shifts')
       calendar++
       if (j.autoAssign) toAssign.push(base.id)
     } else {
-      d.pendingJobs = [...d.pendingJobs, { ...base, reasonIds: [], createdAt: at, ...(j.note.trim() ? { note: j.note.trim() } : {}) }]
+      // A waiting job has no field for the job after the night: it goes into the note.
+      const note = [j.note.trim(), hasNext ? `אחרי הלינה: ${[next.location, next.jobDescription].filter(Boolean).join(' - ')}` : ''].filter(Boolean).join('. ')
+      d.pendingJobs = [...d.pendingJobs, { ...base, reasonIds: [], createdAt: at, ...(note ? { note } : {}) }]
       changed.add('pendingJobs')
       waiting++
     }

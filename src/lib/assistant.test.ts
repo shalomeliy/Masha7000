@@ -23,6 +23,8 @@ const data = (): AppData => ({
   jobTypes: [],
   workKinds: [{ id: 'k1', name: 'טיפוס', staffing: [{ roleId: 'climb' }, { roleId: 'climb' }] }],
   postponeReasons: [],
+  assistantNotes: [{ id: 'n1', text: 'מטפס זה טפסן', createdAt: '2026-11-01T10:00:00Z' }],
+  departments: [],
 })
 
 const job = (over: Partial<ProposedJob> = {}): ProposedJob => ({
@@ -37,10 +39,11 @@ const job = (over: Partial<ProposedJob> = {}): ProposedJob => ({
   workKindIds: [],
   note: '',
   autoAssign: false,
+  nextJob: { location: '', jobDescription: '' },
   ...over,
 })
 
-const proposal = (over: Partial<Proposal> = {}): Proposal => ({ summary: '', jobs: [], assignShiftIds: [], workers: [], listItems: [], ...over })
+const proposal = (over: Partial<Proposal> = {}): Proposal => ({ summary: '', jobs: [], assignShiftIds: [], workers: [], listItems: [], rememberNotes: [], forgetNoteIds: [], ...over })
 const NOW = new Date('2026-11-06T20:00:00')
 
 describe('snapshot', () => {
@@ -132,6 +135,69 @@ describe('applyProposal', () => {
     const d = data()
     applyProposal(proposal({ jobs: [job()] }), d, NOW)
     expect(d.shifts).toHaveLength(1)
+  })
+})
+
+describe('version 2 context', () => {
+  const lina = { id: 'night-plus', name: 'לינה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true, thenJob: true }
+
+  it('lists the coming days by name, so "ראשון הקרוב" is looked up', () => {
+    const s = snapshot(data(), NOW)
+    expect(s.days[0]).toBe('2026-11-06 = היום, יום שישי 6.11')
+    expect(s.days[2]).toBe('2026-11-08 = יום ראשון 8.11')
+    expect(s.days).toHaveLength(21)
+  })
+
+  it('explains each job kind, and marks the one with a job after the night', () => {
+    const d = data()
+    d.shiftDefinitions.push(lina)
+    const kinds = snapshot(d, NOW).shiftKinds
+    expect(kinds.find((k) => k.id === 'night-plus')).toMatchObject({ night: true, hasNextJob: true })
+    expect(kinds.find((k) => k.id === 'night-plus')?.meaning).toContain('כולל לינה')
+    expect(kinds.find((k) => k.id === 'day')).toMatchObject({ night: false })
+  })
+
+  it('counts the last weeks: jobs, nights, places and partners; and what to remember', () => {
+    const d = data()
+    d.shifts = [
+      { id: 'a', date: '2026-11-01', shiftDefinitionId: 'night', location: 'אילת', jobDescription: 'החלפה', crew: [{ workerId: 'w1', roleId: 'climb' }, { workerId: 'w2', roleId: 'climb' }], staffing: [] },
+      { id: 'b', date: '2026-11-03', shiftDefinitionId: 'day', location: 'אילת', jobDescription: 'תחזוקה', crew: [{ workerId: 'w1', roleId: 'climb' }], staffing: [] },
+      { id: 'c', date: '2026-08-01', shiftDefinitionId: 'day', location: 'רחוק', jobDescription: '', crew: [{ workerId: 'w1', roleId: 'climb' }], staffing: [] },
+    ]
+    const s = snapshot(d, NOW)
+    expect(s.history.workers.find((w) => w.name === 'דני כהן')).toEqual({ name: 'דני כהן', jobs: 2, nights: 1, last: '2026-11-03', places: ['אילת (2)'], with: ['יוסי כהן'] })
+    expect(s.history.places).toEqual([{ place: 'אילת', jobs: 2, last: '2026-11-03', work: ['החלפה', 'תחזוקה'], crew: ['דני כהן (2)', 'יוסי כהן'] }])
+    expect(s.remembered).toEqual([{ id: 'n1', text: 'מטפס זה טפסן' }])
+  })
+
+  it('tells what a worker cannot do, leaving out what is over', () => {
+    const d = data()
+    d.workers[0].constraints = [
+      { id: 'x', when: 'dates', from: '2026-11-10', to: '2026-11-10' },
+      { id: 'y', when: 'dates', from: '2026-10-01', to: '2026-10-02' },
+    ]
+    expect(snapshot(d, NOW).workers[0].cannot).toEqual(['לא זמין ב-10.11'])
+  })
+
+  it('a לינה job keeps its next job; a day job drops it; waiting jobs get it in the note', () => {
+    const d = data()
+    d.shiftDefinitions.push(lina)
+    const next = { location: 'דימונה', jobDescription: 'בדיקה' }
+    const out = applyProposal(
+      proposal({ jobs: [job({ shiftKindId: 'night-plus', nextJob: next }), job({ shiftKindId: 'day', nextJob: next }), job({ date: '', shiftKindId: 'night-plus', nextJob: next })] }),
+      d,
+      NOW,
+    ).data
+    expect(out.shifts.at(-2)?.nextJob).toEqual(next)
+    expect(out.shifts.at(-1)?.nextJob).toBeUndefined()
+    expect(out.pendingJobs[0].note).toBe('אחרי הלינה: דימונה - בדיקה')
+  })
+
+  it('remembers and forgets notes', () => {
+    const r = applyProposal(proposal({ rememberNotes: ['דני לא נוסע לאילת'], forgetNoteIds: ['n1'] }), data(), NOW)
+    expect(r.data.assistantNotes.map((n) => n.text)).toEqual(['דני לא נוסע לאילת'])
+    expect(r.changed.has('assistantNotes')).toBe(true)
+    expect(proposalErrors(proposal({ forgetNoteIds: ['nope'] }), data())).toEqual(['אין הערה שמורה עם id "nope"'])
   })
 })
 

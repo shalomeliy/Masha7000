@@ -153,6 +153,14 @@ export interface PendingJob {
   scheduledShiftId?: string
 }
 
+// Something the manager told the voice assistant to remember ("טפסן ומטפס זה אותו דבר",
+// "דני לא נוסע לאילת"). Sent with every turn; the model itself does not learn or change.
+export interface AssistantNote {
+  id: string
+  text: string
+  createdAt: string // ISO time
+}
+
 export interface PostponeReason {
   id: string
   name: string // "חסר אישור קונסטרוקטור", "תנאי מזג אויר"

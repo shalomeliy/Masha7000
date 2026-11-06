@@ -4,7 +4,7 @@ import { DRIVE_FILES } from '../google/config'
 import { readShifts, saveShifts } from './shiftMonths'
 import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withGeneralRole, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
-import type { Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
+import type { AssistantNote, Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
 
 // One Drive appData JSON file = one list (shifts: one file per month). A missing file is an empty list.
 // Saves write the whole list, optimistically, and roll back if Drive refuses.
@@ -24,6 +24,7 @@ type ListOf = {
   workKinds: WorkKind
   departments: Department
   constraintWords: WordGroupSetting
+  assistantNotes: AssistantNote
 }
 type ListFile = keyof ListOf
 

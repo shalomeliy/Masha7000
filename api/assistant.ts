@@ -20,7 +20,7 @@ export const POST = guarded(async (req: Request) => {
 
   const body = await readJson(req, 400_000)
   if (!body) return json({ reason: 'bad-body' }, 400)
-  const reply = await runAssistant(apiKey, body.messages, body.context)
+  const reply = await runAssistant(apiKey, body.messages, body.context, process.env.ASSISTANT_MODEL)
   if (!reply.ok) return json({ reason: reply.reason }, reply.reason === 'bad-body' ? 400 : reply.reason === 'no-key' ? 503 : 502)
   return json(reply)
 })

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Check, Keyboard, Loader2, Mic, MessageSquareText, Square, X } from 'lucide-react'
+import { BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
 import { applyProposal, isYes, proposalErrors, snapshot, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { askAssistant, userTurn, type AssistantAnswer, type Turn } from '../lib/assistantApi'
 import { useDriveList } from '../lib/data/useDriveList'
-import { canListen, listen, speak, stopSpeaking, type Listening } from '../lib/speech'
+import { canListen, canSpeak, listen, nextRate, rateName, speak, speechRate, stopSpeaking, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -32,6 +32,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     jobTypes: useDriveList('jobTypes'),
     workKinds: useDriveList('workKinds'),
     postponeReasons: useDriveList('postponeReasons'),
+    assistantNotes: useDriveList('assistantNotes'),
+    departments: useDriveList('departments'),
   }
   const loading = Object.values(lists).some((l) => l.query.isPending)
   const data = Object.fromEntries(Object.entries(lists).map(([k, l]) => [k, l.items])) as unknown as AppData
@@ -40,10 +42,14 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [heard, setHeard] = useState('')
   const [lines, setLines] = useState<Line[]>([])
   const [showText, setShowText] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
   const [typing, setTyping] = useState(!canListen)
   const [typed, setTyped] = useState('')
+  const [rate, setRate] = useState(speechRate)
   const [error, setError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<Proposal | null>(null)
+  const [talking, setTalking] = useState(false) // a conversation is open: it can be closed without saving
+  const typedRef = useRef<HTMLInputElement>(null)
   const conversation = useRef<Turn[]>([])
   const last = useRef<AssistantAnswer | null>(null)
   const listening = useRef<Listening | null>(null)
@@ -62,6 +68,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     conversation.current = []
     last.current = null
     setProposal(null)
+    setTalking(false)
   }
 
   // One turn: send, then act on the tool call. Wrong proposals go back for fixing, quietly.
@@ -79,6 +86,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       return
     }
     conversation.current = [...conversation.current, { role: 'assistant', content: answer.content }]
+    setTalking(true)
     last.current = answer
     const call = answer.call
     if (call?.name === 'propose') {
@@ -116,7 +124,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     const { data: next, changed, report } = applyProposal(proposal, data)
     try {
       // Lists first, then workers, then the jobs that may use them.
-      for (const key of ['roles', 'certifications', 'places', 'jobTypes', 'postponeReasons', 'workers', 'shifts', 'pendingJobs'] as const) {
+      for (const key of ['roles', 'certifications', 'places', 'jobTypes', 'postponeReasons', 'workers', 'shifts', 'pendingJobs', 'assistantNotes'] as const) {
         if (changed.has(key)) await (lists[key].save as (items: unknown[]) => Promise<void>)(next[key])
       }
     } catch {
@@ -171,9 +179,20 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     setPhase('listening')
   }
 
+  // "תקן": the manager says (or types) the correction; it goes to the assistant as the next turn.
+  const correct = () => {
+    stopSpeaking()
+    if (typing || !canListen) {
+      setTyping(true)
+      setTimeout(() => typedRef.current?.focus(), 0)
+      return
+    }
+    toggleMic()
+  }
+
   const busy = phase === 'thinking' || phase === 'saving' || loading
   const status =
-    phase === 'listening' ? 'מקשיב... אפשר לדבר' : phase === 'thinking' ? 'חושב...' : phase === 'saving' ? 'שומר...' : loading ? 'טוען נתונים...' : proposal ? 'לאשר, לתקן בקול, או לבטל' : 'לחץ ודבר'
+    phase === 'listening' ? 'מקשיב... אפשר לדבר' : phase === 'thinking' ? 'חושב...' : phase === 'saving' ? 'שומר...' : loading ? 'טוען נתונים...' : proposal ? 'לאשר, או לתקן?' : talking ? 'לחץ וענה' : 'לחץ ודבר'
 
   return (
     <section className="flex min-h-[calc(100dvh-6rem)] flex-col items-center px-4 pt-10">
@@ -206,17 +225,24 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           </p>
         )}
 
+        {/* A proposal is always answered by "אשר" or "תקן"; a correction continues the conversation
+            and comes back as a new proposal. Cancel is only a small link under them (user rule). */}
         {proposal && phase === 'idle' && (
           <div className="flex gap-3">
             <button type="button" onClick={() => void confirm(true)} className="flex min-h-12 items-center gap-2 rounded-xl bg-emerald-600 px-6 font-semibold text-white">
               <Check size={20} aria-hidden />
               אשר
             </button>
-            <button type="button" onClick={cancel} className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-600 px-5 text-slate-200">
-              <X size={20} aria-hidden />
-              ביטול
+            <button type="button" onClick={correct} className="flex min-h-12 items-center gap-2 rounded-xl bg-sky-600 px-6 font-semibold text-white">
+              <Pencil size={20} aria-hidden />
+              תקן
             </button>
           </div>
+        )}
+        {talking && phase === 'idle' && (
+          <button type="button" onClick={cancel} className="min-h-11 px-3 text-sm text-slate-400 underline underline-offset-4">
+            {proposal ? 'ביטול, לסגור בלי לשמור' : 'לסגור את השיחה'}
+          </button>
         )}
       </div>
 
@@ -230,17 +256,32 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
             }}
             className="flex gap-2"
           >
-            <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="אפשר גם להקליד" className={inputClass} disabled={busy} />
+            <input ref={typedRef} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="אפשר גם להקליד" className={inputClass} disabled={busy} />
             <button type="submit" disabled={busy || !typed.trim()} className="min-h-11 rounded-xl bg-sky-600 px-4 font-semibold text-white disabled:opacity-50">
               שלח
             </button>
           </form>
         )}
-        <div className="flex justify-center gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           {lines.length > 0 && (
             <button type="button" onClick={() => setShowText((s) => !s)} aria-expanded={showText} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
               <MessageSquareText size={18} aria-hidden />
               {showText ? 'הסתר טקסט' : 'הצג טקסט'}
+            </button>
+          )}
+          {canSpeak && (
+            <button
+              type="button"
+              onClick={() => {
+                const v = nextRate()
+                setRate(v)
+                speak(`ככה אני מדבר בקצב ${rateName(v)}`)
+              }}
+              aria-label={`מהירות הדיבור: ${rateName(rate)}. לחיצה משנה`}
+              className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200"
+            >
+              <Gauge size={18} aria-hidden />
+              {`קצב: ${rateName(rate)}`}
             </button>
           )}
           {canListen && (
@@ -249,7 +290,31 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
               הקלדה
             </button>
           )}
+          {data.assistantNotes.length > 0 && (
+            <button type="button" onClick={() => setShowNotes((s) => !s)} aria-expanded={showNotes} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
+              <BookMarked size={18} aria-hidden />
+              {`מה אני זוכר (${data.assistantNotes.length})`}
+            </button>
+          )}
         </div>
+        {showNotes && data.assistantNotes.length > 0 && (
+          <ul className="space-y-2" aria-label="מה העוזר זוכר">
+            {data.assistantNotes.map((n) => (
+              <li key={n.id} className="flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-2 text-sm text-slate-100">
+                <span className="flex-1">{n.text}</span>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void lists.assistantNotes.save(data.assistantNotes.filter((x) => x.id !== n.id)).catch(() => setError('המחיקה בגוגל דרייב נכשלה. נסה שוב.'))}
+                  aria-label={`למחוק: ${n.text}`}
+                  className="flex size-11 items-center justify-center rounded-xl text-slate-400 hover:text-red-300 disabled:opacity-50"
+                >
+                  <Trash2 size={18} aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {showText && (
           <ol className="space-y-2">
             {lines.map((line, i) => (

@@ -24,4 +24,5 @@ export const DRIVE_FILES = {
   departments: 'departments.json',
   constraintWords: 'constraint_words.json',
   settings: 'settings.json',
+  assistantNotes: 'assistant_notes.json',
 } as const

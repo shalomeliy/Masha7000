@@ -77,6 +77,39 @@ const hebrewVoice = () => {
   return voice
 }
 
+// How fast replies are read, chosen on the assistant screen and kept on this phone.
+export const RATES = [
+  { value: 0.8, name: 'איטי' },
+  { value: 1, name: 'רגיל' },
+  { value: 1.25, name: 'מהיר' },
+  { value: 1.5, name: 'מהיר מאוד' },
+] as const
+const RATE_KEY = 'assistant.rate'
+let current: number | undefined
+
+export function speechRate(): number {
+  try {
+    const v = Number(localStorage.getItem(RATE_KEY))
+    return RATES.some((r) => r.value === v) ? v : 1
+  } catch {
+    return 1
+  }
+}
+
+/** The next rate in RATES (after the fastest, back to the slowest), saved for next time. */
+export function nextRate(): number {
+  const i = RATES.findIndex((r) => r.value === speechRate())
+  const v = RATES[(i + 1) % RATES.length].value
+  try {
+    localStorage.setItem(RATE_KEY, String(v))
+  } catch {
+    // private mode: the rate holds until the page reloads
+  }
+  current = v
+  return v
+}
+export const rateName = (v: number) => RATES.find((r) => r.value === v)?.name ?? 'רגיל'
+
 /** Reads the text aloud in Hebrew; `onDone` when it ends or cannot start. */
 export function speak(text: string, onDone?: () => void) {
   if (!canSpeak || !text) {
@@ -86,6 +119,7 @@ export function speak(text: string, onDone?: () => void) {
   speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(text)
   u.lang = 'he-IL'
+  u.rate = current ?? (current = speechRate())
   const v = hebrewVoice()
   if (v) u.voice = v
   u.onend = () => onDone?.()

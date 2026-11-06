@@ -292,3 +292,15 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Verified in the browser with the fake Drive: the user's example asked for date/kind/description, proposal, correction (electrician only in Dimona + auto-assign Eilat), "כן, לאשר" saved two shifts to `shifts-2026-11.json` with a crew in Eilat; a data question answered; "תפתח לי את היומן" opened the calendar. 375 tests.
 - Next: phase 2, the scheduling advisor (up to 5 ranked solutions), likely on a stronger model.
 - 2026-11-06: bottom bar is now יומן, לשיבוץ, עוזר (raised amber button, center), עובדים, הגדרות. The archive opens from the top of הגדרות (Settings openArchive; tab id 'archive' still exists for the assistant's openScreen).
+
+## Done: voice assistant, version 2 (2026-11-06)
+
+- User feedback: speech-rate control, warmer colloquial persona, much better context understanding ("ראשון הקרוב כולל לינה" = date + לינה template; "לינה" is never a worker), act as an expert shift manager, "learn from data". Plus a bug: after a correction only approve/cancel showed.
+- Speech rate: button "קצב" on the assistant screen cycles איטי / רגיל / מהיר / מהיר מאוד (0.8-1.5), kept in localStorage `assistant.rate` (`src/lib/speech.ts`).
+- Persona and rules rewritten in `api/_lib/assistant.ts` (SYSTEM): veteran dispatcher, colloquial; word rules (shift kinds and roles are never names; check workers list first); dates looked up in `days`, not computed; job-card fields listed; warns about constraints, sick, double booking, night load.
+- Snapshot (`src/lib/assistant.ts`): `days` (21 days by name), shift kinds with `meaning` and `hasNextJob`, worker department, open constraints (`cannot`), notes (200 chars), `history` (56 days: per worker jobs/nights/last/places/partners, per place jobs/last/work/crew), `remembered`.
+- Proposal: `nextJob` per job (לינה only; waiting jobs get it in the note), `rememberNotes` / `forgetNoteIds`. New Drive list `assistantNotes` (`assistant_notes.json`, type `AssistantNote`); screen button "מה אני זוכר (N)" lists them with delete. Not in the backup list yet.
+- "Learn from data" honestly: the model does not train; it gets the history counts and saved notes every turn.
+- Confirm UI (user rule): a proposal shows "אשר" and "תקן" (equal buttons); "תקן" opens the mic (or the typing field) and the correction continues the conversation; cancel is a small link "ביטול, לסגור בלי לשמור" ("לסגור את השיחה" during questions).
+- Model: `ASSISTANT_MODEL` env var (Vercel or `.env.local`) picks `claude-haiku-5-5` (default) or `claude-sonnet-5-5`; anything else falls back to Haiku (`pickModel`). Live comparison: `spikes/voice-assistant/v2.live.test.ts` (run with `LIVE=1 npx vitest run spikes/voice-assistant/v2.live.test.ts --dir .`). 5 sentences: Haiku ≈ $0.0025, Sonnet ≈ $0.04. Both got "ראשון הקרוב כולל לינה" right; on "את משה ולינה ביום שלישי" Haiku asked whether "לינה" was a worker (משה לינדה), Sonnet understood it as the לינה template.
+- Verified in the browser (mock Drive, real Haiku): request -> proposal -> "תקן" -> correction to Sunday + לינה + next job in Dimona -> new proposal with אשר/תקן -> saved with `nextJob`.
