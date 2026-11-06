@@ -270,3 +270,13 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Approval: answers wait at the top of the workers list; "בדיקה והוספה" opens the usual worker form filled from the answer (or the existing worker matched by ID number, then mobile, with the answer written over it). Saving is the approval and removes the answer. `src/lib/join.ts` holds the pure rules (tests in `join.test.ts`, server tests in `api/_lib/server.test.ts`).
 - No spike: every part (server, Redis, WhatsApp share, worker form) was already proven here.
 - One answer per person (user's ask, same day): the server keeps keyed hashes of each sender's mobile and ID number (`join:sent`) and refuses a second answer with either, even on a new link; the phone also remembers it sent and opens on "כבר שלחת". Deleting a waiting answer (the trash button) lets that person send again; adding it to the list does not.
+
+## Done: security hardening + legal pages (2026-11-06)
+
+- Two-step sign-in (TOTP, Google Authenticator) is mandatory for every manager after Google: `api/mfa.ts`, `api/_lib/totp.ts`, screen `src/pages/TwoStep.tsx` (lazy-loaded), 10 backup codes, owner resets a manager in Settings. Codes are claimed atomically (`kv.claim`), 8 tries / 15 min and 30 / day per email.
+- Sessions are server-side (`api/_lib/session.ts`, `sess:<sid>`); every manager endpoint must use `requireManager`. Logout ends the session for real; "ניתוק מכל המכשירים" in Settings; removing an email ends all its sessions. Old cookies were invalidated (everyone signed in again once).
+- Rate limits `api/_lib/rate.ts`; size-checked JSON `readJson`; owner-mode Drive relink needs a verified owner device.
+- CSP and security headers in `vercel.json` (new outside origins must be added to `connect-src`).
+- `public/privacy.html` rewritten, `public/terms.html` new; join form shows the collection notice + agreement checkbox.
+- Owner lost phone AND backup codes: delete Redis key `mfa:<owner email>` in the Upstash console.
+- Open: lawyer review of the texts, operator legal name on the pages, accessibility statement, privacy line if the voice assistant sends data to an AI provider.
