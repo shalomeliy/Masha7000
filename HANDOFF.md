@@ -280,3 +280,14 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - `public/privacy.html` rewritten, `public/terms.html` new; join form shows the collection notice + agreement checkbox.
 - Owner lost phone AND backup codes: delete Redis key `mfa:<owner email>` in the Upstash console.
 - Open: lawyer review of the texts, operator legal name on the pages, accessibility statement, privacy line if the voice assistant sends data to an AI provider.
+
+## Done: voice assistant, phase 1 (2026-11-06)
+
+- User request: a new default main screen with one big talk button; the manager says anything about the app, the system repeats it briefly, asks "לאשר, או שיש עוד תיקון?" after every correction, and acts only on a yes. Replies spoken, text one tap away. Owner only (shalom.eliy@gmail.com), $5/month budget, cheapest model. Spike: `docs/spikes/voice-assistant.md` (GO).
+- Server: `api/assistant.ts` (requireManager + isOwner, rate bucket `assistant`, body up to 400KB, maxDuration 30 in vercel.json) calls `api/_lib/assistant.ts`: Claude Haiku 5.5, effort low, three strict tools `ask_user` / `answer` (+ openScreen) / `propose`. The server never changes data. Needs Vercel env `ANTHROPIC_API_KEY` (Production); without it the screen says the assistant is not connected.
+- App: `src/pages/Voice.tsx` (tab "עוזר", default for the owner and in dev), `src/lib/assistant.ts` (snapshot of lists + shifts 7 days back / 28 ahead, `proposalErrors` sent back to the model up to twice, `applyProposal`), `src/lib/assistantApi.ts`, `src/lib/speech.ts` (he-IL recognition, stops after 2.5s quiet; speechSynthesis). A spoken "כן/מאשר/סגור..." confirms.
+- Can do: new jobs (with a date into the calendar, without into "לשיבוץ"), auto-assign new or existing calendar jobs (planner `autoAssign`), new worker, new list item (places, jobTypes, roles, certifications, postponeReasons), answer questions on the data, open a screen. Cannot yet: delete, edit an existing worker/job, settings (it says so and opens the screen).
+- Local testing: `vite.config.ts` serves `/api/assistant` in dev with the key from `.env.local` (no sign-in checks). Fake Drive with sample data: in the console `localStorage.setItem('dev.mockDrive','1')`, reload twice (`src/dev/mockDrive.ts`, dev only, not in the build).
+- Privacy policy: added the assistant (data goes to Anthropic only when used).
+- Verified in the browser with the fake Drive: the user's example asked for date/kind/description, proposal, correction (electrician only in Dimona + auto-assign Eilat), "כן, לאשר" saved two shifts to `shifts-2026-11.json` with a crew in Eilat; a data question answered; "תפתח לי את היומן" opened the calendar. 375 tests.
+- Next: phase 2, the scheduling advisor (up to 5 ranked solutions), likely on a stronger model.

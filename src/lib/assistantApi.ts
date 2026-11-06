@@ -1,0 +1,54 @@
+// Talking to /api/assistant. The conversation is kept here in the shape the Claude API wants
+// (user and assistant turns in order, the assistant's blocks sent back unchanged), and is sent
+// whole each turn: the server keeps nothing.
+
+export interface ToolCall {
+  id: string
+  name: 'ask_user' | 'answer' | 'propose' | string
+  input: Record<string, unknown>
+}
+
+type Block = Record<string, unknown>
+export type Turn = { role: 'user'; content: string | Block[] } | { role: 'assistant'; content: Block[] }
+
+export interface AssistantAnswer {
+  content: Block[]
+  call: ToolCall | null
+  text: string
+}
+
+const REASONS: Record<string, string> = {
+  'not-owner': 'העוזר הקולי פתוח רק לחשבון של המנהל.',
+  'no-session': 'החיבור במכשיר הזה נגמר. צריך להתחבר שוב.',
+  'mfa-required': 'צריך להתחבר שוב עם הקוד מאפליקציית האימות.',
+  'no-key': 'העוזר הקולי עוד לא מחובר. צריך להוסיף את מפתח Anthropic בהגדרות של Vercel.',
+  'not-configured': 'העוזר הקולי עובד רק באתר עצמו, לא בגרסה המקומית.',
+  'too-many': 'יותר מדי בקשות בזמן קצר. נסה שוב בעוד כמה דקות.',
+  refused: 'העוזר לא יכול לענות על זה. נסה לנסח אחרת.',
+}
+
+/** The next user turn: plain words, or, after a tool call, its result followed by the words. */
+export function userTurn(last: AssistantAnswer | null, said: string, result = 'המנהל ענה בהודעה הבאה.', isError = false): Turn {
+  if (!last?.call) return { role: 'user', content: said }
+  const blocks: Block[] = [{ type: 'tool_result', tool_use_id: last.call.id, content: result, ...(isError ? { is_error: true } : {}) }]
+  if (said) blocks.push({ type: 'text', text: said })
+  return { role: 'user', content: blocks }
+}
+
+export async function askAssistant(messages: Turn[], context: unknown): Promise<AssistantAnswer> {
+  let res: Response
+  try {
+    res = await fetch('/api/assistant', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, context }),
+    })
+  } catch {
+    throw new Error('אין חיבור לאינטרנט.')
+  }
+  if (res.status === 404) throw new Error(REASONS['not-configured'])
+  const data = (await res.json().catch(() => ({}))) as Partial<AssistantAnswer> & { reason?: string }
+  if (!res.ok) throw new Error(REASONS[data.reason ?? ''] ?? 'העוזר לא הצליח לענות. נסה שוב.')
+  return { content: data.content ?? [], call: data.call ?? null, text: data.text ?? '' }
+}

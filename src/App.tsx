@@ -12,6 +12,7 @@ import { Settings } from './pages/Settings'
 import { Workers } from './pages/Workers'
 import { SignIn } from './pages/SignIn'
 import { ToSchedule } from './pages/ToSchedule'
+import { Voice } from './pages/Voice'
 import { useAuth } from './store/auth'
 
 // Shown once per device, after Google: kept out of the first download.
@@ -20,7 +21,11 @@ const TwoStep = lazy(() => import('./pages/TwoStep').then((m) => ({ default: m.T
 export default function App() {
   const status = useAuth((s) => s.status)
   const check = useAuth((s) => s.check)
-  const [tab, setTab] = useState<Tab>('calendar')
+  const who = useAuth((s) => s.who)
+  // The voice assistant is the owner's main screen (only the owner may use it); locally it is always on.
+  const voice = who?.isOwner === true || import.meta.env.DEV
+  const [tab, setTab] = useState<Tab | null>(null)
+  const shown: Tab = tab ?? (voice ? 'voice' : 'calendar')
 
   useEffect(() => {
     void check()
@@ -45,12 +50,13 @@ export default function App() {
     <div className="mx-auto min-h-full max-w-md pb-24">
       <ConstraintWords />
       <WeeklyCopy />
-      {tab === 'calendar' && <Calendar />}
-      {tab === 'toSchedule' && <ToSchedule />}
-      {tab === 'workers' && <Workers />}
-      {tab === 'archive' && <Archive />}
-      {tab === 'settings' && <Settings />}
-      <BottomNav active={tab} onChange={setTab} />
+      {shown === 'voice' && voice && <Voice onNavigate={setTab} />}
+      {shown === 'calendar' && <Calendar />}
+      {shown === 'toSchedule' && <ToSchedule />}
+      {shown === 'workers' && <Workers />}
+      {shown === 'archive' && <Archive />}
+      {shown === 'settings' && <Settings />}
+      <BottomNav active={shown} onChange={setTab} voice={voice} />
     </div>
   )
 }

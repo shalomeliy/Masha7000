@@ -1,0 +1,96 @@
+import { joinTranscripts } from './dictation'
+
+// Hebrew speech in and out, for the voice assistant. In: the browser's speech recognition (he-IL),
+// as in DictationField. Out: the browser's speech synthesis, free and on the phone itself.
+
+interface Recognition {
+  lang: string
+  interimResults: boolean
+  continuous: boolean
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null
+  onerror: ((e: { error: string }) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+type RecognitionCtor = new () => Recognition
+
+const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor }
+const Speech = w.SpeechRecognition ?? w.webkitSpeechRecognition
+
+export const canListen = Boolean(Speech)
+export const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window
+
+export const LISTEN_ERRORS: Record<string, string> = {
+  'not-allowed': 'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן.',
+  'service-not-allowed': 'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן.',
+  network: 'זיהוי הדיבור צריך אינטרנט.',
+  'no-speech': 'לא נשמע דיבור. נסה שוב.',
+}
+
+// A pause this long after the last words ends the listening, so the manager need not tap again.
+const SILENCE_MS = 2500
+
+export interface Listening {
+  stop: () => void
+}
+
+/**
+ * Listens until a pause or `stop()`. `onText` gets the words so far as they come; `onEnd` gets
+ * the final words (maybe empty), or an error message.
+ */
+export function listen(onText: (text: string) => void, onEnd: (text: string, error?: string) => void): Listening | null {
+  if (!Speech) return null
+  const r = new Speech()
+  r.lang = 'he-IL'
+  r.interimResults = true
+  r.continuous = true
+  let text = ''
+  let error: string | undefined
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const quietStop = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => r.stop(), SILENCE_MS)
+  }
+  r.onresult = (e) => {
+    const pieces: string[] = []
+    for (let i = 0; i < e.results.length; i++) pieces.push(e.results[i][0].transcript)
+    text = joinTranscripts(pieces)
+    onText(text)
+    quietStop()
+  }
+  r.onerror = (e) => {
+    if (e.error !== 'aborted' && !(e.error === 'no-speech' && text)) error = LISTEN_ERRORS[e.error] ?? 'זיהוי הדיבור לא הצליח. אפשר להקליד במקום.'
+  }
+  r.onend = () => {
+    clearTimeout(timer)
+    onEnd(text, error)
+  }
+  r.start()
+  timer = setTimeout(() => r.stop(), 8000) // nothing said at all
+  return { stop: () => r.stop() }
+}
+
+let voice: SpeechSynthesisVoice | null | undefined
+const hebrewVoice = () => {
+  if (voice === undefined || voice === null) voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith('he')) ?? null
+  return voice
+}
+
+/** Reads the text aloud in Hebrew; `onDone` when it ends or cannot start. */
+export function speak(text: string, onDone?: () => void) {
+  if (!canSpeak || !text) {
+    onDone?.()
+    return
+  }
+  speechSynthesis.cancel()
+  const u = new SpeechSynthesisUtterance(text)
+  u.lang = 'he-IL'
+  const v = hebrewVoice()
+  if (v) u.voice = v
+  u.onend = () => onDone?.()
+  u.onerror = () => onDone?.()
+  speechSynthesis.speak(u)
+}
+
+export const stopSpeaking = () => canSpeak && speechSynthesis.cancel()

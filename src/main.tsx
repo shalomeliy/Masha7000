@@ -12,6 +12,9 @@ const queryClient = new QueryClient({
 
 const joinCode = joinCodeOf(window.location.pathname)
 
+// Local testing with a fake Drive (see src/dev/mockDrive.ts). Dropped from the build.
+if (import.meta.env.DEV && localStorage.getItem('dev.mockDrive')) await import('./dev/mockDrive')
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
