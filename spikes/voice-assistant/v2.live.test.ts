@@ -51,7 +51,7 @@ const data: AppData = {
 }
 
 const NOW = new Date('2026-11-06T20:00:00')
-const SCRIPTS = [
+const SCRIPTS = process.env.SAY ? [process.env.SAY] : [
   'תפתח עבודה ראשון הקרוב כולל לינה באילת אתר 123 החלפת אנטנה שני מטפסים',
   'מחר עבודת יום בדימונה 556 תחזוקת מצלמות טכנאי מצלמות אחד ותשבץ לי מישהו',
   'מי בדרך כלל עובד באילת?',
@@ -60,7 +60,7 @@ const SCRIPTS = [
 ]
 const PRICE: Record<string, [number, number]> = { 'claude-haiku-5-5': [0.1, 0.5], 'claude-sonnet-5-5': [2, 10] } // $ per 1M tokens, from the v1 spike
 
-for (const model of ['claude-haiku-5-5', 'claude-sonnet-5-5']) {
+for (const model of process.env.MODEL ? [process.env.MODEL] : ['claude-haiku-5-5', 'claude-sonnet-5-5']) {
   it.skipIf(!process.env.LIVE)(model, { timeout: 120_000 }, async () => {
     let cost = 0
     for (const said of SCRIPTS) {

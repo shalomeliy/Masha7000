@@ -39,6 +39,7 @@ export function JoinButton() {
     <>
       <button
         type="button"
+        data-hint="joinLink"
         onClick={() => setOpen(true)}
         className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-sky-500/50 px-3 text-start text-sm text-sky-300"
       >

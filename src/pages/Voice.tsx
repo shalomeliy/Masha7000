@@ -4,6 +4,7 @@ import { inputClass } from '../components/Sheet'
 import { applyProposal, isYes, proposalErrors, snapshot, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { askAssistant, userTurn, type AssistantAnswer, type Turn } from '../lib/assistantApi'
 import { useDriveList } from '../lib/data/useDriveList'
+import { HINTS, showHint, type Hint } from '../lib/hint'
 import { canListen, canSpeak, listen, nextRate, rateName, speak, speechRate, stopSpeaking, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
@@ -105,8 +106,14 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       setProposal(null)
       const text = String(call.input.text ?? '')
       if (text) say(text)
-      const screen = call.input.openScreen as Screen | ''
-      if (screen) setTimeout(() => onNavigate(screen), text ? 1800 : 0)
+      // A button only a tap may press (WhatsApp, sharing): open its screen and make it blink.
+      const hint = call.input.pressButton as Hint | ''
+      const screen = hint && hint in HINTS ? HINTS[hint] : (call.input.openScreen as Screen | '')
+      if (screen)
+        setTimeout(() => {
+          onNavigate(screen)
+          if (hint && hint in HINTS) showHint(hint)
+        }, text ? 1800 : 0)
     } else if (call?.name === 'ask_user') {
       setProposal(null)
       say(String(call.input.question ?? ''))

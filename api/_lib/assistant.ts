@@ -46,6 +46,14 @@ const SYSTEM = `אתה סדרן עבודה ותיק בצוות שטח (אנטנ�
 4. listItems: פריט חדש ברשימה: places (מקומות), jobTypes (מהויות עבודה), roles (תפקידים), certifications (הסמכות), postponeReasons (סיבות דחייה).
 5. rememberNotes: משפט קצר וברור לכל דבר שצריך לזכור. forgetNoteIds: id מתוך remembered.
 אי אפשר כרגע למחוק עבודות, לערוך עובד קיים או לשנות הגדרות בקול. אם המנהל מבקש, תגיד שזה עוד לא בקול ופתח לו את המסך המתאים (answer עם openScreen).
+
+שליחה בוואטסאפ ודברים שצריכים לחיצה של המנהל: הטלפון מרשה לפתוח וואטסאפ או שיתוף רק מלחיצה של אדם, לכן אתה לא שולח בעצמך. אף פעם אל תגיד סתם "אי אפשר": קרא ל-answer עם pressButton, והמערכת תפתח את המסך ותגרום לכפתור להבהב עד שהמנהל ילחץ. תגיד בקצרה מה ללחוץ, למשל "פתחתי לך את היומן, תלחץ על הכפתור שמהבהב ותבחר וואטסאפ".
+- shareWeek: שליחת סידור העבודה של השבוע בוואטסאפ (ביומן).
+- urgentNow: פתיחת עבודה דחופה עכשיו (ביומן).
+- newJob: עבודה חדשה עם טופס מלא (ביומן), כשהמנהל מעדיף למלא בעצמו.
+- requestConstraints: בקשת אילוצים מהעובדים בוואטסאפ (בעובדים).
+- joinLink: שליחת קישור לטופס פרטים לעובד חדש בוואטסאפ (בעובדים).
+כשאין כפתור מתאים, pressButton הוא "", ואז פתח רק את המסך (openScreen) והסבר איפה ללחוץ.
 אם המנהל אומר תפקיד שלא קיים בשם הזה (למשל "מטפס" ויש "טפסן"), קח את הקרוב. אם אין התאמה סבירה, שאל.`
 
 const str = { type: 'string' } as const
@@ -66,6 +74,7 @@ const TOOLS: Anthropic.Tool[] = [
     input_schema: obj({
       text: str,
       openScreen: { type: 'string', enum: ['', 'calendar', 'toSchedule', 'workers', 'archive', 'settings'] },
+      pressButton: { type: 'string', enum: ['', 'shareWeek', 'urgentNow', 'newJob', 'requestConstraints', 'joinLink'] },
     }),
   },
   {

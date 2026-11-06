@@ -12,3 +12,17 @@ body {
   @apply bg-slate-950 text-slate-100 antialiased;
   font-family: system-ui, "Segoe UI", Arial, sans-serif;
 }
+
+/* The voice assistant points at a button it cannot press itself (src/lib/hint.ts). */
+@keyframes hint-blink {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(251 191 36 / 0.9); }
+  50% { box-shadow: 0 0 0 6px rgb(251 191 36 / 0.35); }
+}
+.hint-blink {
+  animation: hint-blink 1s ease-in-out infinite;
+  outline: 2px solid rgb(251 191 36);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hint-blink { animation: none; }
+}

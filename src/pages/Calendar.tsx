@@ -98,6 +98,7 @@ export function Calendar() {
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              data-hint="urgentNow"
               onClick={() => setEditing(urgentShift(new Date(), defs.items))}
               className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-amber-500 font-semibold text-slate-950"
             >
@@ -106,6 +107,7 @@ export function Calendar() {
             </button>
             <button
               type="button"
+              data-hint="newJob"
               onClick={() => setEditing(blankShift(week.days.includes(today) ? today : week.start))}
               className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-700 font-semibold text-slate-200"
             >
@@ -128,6 +130,7 @@ export function Calendar() {
 
           <button
             type="button"
+            data-hint="shareWeek"
             onClick={() =>
               setSharing({
                 title: 'סידור השבוע לוואטסאפ',

@@ -134,6 +134,7 @@ export function WorkersSection() {
         ) : (
           <button
             type="button"
+            data-hint="requestConstraints"
             onClick={() => setRequesting(true)}
             className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-emerald-500/50 px-3 text-start text-sm text-emerald-300"
           >
