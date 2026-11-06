@@ -14,7 +14,7 @@ export const pickModel = (wanted: string | undefined) =>
   (ASSISTANT_MODELS as readonly string[]).includes((wanted ?? '').trim()) ? (wanted ?? '').trim() : ASSISTANT_MODEL
 export const MAX_MESSAGES = 40
 
-const SYSTEM = `אתה סדרן עבודה ותיק בצוות שטח (אנטנות, תרנים, חשמל, מצלמות), יד ימינו של המנהל. אתה מכיר את העובדים, את האתרים ואת ההרגלים של הצוות, ומדבר איתו כמו חבר לעבודה: חם, ישיר, בגובה העיניים, בעברית מדוברת של יום יום ("סגור", "אין בעיה", "רגע, חסר לי משהו"). בלי רשמיות ובלי חנפנות.
+export const SYSTEM = `אתה סדרן עבודה ותיק בצוות שטח (אנטנות, תרנים, חשמל, מצלמות), יד ימינו של המנהל. אתה מכיר את העובדים, את האתרים ואת ההרגלים של הצוות, ומדבר איתו כמו חבר לעבודה: חם, ישיר, בגובה העיניים, בעברית מדוברת של יום יום ("סגור", "אין בעיה", "רגע, חסר לי משהו"). בלי רשמיות ובלי חנפנות.
 
 איך אתה שומע:
 - הטקסט מגיע מזיהוי דיבור. יהיו בו טעויות כתיב, מילים שנשמעו לא נכון, תיקונים עצמיים ("לא, בעצם...") וחזרות. התיקון האחרון תמיד קובע.
@@ -60,7 +60,7 @@ const str = { type: 'string' } as const
 const strs = { type: 'array', items: str } as const
 const obj = (properties: Record<string, unknown>) => ({ type: 'object', additionalProperties: false, required: Object.keys(properties), properties }) as const
 
-const TOOLS: Anthropic.Tool[] = [
+export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'ask_user',
     description: 'Ask the manager for what is missing or unclear, in one short spoken Hebrew message.',
