@@ -29,7 +29,7 @@ Base skills (inherited from the template): `architecture-plan`, `ce-compound`, `
 
 Skills added for this project only:
 
-- (none yet)
+- `free-commands`: teach the voice assistant to do one more kind of request free, learned from what Claude did (voice assistant only: `src/lib/freeCommands.ts`, `src/pages/Voice.tsx`).
 
 ### Adding a skill or agent to this project
 
@@ -67,6 +67,7 @@ Before calling it done:
 | Feature built and tests pass, code feels messy | `ce-simplify-code` | changing behavior while cleaning |
 | `docs/solutions/` may be stale or duplicated | `ce-compound-refresh` | editing product code |
 | User asks for RTL widgets in Cowork | `rtl-chat` | turning it on just because text is Hebrew |
+| A voice action still goes to Claude (costs money), or the user wants another action free | `free-commands` | sending more to the model, or testing with the real key |
 
 Small, clear changes (typo, one-line copy edit, a config value) skip the pipeline. The pipeline is for features.
 
