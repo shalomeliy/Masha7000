@@ -27,19 +27,9 @@ const FILLER = new Set(['לי', 'את', 'עם', 'של', 'גם', 'ו', 'אני', 
 const NOT_NAMES = ['מישהו', 'מישהי', 'כולם', 'אף', 'הבן', 'הבת', 'הילד', 'הילדה', 'אשתי', 'בעלי', 'אמא', 'אבא', 'הם', 'הן', 'אתה', 'את', 'שלי', 'שלו', 'שלה']
 const COMMON = new Set([
   ...NOT_NAMES,
-  ...['חולה', 'חולים', 'חולות', 'מחלה', 'במחלה', 'עבודה', 'עבודות', 'עבודת', 'תפתח', 'פתח', 'תפתחי', 'תשבץ', 'שבץ', 'תסגור', 'תעביר', 'תבטל', 'תזיז', 'חדשה', 'חדש', ...JOB_VERBS],
+  ...['חולה', 'חולים', 'חולות', 'מחלה', 'במחלה', 'עבודה', 'עבודות', 'עבודת', 'תפתח', 'פתח', 'תפתחי', 'תשבץ', 'שבץ', 'תוסיף', 'תסגור', 'תעביר', 'תבטל', 'תזיז', 'תשים'],
   ...['לילה', 'יום', 'היום', 'מחר', 'מחרתיים', 'עד', 'בעוד', 'ימים', 'יומיים', 'שבוע', 'שבועיים', 'הקרוב', 'הבא', 'הבאה', 'חופש', 'חופשה', 'מילואים', 'אילוץ', 'לינה'],
 ])
-// Built in, from the first time (the user's request, 2026-11-07): any of these verbs with "עבודה", or
-// "עבודה חדשה", opens a new job. Learned phrasings add to them.
-const JOB_VERBS = new Set(
-  ['תפתח', 'פתח', 'תפתחי', 'תפתחו', 'לפתוח', 'פתוח', 'נפתח', 'תייצר', 'תייצרי', 'תייצרו', 'תיצור', 'צור', 'ליצור', 'יצור', 'תכניס', 'הכנס', 'תכניסי', 'להכניס', 'הכניס', 'תוסיף', 'הוסף', 'תוסיפי', 'להוסיף', 'הוסיף', 'תרשום', 'רשום', 'תרשמי', 'לרשום', 'תקבע', 'קבע', 'תקבעי', 'לקבוע', 'קבוע', 'תשים', 'שים', 'תגדיר'],
-)
-const NEW_WORDS = new Set(['חדשה', 'חדש'])
-// Words that never start a job's description: questions and other actions (they go to Claude).
-const NOT_DESCRIPTION = /^(?:מה|מי|כמה|איפה|מתי|למה|איך|איזה|איזו|אילו|האם|תעביר|העבר|תזיז|הזז|תסגור|סגור|תבטל|בטל|תמחק|מחק|תדחה|דחה|תשנה|שנה|תבדוק|בדוק|תזכור|לא|אל|חולה)$/
-// "העבודה" is a job that exists, "עבודות" more than one: not one new job.
-const OTHER_JOB = /^(?:ו?ה|של|ו?ב|ו?ל)עבוד(?:ה|ות)$|^ו?עבודות$/
 // Words that mean "assign people to it too".
 const ASSIGN = /^(?:ו?תשבץ|ו?שבץ|ו?תשבצי|מישהו|אנשים)$/
 
@@ -221,13 +211,14 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
 // ---- What was learned from Claude's confirmed actions ----
 
 export interface Learned {
-  job: { words: string[][] } // action words of each learned example (the built-in verbs come on top: JOB_VERBS)
+  job: { words: string[][]; required: JobField[] } // action words of each example
   sick: { words: string[][]; needsDate: boolean }
   aliases: Record<string, string> // a word of the manager's -> roleId
   protect: Set<string> // learned action words: never read as a worker's name
 }
 
 type JobField = 'date' | 'shiftKindId' | 'location' | 'jobDescription' | 'staffing'
+const JOB_FIELDS: JobField[] = ['date', 'shiftKindId', 'location', 'jobDescription', 'staffing']
 
 /** What a confirmed proposal teaches, if it is an action the app can learn (one new job, or one worker sick). */
 export function exampleAction(p: Proposal, asked: string[]): ExampleAction | undefined {
@@ -259,12 +250,14 @@ export function exampleAction(p: Proposal, asked: string[]): ExampleAction | und
 }
 
 export function learn(examples: AssistantExample[], d: AppData): Learned {
-  const L: Learned = { job: { words: [] }, sick: { words: [], needsDate: false }, aliases: {}, protect: new Set() }
+  const L: Learned = { job: { words: [], required: [] }, sick: { words: [], needsDate: false }, aliases: {}, protect: new Set() }
+  const jobs: ExampleAction[] = []
   for (const ex of examples) {
     const a = ex.action
     if (!a) continue
     const then = new Date(ex.createdAt)
     if (a.type === 'job') {
+      jobs.push(a)
       let f = find(a.said, d, L.aliases, then)
       // A role Claude understood that the lists do not name: the word after its count is its name.
       const ws = words(a.said)
@@ -287,6 +280,7 @@ export function learn(examples: AssistantExample[], d: AppData): Learned {
     }
   }
   for (const ws of [...L.job.words, ...L.sick.words]) for (const w of ws) L.protect.add(w)
+  L.job.required = JOB_FIELDS.filter((k) => jobs.every((a) => a.type === 'job' && (k === 'staffing' ? a.job.staffing.length > 0 : Boolean(a.job[k]))))
   // Built in, from the first time (the user's request): "<worker> חולה <when>". Learned phrasings add to it.
   L.sick.words.push(['חולה'])
   L.sick.needsDate = false
@@ -400,10 +394,8 @@ function jobProposal(job: PendingJob['job'], d: AppData, now: Date): Proposal {
     const r = d.roles.find((x) => x.id === s.roleId)?.name ?? ''
     return s.count === 1 ? r : `${s.count} ${r}`
   })
-  const when = job.date ? `${kind ? `${kind} ` : ''}${dayText(job.date, now)}` : `${kind ? `${kind}, ` : ''}בלי תאריך, לרשימת לשיבוץ`
-  const parts = [when, job.location ? `ב${job.location}` : '', job.jobDescription].filter(Boolean)
-  const need = staff.length ? ` צריך ${staff.join(' ו')}.` : ''
-  const summary = `עבודה חדשה: ${parts.join(', ')}.${need}${job.autoAssign ? ' ואשבץ אנשים.' : ''} לאשר, או שיש עוד תיקון?`
+  const when = job.date ? dayText(job.date, now) : 'בלי תאריך, לרשימת לשיבוץ'
+  const summary = `עבודה חדשה: ${kind ? `${kind} ` : ''}${when}, ב${job.location}, ${job.jobDescription}. צריך ${staff.join(' ו')}.${job.autoAssign ? ' ואשבץ אנשים.' : ''} לאשר, או שיש עוד תיקון?`
   return {
     ...normalizeProposal({}),
     summary,
@@ -411,48 +403,25 @@ function jobProposal(job: PendingJob['job'], d: AppData, now: Date): Proposal {
   }
 }
 
-/**
- * What a new job cannot be saved without. Everything else may be left out (the user's request,
- * 2026-11-07): with no date it goes to the לשיבוץ list, with a date to the calendar.
- */
-const missingOf = (job: PendingJob['job']): JobField[] => [
-  ...(job.shiftKindId ? [] : (['shiftKindId'] as const)),
-  ...(job.location || job.jobDescription ? [] : (['location'] as const)),
-  ...(job.autoAssign && !job.date ? (['date'] as const) : []), // people are assigned only to a dated job
-]
-
-/** "תכניס לי עבודה", "עבודה חדשה", or the action words of a learned example. */
-function jobSaid(f: Found, text: string, L: Learned): boolean {
-  if (words(text).some((w) => OTHER_JOB.test(w))) return false
-  const rest = f.rest.map(bare)
-  if (said(L.job.words, rest.filter((w) => !ASSIGN.test(w)))) return true
-  return f.rest.some((w) => /^ו?עבודה$/.test(w)) && f.rest.some((w, k) => JOB_VERBS.has(w) || JOB_VERBS.has(rest[k]) || NEW_WORDS.has(w))
-}
-/** A word that belongs to "open a job" itself, not to its details. */
-const isJobWord = (w: string, b: string, L: Learned) =>
-  JOB_VERBS.has(w) || JOB_VERBS.has(b) || NEW_WORDS.has(b) || b === 'עבודה' || ASSIGN.test(b) || L.job.words.some((x) => x.includes(b))
+const missingOf = (job: PendingJob['job'], required: JobField[]) => required.filter((k) => (k === 'staffing' ? !job.staffing.length : !job[k]))
 
 /** A new job said the way a learned one was. */
 function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
   const f = find(text, d, L.aliases, now, L.protect)
   if (f.workerIds.length || f.unsure.length) return null // naming workers is beyond what was learned
-  if (!jobSaid(f, text, L)) return null
   const rest = f.rest.map(bare)
-  const unknownAt = f.restAt.filter((_, k) => !isJobWord(f.rest[k], rest[k], L))
+  if (!said(L.job.words, rest.filter((w) => !ASSIGN.test(w)))) return null
+  const action = new Set(L.job.words.flat())
+  const unknownAt = f.restAt.filter((_, k) => !action.has(rest[k]) && !ASSIGN.test(rest[k]))
   let description = f.description ?? ''
   if (unknownAt.length) {
     // Unexplained words are the description only when there is no known one, and they stand together.
     if (description || unknownAt.some((at, k) => k > 0 && at !== unknownAt[k - 1] + 1)) return null
     const ws = words(text)
-    const run = unknownAt.map((at) => ws[at])
-    // A question, another action or a bare number is not a description: Claude.
-    if (run.some((w) => NOT_DESCRIPTION.test(w) || NOT_DESCRIPTION.test(bare(w)) || /^\d+$/.test(w))) return null
-    description = run.join(' ')
+    description = unknownAt.map((at) => ws[at]).join(' ')
   }
-  // With one kind of job only, that is the kind.
-  const kind = f.shiftKindId ?? (d.shiftDefinitions.length === 1 ? d.shiftDefinitions[0].id : '')
-  const job = { date: f.date ?? '', shiftKindId: kind, location: f.location ?? '', jobDescription: description, staffing: f.staffing, autoAssign: rest.some((w) => ASSIGN.test(w)) }
-  const missing = missingOf(job)
+  const job = { date: f.date ?? '', shiftKindId: f.shiftKindId ?? '', location: f.location ?? '', jobDescription: description, staffing: f.staffing, autoAssign: rest.some((w) => ASSIGN.test(w)) }
+  const missing = missingOf(job, L.job.required)
   if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing } }
   return { kind: 'propose', proposal: jobProposal(job, d, now) }
 }
@@ -475,7 +444,7 @@ export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned,
     if (f.description) job.jobDescription = f.description
     if (f.staffing.length) job.staffing = f.staffing
   }
-  const missing = missingOf(job)
+  const missing = missingOf(job, L.job.required)
   if (missing.length && missing[0] === field) return null // the answer did not answer: Claude
   if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing } }
   return { kind: 'propose', proposal: jobProposal(job, d, now) }
@@ -645,16 +614,14 @@ export function whyNotFree(text: string, d: AppData, L: Learned, now = new Date(
     if (L.sick.needsDate && !f.date) return out('sick: no date said')
     return out('sick: not understood')
   }
-  if (words(text).some((w) => OTHER_JOB.test(w))) return out('job: speaks of a job that exists ("העבודה") or of several jobs: changing jobs is not learned yet')
-  if (jobSaid(f, text, L)) {
+  const jobRest = rest.filter((w) => !ASSIGN.test(w))
+  if (L.job.words.length && said(L.job.words, jobRest)) {
     if (f.workerIds.length || f.unsure.length) return out('job: names a worker (assigning a named worker is not learned yet)')
-    const more = f.rest.filter((w, k) => !isJobWord(w, rest[k], L))
+    const more = extra(new Set(L.job.words.flat()))
     if (f.description && more.length) return out(`job: words besides the known job type: ${q(more)}`)
-    if (more.some((w) => NOT_DESCRIPTION.test(w) || NOT_DESCRIPTION.test(bare(w)))) return out(`job: a question or another action in it: ${q(more)}`)
-    if (more.some((w) => /^\d+$/.test(w))) return out(`job: a number not tied to a known role or place: ${q(more)}`)
     return out(`job: unknown words not standing together: ${q(more)}`)
   }
-  const learnedAs = `job (built-in verbs + ${L.job.words.length} examples), sick (${L.sick.words.length} phrasings)`
+  const learnedAs = [L.job.words.length ? `job (${L.job.words.length} examples)` : '', `sick (${L.sick.words.length} phrasings)`].filter(Boolean).join(', ')
   return out(`no learned action matches (learned: ${learnedAs})`)
 }
 
