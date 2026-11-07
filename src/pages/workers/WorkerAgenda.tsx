@@ -21,12 +21,14 @@ export function WorkerAgenda({
   loading,
   onRemove,
   onEditSick,
+  onEdit,
   onOpen,
 }: {
   items: AgendaItem[]
   loading: boolean
   onRemove: (constraintId: string) => void // 'sick' ends the status sickness
   onEditSick: () => void // the status sheet, to change the sickness's last day
+  onEdit: (constraintId: string) => void // any other absence: its editor in the constraints list
   onOpen: () => void // the worker's month
 }) {
   const defs = useDriveList('shiftDefinitions')
@@ -48,13 +50,14 @@ export function WorkerAgenda({
           {job && <span className="block text-xs text-slate-400">{[kind, detail, until].filter(Boolean).join(' · ')}</span>}
         </span>
         {/* Sickness from today is the worker's status: the pencil changes its last day, the X ends it. */}
-        {item.type === 'away' && item.key === 'sick' && (
+        {item.type === 'away' && (
           <button
             type="button"
-            aria-label={tx('עריכת המחלה')}
+            aria-label={item.key === 'sick' ? tx('עריכת המחלה') : tx('עריכת האילוץ: {v}', { v: title })}
             onClick={(e) => {
               e.stopPropagation()
-              onEditSick()
+              if (item.key === 'sick') onEditSick()
+              else onEdit(item.constraint.id)
             }}
             className="flex size-11 shrink-0 items-center justify-center text-slate-400"
           >

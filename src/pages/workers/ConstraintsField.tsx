@@ -1,5 +1,5 @@
 import { tx } from '../../i18n'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ClipboardPaste, Plus, X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
@@ -37,8 +37,10 @@ export function ConstraintsField({
   onChange,
   onNotes,
   calendar = false,
+  open,
 }: {
   value: Constraint[]
+  open?: { id: string; n: number } // a pencil in the calendar: open this constraint's editor here (n: each tap)
   calendar?: boolean // a saved worker: dated constraints are in the personal and monthly calendar, so not listed here
   onChange: (v: Constraint[]) => void
   onNotes: (text: string) => void // the notes line of a pasted WhatsApp reply
@@ -46,6 +48,16 @@ export function ConstraintsField({
   const today = todayIso()
   const [editing, setEditing] = useState<Constraint | null>(null)
   const [pasting, setPasting] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const c = open && value.find((x) => x.id === open.id)
+    if (!c) return
+    setEditing(c)
+    setPasting(false)
+    box.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // Only a new tap opens it, not every change of the list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open?.n])
   // The user's rule: each constraint shown once, and no past ones. For a saved worker a constraint on
   // given dates is in the personal calendar (next 3 days) and the month, where it is removed; here
   // stay the weekly and "always" ones, and a WhatsApp guess to be checked. Ended ones stay saved.
@@ -60,7 +72,7 @@ export function ConstraintsField({
   }
 
   return (
-    <div className="space-y-2">
+    <div ref={box} className="space-y-2">
       <span className="text-sm text-slate-300">{tx('אילוצים')}</span>
       <p className="text-xs text-slate-400">{tx('מתי העובד לא יכול לעבוד. "שבץ" לא יבחר אותו בזמנים האלה.')}</p>
       {calendar && <p className="text-xs text-slate-400">{tx('אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.')}</p>}

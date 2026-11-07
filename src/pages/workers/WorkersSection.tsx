@@ -549,6 +549,12 @@ function WorkerForm({
         ? { ...d, status: "active", sickUntil: undefined }
         : { ...d, constraints: d.constraints.filter((c) => c.id !== id) },
     );
+  // A pencil on an absence in a calendar: its editor opens in the constraints list at the top.
+  const [openConstraint, setOpenConstraint] = useState<{ id: string; n: number }>();
+  const editAway = (id: string) => {
+    setMonthOpen(false);
+    setOpenConstraint((o) => ({ id, n: (o?.n ?? 0) + 1 }));
+  };
   const editSick = () => {
     setMonthOpen(false);
     setStatusOpen(true);
@@ -609,6 +615,7 @@ function WorkerForm({
         value={draft.constraints}
         // Each constraint is shown once: dated ones are in the personal and monthly calendar.
         calendar={exists}
+        open={openConstraint}
         onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
         onNotes={(text) =>
           setDraft((d) => ({
@@ -676,6 +683,7 @@ function WorkerForm({
           loading={agenda.loading}
           onRemove={removeAway}
           onEditSick={editSick}
+          onEdit={editAway}
           onOpen={() => setMonthOpen(true)}
         />
       )}
@@ -686,6 +694,7 @@ function WorkerForm({
           onClose={() => setMonthOpen(false)}
           onRemove={removeAway}
           onEditSick={editSick}
+          onEdit={editAway}
         />
       )}
 

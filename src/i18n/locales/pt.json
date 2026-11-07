@@ -994,5 +994,6 @@
  "מה הלך ל-Claude, כדי ללמד את האפליקציה לעשות יותר בחינם": "O que foi para o Claude, para ensinar o app a fazer mais de graça",
  "ניקוי היומן": "Limpar o registro",
  "אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.": "As restrições em datas estão no calendário pessoal e mensal abaixo.",
- "עריכת המחלה": "Editar a doença"
+ "עריכת המחלה": "Editar a doença",
+ "עריכת האילוץ: {v}": "Editar a restrição: {v}"
 }

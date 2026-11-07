@@ -994,5 +994,6 @@
  "מה הלך ל-Claude, כדי ללמד את האפליקציה לעשות יותר בחינם": "What went to Claude, to teach the app to do more for free",
  "ניקוי היומן": "Clear the log",
  "אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.": "Constraints on dates are in the personal and monthly calendar below.",
- "עריכת המחלה": "Edit the sickness"
+ "עריכת המחלה": "Edit the sickness",
+ "עריכת האילוץ: {v}": "Edit the constraint: {v}"
 }

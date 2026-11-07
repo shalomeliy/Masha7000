@@ -53,12 +53,14 @@ export function WorkerMonth({
   onClose,
   onRemove,
   onEditSick,
+  onEdit,
 }: {
   worker: Worker
   open: boolean
   onClose: () => void
   onRemove: (constraintId: string) => void // a dated constraint, removed from the card (saved with "שמירה"); 'sick' ends the status sickness
   onEditSick: () => void // the status sheet, to change the sickness's last day
+  onEdit: (constraintId: string) => void // any other dated absence: its editor in the card
 }) {
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
@@ -86,11 +88,11 @@ export function WorkerMonth({
             {note && note !== 'מחלה' && <span className="block truncate text-xs text-slate-400">{note}</span>}
           </span>
           {/* Dated ones and sickness are changed here (not in the card's list); weekly ones in the list. */}
-          {e.key === 'sick' && (
+          {(e.key === 'sick' || e.constraint.when === 'dates') && (
             <button
               type="button"
-              aria-label={tx('עריכת המחלה')}
-              onClick={onEditSick}
+              aria-label={e.key === 'sick' ? tx('עריכת המחלה') : tx('עריכת האילוץ: {v}', { v: constraintText(e.constraint) })}
+              onClick={() => (e.key === 'sick' ? onEditSick() : onEdit(e.constraint.id))}
               className="flex size-11 shrink-0 items-center justify-center text-slate-400"
             >
               <Pencil size={16} aria-hidden />
