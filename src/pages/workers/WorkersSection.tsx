@@ -24,9 +24,11 @@ import {
 } from "../../lib/catalog";
 import { constraintText, isOver } from "../../lib/constraints";
 import { useDriveList } from "../../lib/data/useDriveList";
-import { todayIso } from "../../lib/dates";
+import { daysToRanges, todayIso } from "../../lib/dates";
 import { DateField } from "../../components/DateField";
-import type { AbsenceKind, Worker, WorkerStatus } from "../../types/models";
+import type { AbsenceKind, Constraint, Worker, WorkerStatus } from "../../types/models";
+import { MonthDays } from "../../components/MonthDays";
+import { HEBREW_DAYS } from "../../lib/shifts";
 import { endAbsence, STATE_NAMES, STATE_TONE, teamStates, workerState, type StateId } from "../../lib/workerState";
 import { AddButton, EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
@@ -48,6 +50,12 @@ const STATUSES: { id: WorkerStatus; name: string }[] = [
   { id: "sick", name: "במחלה עד תאריך" },
   { id: "inactive", name: "לא פעיל" },
 ];
+
+const ABSENCE_MODES = [
+  { id: "range", label: "מתאריך עד תאריך" },
+  { id: "weekly", label: "קבוע כל שבוע" },
+  { id: "days", label: "ימים מהלוח" },
+] as const;
 
 const ABSENCES: { id: AbsenceKind; name: string }[] = [
   { id: "vacation", name: "חופש" },
@@ -312,18 +320,16 @@ function WorkerCard({
       >
         <EditMark />
         <span className="flex items-baseline justify-between gap-2">
-          <span className="font-semibold">{fullName(w)}</span>
+          {/* Only a dot here (the user's rule); the state in words is inside the worker's form. */}
+          <span className="flex items-center gap-2 font-semibold">
+            <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
+            {fullName(w)}
+          </span>
           {w.mobilePhone && (
             <span dir="ltr" className="text-sm text-slate-400">
               {w.mobilePhone}
             </span>
           )}
-        </span>
-        <span
-          className={`flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-xs ${STATE_TONE[state.id].badge}`}
-        >
-          <span aria-hidden className={`size-2 rounded-full ${STATE_TONE[state.id].dot}`} />
-          {state.label}
         </span>
         <span className="flex flex-wrap gap-1">
           {department && (
@@ -554,12 +560,12 @@ function WorkerForm({
               status === "active" ? endAbsence(d.constraints, todayIso()) : d.constraints,
           }))
         }
-        onAbsence={(kind, from, to) =>
+        onAbsence={(added) =>
           setDraft((d) => ({
             ...d,
             status: d.status === "inactive" ? d.status : "active",
             sickUntil: undefined,
-            constraints: [...d.constraints, { id: newId(), when: "dates", from, to, kind }],
+            constraints: [...d.constraints, ...added],
           }))
         }
       />
@@ -737,7 +743,7 @@ function StatusSheet({
   worker: Worker;
   onClose: () => void;
   onPick: (status: WorkerStatus, sickUntil?: string) => void;
-  onAbsence: (kind: AbsenceKind, from: string, to: string) => void;
+  onAbsence: (added: Constraint[]) => void;
 }) {
   const [step, setStep] = useState<"ask" | "pick" | "date" | "range">("ask");
   const [sickUntil, setSickUntil] = useState("");
@@ -746,11 +752,17 @@ function StatusSheet({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [rangeValid, setRangeValid] = useState({ from: false, to: false });
+  const [mode, setMode] = useState<"range" | "weekly" | "days">("range");
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
   const close = () => {
     setStep("ask");
     setSickUntil("");
     setFrom("");
     setTo("");
+    setMode("range");
+    setWeekdays([]);
+    setPicked([]);
     onClose();
   };
   const pick = (status: WorkerStatus) => {
@@ -829,32 +841,102 @@ function StatusSheet({
       {step === "range" && (
         <>
           <p className="text-sm text-slate-300">
-            {ABSENCES.find((a) => a.id === kind)?.name}: מאיזה יום ועד איזה יום?
+            {ABSENCES.find((a) => a.id === kind)?.name}: באילו ימים?
           </p>
-          <DateField
-            label="מתאריך"
-            value={from}
-            required
-            onChange={(v, ok) => {
-              setFrom(v);
-              setRangeValid((r) => ({ ...r, from: ok }));
-            }}
-          />
-          <DateField
-            label="עד תאריך (כולל)"
-            value={to}
-            min={from || todayIso()}
-            required
-            onChange={(v, ok) => {
-              setTo(v);
-              setRangeValid((r) => ({ ...r, to: ok }));
-            }}
-          />
+          {/* Three ways: a stretch of days, the same weekdays every week, or days picked on a calendar. */}
+          <div role="tablist" aria-label="איך לסמן" className="grid grid-cols-3 rounded-xl bg-slate-900 p-1">
+            {ABSENCE_MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                role="tab"
+                aria-selected={mode === m.id}
+                onClick={() => setMode(m.id)}
+                className={`min-h-11 rounded-lg text-xs font-medium ${mode === m.id ? "bg-slate-700 text-slate-50" : "text-slate-400"}`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          {mode === "range" && (
+            <>
+              <DateField
+                label="מתאריך"
+                value={from}
+                required
+                onChange={(v, ok) => {
+                  setFrom(v);
+                  setRangeValid((r) => ({ ...r, from: ok }));
+                }}
+              />
+              <DateField
+                label="עד תאריך (כולל)"
+                value={to}
+                min={from || todayIso()}
+                required
+                onChange={(v, ok) => {
+                  setTo(v);
+                  setRangeValid((r) => ({ ...r, to: ok }));
+                }}
+              />
+            </>
+          )}
+          {mode === "weekly" && (
+            <>
+              <div className="flex flex-wrap gap-2" aria-label="ימים בשבוע">
+                {HEBREW_DAYS.map((name, d) => (
+                  <button
+                    key={name}
+                    type="button"
+                    aria-pressed={weekdays.includes(d)}
+                    onClick={() => setWeekdays((w) => (w.includes(d) ? w.filter((x) => x !== d) : [...w, d]))}
+                    className={`min-h-11 rounded-xl border px-3 text-sm ${weekdays.includes(d) ? "border-sky-500 bg-sky-600 text-white" : "border-slate-700 text-slate-200"}`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+              <DateField
+                label="עד תאריך (לא חובה; ריק = בלי סוף)"
+                value={to}
+                min={todayIso()}
+                onChange={(v, ok) => {
+                  setTo(v);
+                  setRangeValid((r) => ({ ...r, to: ok || !v }));
+                }}
+              />
+            </>
+          )}
+          {mode === "days" && (
+            <>
+              <MonthDays
+                min={todayIso()}
+                selected={picked}
+                onToggle={(day) => setPicked((p) => (p.includes(day) ? p.filter((x) => x !== day) : [...p, day]))}
+              />
+              <p className="text-xs text-slate-400" aria-live="polite">
+                {picked.length ? `סומנו ${picked.length === 1 ? "יום אחד" : `${picked.length} ימים`}` : "לחץ על הימים בלוח"}
+              </p>
+            </>
+          )}
           <button
             type="button"
-            disabled={!from || !to || !rangeValid.from || !rangeValid.to || to < from}
+            disabled={
+              mode === "range"
+                ? !from || !to || !rangeValid.from || !rangeValid.to || to < from
+                : mode === "weekly"
+                  ? !weekdays.length || (!!to && !rangeValid.to)
+                  : !picked.length
+            }
             onClick={() => {
-              onAbsence(kind, from, to);
+              const base = { kind } as const;
+              onAbsence(
+                mode === "range"
+                  ? [{ ...base, id: newId(), when: "dates", from, to }]
+                  : mode === "weekly"
+                    ? [{ ...base, id: newId(), when: "weekdays", weekdays: [...weekdays].sort(), from: todayIso(), ...(to ? { to } : {}) }]
+                    : daysToRanges(picked).map((r) => ({ ...base, id: newId(), when: "dates" as const, ...r })),
+              );
               close();
             }}
             className="min-h-11 w-full rounded-xl bg-sky-600 text-sm font-medium text-white disabled:opacity-40"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dateError, isRealDate, todayIso } from './dates'
+import { dateError, isRealDate, todayIso, daysToRanges } from './dates'
 
 describe('isRealDate', () => {
   it('accepts dates that exist, including 29.2 in a leap year', () => {
@@ -32,4 +32,12 @@ describe('todayIso', () => {
   it('uses the local date', () => {
     expect(todayIso(new Date(2026, 9, 3, 23, 59))).toBe('2026-10-03')
   })
+})
+
+describe('daysToRanges', () => {
+  it('joins days in a row, across a month end, and sorts', () =>
+    expect(daysToRanges(['2026-12-01', '2026-11-30', '2026-11-12', '2026-11-29', '2026-11-12'])).toEqual([
+      { from: '2026-11-12', to: '2026-11-12' },
+      { from: '2026-11-29', to: '2026-12-01' },
+    ]))
 })

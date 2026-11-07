@@ -24,3 +24,16 @@ export function todayIso(now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`
 }
+
+/** Picked days as date ranges: days in a row become one range. */
+export function daysToRanges(days: string[]): { from: string; to: string }[] {
+  const sorted = [...new Set(days)].sort()
+  const out: { from: string; to: string }[] = []
+  for (const d of sorted) {
+    const last = out.at(-1)
+    const next = last && new Date(new Date(`${last.to}T12:00:00Z`).getTime() + 864e5).toISOString().slice(0, 10)
+    if (last && next === d) last.to = d
+    else out.push({ from: d, to: d })
+  }
+  return out
+}
