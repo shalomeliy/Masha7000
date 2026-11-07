@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
@@ -14,6 +14,7 @@ import { Archive } from './Archive'
 import { AccessSection } from './settings/AccessSection'
 import { BackupSection } from './settings/BackupSection'
 import { SecuritySection } from './settings/SecuritySection'
+import { FeatureRequestSection } from './settings/FeatureRequestSection'
 import { DepartmentsSection } from './settings/DepartmentsSection'
 import { NameListSection } from './settings/NameListSection'
 import { WordsSection } from './settings/WordsSection'
@@ -134,7 +135,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection' | 'account'
+type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback'
 type ItemId = ListId | PanelId
 
 // A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
@@ -158,6 +159,7 @@ const PANELS: Record<PanelId, { title: string; explain: string }> = {
   backup: { title: 'גיבוי ושחזור', explain: 'שמירת עותק של כל הנתונים והחזרה שלו' },
   connection: { title: 'בדיקת חיבור לגוגל', explain: 'בודקת שהשמירה בדרייב והיומן עובדים' },
   account: { title: 'החשבון שלי', explain: 'עם איזה מייל נכנסת, והתנתקות' },
+  feedback: { title: 'בקשת תכונות חדשות', explain: 'רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח' },
 }
 
 const listItem = (id: ListId): Entry => {
@@ -219,6 +221,14 @@ function groups(isOwner: boolean, server: boolean): Group[] {
           explain: 'בקשה לראות, לתקן או למחוק מידע, או דיווח על בעיית נגישות',
         },
       ],
+    },
+    {
+      id: 'feedback',
+      title: 'בקשת תכונות חדשות',
+      explain: 'רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח',
+      icon: Lightbulb,
+      // Sent by the server, so it shows only where the server is on.
+      items: server ? [panelItem('feedback')] : [],
     },
     {
       id: 'account',
@@ -322,6 +332,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
             <BackupSection canRestore={authMode() === 'popup' || who?.isOwner === true} />
           ))}
         {open === 'connection' && <ConnectionCheck />}
+        {open === 'feedback' && <FeatureRequestSection />}
         {open === 'account' && (
           <div className="space-y-3">
             <h1 className="text-2xl font-bold">החשבון שלי</h1>

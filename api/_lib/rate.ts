@@ -21,6 +21,8 @@ export const LIMITS = {
   joinSubmit: { max: 15, windowSeconds: 3600 },
   joinManage: { max: 200, windowSeconds: 600 },
   assistant: { max: 60, windowSeconds: 600 },
+  feedbackIp: { max: 30, windowSeconds: 3600 },
+  feedbackEmail: { max: 10, windowSeconds: 3600 },
 } satisfies Record<string, Limit>
 
 /** Counts this try; true when the caller is over the limit. */
