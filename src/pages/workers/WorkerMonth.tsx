@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { Sheet } from '../../components/Sheet'
 import { dayNames, monthNames, tx } from '../../i18n'
 import { fullName } from '../../lib/catalog'
@@ -47,7 +47,17 @@ const moveMonth = (month: string, by: number) => {
   return `${Math.floor(n / 12)}-${String((n % 12) + 1).padStart(2, '0')}`
 }
 
-export function WorkerMonth({ worker, open, onClose }: { worker: Worker; open: boolean; onClose: () => void }) {
+export function WorkerMonth({
+  worker,
+  open,
+  onClose,
+  onRemove,
+}: {
+  worker: Worker
+  open: boolean
+  onClose: () => void
+  onRemove: (constraintId: string) => void // a dated constraint, removed from the card (saved with "שמירה")
+}) {
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
   const roles = useDriveList('roles')
@@ -68,9 +78,22 @@ export function WorkerMonth({ worker, open, onClose }: { worker: Worker; open: b
     if (e.type === 'away') {
       const note = e.constraint.note?.trim()
       return (
-        <li key={e.key} className={`border-s-2 ps-2 ${tone.line}`}>
-          <span className={`block ${tone.text}`}>{constraintText(e.constraint)}</span>
-          {note && note !== 'מחלה' && <span className="block truncate text-xs text-slate-400">{note}</span>}
+        <li key={e.key} className={`flex items-center gap-1 border-s-2 ps-2 ${tone.line}`}>
+          <span className="min-w-0 flex-1">
+            <span className={`block ${tone.text}`}>{constraintText(e.constraint)}</span>
+            {note && note !== 'מחלה' && <span className="block truncate text-xs text-slate-400">{note}</span>}
+          </span>
+          {/* Dated ones are removed here (not in the card's list). Status sickness goes on the status line, weekly ones in the list. */}
+          {e.key !== 'sick' && e.constraint.when === 'dates' && (
+            <button
+              type="button"
+              aria-label={tx('מחיקת האילוץ: {v}', { v: constraintText(e.constraint) })}
+              onClick={() => onRemove(e.constraint.id)}
+              className="flex size-11 shrink-0 items-center justify-center text-slate-400"
+            >
+              <X size={18} aria-hidden />
+            </button>
+          )}
         </li>
       )
     }

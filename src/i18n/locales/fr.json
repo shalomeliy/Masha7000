@@ -992,5 +992,6 @@
  "למחוק את כל היומן?": "Supprimer tout le journal ?",
  "מה הלך ל-Claude": "Ce qui est allé à Claude",
  "מה הלך ל-Claude, כדי ללמד את האפליקציה לעשות יותר בחינם": "Ce qui est allé à Claude, pour apprendre à l'app à en faire plus gratuitement",
- "ניקוי היומן": "Vider le journal"
+ "ניקוי היומן": "Vider le journal",
+ "אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.": "Les contraintes à des dates précises sont dans le calendrier personnel et mensuel ci-dessous."
 }

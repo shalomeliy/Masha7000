@@ -992,5 +992,6 @@
  "למחוק את כל היומן?": "Delete the whole log?",
  "מה הלך ל-Claude": "What went to Claude",
  "מה הלך ל-Claude, כדי ללמד את האפליקציה לעשות יותר בחינם": "What went to Claude, to teach the app to do more for free",
- "ניקוי היומן": "Clear the log"
+ "ניקוי היומן": "Clear the log",
+ "אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.": "Constraints on dates are in the personal and monthly calendar below."
 }

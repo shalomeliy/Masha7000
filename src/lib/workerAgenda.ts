@@ -63,11 +63,6 @@ export function agendaText(item: AgendaItem, roles: Role[]): { title: string; de
   return { title: [s.location, s.jobDescription].filter(Boolean).join(' · '), detail: role }
 }
 
-/** The worker's own constraints the calendar shows, so the card's constraints list leaves them out
- * (the user's rule: each shown once). A guess read from WhatsApp stays in the list, to be checked there. */
-export const agendaConstraintIds = (items: AgendaItem[]): string[] =>
-  items.flatMap((i) => (i.type === 'away' && i.key !== 'sick' && !i.constraint.guess ? [i.constraint.id] : []))
-
 // ---- The worker's month: everything on each day, past days too ----
 
 export type DayEntry =

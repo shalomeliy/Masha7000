@@ -992,5 +992,6 @@
  "למחוק את כל היומן?": "Hapus seluruh log?",
  "מה הלך ל-Claude": "Apa yang dikirim ke Claude",
  "מה הלך ל-Claude, כדי ללמד את האפליקציה לעשות יותר בחינם": "Apa yang dikirim ke Claude, untuk mengajari aplikasi melakukan lebih banyak secara gratis",
- "ניקוי היומן": "Kosongkan log"
+ "ניקוי היומן": "Kosongkan log",
+ "אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.": "Batasan pada tanggal tertentu ada di kalender pribadi dan bulanan di bawah."
 }

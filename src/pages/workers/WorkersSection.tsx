@@ -34,7 +34,6 @@ import { AddButton, EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
 import { useWorkerAgenda, WorkerAgenda } from "./WorkerAgenda";
 import { WorkerMonth } from "./WorkerMonth";
-import { agendaConstraintIds } from "../../lib/workerAgenda";
 import { RequestSheet } from "./RequestSheet";
 import { JoinButton, JoinPending } from "./JoinSection";
 import { authMode } from "../../lib/google/auth";
@@ -597,8 +596,8 @@ function WorkerForm({
     <>
       <ConstraintsField
         value={draft.constraints}
-        // Each constraint is shown once: those in the personal calendar are left out of this list.
-        hidden={exists ? agendaConstraintIds(agenda.items) : []}
+        // Each constraint is shown once: dated ones are in the personal and monthly calendar.
+        calendar={exists}
         onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
         onNotes={(text) =>
           setDraft((d) => ({
@@ -668,7 +667,14 @@ function WorkerForm({
           onOpen={() => setMonthOpen(true)}
         />
       )}
-      {exists && <WorkerMonth worker={draft} open={monthOpen} onClose={() => setMonthOpen(false)} />}
+      {exists && (
+        <WorkerMonth
+          worker={draft}
+          open={monthOpen}
+          onClose={() => setMonthOpen(false)}
+          onRemove={(id) => setDraft((d) => ({ ...d, constraints: d.constraints.filter((c) => c.id !== id) }))}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={tx('ת.ז')}>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeConstraint } from './constraints'
-import { agendaConstraintIds, agendaDays, workerAgenda } from './workerAgenda'
+import { agendaDays, workerAgenda } from './workerAgenda'
 import { workerState } from './workerState'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
@@ -36,14 +36,8 @@ describe('workerAgenda', () => {
     })
     const items = workerAgenda(worker, [shift('s', '2026-11-09', ['w'])], defs, TODAY)
     expect(items.map((i) => i.key)).toEqual(['sick', 'c-res', 'c-day', 'job-s'])
-    expect(agendaConstraintIds(items)).toEqual(['res', 'day'])
   })
 
-  it('a WhatsApp guess stays in the constraints list', () => {
-    const items = workerAgenda(w({ constraints: [{ id: 'g', when: 'dates', from: TODAY, to: TODAY, guess: true }] }), [], defs, TODAY)
-    expect(items).toHaveLength(1)
-    expect(agendaConstraintIds(items)).toEqual([])
-  })
 })
 
 describe('agendaDays', () => {

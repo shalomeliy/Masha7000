@@ -36,19 +36,22 @@ export function ConstraintsField({
   value,
   onChange,
   onNotes,
-  hidden = [],
+  calendar = false,
 }: {
   value: Constraint[]
-  hidden?: string[] // shown elsewhere (the personal calendar), so not listed here
+  calendar?: boolean // a saved worker: dated constraints are in the personal and monthly calendar, so not listed here
   onChange: (v: Constraint[]) => void
   onNotes: (text: string) => void // the notes line of a pasted WhatsApp reply
 }) {
   const today = todayIso()
   const [editing, setEditing] = useState<Constraint | null>(null)
   const [pasting, setPasting] = useState(false)
-  // A constraint that already ended is not listed (the user's rule); it stays saved, for the month view.
+  // The user's rule: each constraint shown once, and no past ones. For a saved worker a constraint on
+  // given dates is in the personal calendar (next 3 days) and the month, where it is removed; here
+  // stay the weekly and "always" ones, and a WhatsApp guess to be checked. Ended ones stay saved.
+  const listed = (c: Constraint) => !isOver(c, today) && (!calendar || c.when !== 'dates' || !!c.guess)
   const shown = value
-    .filter((c) => (!hidden.includes(c.id) && !isOver(c, today)) || editing?.id === c.id)
+    .filter((c) => listed(c) || editing?.id === c.id)
     .sort((a, b) => (a.from ?? '').localeCompare(b.from ?? ''))
 
   const save = (c: Constraint) => {
@@ -60,6 +63,7 @@ export function ConstraintsField({
     <div className="space-y-2">
       <span className="text-sm text-slate-300">{tx('אילוצים')}</span>
       <p className="text-xs text-slate-400">{tx('מתי העובד לא יכול לעבוד. "שבץ" לא יבחר אותו בזמנים האלה.')}</p>
+      {calendar && <p className="text-xs text-slate-400">{tx('אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.')}</p>}
       {shown.map((c) =>
         editing?.id === c.id ? (
           <ConstraintEditor key={c.id} initial={editing} onSave={save} onCancel={() => setEditing(null)} />
