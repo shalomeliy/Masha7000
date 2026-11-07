@@ -108,7 +108,9 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
   const showInactive = tab === "team" && inactiveView;
   const searching = tab === "search";
   const typed = searching && query.trim() !== "";
-  const filtering = searching && (typed || roleFilter.length + certFilter.length > 0);
+  // While text is typed the role and certification chips are hidden, so they do not filter either.
+  const chipFiltering = searching && !typed && roleFilter.length + certFilter.length > 0;
+  const filtering = typed || chipFiltering;
   const byState = tab === "team" && !showInactive ? stateFilter : null;
   const inactiveCount = workers.items.filter((w) => !isActive(w)).length;
   // Inactive workers are kept (old shifts and reports name them) but listed only behind their own button.
@@ -120,8 +122,8 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
     : listed;
   const shown = filterWorkers(
     byState ? found.filter((w) => workerState(w, today).id === byState) : found,
-    searching ? roleFilter : [],
-    searching ? certFilter : [],
+    chipFiltering ? roleFilter : [],
+    chipFiltering ? certFilter : [],
     generalRoleId(roles.items),
   ).sort((a, b) => fullName(a).localeCompare(fullName(b), "he"));
 
@@ -220,7 +222,7 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
               </button>
             )}
           </label>
-          {roles.items.length + certs.items.length === 0 ? (
+          {typed ? null : roles.items.length + certs.items.length === 0 ? (
             <p className="text-sm text-slate-400">{tx("עוד אין תפקידים או הסמכות. מוסיפים אותם בהגדרות.")}</p>
           ) : (
             <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
@@ -236,7 +238,7 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
                   <Chips options={certs.items} selected={certFilter} onToggle={(id) => setCertFilter((f) => toggle(f, id))} />
                 </div>
               )}
-              {filtering && (
+              {chipFiltering && (
                 <button
                   type="button"
                   onClick={() => {
