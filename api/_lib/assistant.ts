@@ -288,7 +288,7 @@ export async function runAssistant(
   } catch (e) {
     if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return { ok: false, reason: 'no-key' }
     // The account ran out of credit or hit its spend limit: say so, not "try again".
-    if (e instanceof Anthropic.APIError && /credit balance|spend limit|billing/i.test(e.message)) return { ok: false, reason: 'no-credit' }
+    if (e instanceof Anthropic.APIError && /credit balance|spend limit|usage limit|billing/i.test(e.message)) return { ok: false, reason: 'no-credit' }
     console.error('assistant error', (e as Error).name, (e as Error).message?.slice(0, 300))
     return { ok: false, reason: 'failed' }
   }
