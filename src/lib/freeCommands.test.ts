@@ -97,7 +97,8 @@ describe('jobs learned from Claude', () => {
   it('asks for a missing detail, then finishes with the answer', () => {
     const d = data()
     const L = learn(d.assistantExamples, d)
-    const first = handleFree('תפתח עבודה לילה בערד 17 החלפת אנטנה שני מטפסים', d, L, NOW)
+    // Assigning people needs a date.
+    const first = handleFree('תפתח עבודה לילה בערד 17 החלפת אנטנה שני מטפסים ותשבץ', d, L, NOW)
     expect(first).toMatchObject({ kind: 'ask', question: 'באיזה יום?' })
     if (first?.kind !== 'ask') return
     const next = continueJob('ביום ראשון', first.pending, d, L, NOW)
@@ -115,7 +116,6 @@ describe('jobs learned from Claude', () => {
       'תסגור את העבודה באילת אתר 123, הסתיימה',
       'תמחק את העבודה של מחר בערד 17',
       'תפתח עבודה מחר לילה באילת אתר 123 החלפת אנטנה עם דני ויוסי',
-      'עבודה חדשה מחר לילה בערד 17 החלפת אנטנה שני מטפסים',
       'תפתח עבודה מחר לילה בבאר שבע החלפת אנטנה שני מטפסים', // a place not in the lists
       'כמה מטפסים יש לי מחר',
       'מי עובד מחר באילת',
@@ -123,8 +123,77 @@ describe('jobs learned from Claude', () => {
       expect([s, run(s)]).toEqual([s, null])
   })
 
-  it('learns nothing before Claude did it once', () => {
+  it('a role word it never saw goes to Claude before Claude taught it', () => {
+    // "מטפסים" is learned from Claude (alias of טפסן); before that it is not understood.
     expect(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים', data({ assistantExamples: [] }))).toBeNull()
+    expect(job(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני טפסנים', data({ assistantExamples: [] })))).toMatchObject({ staffing: [{ roleId: 'r1', count: 2 }] })
+  })
+})
+
+describe('a new job, any phrasing, from the first time', () => {
+  const none = (said: string) => run(said, data({ assistantExamples: [] }))
+
+  it('understands other verbs, with nothing learned', () => {
+    for (const s of [
+      'תייצר לי עבודה מחר לילה בערד 17 החלפת אנטנה',
+      'תכניס לי עבודה מחר לילה בערד 17 החלפת אנטנה',
+      'תוסיף עבודה מחר לילה בערד 17 החלפת אנטנה',
+      'תרשום עבודה מחר לילה בערד 17 החלפת אנטנה',
+      'עבודה חדשה מחר לילה בערד 17 החלפת אנטנה',
+      'יש לי עבודה חדשה מחר לילה בערד 17 החלפת אנטנה',
+      'תקבע עבודה לילה מחר החלפת אנטנה בערד 17',
+      'בבקשה תפתחי עבודה חדשה מחר לילה בערד 17 החלפת אנטנה',
+    ])
+      expect([s, job(none(s))]).toEqual([s, expect.objectContaining({ date: '2026-11-08', shiftKindId: 's2', location: 'ערד 17', jobDescription: 'החלפת אנטנה', autoAssign: false })])
+  })
+
+  it('with no date the job goes to the לשיבוץ list, and the proposal is valid', () => {
+    const d = data({ assistantExamples: [] })
+    const r = none('תכניס לי עבודה לילה בערד 17 החלפת אנטנה שני טפסנים')
+    expect(job(r)).toMatchObject({ date: '', location: 'ערד 17', staffing: [{ roleId: 'r1', count: 2 }] })
+    if (r?.kind !== 'propose') return
+    expect(proposalErrors(r.proposal, d)).toEqual([])
+    expect(r.proposal.summary).toBe('עבודה חדשה: לילה, בלי תאריך, לרשימת לשיבוץ, בערד 17, החלפת אנטנה. צריך 2 טפסן. לאשר, או שיש עוד תיקון?')
+  })
+
+  it('partial details are fine: a place, or a description, is enough', () => {
+    expect(job(none('תוסיף עבודה יום בדימונה 556'))).toMatchObject({ date: '', location: 'דימונה 556', jobDescription: '', staffing: [] })
+    expect(job(none('תפתח עבודה יום מחר תחזוקת מצלמות'))).toMatchObject({ date: '2026-11-08', location: '', jobDescription: 'תחזוקת מצלמות' })
+    expect(job(none('תרשום עבודת לילה החלפת כבלים'))).toMatchObject({ location: '', jobDescription: 'החלפת כבלים' })
+    const r = none('תוסיף עבודה יום בדימונה 556')
+    if (r?.kind === 'propose') expect(r.proposal.summary).toBe('עבודה חדשה: יום, בלי תאריך, לרשימת לשיבוץ, בדימונה 556. לאשר, או שיש עוד תיקון?')
+  })
+
+  it('asks the kind when not said, and where when neither a place nor a description was said', () => {
+    const d = data({ assistantExamples: [] })
+    const L = learn([], d)
+    const a = handleFree('תפתח עבודה מחר בערד 17', d, L, NOW)
+    expect(a).toMatchObject({ kind: 'ask', question: 'איזו עבודה, יום, לילה?' })
+    if (a?.kind !== 'ask') return
+    expect(job(continueJob('לילה', a.pending, d, L, NOW))).toMatchObject({ date: '2026-11-08', shiftKindId: 's2', location: 'ערד 17' })
+    const b = handleFree('תייצר לי עבודה חדשה לילה', d, L, NOW)
+    expect(b).toMatchObject({ kind: 'ask', question: 'איפה?' })
+    if (b?.kind !== 'ask') return
+    expect(job(continueJob('במצפה רמון', b.pending, d, L, NOW))).toMatchObject({ date: '', location: 'מצפה רמון' })
+    // With one kind of job only, that is the kind.
+    const one = data({ assistantExamples: [], shiftDefinitions: [base.shiftDefinitions[0]] })
+    expect(job(run('תפתח עבודה מחר בערד 17', one))).toMatchObject({ shiftKindId: 's1' })
+  })
+
+  it('anything else about jobs still goes to Claude', () => {
+    for (const s of [
+      'תפתח את העבודה של מחר', // a job that exists
+      'תוסיף לעבודה בערד 17 עוד טפסן',
+      'תפתח שתי עבודות מחר בערד 17',
+      'תוסיף עבודה מחר לילה בערד 17 עם דני',
+      'תוסיף עבודה מחר לילה בערד 17 מה צריך',
+      'תכניס עבודה מחר בערד 17 החלפת אנטנה ותעביר את דני',
+      'תוסיף עבודה מחר בערד 17 לילה 3',
+      'מה העבודה מחר בערד 17',
+      'עבודה מחר בערד 17', // no verb: maybe a question
+      'תכניס עבודה מחר לילה החלפת אנטנה בבאר שבע', // a place not in the lists, with a known description
+    ])
+      expect([s, none(s)]).toEqual([s, null])
   })
 })
 
@@ -312,7 +381,7 @@ describe('why a sentence went to Claude (the log)', () => {
 
   it('names an action not learned yet, and what was understood', () => {
     const r = why('תעביר את דני לעבודה בערד 17 ביום ראשון')
-    expect(r.reason).toContain('no learned action matches')
+    expect(r.reason).toContain('a job that exists')
     expect(r.understood).toContain('workers: דני')
     expect(r.understood).toContain('place: ערד 17')
     expect(r.understood).toContain('date: 2026-11-08')
