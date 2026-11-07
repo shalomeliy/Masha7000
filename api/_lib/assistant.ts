@@ -302,13 +302,22 @@ export async function runAssistant(
  * The turn as a stream of JSON lines: `{"early": "..."}` as soon as the spoken part is written, then
  * `{"reply": ...}` (or `{"reason": ...}` on failure). The connection stays open while it thinks.
  */
-export function assistantStream(apiKey: string, messages: unknown, context: unknown, model?: string, manualLocal = false): ReadableStream<Uint8Array> {
+export function assistantStream(
+  apiKey: string,
+  messages: unknown,
+  context: unknown,
+  model?: string,
+  manualLocal = false,
+  // Runs once the answer is in (the server counts its cost here); what it returns goes on the last line.
+  after?: (reply: AssistantReply) => Promise<Record<string, unknown>>,
+): ReadableStream<Uint8Array> {
   const enc = new TextEncoder()
   return new ReadableStream({
     async start(controller) {
       const line = (v: unknown) => controller.enqueue(enc.encode(`${JSON.stringify(v)}\n`))
       const reply = await runAssistant(apiKey, messages, context, model, (early) => line({ early }), manualLocal)
-      line(reply.ok ? { reply } : { reason: reply.reason })
+      const extra = after ? await after(reply).catch(() => ({})) : {}
+      line(reply.ok ? { reply, ...extra } : { reason: reply.reason, ...extra })
       controller.close()
     },
   })

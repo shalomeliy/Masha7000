@@ -6,7 +6,7 @@ import { applyProposal, isYes, MAX_EXAMPLES, normalizeProposal, proposalConflict
 import { newId } from '../lib/catalog'
 import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
-import { askAssistant, userTurn, type AssistantAnswer, type Turn } from '../lib/assistantApi'
+import { askAssistant, fetchBudget, userTurn, type AssistantAnswer, type Budget, type Turn } from '../lib/assistantApi'
 import { realAssistantOn, setRealAssistant } from '../dev/realAssistant'
 import { continueJob, countTurn, exampleAction, handleFree, learn, pickedOption, sickPlan, usage, type Local, type PendingJob } from '../lib/freeCommands'
 import { useDriveList } from '../lib/data/useDriveList'
@@ -65,6 +65,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [rate, setRate] = useState(speechRate)
   const [realDev, setRealDev] = useState(realAssistantOn)
   const [used, setUsed] = useState(usage)
+  const [budget, setBudget] = useState<Budget | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [conflicts, setConflicts] = useState<string[]>([])
@@ -78,6 +79,15 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const pendingJob = useRef<PendingJob | null>(null) // a job being opened here, free, waiting for a missing detail
   const fromFree = useRef(false) // the open proposal was made here, not by Claude: nothing to learn from it
   const listening = useRef<Listening | null>(null)
+
+  // How much of the month's Anthropic budget is left (counted on the server, api/_lib/budget.ts).
+  useEffect(() => {
+    let live = true
+    fetchBudget().then((b) => live && b && setBudget(b))
+    return () => {
+      live = false
+    }
+  }, [])
 
   useEffect(() => () => {
     listening.current?.stop()
@@ -113,7 +123,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         // Spoken while the rest of the answer is still being written.
         early = text
         say(text)
-      })
+      }, setBudget)
     } catch (e) {
       conversation.current = conversation.current.slice(0, -1)
       setError((e as Error).message)
@@ -397,6 +407,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         {(used.free > 0 || used.paid > 0) && (
           <p className="text-xs text-slate-400">{tx('החודש: {free} פקודות בחינם, {paid} דרך Claude (בתשלום)', { free: used.free, paid: used.paid })}</p>
         )}
+        {budget && <BudgetLine budget={budget} />}
         {heard && <p className="max-w-sm text-center text-slate-100">{heard}</p>}
         {error && (
           <p role="alert" className="max-w-sm text-center text-amber-300">
@@ -561,5 +572,36 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         )}
       </div>
     </section>
+  )
+}
+
+/** "Left this month: $3.80 of $5", with a bar; amber when little is left, and a note on what it counts. */
+function BudgetLine({ budget }: { budget: Budget }) {
+  const left = Math.max(0, budget.limitUsd - budget.spentUsd)
+  const share = budget.limitUsd > 0 ? left / budget.limitUsd : 0
+  const low = share < 0.2
+  const money = (n: number) => `$${n.toFixed(2)}`
+  const firstOfMonth = `${new Date().toISOString().slice(0, 7)}-01`
+  return (
+    <div className="w-full max-w-xs text-center text-xs text-slate-400">
+      <p className={low ? 'text-amber-300' : undefined}>
+        {tx('נשאר מהתקציב החודש: {left} מתוך {limit}', { left: money(left), limit: money(budget.limitUsd) })}
+      </p>
+      <div
+        className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-800"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(share * 100)}
+        aria-label={tx('נשאר מהתקציב')}
+      >
+        <div className={`h-full rounded-full ${low ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${Math.round(share * 100)}%` }} />
+      </div>
+      {budget.since && budget.since > firstOfMonth && (
+        <p className="mt-1">{tx('נספר מ-{date}. מה שנוצל לפני כן לא נכלל.', { date: budget.since.split('-').reverse().join('/') })}</p>
+      )}
+      {/* Dev server only, not translated: the number above is made up. */}
+      {budget.mock && <p className="mt-1">בדיקה מקומית: מספר דמה</p>}
+    </div>
   )
 }

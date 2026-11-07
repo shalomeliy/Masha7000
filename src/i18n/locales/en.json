@@ -967,5 +967,8 @@
  "המשך מ-{v}": "continued from {v}",
  "לוח חודשי": "Monthly calendar",
  "מחלה": "Sickness",
- "מקרא": "Legend"
+ "מקרא": "Legend",
+ "נשאר מהתקציב החודש: {left} מתוך {limit}": "Budget left this month: {left} of {limit}",
+ "נשאר מהתקציב": "Budget left",
+ "נספר מ-{date}. מה שנוצל לפני כן לא נכלל.": "Counted since {date}. Spending before that is not included."
 }

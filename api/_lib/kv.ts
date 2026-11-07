@@ -4,7 +4,8 @@ import type { Env } from './env.js'
 // The server's small store: Upstash over its REST API, or a plain Redis connection (REDIS_URL,
 // Vercel Marketplace "Redis"). Holds only: the owner's sealed refresh token, a sealed cached
 // access token, the allowed emails, the workers' details form and its sealed answers, the sealed
-// sign-in sessions, each person's sealed two-step secret, and short-lived rate-limit counters.
+// sign-in sessions, each person's sealed two-step secret, short-lived rate-limit counters, and the
+// voice assistant's spending this month (budget.ts).
 
 export const KEYS = {
   refresh: 'owner:refresh',
@@ -69,5 +70,8 @@ export const kv = {
   /** Sets the key only if it is not there yet; true when this call got it (atomic, for one-time use). */
   claim: async (env: Env, key: string, exSeconds: number) => (await command<string | null>(env, 'SET', key, '1', 'NX', 'EX', exSeconds)) === 'OK',
   incr: async (env: Env, key: string) => Number(await command<number>(env, 'INCR', key)),
+  incrBy: async (env: Env, key: string, by: number) => Number(await command<number>(env, 'INCRBY', key, Math.round(by))),
+  /** Sets the key only if it is not there yet (keeps the first value). */
+  setNew: (env: Env, key: string, value: string, exSeconds: number) => command(env, 'SET', key, value, 'NX', 'EX', exSeconds),
   expire: (env: Env, key: string, seconds: number) => command(env, 'EXPIRE', key, seconds),
 }

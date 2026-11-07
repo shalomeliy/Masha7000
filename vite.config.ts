@@ -16,6 +16,12 @@ function localAssistant(): Plugin {
       const env = loadEnv('development', process.cwd(), '')
       const key = (env.ANTHROPIC_API_KEY ?? '').trim()
       server.middlewares.use('/api/assistant', async (req, res) => {
+        if (req.method === 'GET') {
+          // The budget line on the screen: a made-up stand-in locally (the real count is on Vercel).
+          const { mockBudget } = (await server.ssrLoadModule('/api/_lib/assistantMock.ts')) as typeof import('./api/_lib/assistantMock.ts')
+          res.setHeader('Content-Type', 'application/json')
+          return res.end(JSON.stringify({ budget: mockBudget() }))
+        }
         if (req.method !== 'POST') {
           res.statusCode = 405
           res.setHeader('Content-Type', 'application/json')

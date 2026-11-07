@@ -967,5 +967,8 @@
  "המשך מ-{v}": "{v} tarihinden devam",
  "לוח חודשי": "Aylık takvim",
  "מחלה": "Hastalık",
- "מקרא": "Açıklama"
+ "מקרא": "Açıklama",
+ "נשאר מהתקציב החודש: {left} מתוך {limit}": "Bu ay kalan bütçe: {limit} içinden {left}",
+ "נשאר מהתקציב": "Kalan bütçe",
+ "נספר מ-{date}. מה שנוצל לפני כן לא נכלל.": "{date} tarihinden beri sayılıyor. Öncesindeki harcama dahil değil."
 }

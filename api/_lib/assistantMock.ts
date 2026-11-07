@@ -13,6 +13,9 @@ function lastSaid(messages: unknown): string {
   return content.flatMap((b) => (b && typeof b === 'object' && (b as { type?: unknown }).type === 'text' ? [String((b as { text?: unknown }).text ?? '')] : [])).join(' ')
 }
 
+/** A made-up budget for the local screen (clearly not the real spending). */
+export const mockBudget = () => ({ spentUsd: 1.2, limitUsd: 5, since: new Date().toISOString().slice(0, 10), mock: true })
+
 export function mockAssistantStream(messages: unknown): ReadableStream<Uint8Array> {
   const enc = new TextEncoder()
   const said = lastSaid(messages).trim()
@@ -22,7 +25,7 @@ export function mockAssistantStream(messages: unknown): ReadableStream<Uint8Arra
     start(controller) {
       const line = (v: unknown) => controller.enqueue(enc.encode(`${JSON.stringify(v)}\n`))
       line({ early: text })
-      line({ reply: { content: [{ type: 'tool_use', ...call }], call, text: '' } })
+      line({ reply: { content: [{ type: 'tool_use', ...call }], call, text: '' }, budget: mockBudget() })
       controller.close()
     },
   })

@@ -967,5 +967,8 @@
  "המשך מ-{v}": "suite du {v}",
  "לוח חודשי": "Calendrier mensuel",
  "מחלה": "Maladie",
- "מקרא": "Légende"
+ "מקרא": "Légende",
+ "נשאר מהתקציב החודש: {left} מתוך {limit}": "Budget restant ce mois-ci : {left} sur {limit}",
+ "נשאר מהתקציב": "Budget restant",
+ "נספר מ-{date}. מה שנוצל לפני כן לא נכלל.": "Compté depuis le {date}. Les dépenses antérieures ne sont pas incluses."
 }

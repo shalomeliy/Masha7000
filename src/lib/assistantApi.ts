@@ -19,6 +19,29 @@ export interface AssistantAnswer {
   text: string
 }
 
+/** This month's spending on the assistant, counted by the server (api/_lib/budget.ts). */
+export interface Budget {
+  spentUsd: number
+  limitUsd: number
+  since: string | null
+  mock?: boolean
+}
+
+const isBudget = (b: unknown): b is Budget =>
+  !!b && typeof b === 'object' && typeof (b as Budget).spentUsd === 'number' && typeof (b as Budget).limitUsd === 'number'
+
+/** The budget as the server sees it now, or null (not signed in as the owner, offline, not set up). */
+export async function fetchBudget(): Promise<Budget | null> {
+  try {
+    const res = await fetch('/api/assistant', { credentials: 'same-origin' })
+    if (!res.ok) return null
+    const data = (await res.json()) as { budget?: unknown }
+    return isBudget(data.budget) ? data.budget : null
+  } catch {
+    return null
+  }
+}
+
 const REASONS: Record<string, string> = {
   'not-owner': tx('העוזר הקולי פתוח רק לחשבון של המנהל.'),
   'no-session': tx('החיבור במכשיר הזה נגמר. צריך להתחבר שוב.'),
@@ -42,7 +65,12 @@ export function userTurn(last: AssistantAnswer | null, said: string, result = '�
  * One turn. The server streams JSON lines: `{early}` (the spoken part, as soon as it is written:
  * `onEarly` gets it), then `{reply}` or `{reason}`.
  */
-export async function askAssistant(messages: Turn[], context: unknown, onEarly?: (text: string) => void): Promise<AssistantAnswer> {
+export async function askAssistant(
+  messages: Turn[],
+  context: unknown,
+  onEarly?: (text: string) => void,
+  onBudget?: (budget: Budget) => void,
+): Promise<AssistantAnswer> {
   let res: Response
   try {
     res = await fetch('/api/assistant', {
@@ -70,8 +98,9 @@ export async function askAssistant(messages: Turn[], context: unknown, onEarly?:
     const lines = buffer.split('\n')
     buffer = done ? '' : lines.pop()!
     for (const line of lines.filter(Boolean)) {
-      const msg = JSON.parse(line) as { early?: string; reply?: Partial<AssistantAnswer>; reason?: string }
+      const msg = JSON.parse(line) as { early?: string; reply?: Partial<AssistantAnswer>; reason?: string; budget?: unknown }
       if (msg.early) onEarly?.(msg.early)
+      if (isBudget(msg.budget)) onBudget?.(msg.budget)
       if (msg.reason) throw failed(msg.reason)
       if (msg.reply) return { content: msg.reply.content ?? [], call: msg.reply.call ?? null, text: msg.reply.text ?? '' }
     }
