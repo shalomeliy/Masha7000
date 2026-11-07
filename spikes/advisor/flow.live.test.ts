@@ -71,7 +71,7 @@ type A = { content: Record<string, unknown>[]; call: { id: string; name: string;
 
 async function turn(conv: Turn[], label: string): Promise<A> {
   const t = Date.now()
-  const r = await runAssistant(env.ANTHROPIC_API_KEY, conv, ctx, 'claude-haiku-5-5')
+  const r = await runAssistant(env.ANTHROPIC_API_KEY, conv, ctx, 'claude-haiku-5-5', (e) => console.log(`  early after ${((Date.now() - t) / 1000).toFixed(1)}s: ${e.slice(0, 80)}`))
   if (!r.ok) throw new Error(`${label}: ${r.reason}`)
   const a = r as unknown as A & { usage: { input_tokens: number; output_tokens: number } }
   console.log(`

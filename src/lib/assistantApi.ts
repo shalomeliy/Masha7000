@@ -35,7 +35,11 @@ export function userTurn(last: AssistantAnswer | null, said: string, result = '�
   return { role: 'user', content: blocks }
 }
 
-export async function askAssistant(messages: Turn[], context: unknown): Promise<AssistantAnswer> {
+/**
+ * One turn. The server streams JSON lines: `{early}` (the spoken part, as soon as it is written:
+ * `onEarly` gets it), then `{reply}` or `{reason}`.
+ */
+export async function askAssistant(messages: Turn[], context: unknown, onEarly?: (text: string) => void): Promise<AssistantAnswer> {
   let res: Response
   try {
     res = await fetch('/api/assistant', {
@@ -48,7 +52,24 @@ export async function askAssistant(messages: Turn[], context: unknown): Promise<
     throw new Error('אין חיבור לאינטרנט.')
   }
   if (res.status === 404) throw new Error(REASONS['not-configured'])
-  const data = (await res.json().catch(() => ({}))) as Partial<AssistantAnswer> & { reason?: string }
-  if (!res.ok) throw new Error(REASONS[data.reason ?? ''] ?? 'העוזר לא הצליח לענות. נסה שוב.')
-  return { content: data.content ?? [], call: data.call ?? null, text: data.text ?? '' }
+  const failed = (reason?: string) => new Error(REASONS[reason ?? ''] ?? 'העוזר לא הצליח לענות. נסה שוב.')
+  if (!res.ok || !res.body || !(res.headers.get('content-type') ?? '').includes('ndjson')) {
+    const data = (await res.json().catch(() => ({}))) as { reason?: string }
+    throw failed(data.reason)
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+  let buffer = ''
+  for (;;) {
+    const { done, value } = await reader.read().catch(() => ({ done: true, value: undefined }))
+    if (value) buffer += value
+    const lines = buffer.split('\n')
+    buffer = done ? '' : lines.pop()!
+    for (const line of lines.filter(Boolean)) {
+      const msg = JSON.parse(line) as { early?: string; reply?: Partial<AssistantAnswer>; reason?: string }
+      if (msg.early) onEarly?.(msg.early)
+      if (msg.reason) throw failed(msg.reason)
+      if (msg.reply) return { content: msg.reply.content ?? [], call: msg.reply.call ?? null, text: msg.reply.text ?? '' }
+    }
+    if (done) throw failed()
+  }
 }

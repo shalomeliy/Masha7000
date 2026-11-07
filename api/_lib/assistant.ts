@@ -153,7 +153,7 @@ export const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'advise',
-    description: 'Up to 5 ranked solutions to a staffing problem.',
+    description: 'Up to 3 short ranked solutions to a staffing problem; spoken first.',
     strict: true,
     input_schema: obj({
       spoken: str,
@@ -166,7 +166,7 @@ export const TOOLS: Anthropic.Tool[] = [
 // It gets better from the manager's own answers: the lessons it wrote down and the requests he
 // confirmed come back in the data every turn (remembered, examples). The model itself never changes.
 const MODE = `
-שאלה מסובכת: בעיית שיבוץ שצריך לפתור ("חסרים לי אנשים", "מישהו חולה, מה עושים", "תציע לי פתרונות", "איך לסדר את השבוע"): קרא ל-advise. תחשוב לאט וכמו סדרן ותיק: בדוק תפקידים, הסמכות, אילוצים (cannot), מצב (now), מחלות, מי כבר עובד באותם ימים (לילה ולינה תופסים גם את היום שאחריו), עומס לילות בשבוע (מעל 2 זה עומס), ההיסטוריה, remembered ו-examples. החזר עד 5 פתרונות שונים באמת, מהטוב לפחות טוב. כל פתרון: title קצר, actions = מה עושים בפועל, בשמות ותאריכים, why = למה זה טוב, cost = מה המחיר. אל תציע פתרון ששובר כלל קשיח (עובד בלי התפקיד או ההסמכה, חולה או חסום) בלי להגיד את זה במפורש ב-cost. spoken: 2 עד 3 משפטים עם ההמלצה הראשונה, ובסוף "איזה פתרון לעשות?". אם חסר מידע חיוני, ask_user.
+שאלה מסובכת: בעיית שיבוץ שצריך לפתור ("חסרים לי אנשים", "מישהו חולה, מה עושים", "תציע לי פתרונות", "איך לסדר את השבוע"): קרא ל-advise. תחשוב לאט וכמו סדרן ותיק: בדוק תפקידים, הסמכות, אילוצים (cannot), מצב (now), מחלות, מי כבר עובד באותם ימים (לילה ולינה תופסים גם את היום שאחריו), עומס לילות בשבוע (מעל 2 זה עומס), ההיסטוריה, remembered ו-examples. כתוב קודם את spoken. החזר 2 עד 3 פתרונות שונים באמת, מהטוב לפחות טוב, וקצרים: title של כמה מילים, actions = עד 2 צעדים, בשמות ותאריכים, why = משפט קצר אחד, cost = משפט קצר אחד. אל תציע פתרון ששובר כלל קשיח (עובד בלי התפקיד או ההסמכה, חולה או חסום) בלי להגיד את זה במפורש ב-cost. spoken: 2 עד 3 משפטים עם ההמלצה הראשונה, ובסוף "איזה פתרון לעשות?". אם חסר מידע חיוני, ask_user.
 אם בשיחה כבר יש advise והמנהל בוחר פתרון ("תעשה את 2", "הראשון"), הפוך את הפעולות שלו ל-propose.
 
 ללמוד מהמנהל: remembered הם כללים שלמדת ממנו, ו-examples הן בקשות קודמות שהוא אישר ומה עשית בהן. עבוד כמו שהן מראות: אותן מילים, אותם הרגלים, אותן העדפות. בכל propose, מלא lessons: כלל קצר וכללי לכל דבר שלמדת בשיחה הזו ושיחזור בפעם הבאה. למשל כשהמנהל תיקן אותך ("לא, אצלנו מטפס זה טפסן"), כשהוא בחר פתרון מסוים מתוך advise ("כשטפסן עם הסמכה חולה, המנהל מעדיף לדחות ולא לשלוח בלי הסמכה"), או כשהוא הוסיף משהו שלא שאלת. אל תכתוב כלל שכבר נמצא ב-remembered, ואל תכתוב כלל על עבודה אחת מסוימת. אם לא למדת כלום, lessons ריק.`
@@ -184,16 +184,40 @@ export function validConversation(messages: unknown): messages is Anthropic.Mess
   ) && messages.length % 2 === 1
 }
 
-/** One turn of the conversation. `context` is the app's snapshot (lists and near shifts), as JSON. */
+// The first thing said in each tool, in its schema order: it can be spoken while the rest is still
+// being written (the user's request: hear the recommendation in a few seconds). Not `summary`: a
+// proposal may still be refused by the app and sent back for fixing.
+const EARLY: Record<string, string> = { advise: 'spoken', ask_user: 'question', answer: 'text' }
+
+/** The early field once its string is complete in the tool input written so far, else null. */
+export function earlyText(tool: string, partialJson: string): string | null {
+  const field = EARLY[tool]
+  if (!field) return null
+  const m = new RegExp(String.raw`"${field}"\s*:\s*"((?:[^"\\]|\\.)*)"`).exec(partialJson)
+  if (!m) return null
+  try {
+    return JSON.parse(`"${m[1]}"`) as string
+  } catch {
+    return null
+  }
+}
+
 /**
  * One turn of the conversation. `context` is the app's snapshot (lists and near shifts), as JSON.
+ * `onEarly` gets the spoken part of the answer as soon as it is written, before the whole answer.
  */
-export async function runAssistant(apiKey: string, messages: unknown, context: unknown, model: string = ASSISTANT_MODEL): Promise<AssistantReply> {
+export async function runAssistant(
+  apiKey: string,
+  messages: unknown,
+  context: unknown,
+  model: string = ASSISTANT_MODEL,
+  onEarly?: (text: string) => void,
+): Promise<AssistantReply> {
   if (!validConversation(messages) || !context || typeof context !== 'object') return { ok: false, reason: 'bad-body' }
   const client = new Anthropic({ apiKey, maxRetries: 1, timeout: 40_000 })
   let res: Anthropic.Message
   try {
-    res = await client.messages.create({
+    const stream = client.messages.stream({
       model: pickModel(model),
       max_tokens: 6000,
       // The fixed instructions and tools first (cached); the mode and the day's data after them.
@@ -209,6 +233,23 @@ export async function runAssistant(apiKey: string, messages: unknown, context: u
       output_config: { effort: 'medium' },
       messages,
     })
+    let tool = ''
+    let partial = ''
+    let sent = false
+    for await (const ev of stream) {
+      if (ev.type === 'content_block_start' && ev.content_block.type === 'tool_use') {
+        tool = ev.content_block.name
+        partial = ''
+      } else if (ev.type === 'content_block_delta' && ev.delta.type === 'input_json_delta' && !sent && onEarly) {
+        partial += ev.delta.partial_json
+        const early = earlyText(tool, partial)
+        if (early) {
+          sent = true
+          onEarly(early)
+        }
+      }
+    }
+    res = await stream.finalMessage()
   } catch (e) {
     if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return { ok: false, reason: 'no-key' }
     console.error('assistant error', (e as Error).name, (e as Error).message?.slice(0, 300))
@@ -218,4 +259,20 @@ export async function runAssistant(apiKey: string, messages: unknown, context: u
   const use = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
   const text = res.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join(' ').trim()
   return { ok: true, content: res.content, call: use ? { id: use.id, name: use.name, input: use.input } : null, text, usage: res.usage }
+}
+
+/**
+ * The turn as a stream of JSON lines: `{"early": "..."}` as soon as the spoken part is written, then
+ * `{"reply": ...}` (or `{"reason": ...}` on failure). The connection stays open while it thinks.
+ */
+export function assistantStream(apiKey: string, messages: unknown, context: unknown, model?: string): ReadableStream<Uint8Array> {
+  const enc = new TextEncoder()
+  return new ReadableStream({
+    async start(controller) {
+      const line = (v: unknown) => controller.enqueue(enc.encode(`${JSON.stringify(v)}\n`))
+      const reply = await runAssistant(apiKey, messages, context, model, (early) => line({ early }))
+      line(reply.ok ? { reply } : { reason: reply.reason })
+      controller.close()
+    },
+  })
 }

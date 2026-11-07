@@ -90,8 +90,13 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     setError(null)
     conversation.current = [...conversation.current, turn]
     let answer: AssistantAnswer
+    let early = ''
     try {
-      answer = await askAssistant(conversation.current, snapshot(data, undefined, asked.current.join(' ')))
+      answer = await askAssistant(conversation.current, snapshot(data, undefined, asked.current.join(' ')), (text) => {
+        // Spoken while the rest of the answer is still being written.
+        early = text
+        say(text)
+      })
     } catch (e) {
       conversation.current = conversation.current.slice(0, -1)
       setError((e as Error).message)
@@ -117,7 +122,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     } else if (call?.name === 'answer') {
       setProposal(null)
       const text = String(call.input.text ?? '')
-      if (text) say(text)
+      if (text && text !== early) say(text)
       // A button only a tap may press (WhatsApp, sharing): open its screen and make it blink.
       const hint = call.input.pressButton as Hint | ''
       const screen = hint && hint in HINTS ? HINTS[hint] : (call.input.openScreen as Screen | '')
@@ -130,10 +135,10 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       setProposal(null)
       const a = call.input as unknown as Advice
       setAdvice(a)
-      say(a.spoken)
+      if (a.spoken !== early) say(a.spoken)
     } else if (call?.name === 'ask_user') {
       setProposal(null)
-      say(String(call.input.question ?? ''))
+      if (String(call.input.question ?? '') !== early) say(String(call.input.question ?? ''))
     } else {
       setProposal(null)
       say(answer.text || 'לא הבנתי. נסה שוב.')

@@ -21,10 +21,13 @@ function localAssistant(): Plugin {
         if (!key) return send(503, { reason: 'no-key' })
         let raw = ''
         for await (const chunk of req) raw += chunk
-        const { runAssistant } = (await server.ssrLoadModule('/api/_lib/assistant.ts')) as typeof import('./api/_lib/assistant.ts')
+        const { assistantStream } = (await server.ssrLoadModule('/api/_lib/assistant.ts')) as typeof import('./api/_lib/assistant.ts')
         const body = JSON.parse(raw || '{}') as { messages?: unknown; context?: unknown }
-        const reply = await runAssistant(key, body.messages, body.context, env.ASSISTANT_MODEL)
-        send(reply.ok ? 200 : 502, reply.ok ? reply : { reason: reply.reason })
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8')
+        const reader = assistantStream(key, body.messages, body.context, env.ASSISTANT_MODEL).getReader()
+        for (let r = await reader.read(); !r.done; r = await reader.read()) res.write(r.value)
+        res.end()
       })
     },
   }
