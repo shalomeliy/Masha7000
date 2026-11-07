@@ -945,5 +945,6 @@
  "תקן": "Korrigieren",
  "⚠️ _עוד לא שובצו עובדים_": "⚠️ _Noch keine Mitarbeiter eingeteilt_",
  "➡️ אחרי הלילה: {next}": "➡️ Nach der Nacht: {next}",
- "👷 *צוות ({length}):*": "👷 *Team ({length}):*"
+ "👷 *צוות ({length}):*": "👷 *Team ({length}):*",
+ "{v}. לחיצה נוספת על \"שמירה\" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.": "{v}. Tippen Sie noch einmal auf „Speichern“, um {v2} zu diesem Einsatz zu verschieben; der Platz im anderen Einsatz bleibt dann leer."
 }

@@ -68,6 +68,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const [pulled, setPulled] = useState<string[]>([])
   // Who takes a pulled worker's place in the job they leave; none leaves it empty.
   const [fillIns, setFillIns] = useState<Record<string, string>>({})
+  // Set by the first "שמירה" while workers are busy elsewhere: the second one moves them (busyError).
+  const [moveAsked, setMoveAsked] = useState<string | null>(null)
   const [asking, setAsking] = useState<{ worker: Worker; other: ShiftRecord; apply: () => void } | null>(null)
   const exists = shifts.items.some((s) => s.id === shift.id)
 
@@ -91,9 +93,19 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
 
   // A worker cannot be in two shifts that run at the same time (a night job runs into the next afternoon).
   const pulledIn = (r: ShiftRecord) => pulled.filter((id) => r.crew.some((c) => c.workerId === id))
+  // The user's rule (2026-11-07): a busy worker is a warning, not a wall. The first "שמירה" shows who is
+  // busy where; pressing it again moves them here and leaves their place in the other job empty.
+  // Only a closed job keeps them (it is history), so then they must be replaced.
+  const busyIn = (r: ShiftRecord) => busyCrew(r, workers.items, pullFrom(r, pulledIn(r), shifts.items, defs.items, fillIns), defs.items)
   const busyError = (r: ShiftRecord) => {
-    const busy = busyCrew(r, workers.items, pullFrom(r, pulledIn(r), shifts.items, defs.items, fillIns), defs.items)
-    return busy.length ? tx('{v}. החלף {v2} לפני השמירה.', { v: busyText(busy), v2: busy.length > 1 ? tx('אותם') : tx('אותו') }) : null
+    const busy = busyIn(r)
+    if (!busy.length) return null
+    const them = busy.length > 1 ? tx('אותם') : tx('אותו')
+    if (busy.some((b) => b.other.closure)) return tx('{v}. החלף {v2} לפני השמירה.', { v: busyText(busy), v2: them })
+    const key = busy.map((b) => b.worker.id).sort().join(',')
+    if (moveAsked === key) return null
+    setMoveAsked(key)
+    return tx('{v}. לחיצה נוספת על "שמירה" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.', { v: busyText(busy), v2: them })
   }
 
   const save = () => {
@@ -117,10 +129,12 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           : shiftRecordError(clean, workers.items, roles.items.map((r) => r.id), general) ?? busyError(clean)
     setError(err)
     if (err) return
+    // Workers the manager chose to move by pressing "שמירה" again, with the ones pulled one by one.
+    const moving = [...new Set([...pulledIn(clean), ...busyIn(clean).map((b) => b.worker.id)])]
     run(async () => {
       // Shift first: if the second write fails, saving again re-applies it (both steps are idempotent).
       // A worker pulled from another job leaves it in the same write.
-      await shifts.save(pullFrom(clean, pulledIn(clean), upsert(shifts.items, clean), defs.items, fillIns))
+      await shifts.save(pullFrom(clean, moving, upsert(shifts.items, clean), defs.items, fillIns))
       const nextPending = pendingAfterShiftSave(pending.items, clean)
       if (nextPending !== pending.items) await pending.save(nextPending)
     })

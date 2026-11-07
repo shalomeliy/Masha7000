@@ -945,5 +945,6 @@
  "תקן": "Düzelt",
  "⚠️ _עוד לא שובצו עובדים_": "⚠️ _Henüz çalışan atanmadı_",
  "➡️ אחרי הלילה: {next}": "➡️ Geceden sonra: {next}",
- "👷 *צוות ({length}):*": "👷 *Ekip ({length}):*"
+ "👷 *צוות ({length}):*": "👷 *Ekip ({length}):*",
+ "{v}. לחיצה נוספת על \"שמירה\" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.": "{v}. {v2} bu işe taşımak için \"Kaydet\"e tekrar basın; diğer işteki yeri boş kalacak."
 }

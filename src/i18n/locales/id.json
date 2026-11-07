@@ -945,5 +945,6 @@
  "תקן": "Koreksi",
  "⚠️ _עוד לא שובצו עובדים_": "⚠️ _Belum ada pekerja yang dijadwalkan_",
  "➡️ אחרי הלילה: {next}": "➡️ Setelah malam: {next}",
- "👷 *צוות ({length}):*": "👷 *Tim ({length}):*"
+ "👷 *צוות ({length}):*": "👷 *Tim ({length}):*",
+ "{v}. לחיצה נוספת על \"שמירה\" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.": "{v}. Tekan \"Simpan\" sekali lagi untuk memindahkan {v2} ke pekerjaan ini; tempatnya di pekerjaan lain akan kosong."
 }

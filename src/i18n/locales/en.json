@@ -945,5 +945,6 @@
  "תקן": "Fix",
  "⚠️ _עוד לא שובצו עובדים_": "⚠️ _No workers assigned yet_",
  "➡️ אחרי הלילה: {next}": "➡️ After the night: {next}",
- "👷 *צוות ({length}):*": "👷 *Crew ({length}):*"
+ "👷 *צוות ({length}):*": "👷 *Crew ({length}):*",
+ "{v}. לחיצה נוספת על \"שמירה\" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.": "{v}. Press \"Save\" again to move {v2} to this job; their place in the other job will be left empty."
 }

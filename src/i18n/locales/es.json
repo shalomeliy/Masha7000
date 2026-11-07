@@ -945,5 +945,6 @@
  "תקן": "Corregir",
  "⚠️ _עוד לא שובצו עובדים_": "⚠️ _Aún no se han asignado trabajadores_",
  "➡️ אחרי הלילה: {next}": "➡️ Después de la noche: {next}",
- "👷 *צוות ({length}):*": "👷 *Equipo ({length}):*"
+ "👷 *צוות ({length}):*": "👷 *Equipo ({length}):*",
+ "{v}. לחיצה נוספת על \"שמירה\" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.": "{v}. Pulsa «Guardar» otra vez para pasar {v2} a este trabajo; su lugar en el otro trabajo quedará vacío."
 }
