@@ -580,6 +580,51 @@ export function handleFree(text: string, d: AppData, L: Learned, now = new Date(
   return fixed(text, d, now) ?? learnedSick(text, d, L, now) ?? learnedJob(text, d, L, now)
 }
 
+// ---- Why a sentence went to Claude (the "what went to Claude" log, src/lib/claudeLog.ts) ----
+
+/**
+ * For a first sentence that handleFree did not do: why not, and what the free path did understand.
+ * Written for the developer who reads the log and teaches the next action (skill free-commands), so in English.
+ */
+export function whyNotFree(text: string, d: AppData, L: Learned, now = new Date()): { reason: string; understood: string } {
+  const f = find(text, d, L.aliases, now, L.protect)
+  const rest = f.rest.map(bare)
+  const q = (ws: string[]) => ws.map((w) => `"${w}"`).join(', ')
+  const workerName = (id: string) => d.workers.find((x) => x.id === id)?.firstName ?? id
+  const parts = [
+    f.workerIds.length ? `workers: ${f.workerIds.map(workerName).join(', ')}` : '',
+    f.unsure.length ? `names close to more than one worker: ${f.unsure.map((u) => u.ids.map(workerName).join('/')).join('; ')}` : '',
+    f.date ? `date: ${f.date}` : '',
+    f.location ? `place: ${f.location}` : '',
+    f.shiftKindId ? `kind: ${d.shiftDefinitions.find((s) => s.id === f.shiftKindId)?.name ?? f.shiftKindId}` : '',
+    f.staffing.length ? `roles: ${f.staffing.map((s) => `${s.count} ${d.roles.find((r) => r.id === s.roleId)?.name ?? s.roleId}`).join(', ')}` : '',
+    f.description ? `job type: ${f.description}` : '',
+    f.rest.length ? `not understood: ${q(f.rest)}` : '',
+  ]
+  const understood = parts.filter(Boolean).join('; ') || 'nothing'
+  const out = (reason: string) => ({ reason, understood })
+  const extra = (action: Set<string>) => f.rest.filter((_, k) => !action.has(rest[k]) && !ASSIGN.test(rest[k]))
+
+  if (said(L.sick.words, rest)) {
+    if (f.workerIds.length > 1 || f.unsure.length > 1) return out('sick: more than one worker named')
+    if (f.location || f.staffing.length || f.shiftKindId || f.description) return out('sick: the sentence also has a place, role, job kind or job type')
+    const more = extra(new Set(L.sick.words.flat()))
+    if (more.length) return out(`sick: words not learned for sickness: ${q(more)}`)
+    if (f.date && f.date < plus(now, 0)) return out('sick: the date is in the past')
+    if (L.sick.needsDate && !f.date) return out('sick: no date said')
+    return out('sick: not understood')
+  }
+  const jobRest = rest.filter((w) => !ASSIGN.test(w))
+  if (L.job.words.length && said(L.job.words, jobRest)) {
+    if (f.workerIds.length || f.unsure.length) return out('job: names a worker (assigning a named worker is not learned yet)')
+    const more = extra(new Set(L.job.words.flat()))
+    if (f.description && more.length) return out(`job: words besides the known job type: ${q(more)}`)
+    return out(`job: unknown words not standing together: ${q(more)}`)
+  }
+  const learnedAs = [L.job.words.length ? `job (${L.job.words.length} examples)` : '', `sick (${L.sick.words.length} phrasings)`].filter(Boolean).join(', ')
+  return out(`no learned action matches (learned: ${learnedAs})`)
+}
+
 // ---- How many turns were free this month (shown on the assistant screen, kept on this device) ----
 
 const USAGE_KEY = 'assistant.usage'

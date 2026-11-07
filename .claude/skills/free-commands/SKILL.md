@@ -38,7 +38,7 @@ So an example said with "ב-15.11 בבאר שבע 9" teaches only "תפתח עב
 
 ## Adding one more action
 
-1. **Pick the action from real use.** What did the manager say that still went to Claude? The dev-only line under the switch on the assistant screen shows how many actions of each type were learned. Ask the user for the sentence and Claude's summary if unclear.
+1. **Pick the action from real use.** Read the "what went to Claude" log first: `node scripts/claude-log.mjs` (needs `CLAUDE_LOG_TOKEN` in `.env.local`), or ask the owner to copy it from Settings > העוזר הקולי > מה הלך ל-Claude. Each entry has what was said, why the free path refused it (`whyNotFree`), what it understood, what Claude did and whether it was confirmed. Pick the most frequent refused shape. The dev-only line under the switch on the assistant screen shows how many actions of each type were learned. When you add an action, teach `whyNotFree` its reasons too.
 2. **Write the test set first** in `src/lib/freeCommands.test.ts`, like the existing ones:
    - one or two examples as Claude did them (`ex(said, proposal)`),
    - 5-8 new requests of the same kind with other details and word order, with the exact expected proposal,

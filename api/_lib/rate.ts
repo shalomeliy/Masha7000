@@ -22,6 +22,7 @@ export const LIMITS = {
   joinManage: { max: 200, windowSeconds: 600 },
   assistant: { max: 60, windowSeconds: 600 },
   feedbackIp: { max: 30, windowSeconds: 3600 },
+  claudeLog: { max: 300, windowSeconds: 600 },
   feedbackEmail: { max: 10, windowSeconds: 3600 },
 } satisfies Record<string, Limit>
 

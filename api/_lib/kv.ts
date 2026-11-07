@@ -4,8 +4,8 @@ import type { Env } from './env.js'
 // The server's small store: Upstash over its REST API, or a plain Redis connection (REDIS_URL,
 // Vercel Marketplace "Redis"). Holds only: the owner's sealed refresh token, a sealed cached
 // access token, the allowed emails, the workers' details form and its sealed answers, the sealed
-// sign-in sessions, each person's sealed two-step secret, short-lived rate-limit counters, and the
-// voice assistant's spending this month (budget.ts).
+// sign-in sessions, each person's sealed two-step secret, short-lived rate-limit counters, the
+// voice assistant's spending this month (budget.ts), and the sealed log of what went to Claude (claudeLog.ts).
 
 export const KEYS = {
   refresh: 'owner:refresh',
@@ -21,6 +21,8 @@ export const KEYS = {
   mfa: (email: string) => `mfa:${email}`,
   mfaSetup: (email: string) => `mfa-setup:${email}`,
   rate: (bucket: string, id: string) => `rl:${bucket}:${id}`,
+  /** The sealed "what went to Claude" log (claudeLog.ts). */
+  claudeLog: 'claude-log',
   /** A code already used: a 30-second step, or a backup code's hash. */
   mfaUsed: (email: string, what: string) => `mfa-used:${email}:${what}`,
 } as const

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { continueJob, continueWho, exampleAction, handleFree, learn, pickedOption, sickPlan, type Local } from './freeCommands'
+import { continueJob, continueWho, exampleAction, handleFree, learn, pickedOption, sickPlan, whyNotFree, type Local } from './freeCommands'
 import { normalizeProposal, proposalErrors, type AppData } from './assistant'
 import type { AssistantExample, ShiftRecord, Worker } from '../types/models'
 
@@ -304,5 +304,34 @@ describe('learned patterns keep values as slots', () => {
     expect(run('יוסי חולה בעוד יומיים')).toMatchObject({ kind: 'propose', proposal: { editWorkers: [], addConstraints: [{ workerId: 'w2', from: '2026-11-09' }] } })
     expect(until(run('יוסי חולה עד 3.1'))).toBe('2027-01-03') // the next 3.1
     expect(run('יוסי חולה עד 31.2')).toBeNull() // not a real date: Claude
+  })
+})
+
+describe('why a sentence went to Claude (the log)', () => {
+  const why = (said: string, d = data()) => whyNotFree(said, d, learn(d.assistantExamples, d), NOW)
+
+  it('names an action not learned yet, and what was understood', () => {
+    const r = why('תעביר את דני לעבודה בערד 17 ביום ראשון')
+    expect(r.reason).toContain('no learned action matches')
+    expect(r.understood).toContain('workers: דני')
+    expect(r.understood).toContain('place: ערד 17')
+    expect(r.understood).toContain('date: 2026-11-08')
+    expect(r.understood).toContain('"תעביר"')
+  })
+
+  it('names the words that stopped a learned sickness', () => {
+    expect(why('יוסי חולה מאוד היום').reason).toBe('sick: words not learned for sickness: "מאוד"')
+    expect(why('יוסי ודני חולים היום').reason).toMatch(/^(?:sick|no learned)/)
+    expect(why('יוסי חולה היום בערד 17').reason).toContain('also has a place')
+  })
+
+  it('says a job that names a worker is not learned yet', () => {
+    expect(why('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים עם דני').reason).toContain('names a worker')
+  })
+
+  it('never claims a reason for what the free path does do', () => {
+    // A sanity check: these are done free, so they never reach the log.
+    expect(run('יוסי חולה היום')).not.toBeNull()
+    expect(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים')).not.toBeNull()
   })
 })

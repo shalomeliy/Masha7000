@@ -8,7 +8,8 @@ import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
 import { askAssistant, fetchBudget, userTurn, type AssistantAnswer, type Budget, type Turn } from '../lib/assistantApi'
 import { realAssistantOn, setRealAssistant } from '../dev/realAssistant'
-import { continueJob, continueWho, countTurn, exampleAction, handleFree, learn, pickedOption, sickPlan, usage, type Local, type PendingJob, type PendingWho } from '../lib/freeCommands'
+import { continueJob, continueWho, countTurn, exampleAction, handleFree, learn, pickedOption, sickPlan, usage, whyNotFree, type Local, type PendingJob, type PendingWho } from '../lib/freeCommands'
+import { saveEntry, type ClaudeLogEntry, type LogOutcome } from '../lib/claudeLog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
 import { canListen, canSpeak, listen, nextRate, rateName, speak, speechRate, stopSpeaking, type Listening } from '../lib/speech'
@@ -80,6 +81,19 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const pendingWho = useRef<PendingWho | null>(null) // a name close to two workers, waiting for "which one"
   const fromFree = useRef(false) // the open proposal was made here, not by Claude: nothing to learn from it
   const listening = useRef<Listening | null>(null)
+  // This conversation's line in the "what went to Claude" log (src/lib/claudeLog.ts), once it reached Claude.
+  const logged = useRef<ClaudeLogEntry | null>(null)
+
+  const logStart = (reason: string, understood = '') => {
+    logged.current = { id: newId(), at: new Date().toISOString(), lang: language().code, said: [...asked.current], reason, understood, did: [], outcome: 'pending', learned: '' }
+  }
+  const logUpdate = (change: (e: ClaudeLogEntry) => ClaudeLogEntry) => {
+    if (!logged.current) return
+    logged.current = change(logged.current)
+    saveEntry(logged.current)
+  }
+  const logEnd = (outcome: LogOutcome, learned = '') => logUpdate((e) => ({ ...e, outcome, learned }))
+  const logDid = (line: string, outcome?: LogOutcome) => logUpdate((e) => ({ ...e, did: [...e.did, line], outcome: outcome ?? e.outcome }))
 
   // How much of the month's Anthropic budget is left (counted on the server, api/_lib/budget.ts).
   useEffect(() => {
@@ -107,6 +121,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     pendingJob.current = null
     pendingWho.current = null
     fromFree.current = false
+    logged.current = null
     setProposal(null)
     setAdvice(null)
     setTalking(false)
@@ -128,6 +143,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       }, setBudget)
     } catch (e) {
       conversation.current = conversation.current.slice(0, -1)
+      logDid(`error: ${(e as Error).message}`)
       setError((e as Error).message)
       setPhase('idle')
       return
@@ -141,8 +157,10 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     if (call?.name === 'propose') {
       const p = normalizeProposal(call.input)
       const problems = proposalErrors(p, data)
+      logDid(`propose: ${p.summary}${problems.length ? ` (invalid: ${problems.join('; ')})` : ''}`)
       if (problems.length && fixes < MAX_FIXES) return send(userTurn(answer, '', tx('ההצעה לא תקינה: {v}. תקן והצע שוב, או שאל את המנהל.', { v: problems.join('; ') }), true), fixes + 1)
       if (problems.length) {
+        logEnd('failed')
         setProposal(null)
         say(tx('לא הצלחתי להבין את הבקשה עד הסוף. נסה להגיד אותה שוב במילים אחרות.'))
         reset()
@@ -152,6 +170,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     } else if (call?.name === 'answer') {
       setProposal(null)
       const text = String(call.input.text ?? '')
+      logDid(`answer: ${text}${call.input.openScreen ? ` [opens ${String(call.input.openScreen)}]` : ''}`, 'answered')
       if (text && text !== early) say(text)
       // A button only a tap may press (WhatsApp, sharing): open its screen and make it blink.
       const hint = call.input.pressButton as Hint | ''
@@ -166,11 +185,13 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       const i = call.input as { kind: Problem['kind']; shiftId: string; workerIds: string[]; date: string }
       const problem: Problem = i.kind === 'day' ? { kind: 'day', date: i.date } : i.kind === 'missing' ? { kind: 'missing', shiftId: i.shiftId, workerIds: i.workerIds ?? [] } : { kind: 'job', shiftId: i.shiftId }
       solved.current = { problem: problem.kind, options: solve(data, problem) }
+      logDid(`solve: ${problem.kind}, ${solved.current.options.length} options`)
       // Once per turn: a model asking again is told to solve it itself.
       return send(userTurn(answer, '', fixes > MAX_FIXES ? tx('פתור את הבעיה עם advise.') : optionsText(solved.current.options)), fixes + 1)
     } else if (call?.name === 'rank') {
       setProposal(null)
       const r = call.input as { spoken: string; order: number[]; notes: string[] }
+      logDid(`rank: ${r.spoken}`)
       const all = solved.current?.options ?? []
       const order = (r.order ?? []).filter((n, k, list) => n >= 1 && n <= all.length && list.indexOf(n) === k)
       const shown = (order.length ? order : all.map((_, k) => k + 1)).map((n, k) => {
@@ -185,13 +206,16 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     } else if (call?.name === 'advise') {
       setProposal(null)
       const a = call.input as unknown as Advice
+      logDid(`advise: ${a.spoken}`)
       setAdvice(a)
       if (a.spoken !== early) say(a.spoken)
     } else if (call?.name === 'ask_user') {
       setProposal(null)
+      logDid(`ask: ${String(call.input.question ?? '')}`)
       if (String(call.input.question ?? '') !== early) say(String(call.input.question ?? ''))
     } else {
       setProposal(null)
+      logDid(`text: ${answer.text}`)
       say(answer.text || tx('לא הבנתי. נסה שוב.'))
     }
     setPhase('idle')
@@ -211,6 +235,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     setPhase('saving')
     setError(null)
     const { data: next, changed, report } = applyProposal(proposal, data)
+    const action = fromFree.current ? undefined : exampleAction(proposal, asked.current)
     // The confirmed request is kept as an example of how this manager works (newest last, capped).
     if (asked.current.length && proposal.summary) {
       next.assistantExamples = [
@@ -221,7 +246,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           did: proposal.summary.slice(0, 500),
           createdAt: new Date().toISOString(),
           // What Claude did, so the next request said this way is done here, free (freeCommands).
-          ...(fromFree.current ? {} : { action: exampleAction(proposal, asked.current) }),
+          ...(fromFree.current ? {} : { action }),
         },
       ].slice(-MAX_EXAMPLES)
       changed.add('assistantExamples')
@@ -237,6 +262,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       return
     }
     if (byButton) setLines((l) => [...l, { who: 'me', text: tx('מאשר') }])
+    logEnd('confirmed', action?.type ?? '')
     say(`${report.join('. ')}.`)
     reset()
     setPhase('idle')
@@ -245,6 +271,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const cancel = () => {
     stopSpeaking()
     setLines((l) => [...l, { who: 'me', text: tx('ביטול') }])
+    logEnd('cancelled')
     say(tx('ביטלתי. לא נשמר כלום.'))
     reset()
   }
@@ -270,17 +297,28 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       const now = new Date()
       const learned = learn(data.assistantExamples, data)
       // The answer to "למי התכוונת": the first sentence again, with the worker picked, as if said that way.
-      const who = pendingWho.current ? continueWho(text, pendingWho.current, data, learned, now) : null
+      const waitingWho = pendingWho.current
+      const waitingJob = pendingJob.current
+      const who = waitingWho ? continueWho(text, waitingWho, data, learned, now) : null
       if (who) asked.current = [who.text]
-      const local = who ? who.local : pendingWho.current ? null : pendingJob.current ? continueJob(text, pendingJob.current, data, learned, now) : asked.current.length === 1 ? handleFree(text, data, learned, now) : null
+      const local = who ? who.local : waitingWho ? null : waitingJob ? continueJob(text, waitingJob, data, learned, now) : asked.current.length === 1 ? handleFree(text, data, learned, now) : null
       pendingWho.current = null
       if (actFree(local)) return
+      // Why it was not done free, for the log (the developer teaches the next action from it).
+      const why = whyNotFree(asked.current[0], data, learned, now)
+      if (local?.kind === 'propose') logStart(`a free proposal failed the checks: ${proposalErrors(local.proposal, data).join('; ')}`, why.understood)
+      else if (waitingWho) logStart('the answer to "which worker did you mean" was not understood', why.understood)
+      else if (waitingJob) logStart(`the answer to the free question about the job's ${waitingJob.missing[0]} was not understood`, why.understood)
+      else if (asked.current.length > 1) logStart('a later sentence of a conversation that started free', why.understood)
+      else logStart(why.reason, why.understood)
       pendingJob.current = null
       setProposal(null)
       setAdvice(null)
       void send({ role: 'user', content: asked.current.join('. ') })
       return
     }
+    if (!logged.current) logStart(language().code === 'he' ? 'Claude was already in the conversation' : `not Hebrew (${language().code}): the free path runs only in Hebrew`)
+    else logUpdate((e) => ({ ...e, said: [...e.said, text] }))
     void send(userTurn(last.current, text, proposal ? tx('המנהל לא אישר עדיין. התיקון שלו בהודעה הבאה.') : undefined))
   }
 

@@ -1,7 +1,7 @@
 import { tx } from '../i18n'
 import { LanguagePicker } from './settings/LanguagePicker'
 import { useEffect, useState } from 'react'
-import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
@@ -17,6 +17,7 @@ import { AccessSection } from './settings/AccessSection'
 import { BackupSection } from './settings/BackupSection'
 import { SecuritySection } from './settings/SecuritySection'
 import { FeatureRequestSection } from './settings/FeatureRequestSection'
+import { ClaudeLogSection } from './settings/ClaudeLogSection'
 import { DepartmentsSection } from './settings/DepartmentsSection'
 import { NameListSection } from './settings/NameListSection'
 import { WordsSection } from './settings/WordsSection'
@@ -137,7 +138,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback'
+type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog'
 type ItemId = ListId | PanelId
 
 // A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
@@ -162,6 +163,7 @@ const PANELS: Record<PanelId, { title: string; explain: string }> = {
   connection: { title: tx('בדיקת חיבור לגוגל'), explain: tx('בודקת שהשמירה בדרייב והיומן עובדים') },
   account: { title: tx('החשבון שלי'), explain: tx('עם איזה מייל נכנסת, והתנתקות') },
   feedback: { title: tx('בקשת תכונות חדשות'), explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח') },
+  claudeLog: { title: tx('מה הלך ל-Claude'), explain: tx('בקשות שלא בוצעו בחינם, למה, ומה Claude עשה. עם כפתור העתקה') },
 }
 
 const listItem = (id: ListId): Entry => {
@@ -231,6 +233,14 @@ function groups(isOwner: boolean, server: boolean): Group[] {
       icon: Lightbulb,
       // Sent by the server, so it shows only where the server is on.
       items: server ? [panelItem('feedback')] : [],
+    },
+    {
+      id: 'assistant',
+      title: tx('העוזר הקולי'),
+      explain: tx('מה הלך ל-Claude, כדי ללמד את האפליקציה לעשות יותר בחינם'),
+      icon: Mic,
+      // The assistant is the owner's only (the dev server has no sign-in).
+      items: (isOwner && server) || import.meta.env.DEV ? [panelItem('claudeLog')] : [],
     },
     {
       id: 'account',
@@ -335,6 +345,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
           ))}
         {open === 'connection' && <ConnectionCheck />}
         {open === 'feedback' && <FeatureRequestSection />}
+        {open === 'claudeLog' && <ClaudeLogSection />}
         {open === 'account' && (
           <div className="space-y-3">
             <h1 className="text-2xl font-bold">{tx('החשבון שלי')}</h1>
