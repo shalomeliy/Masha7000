@@ -18,8 +18,8 @@ Reply to the user in Hebrew (masculine form), short and direct, no emojis.
 
 The app's Anthropic key (`ANTHROPIC_API_KEY`, set only in Vercel) pays real money and has a small monthly cap. On 2026-11-06 a local translation run with it used up the whole month. So:
 
-- Never use the app's key for development work: not for scripts, translations, spikes, tests or trying things out. Never put it in `.env.local`.
-- The local dev server's `/api/assistant` always answers with a fixed stand-in (`api/_lib/assistantMock.ts`) and never calls Anthropic.
+- Never use the app's key for development work: not for scripts, translations, spikes, tests or trying things out.
+- The local dev server's `/api/assistant` answers with a fixed stand-in (`api/_lib/assistantMock.ts`) and never calls Anthropic, unless the owner turns on the dev-only switch on the assistant screen ("בדיקה מקומית: עוזר אמיתי", `src/dev/realAssistant.ts`). That switch is for the owner's own manual tests with the key in `.env.local` (his choice, 2026-11-07). Claude never turns it on, never sends its header (`X-Dev-Real-Assistant`), and tests the assistant only on the stand-in.
 - Every paid call goes through `api/_lib/spendGuard.ts`: refused unless running on Vercel (`VERCEL=1`). Any new code that calls Anthropic must check it first. Do not weaken or bypass it.
 - No script calls the API for development work. Translations of new texts are written by Claude in the session (see HANDOFF "app languages").
 

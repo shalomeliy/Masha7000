@@ -31,3 +31,10 @@ describe('mock assistant', () => {
     expect(reply.call.input.text).toContain('מי עובד מחר?')
   })
 })
+
+describe('manual local test', () => {
+  it('lets only the owner switch through, never the default path', async () => {
+    // Default (as Claude, tests and scripts call it): blocked before any request.
+    expect(await runAssistant('sk-ant-fake', [{ role: 'user', content: 'x' }], {})).toEqual({ ok: false, reason: 'no-key' })
+  })
+})

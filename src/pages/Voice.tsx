@@ -7,6 +7,7 @@ import { newId } from '../lib/catalog'
 import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
 import { askAssistant, userTurn, type AssistantAnswer, type Turn } from '../lib/assistantApi'
+import { realAssistantOn, setRealAssistant } from '../dev/realAssistant'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
 import { canListen, canSpeak, listen, nextRate, rateName, speak, speechRate, stopSpeaking, type Listening } from '../lib/speech'
@@ -59,6 +60,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [typing, setTyping] = useState(!canListen)
   const [typed, setTyped] = useState('')
   const [rate, setRate] = useState(speechRate)
+  const [realDev, setRealDev] = useState(realAssistantOn)
   const [error, setError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [conflicts, setConflicts] = useState<string[]>([])
@@ -389,6 +391,21 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           </form>
         )}
         <div className="flex flex-wrap justify-center gap-2">
+          {/* Dev server only (not in the build, not translated): the owner's switch between the free
+              stand-in and the real, paid assistant (src/dev/realAssistant.ts). */}
+          {import.meta.env.DEV && (
+            <button
+              type="button"
+              onClick={() => {
+                setRealAssistant(!realDev)
+                setRealDev(!realDev)
+              }}
+              aria-pressed={realDev}
+              className={`flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm ${realDev ? 'border-amber-500 text-amber-300' : 'border-slate-700 text-slate-200'}`}
+            >
+              {realDev ? 'בדיקה מקומית: עוזר אמיתי (עולה כסף)' : 'בדיקה מקומית: תשובת דמה (חינם)'}
+            </button>
+          )}
           {lines.length > 0 && (
             <button type="button" onClick={() => setShowText((s) => !s)} aria-expanded={showText} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
               <MessageSquareText size={18} aria-hidden />

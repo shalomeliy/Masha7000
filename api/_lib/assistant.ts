@@ -243,10 +243,12 @@ export async function runAssistant(
   context: unknown,
   model: string = ASSISTANT_MODEL,
   onEarly?: (text: string) => void,
+  manualLocal = false,
 ): Promise<AssistantReply> {
   if (!validConversation(messages) || !context || typeof context !== 'object') return { ok: false, reason: 'bad-body' }
-  // Paid calls only from Vercel: on this machine nothing is sent, whatever key is given (spendGuard.ts).
-  if (!onVercel()) return { ok: false, reason: 'no-key' }
+  // Paid calls only from Vercel: on this machine nothing is sent, whatever key is given (spendGuard.ts),
+  // except the owner's own manual test in the dev server with the switch on (vite.config.ts).
+  if (!onVercel() && !manualLocal) return { ok: false, reason: 'no-key' }
   const client = new Anthropic({ apiKey, maxRetries: 1, timeout: 40_000 })
   let res: Anthropic.Message
   try {
@@ -298,12 +300,12 @@ export async function runAssistant(
  * The turn as a stream of JSON lines: `{"early": "..."}` as soon as the spoken part is written, then
  * `{"reply": ...}` (or `{"reason": ...}` on failure). The connection stays open while it thinks.
  */
-export function assistantStream(apiKey: string, messages: unknown, context: unknown, model?: string): ReadableStream<Uint8Array> {
+export function assistantStream(apiKey: string, messages: unknown, context: unknown, model?: string, manualLocal = false): ReadableStream<Uint8Array> {
   const enc = new TextEncoder()
   return new ReadableStream({
     async start(controller) {
       const line = (v: unknown) => controller.enqueue(enc.encode(`${JSON.stringify(v)}\n`))
-      const reply = await runAssistant(apiKey, messages, context, model, (early) => line({ early }))
+      const reply = await runAssistant(apiKey, messages, context, model, (early) => line({ early }), manualLocal)
       line(reply.ok ? { reply } : { reason: reply.reason })
       controller.close()
     },

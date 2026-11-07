@@ -1,4 +1,5 @@
 import { language, tx } from '../i18n'
+import { realAssistantOn } from '../dev/realAssistant'
 // Talking to /api/assistant. The conversation is kept here in the shape the Claude API wants
 // (user and assistant turns in order, the assistant's blocks sent back unchanged), and is sent
 // whole each turn: the server keeps nothing.
@@ -46,7 +47,8 @@ export async function askAssistant(messages: Turn[], context: unknown, onEarly?:
     res = await fetch('/api/assistant', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
+      // Dev server only: the owner's switch for a real answer (src/dev/realAssistant.ts); else a stand-in.
+      headers: { 'Content-Type': 'application/json', ...(import.meta.env.DEV && realAssistantOn() ? { 'X-Dev-Real-Assistant': '1' } : {}) },
       // The language the assistant speaks in: the app's (Settings).
       body: JSON.stringify({ messages, context: { ...(context as object), replyLanguage: language().english } }),
     })
