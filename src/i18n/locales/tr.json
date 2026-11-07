@@ -950,5 +950,6 @@
  "בחר לכל עובד מה לעשות, ואז לחץ שוב על \"שמירה\". עובד שעובר לכאן ישאיר מקום ריק בעבודה השנייה.": "Her çalışan için ne yapılacağını seçin, ardından \"Kaydet\"e tekrar basın. Buraya geçen çalışan diğer işte boş bir yer bırakır.",
  "עובדים שכבר משובצים בעבודה אחרת": "Başka bir işe zaten atanmış çalışanlar",
  "יעבור לכאן": "Buraya geçer",
- "להשאיר אותו שם": "Orada kalsın"
+ "להשאיר אותו שם": "Orada kalsın",
+ "נגמר התקציב של Anthropic לחודש הזה, אז העוזר לא יכול לענות. אפשר להוסיף קרדיט ב-console.anthropic.com. פקודות פשוטות עדיין עובדות בחינם.": "Bu ayın Anthropic bütçesi bitti, bu yüzden asistan yanıt veremiyor. console.anthropic.com adresinden kredi ekleyebilirsin. Basit komutlar hâlâ ücretsiz çalışıyor."
 }

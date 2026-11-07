@@ -190,7 +190,7 @@ const MODE = `
 
 export type AssistantReply =
   | { ok: true; content: unknown[]; call: { id: string; name: string; input: unknown } | null; text: string; usage?: Anthropic.Usage }
-  | { ok: false; reason: 'bad-body' | 'refused' | 'no-key' | 'failed' }
+  | { ok: false; reason: 'bad-body' | 'refused' | 'no-key' | 'no-credit' | 'failed' }
 
 /** True when the conversation has the shape the API needs: user first, roles alternating, small enough. */
 export function validConversation(messages: unknown): messages is Anthropic.MessageParam[] {
@@ -287,6 +287,8 @@ export async function runAssistant(
     res = await stream.finalMessage()
   } catch (e) {
     if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return { ok: false, reason: 'no-key' }
+    // The account ran out of credit or hit its spend limit: say so, not "try again".
+    if (e instanceof Anthropic.APIError && /credit balance|spend limit|billing/i.test(e.message)) return { ok: false, reason: 'no-credit' }
     console.error('assistant error', (e as Error).name, (e as Error).message?.slice(0, 300))
     return { ok: false, reason: 'failed' }
   }

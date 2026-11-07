@@ -950,5 +950,6 @@
  "בחר לכל עובד מה לעשות, ואז לחץ שוב על \"שמירה\". עובד שעובר לכאן ישאיר מקום ריק בעבודה השנייה.": "Escolha o que fazer com cada trabalhador e toque em \"Salvar\" de novo. Quem vier para cá deixa um lugar vazio no outro trabalho.",
  "עובדים שכבר משובצים בעבודה אחרת": "Trabalhadores já escalados em outro trabalho",
  "יעבור לכאן": "Vem para cá",
- "להשאיר אותו שם": "Deixá-lo lá"
+ "להשאיר אותו שם": "Deixá-lo lá",
+ "נגמר התקציב של Anthropic לחודש הזה, אז העוזר לא יכול לענות. אפשר להוסיף קרדיט ב-console.anthropic.com. פקודות פשוטות עדיין עובדות בחינם.": "O orçamento da Anthropic deste mês acabou, então o assistente não pode responder. Você pode adicionar crédito em console.anthropic.com. Comandos simples continuam funcionando de graça."
 }
