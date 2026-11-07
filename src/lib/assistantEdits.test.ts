@@ -25,10 +25,11 @@ const data = (): AppData => ({
   postponeReasons: [],
   assistantNotes: [],
   departments: [],
+  assistantExamples: [],
 })
 
 const NOW = new Date('2026-11-06T20:00:00')
-const p = (e: Partial<Edits>): Proposal => ({ summary: '', jobs: [], assignShiftIds: [], workers: [], listItems: [], rememberNotes: [], forgetNoteIds: [], ...NO_EDITS, ...e })
+const p = (e: Partial<Edits>): Proposal => ({ summary: '', jobs: [], assignShiftIds: [], workers: [], listItems: [], rememberNotes: [], lessons: [], forgetNoteIds: [], ...NO_EDITS, ...e })
 const edit = (over: Partial<EditJob>): EditJob => ({ id: 's1', date: '', shiftKindId: '', location: '', jobDescription: '', staffing: [], autoAssign: false, ...over })
 
 describe('editing jobs', () => {

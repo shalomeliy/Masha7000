@@ -1,4 +1,4 @@
-// Live check of the whole flow: cheap model -> needs_smart -> smart advise -> pick -> propose.
+// Live check of the whole flow on the one (cheap) model: a hard problem -> advise -> pick -> propose.
 // Throwaway spike for the phase 2 advisor: given a hard staffing problem, does the model return up to
 // 5 ranked, correct, doable solutions from the app's snapshot? Haiku vs Sonnet.
 // Run: LIVE=1 npx vitest run spikes/advisor/advisor.live.test.ts --dir . --silent=false
@@ -59,7 +59,8 @@ const data: AppData = {
   jobTypes: [],
   workKinds: [],
   postponeReasons: [],
-  assistantNotes: [{ id: 'n1', text: 'יוסי לא עולה לגובה 40 בלי דני לידו' }],
+  assistantNotes: [{ id: 'n1', text: 'יוסי לא עולה לגובה 40 בלי דני לידו', createdAt: '' }],
+  assistantExamples: [],
   departments: [],
 }
 
@@ -68,9 +69,9 @@ const NOW = new Date('2026-11-06T20:00:00')
 const ctx = snapshot(data, NOW)
 type A = { content: Record<string, unknown>[]; call: { id: string; name: string; input: Record<string, unknown> } | null; text: string }
 
-async function turn(conv: Turn[], smart: boolean, label: string): Promise<A> {
+async function turn(conv: Turn[], label: string): Promise<A> {
   const t = Date.now()
-  const r = await runAssistant(env.ANTHROPIC_API_KEY, conv, ctx, 'claude-haiku-5-5', smart)
+  const r = await runAssistant(env.ANTHROPIC_API_KEY, conv, ctx, 'claude-haiku-5-5')
   if (!r.ok) throw new Error(`${label}: ${r.reason}`)
   const a = r as unknown as A & { usage: { input_tokens: number; output_tokens: number } }
   console.log(`
@@ -82,20 +83,17 @@ async function turn(conv: Turn[], smart: boolean, label: string): Promise<A> {
 
 it.skipIf(!process.env.LIVE)('whole flow', { timeout: 300_000 }, async () => {
   const conv: Turn[] = [{ role: 'user', content: process.env.SAY ?? 'דני חולה, הוא לא יכול לצאת ביום ראשון לאילת. מה עושים?' }]
-  let a = await turn(conv, false, 'cheap')
-  if (a.call?.name !== 'needs_smart') return
-  conv.push(userTurn(a as never, '', 'המנהל אישר לחשוב לעומק. פתור את הבעיה שתיארת ב-needs_smart, עם advise.'))
-  a = await turn(conv, true, 'smart')
+  let a = await turn(conv, 'ask')
   if (a.call?.name !== 'advise') return
   const first = (a.call.input.options as { title: string }[])[0].title
   conv.push(userTurn(a as never, `תעשה את פתרון 1: ${first}`))
-  a = await turn(conv, false, 'cheap-pick')
+  a = await turn(conv, 'pick')
   if (a.call?.name === 'propose') console.log('  errors:', proposalErrors(normalizeProposal(a.call.input), data))
 })
 
 for (const said of (process.env.CMDS ?? '').split('|').filter(Boolean)) {
   it.skipIf(!process.env.LIVE)(said, { timeout: 120_000 }, async () => {
-    const a = await turn([{ role: 'user', content: said }], false, 'cmd')
+    const a = await turn([{ role: 'user', content: said }], 'cmd')
     if (a.call?.name === 'propose') console.log('  errors:', proposalErrors(normalizeProposal(a.call.input), data))
   })
 }

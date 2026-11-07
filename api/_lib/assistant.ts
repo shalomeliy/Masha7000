@@ -144,6 +144,7 @@ export const TOOLS: Anthropic.Tool[] = [
           sickUntil: str,
         }),
       },
+      lessons: strs,
       addConstraints: {
         type: 'array',
         items: obj({ workerId: str, from: str, to: str, nightsOnly: { type: 'boolean' }, note: str, kind: { type: 'string', enum: ['', 'vacation', 'study', 'reserve', 'course'] } }),
@@ -151,14 +152,8 @@ export const TOOLS: Anthropic.Tool[] = [
     }),
   },
   {
-    name: 'needs_smart',
-    description: 'The request is a hard problem that needs deep thinking (the cheap model only). The app warns the manager about the cost first.',
-    strict: true,
-    input_schema: obj({ problem: str }),
-  },
-  {
     name: 'advise',
-    description: 'Up to 5 ranked solutions to a staffing problem (the smart model only).',
+    description: 'Up to 5 ranked solutions to a staffing problem.',
     strict: true,
     input_schema: obj({
       spoken: str,
@@ -167,16 +162,14 @@ export const TOOLS: Anthropic.Tool[] = [
   },
 ]
 
-// The cheap model answers every turn; a hard problem is handed to the smart one only after the
-// manager agrees to the higher cost (the user's rule, 2026-11-06).
-const CHEAP_MODE = `
-שאלה מסובכת: בעיית שיבוץ שצריך לפתור ("חסרים לי אנשים", "מישהו חולה, מה עושים", "תציע לי פתרונות", "איך לסדר את השבוע"), או ניתוח שדורש לשקול כמה אפשרויות. אל תפתור אותה בעצמך: קרא ל-needs_smart עם problem = הבעיה במשפט אחד. האפליקציה תשאל את המנהל אם להמשיך בעלות גבוהה יותר. פקודות רגילות, גם ארוכות, וגם שאלות פשוטות על הנתונים, אתה עושה בעצמך. אל תקרא ל-advise.
-אם בשיחה כבר יש advise עם פתרונות והמנהל בוחר אחד ("תעשה את 2", "הראשון"), הפוך את הפעולות של הפתרון הזה ל-propose.`
+// One model answers every turn, the cheap one (the user's rule, 2026-11-07: no costlier model).
+// It gets better from the manager's own answers: the lessons it wrote down and the requests he
+// confirmed come back in the data every turn (remembered, examples). The model itself never changes.
+const MODE = `
+שאלה מסובכת: בעיית שיבוץ שצריך לפתור ("חסרים לי אנשים", "מישהו חולה, מה עושים", "תציע לי פתרונות", "איך לסדר את השבוע"): קרא ל-advise. תחשוב לאט וכמו סדרן ותיק: בדוק תפקידים, הסמכות, אילוצים (cannot), מצב (now), מחלות, מי כבר עובד באותם ימים (לילה ולינה תופסים גם את היום שאחריו), עומס לילות בשבוע (מעל 2 זה עומס), ההיסטוריה, remembered ו-examples. החזר עד 5 פתרונות שונים באמת, מהטוב לפחות טוב. כל פתרון: title קצר, actions = מה עושים בפועל, בשמות ותאריכים, why = למה זה טוב, cost = מה המחיר. אל תציע פתרון ששובר כלל קשיח (עובד בלי התפקיד או ההסמכה, חולה או חסום) בלי להגיד את זה במפורש ב-cost. spoken: 2 עד 3 משפטים עם ההמלצה הראשונה, ובסוף "איזה פתרון לעשות?". אם חסר מידע חיוני, ask_user.
+אם בשיחה כבר יש advise והמנהל בוחר פתרון ("תעשה את 2", "הראשון"), הפוך את הפעולות שלו ל-propose.
 
-const SMART_MODE = `
-המנהל אישר לך לחשוב לעומק על הבעיה האחרונה. קרא ל-advise. תחשוב כמו סדרן ותיק: בדוק תפקידים, הסמכות, אילוצים (cannot), מחלות, מי כבר עובד באותם ימים (לילה ולינה תופסים גם את היום שאחריו), עומס לילות בשבוע (מעל 2 זה עומס), ההיסטוריה ומה שביקשו שתזכור (remembered). החזר עד 5 פתרונות שונים באמת, מהטוב לפחות טוב. כל פתרון: title קצר, actions = מה עושים בפועל, בשמות של אנשים ותאריכים, why = למה זה טוב, cost = מה המחיר. אל תציע פתרון ששובר כלל קשיח (עובד בלי התפקיד או ההסמכה, חולה או חסום) בלי להגיד את זה במפורש ב-cost. spoken: 2 עד 3 משפטים שמוקראים בקול, עם ההמלצה הראשונה, ובסוף "איזה פתרון לעשות?". אם חסר לך מידע חיוני כדי לפתור, ask_user. אל תקרא ל-needs_smart.`
-
-export const SMART_MODEL = 'claude-sonnet-5-5'
+ללמוד מהמנהל: remembered הם כללים שלמדת ממנו, ו-examples הן בקשות קודמות שהוא אישר ומה עשית בהן. עבוד כמו שהן מראות: אותן מילים, אותם הרגלים, אותן העדפות. בכל propose, מלא lessons: כלל קצר וכללי לכל דבר שלמדת בשיחה הזו ושיחזור בפעם הבאה. למשל כשהמנהל תיקן אותך ("לא, אצלנו מטפס זה טפסן"), כשהוא בחר פתרון מסוים מתוך advise ("כשטפסן עם הסמכה חולה, המנהל מעדיף לדחות ולא לשלוח בלי הסמכה"), או כשהוא הוסיף משהו שלא שאלת. אל תכתוב כלל שכבר נמצא ב-remembered, ואל תכתוב כלל על עבודה אחת מסוימת. אם לא למדת כלום, lessons ריק.`
 
 export type AssistantReply =
   | { ok: true; content: unknown[]; call: { id: string; name: string; input: unknown } | null; text: string; usage?: Anthropic.Usage }
@@ -194,25 +187,26 @@ export function validConversation(messages: unknown): messages is Anthropic.Mess
 /** One turn of the conversation. `context` is the app's snapshot (lists and near shifts), as JSON. */
 /**
  * One turn of the conversation. `context` is the app's snapshot (lists and near shifts), as JSON.
- * `smart`: the manager agreed to the costlier model for a hard problem; otherwise `model` (the cheap one).
  */
-export async function runAssistant(apiKey: string, messages: unknown, context: unknown, model: string = ASSISTANT_MODEL, smart = false): Promise<AssistantReply> {
+export async function runAssistant(apiKey: string, messages: unknown, context: unknown, model: string = ASSISTANT_MODEL): Promise<AssistantReply> {
   if (!validConversation(messages) || !context || typeof context !== 'object') return { ok: false, reason: 'bad-body' }
-  const client = new Anthropic({ apiKey, maxRetries: smart ? 0 : 1, timeout: smart ? 55_000 : 25_000 })
+  const client = new Anthropic({ apiKey, maxRetries: 1, timeout: 40_000 })
   let res: Anthropic.Message
   try {
     res = await client.messages.create({
-      model: smart ? SMART_MODEL : pickModel(model),
-      max_tokens: smart ? 8000 : 4000,
+      model: pickModel(model),
+      max_tokens: 6000,
       // The fixed instructions and tools first (cached); the mode and the day's data after them.
       system: [
-        { type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } },
-        { type: 'text', text: smart ? SMART_MODE : CHEAP_MODE },
+        { type: 'text', text: SYSTEM },
+        { type: 'text', text: MODE, cache_control: { type: 'ephemeral' } },
         { type: 'text', text: `הנתונים של האפליקציה עכשיו:\n${JSON.stringify(context)}` },
       ],
       tools: TOOLS,
       tool_choice: { type: 'auto' },
-      output_config: { effort: smart ? 'medium' : 'low' },
+      // Medium, not low: a little slower, but it weighs the data before answering (the user wants it
+      // professional, on the cheap model only).
+      output_config: { effort: 'medium' },
       messages,
     })
   } catch (e) {

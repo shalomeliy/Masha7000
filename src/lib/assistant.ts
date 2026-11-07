@@ -12,6 +12,7 @@ import { toggleKind } from './workKinds'
 import { applyEdits, editCount, type Edits } from './assistantEdits'
 import { workerState } from './workerState'
 import type {
+  AssistantExample,
   AssistantNote,
   Certification,
   Department,
@@ -40,6 +41,7 @@ export interface AppData {
   postponeReasons: PostponeReason[]
   assistantNotes: AssistantNote[]
   departments: Department[]
+  assistantExamples: AssistantExample[]
 }
 
 export type ListName = 'places' | 'jobTypes' | 'roles' | 'certifications' | 'postponeReasons'
@@ -64,6 +66,7 @@ export interface Proposal extends Edits {
   workers: { firstName: string; lastName: string; mobilePhone: string; roleIds: string[]; certificationIds: string[] }[]
   listItems: { list: ListName; name: string }[]
   rememberNotes: string[] // things the manager asked the assistant to remember from now on
+  lessons: string[] // rules the assistant learned from the manager in this conversation; saved with the yes
   forgetNoteIds: string[]
 }
 
@@ -93,7 +96,23 @@ function kindMeaning(s: ShiftDefinition): string {
 const named = (items: { id: string; name: string }[]) => items.map(({ id, name }) => ({ id, name }))
 
 /** What the assistant knows: the lists, active workers, near shifts and waiting jobs. Ids for ids only. */
-export function snapshot(d: AppData, now = new Date()) {
+// Past confirmed requests sent with each turn: the ones sharing the most words with what was just
+// said, newest first on a tie. Few, to keep every turn cheap.
+const EXAMPLES = 6
+export const MAX_EXAMPLES = 200
+const words = (t: string) => new Set(t.replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 1))
+
+export function relevantExamples(all: AssistantExample[], said: string, n = EXAMPLES): AssistantExample[] {
+  const mine = words(said)
+  const score = (e: AssistantExample) => [...words(e.said)].filter((w) => mine.has(w)).length
+  return all
+    .map((e, i) => ({ e, s: score(e), i }))
+    .sort((a, b) => b.s - a.s || b.i - a.i)
+    .slice(0, n)
+    .map((x) => x.e)
+}
+
+export function snapshot(d: AppData, now = new Date(), said = '') {
   const today = todayIso(now)
   const from = addDays(today, -PAST_DAYS)
   const to = addDays(today, AHEAD_DAYS)
@@ -163,6 +182,7 @@ export function snapshot(d: AppData, now = new Date()) {
       }),
     },
     remembered: d.assistantNotes.map((n) => ({ id: n.id, text: n.text })),
+    examples: relevantExamples(d.assistantExamples, said).map((e) => ({ said: e.said, did: e.did })),
     shifts: d.shifts
       .filter((s) => s.date >= from && s.date <= to)
       .sort((a, b) => a.date.localeCompare(b.date))
@@ -250,6 +270,12 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   const at = now.toISOString()
 
   const remember = p.rememberNotes.map((t) => t.trim()).filter(Boolean)
+  const known = new Set([...d.assistantNotes.map((n) => n.text), ...remember])
+  const lessons = [...new Set(p.lessons.map((t) => t.trim()).filter((t) => t && !known.has(t)))]
+  if (lessons.length) {
+    d.assistantNotes = [...d.assistantNotes, ...lessons.map((text) => ({ id: newId(), text, createdAt: at, learned: true as const }))]
+    changed.add('assistantNotes')
+  }
   if (remember.length || p.forgetNoteIds.length) {
     d.assistantNotes = [...d.assistantNotes.filter((n) => !p.forgetNoteIds.includes(n.id)), ...remember.map((text) => ({ id: newId(), text, createdAt: at }))]
     changed.add('assistantNotes')
@@ -371,6 +397,7 @@ export function normalizeProposal(raw: unknown): Proposal {
     workers: A(p.workers, (w) => ({ firstName: S(w.firstName), lastName: S(w.lastName), mobilePhone: S(w.mobilePhone), roleIds: SS(w.roleIds), certificationIds: SS(w.certificationIds) })),
     listItems: A(p.listItems, (i) => ({ list: i.list as ListName, name: S(i.name) })).filter((i) => LISTS.includes(i.list)),
     rememberNotes: SS(p.rememberNotes),
+    lessons: SS(p.lessons),
     forgetNoteIds: SS(p.forgetNoteIds),
     editJobs: A(p.editJobs, (j) => ({
       id: S(j.id),

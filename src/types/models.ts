@@ -163,6 +163,16 @@ export interface AssistantNote {
   id: string
   text: string
   createdAt: string // ISO time
+  learned?: true // written by the assistant from the manager's corrections, not dictated by him
+}
+
+// A request the manager confirmed and what the assistant did: shown to the model again later, so
+// it answers the way this manager talks and works.
+export interface AssistantExample {
+  id: string
+  said: string // what the manager said, corrections included
+  did: string // the summary he confirmed
+  createdAt: string // ISO time
 }
 
 export interface PostponeReason {

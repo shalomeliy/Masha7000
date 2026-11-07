@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyProposal, isYes, jobStaffing, proposalErrors, snapshot, type AppData, type Proposal, type ProposedJob } from './assistant'
+import { applyProposal, isYes, relevantExamples, jobStaffing, proposalErrors, snapshot, type AppData, type Proposal, type ProposedJob } from './assistant'
 import { NO_EDITS } from './assistantEdits'
 import type { Worker } from '../types/models'
 
@@ -26,6 +26,7 @@ const data = (): AppData => ({
   postponeReasons: [],
   assistantNotes: [{ id: 'n1', text: 'מטפס זה טפסן', createdAt: '2026-11-01T10:00:00Z' }],
   departments: [],
+  assistantExamples: [],
 })
 
 const job = (over: Partial<ProposedJob> = {}): ProposedJob => ({
@@ -44,7 +45,7 @@ const job = (over: Partial<ProposedJob> = {}): ProposedJob => ({
   ...over,
 })
 
-const proposal = (over: Partial<Proposal> = {}): Proposal => ({ summary: '', jobs: [], assignShiftIds: [], workers: [], listItems: [], rememberNotes: [], forgetNoteIds: [], ...NO_EDITS, ...over })
+const proposal = (over: Partial<Proposal> = {}): Proposal => ({ summary: '', jobs: [], assignShiftIds: [], workers: [], listItems: [], rememberNotes: [], lessons: [], forgetNoteIds: [], ...NO_EDITS, ...over })
 const NOW = new Date('2026-11-06T20:00:00')
 
 describe('snapshot', () => {
@@ -205,4 +206,23 @@ describe('version 2 context', () => {
 describe('isYes', () => {
   it.each(['כן', 'מאשר', 'כן, לאשר.', 'סגור', 'יאללה'])('%s', (s) => expect(isYes(s)).toBe(true))
   it.each(['לא', 'כן אבל תוסיף חשמלאי', 'תוסיף עוד אחד'])('%s', (s) => expect(isYes(s)).toBe(false))
+})
+
+describe('learning from the manager', () => {
+  it('saves new lessons as learned notes, once, with the yes', () => {
+    const r = applyProposal(proposal({ jobs: [job()], lessons: ['מטפס זה טפסן', 'המנהל מעדיף לדחות עבודות גובה כשחסר מוסמך', ''] }), data(), NOW)
+    expect(r.data.assistantNotes.map((n) => [n.text, n.learned ?? false])).toEqual([
+      ['מטפס זה טפסן', false],
+      ['המנהל מעדיף לדחות עבודות גובה כשחסר מוסמך', true],
+    ])
+  })
+
+  it('a lesson alone is not a change to confirm', () => expect(proposalErrors(proposal({ lessons: ['x'] }), data())).toEqual(['אין בהצעה שום שינוי']))
+
+  it('sends the examples closest to what was said, newest on a tie', () => {
+    const ex = (id: string, said: string) => ({ id, said, did: '', createdAt: '' })
+    const all = [ex('1', 'לינה באילת שני טפסנים'), ex('2', 'עובד חדש'), ex('3', 'יום בדימונה טפסן'), ex('4', 'לינה בערד')]
+    expect(relevantExamples(all, 'תפתח לינה באילת', 2).map((e) => e.id)).toEqual(['1', '4'])
+    expect(relevantExamples(all, 'משהו אחר', 2).map((e) => e.id)).toEqual(['4', '3'])
+  })
 })

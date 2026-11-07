@@ -325,3 +325,10 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Voice: snapshot `now` per worker when not fit; `addConstraints.kind`; "חזר לעבוד" (status active) ends today's absence.
 - Verified in the browser (mock Drive): vacation 6.11-12.11 on a worker -> badge "בחופש עד 12.11", team box "כשירים 3, בחופש 1".
 - Revision (user, same day): the list card shows only a colored dot by the name (state in words inside the worker form; dot has aria-label). Each absence kind can be marked three ways: a date range, fixed weekdays every week (optional end date), or any days picked on a month calendar (`src/components/MonthDays.tsx`; days in a row join into one range, `daysToRanges` in dates.ts). Verified in the browser.
+
+## Changed: one model only, learning from the manager (2026-11-07)
+
+- User decision: always the cheap model (Haiku 5.5), no costlier model and no cost question; it should keep getting better from his answers.
+- Honest limit: the model never retrains. What "learning" is here: (1) `lessons` in every proposal, short general rules the model writes when the manager corrected it or picked a solution; saved with the yes as notes marked `learned` (tag "למדתי" in "מה אני זוכר", deletable); (2) every confirmed request is kept as an example (`assistantExamples`, Drive `assistant_examples.json`, last 200: what he said / the summary he approved); the 6 sharing the most words with what he just said go into each turn (`relevantExamples`).
+- Removed: `needs_smart`, SMART_MODE/SMART_MODEL, the `smart` flag in the API and app, the cost button. The advisor (`advise`, up to 5 cards) now runs on the same model. Effort raised to medium for every turn (slower: a hard problem took about 20 s on Haiku in the live check). MODE block cached.
+- Live check (`spikes/advisor/flow.live.test.ts`): a hard problem gets advise directly on Haiku; picking option 1 became a proposal (a sick date it left out was refused and goes back to it).

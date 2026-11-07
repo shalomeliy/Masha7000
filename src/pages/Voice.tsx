@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Sparkles, Square, Trash2 } from 'lucide-react'
+import { BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
-import { applyProposal, isYes, normalizeProposal, proposalErrors, snapshot, type AppData, type Proposal, type Screen } from '../lib/assistant'
+import { applyProposal, isYes, MAX_EXAMPLES, normalizeProposal, proposalErrors, snapshot, type AppData, type Proposal, type Screen } from '../lib/assistant'
+import { newId } from '../lib/catalog'
 import { askAssistant, userTurn, type AssistantAnswer, type Turn } from '../lib/assistantApi'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
@@ -13,7 +14,7 @@ import { canListen, canSpeak, listen, nextRate, rateName, speak, speechRate, sto
 
 type Phase = 'idle' | 'listening' | 'thinking' | 'saving'
 
-// The smart model's answer to a hard problem: up to 5 ranked solutions.
+// The assistant's answer to a hard problem: up to 5 ranked solutions.
 interface Advice {
   spoken: string
   options: { title: string; actions: string[]; why: string; cost: string }[]
@@ -41,6 +42,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     postponeReasons: useDriveList('postponeReasons'),
     assistantNotes: useDriveList('assistantNotes'),
     departments: useDriveList('departments'),
+    assistantExamples: useDriveList('assistantExamples'),
   }
   const loading = Object.values(lists).some((l) => l.query.isPending)
   const data = Object.fromEntries(Object.entries(lists).map(([k, l]) => [k, l.items])) as unknown as AppData
@@ -55,12 +57,11 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [rate, setRate] = useState(speechRate)
   const [error, setError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<Proposal | null>(null)
-  const [smartAsk, setSmartAsk] = useState(false) // waiting for "yes, think deeply" (it costs more)
-  const [thinkingDeep, setThinkingDeep] = useState(false)
   const [advice, setAdvice] = useState<Advice | null>(null)
   const [talking, setTalking] = useState(false) // a conversation is open: it can be closed without saving
   const typedRef = useRef<HTMLInputElement>(null)
   const conversation = useRef<Turn[]>([])
+  const asked = useRef<string[]>([]) // what the manager said in this conversation, for the example kept on a yes
   const last = useRef<AssistantAnswer | null>(null)
   const listening = useRef<Listening | null>(null)
 
@@ -77,22 +78,20 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const reset = () => {
     conversation.current = []
     last.current = null
+    asked.current = []
     setProposal(null)
-    setSmartAsk(false)
     setAdvice(null)
     setTalking(false)
   }
 
   // One turn: send, then act on the tool call. Wrong proposals go back for fixing, quietly.
-  const send = async (turn: Turn, fixes = 0, smart = false) => {
+  const send = async (turn: Turn, fixes = 0) => {
     setPhase('thinking')
-    setThinkingDeep(smart)
-    setSmartAsk(false)
     setError(null)
     conversation.current = [...conversation.current, turn]
     let answer: AssistantAnswer
     try {
-      answer = await askAssistant(conversation.current, snapshot(data), smart)
+      answer = await askAssistant(conversation.current, snapshot(data, undefined, asked.current.join(' ')))
     } catch (e) {
       conversation.current = conversation.current.slice(0, -1)
       setError((e as Error).message)
@@ -127,11 +126,6 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           onNavigate(screen)
           if (hint && hint in HINTS) showHint(hint)
         }, text ? 1800 : 0)
-    } else if (call?.name === 'needs_smart') {
-      // A hard problem: the smart model costs more, so the manager decides first (the user's rule).
-      setProposal(null)
-      setSmartAsk(true)
-      say('זו שאלה מורכבת, שכדאי לחשוב עליה לעומק. במודל החכם תשובה כזו עולה בערך 4 סנט, במקום רבע סנט, ולוקחת עד חצי דקה. להמשיך?')
     } else if (call?.name === 'advise') {
       setProposal(null)
       const a = call.input as unknown as Advice
@@ -152,9 +146,17 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     setPhase('saving')
     setError(null)
     const { data: next, changed, report } = applyProposal(proposal, data)
+    // The confirmed request is kept as an example of how this manager works (newest last, capped).
+    if (asked.current.length && proposal.summary) {
+      next.assistantExamples = [
+        ...data.assistantExamples,
+        { id: newId(), said: asked.current.join(' / ').slice(0, 400), did: proposal.summary.slice(0, 500), createdAt: new Date().toISOString() },
+      ].slice(-MAX_EXAMPLES)
+      changed.add('assistantExamples')
+    }
     try {
       // Lists first, then workers, then the jobs that may use them.
-      for (const key of ['roles', 'certifications', 'places', 'jobTypes', 'postponeReasons', 'workers', 'shifts', 'pendingJobs', 'assistantNotes'] as const) {
+      for (const key of ['roles', 'certifications', 'places', 'jobTypes', 'postponeReasons', 'workers', 'shifts', 'pendingJobs', 'assistantNotes', 'assistantExamples'] as const) {
         if (changed.has(key)) await (lists[key].save as (items: unknown[]) => Promise<void>)(next[key])
       }
     } catch {
@@ -183,19 +185,11 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       void confirm(false)
       return
     }
-    if (smartAsk && isYes(text)) {
-      thinkDeep()
-      return
-    }
+    asked.current = [...asked.current, text]
     void send(userTurn(last.current, text, proposal ? 'המנהל לא אישר עדיין. התיקון שלו בהודעה הבאה.' : undefined))
   }
 
-  const thinkDeep = () => {
-    stopSpeaking()
-    void send(userTurn(last.current, '', 'המנהל אישר לחשוב לעומק. פתור את הבעיה שתיארת ב-needs_smart, עם advise.'), 0, true)
-  }
-
-  // A picked solution goes back to the cheap model, which turns it into a proposal to confirm.
+  // A picked solution goes back to the assistant, which turns it into a proposal to confirm.
   const pickOption = (i: number) => {
     if (!advice) return
     const o = advice.options[i]
@@ -239,7 +233,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
 
   const busy = phase === 'thinking' || phase === 'saving' || loading
   const status =
-    phase === 'listening' ? 'מקשיב... אפשר לדבר' : phase === 'thinking' ? (thinkingDeep ? 'חושב לעומק, עד חצי דקה...' : 'חושב...') : phase === 'saving' ? 'שומר...' : loading ? 'טוען נתונים...' : proposal ? 'לאשר, או לתקן?' : smartAsk ? 'לחשוב לעומק?' : advice ? 'איזה פתרון לעשות?' : talking ? 'לחץ וענה' : 'לחץ ודבר'
+    phase === 'listening' ? 'מקשיב... אפשר לדבר' : phase === 'thinking' ? 'חושב...' : phase === 'saving' ? 'שומר...' : loading ? 'טוען נתונים...' : proposal ? 'לאשר, או לתקן?' : advice ? 'איזה פתרון לעשות?' : talking ? 'לחץ וענה' : 'לחץ ודבר'
 
   return (
     <section className="flex min-h-[calc(100dvh-6rem)] flex-col items-center px-4 pt-10">
@@ -285,12 +279,6 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
               תקן
             </button>
           </div>
-        )}
-        {smartAsk && phase === 'idle' && (
-          <button type="button" onClick={thinkDeep} className="flex min-h-12 items-center gap-2 rounded-xl bg-violet-600 px-6 font-semibold text-white">
-            <Sparkles size={20} aria-hidden />
-            כן, תחשוב לעומק (כ-4 סנט)
-          </button>
         )}
         {advice && phase === 'idle' && (
           <ol className="w-full max-w-md space-y-3" aria-label="פתרונות">
@@ -373,7 +361,10 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           <ul className="space-y-2" aria-label="מה העוזר זוכר">
             {data.assistantNotes.map((n) => (
               <li key={n.id} className="flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-2 text-sm text-slate-100">
-                <span className="flex-1">{n.text}</span>
+                <span className="flex-1">
+                  {n.text}
+                  {n.learned && <span className="ms-2 rounded-full bg-violet-500/20 px-2 text-xs text-violet-200">למדתי</span>}
+                </span>
                 <button
                   type="button"
                   disabled={busy}
