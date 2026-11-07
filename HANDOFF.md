@@ -370,3 +370,9 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Learning: on every confirmed Claude proposal `exampleAction` keeps `AssistantExample.action` (one new job, or one worker sick). `learn()` gets action words, aliases ("מטפסים" = טפסן) and required fields from them. A sentence is handled only when every word is explained; otherwise everything said so far goes to Claude as one turn. Local proposals are checked with `proposalErrors` first.
 - Counter on the assistant screen: free vs Claude turns this month, localStorage `assistant.usage`.
 - Next: more learned actions the same way (on leave / constraints, assign a named worker, move a job), each with its own test set in `src/lib/freeCommands.test.ts`.
+
+## Done: worker's personal calendar (2026-11-07)
+
+- The worker's card (edit form) has a "הלוח האישי" block under the status line, for saved workers only: their jobs from today on (date, place and work, template or "עבודה דחופה", their role, "עד" the last day for a night job) and their days away (sickness, vacation and the other absences, picked days, ordinary dated constraints), in date order; an absence going on today sorts as today. Weekly constraints are listed apart as "קבוע כל שבוע". First 4 items, then "להציג הכל". Built from the form's draft, so a status or absence just picked shows before saving.
+- Logic in `src/lib/workerAgenda.ts` (tests next to it), view in `src/pages/workers/WorkerAgenda.tsx`. New texts translated into all 15 languages.
+- Browser check at phone width with the in-memory Drive mock: 4 jobs (one night, until the next day), an evening constraint, a vacation and a weekly study day, all in order.

@@ -951,5 +951,14 @@
  "עובדים שכבר משובצים בעבודה אחרת": "Trabalhadores já escalados em outro trabalho",
  "יעבור לכאן": "Vem para cá",
  "להשאיר אותו שם": "Deixá-lo lá",
- "נגמר התקציב של Anthropic לחודש הזה, אז העוזר לא יכול לענות. אפשר להוסיף קרדיט ב-console.anthropic.com. פקודות פשוטות עדיין עובדות בחינם.": "O orçamento da Anthropic deste mês acabou, então o assistente não pode responder. Você pode adicionar crédito em console.anthropic.com. Comandos simples continuam funcionando de graça."
+ "נגמר התקציב של Anthropic לחודש הזה, אז העוזר לא יכול לענות. אפשר להוסיף קרדיט ב-console.anthropic.com. פקודות פשוטות עדיין עובדות בחינם.": "O orçamento da Anthropic deste mês acabou, então o assistente não pode responder. Você pode adicionar crédito em console.anthropic.com. Comandos simples continuam funcionando de graça.",
+ "{n} עבודות קרובות": "{n} trabalhos próximos",
+ "אין עבודות או היעדרויות מהיום והלאה.": "Nenhum trabalho ou ausência a partir de hoje.",
+ "היום": "Hoje",
+ "הלוח האישי": "Calendário pessoal",
+ "להציג הכל ({n})": "Mostrar tudo ({n})",
+ "להציג פחות": "Mostrar menos",
+ "מחר": "Amanhã",
+ "עבודה דחופה": "Trabalho urgente",
+ "עד {v}": "até {v}"
 }

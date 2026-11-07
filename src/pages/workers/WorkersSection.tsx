@@ -32,6 +32,7 @@ import { DAY_NAMES } from "../../lib/shifts";
 import { endAbsence, STATE_NAMES, STATE_TONE, teamStates, workerState, type StateId } from "../../lib/workerState";
 import { AddButton, EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
+import { WorkerAgenda } from "./WorkerAgenda";
 import { RequestSheet } from "./RequestSheet";
 import { JoinButton, JoinPending } from "./JoinSection";
 import { authMode } from "../../lib/google/auth";
@@ -649,6 +650,10 @@ function WorkerForm({
           }))
         }
       />
+
+      {/* The worker's own calendar: upcoming jobs and days away. From the draft, so a status or an
+          absence just picked shows here before saving. */}
+      {exists && <WorkerAgenda worker={draft} />}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={tx('ת.ז')}>

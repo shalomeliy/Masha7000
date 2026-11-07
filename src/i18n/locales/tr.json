@@ -951,5 +951,14 @@
  "עובדים שכבר משובצים בעבודה אחרת": "Başka bir işe zaten atanmış çalışanlar",
  "יעבור לכאן": "Buraya geçer",
  "להשאיר אותו שם": "Orada kalsın",
- "נגמר התקציב של Anthropic לחודש הזה, אז העוזר לא יכול לענות. אפשר להוסיף קרדיט ב-console.anthropic.com. פקודות פשוטות עדיין עובדות בחינם.": "Bu ayın Anthropic bütçesi bitti, bu yüzden asistan yanıt veremiyor. console.anthropic.com adresinden kredi ekleyebilirsin. Basit komutlar hâlâ ücretsiz çalışıyor."
+ "נגמר התקציב של Anthropic לחודש הזה, אז העוזר לא יכול לענות. אפשר להוסיף קרדיט ב-console.anthropic.com. פקודות פשוטות עדיין עובדות בחינם.": "Bu ayın Anthropic bütçesi bitti, bu yüzden asistan yanıt veremiyor. console.anthropic.com adresinden kredi ekleyebilirsin. Basit komutlar hâlâ ücretsiz çalışıyor.",
+ "{n} עבודות קרובות": "{n} yaklaşan iş",
+ "אין עבודות או היעדרויות מהיום והלאה.": "Bugünden itibaren iş veya devamsızlık yok.",
+ "היום": "Bugün",
+ "הלוח האישי": "Kişisel takvim",
+ "להציג הכל ({n})": "Tümünü göster ({n})",
+ "להציג פחות": "Daha az göster",
+ "מחר": "Yarın",
+ "עבודה דחופה": "Acil iş",
+ "עד {v}": "{v} tarihine kadar"
 }
