@@ -376,6 +376,48 @@ describe('learned patterns keep values as slots', () => {
   })
 })
 
+describe('a new worker, from the first time', () => {
+  const none = (said: string) => run(said, data({ assistantExamples: [] }))
+  const added = (r: Local) => (r?.kind === 'propose' ? r.proposal.workers[0] : null)
+
+  it('adds a worker said in many ways, with a phone and a role', () => {
+    for (const [s, want] of [
+      ['תוסיף עובד חדש משה גולן 050-1234567', { firstName: 'משה', lastName: 'גולן', mobilePhone: '0501234567', roleIds: [] }],
+      ['תוסיף לי עובד בשם שמעון ביטון טלפון 0521234567', { firstName: 'שמעון', lastName: 'ביטון', mobilePhone: '0521234567' }],
+      ['תכניס עובד חדש אורי דהן 054 123 4567 הוא חשמלאי', { firstName: 'אורי', lastName: 'דהן', mobilePhone: '0541234567', roleIds: ['r2'] }],
+      ['תרשום עובדת חדשה מירב שושן הטלפון שלה 0531112222', { firstName: 'מירב', lastName: 'שושן', mobilePhone: '0531112222' }],
+      ['תוסיף עובד טפסן קובי אזולאי 0507654321', { firstName: 'קובי', lastName: 'אזולאי', roleIds: ['r1'] }],
+      ['תוסיף עובד חדש רפאל', { firstName: 'רפאל', lastName: '', mobilePhone: '' }],
+      ['הוסף עובד חדש בן חיים אלמוג נייד +972501234567', { firstName: 'בן', lastName: 'חיים אלמוג', mobilePhone: '+972501234567' }],
+    ] as const)
+      expect([s, added(none(s))]).toEqual([s, expect.objectContaining(want)])
+  })
+
+  it('the proposal is valid and says what will be saved', () => {
+    const r = none('תכניס עובד חדש אורי דהן 054-1234567 חשמלאי')
+    if (r?.kind !== 'propose') throw new Error(JSON.stringify(r))
+    expect(proposalErrors(r.proposal, data())).toEqual([])
+    expect(r.proposal.summary).toBe('עובד חדש: אורי דהן, טלפון 0541234567, חשמלאי. לאשר, או שיש עוד תיקון?')
+  })
+
+  it('a name already in the list is said back, free', () => {
+    expect(none('תוסיף עובד חדש יוסי כהן 0501234567')).toMatchObject({ kind: 'say', text: expect.stringContaining('כבר יש ברשימה עובד בשם יוסי כהן') })
+  })
+
+  it('anything more goes to Claude', () => {
+    for (const s of [
+      'תוסיף שני עובדים משה גולן 0501234567 ושמעון ביטון 0521234567',
+      'תוסיף לעובד יוסי טלפון 0501234567', // an existing worker
+      'תוסיף עובד חדש משה גולן מחר לילה', // a date and a kind
+      'תוסיף עובד חדש מה השם שלו',
+      'תוסיף עובד חדש 0501234567', // no name
+      'תוסיף עובד חדש משה גולן 0501234567 ותשבץ אותו מחר',
+      'מי העובד החדש',
+    ])
+      expect([s, none(s)?.kind === 'propose' ? 'propose' : none(s)]).toEqual([s, null])
+  })
+})
+
 describe('why a sentence went to Claude (the log)', () => {
   const why = (said: string, d = data()) => whyNotFree(said, d, learn(d.assistantExamples, d), NOW)
 

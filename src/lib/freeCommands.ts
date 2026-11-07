@@ -612,9 +612,46 @@ export function pickedOption(text: string, count: number): number | null {
   return null
 }
 
+// ---- A new worker: "תוסיף עובד חדש משה כהן 050-1234567 חשמלאי" (built in, the user's request, 2026-11-07) ----
+
+const WORKER_VERBS = new Set(['תוסיף', 'הוסף', 'תוסיפי', 'להוסיף', 'תכניס', 'הכנס', 'תכניסי', 'להכניס', 'תרשום', 'רשום', 'תרשמי', 'לרשום', 'תפתח', 'פתח', 'תייצר', 'תיצור', 'צור', 'תקלוט', 'קלוט', 'לקלוט', 'תשים', 'שים'])
+// Words around the name and phone that say nothing more.
+const WORKER_WORDS = /^(?:ו?עובד|ו?עובדת|חדש|חדשה|בשם|שם|שמו|שמה|קוראים|לו|לה|שלו|שלה|טלפון|הטלפון|נייד|הנייד|פלאפון|מספר|המספר|מספרו|עם|תפקיד|בתפקיד|והוא|והיא|הוא|היא|זה|לרשימה|לרשימת|העובדים|לעובדים|לצוות)$/
+const PHONE = /(?:\+972|0)(?:[\s-]?\d){8,9}(?!\d)/g
+
+/** The new worker the sentence asks for, or null when it is anything more than that. */
+function newWorkerPlan(text: string, d: AppData, now: Date): { firstName: string; lastName: string; mobilePhone: string; roleIds: string[] } | null {
+  const phones = text.match(PHONE) ?? []
+  if (phones.length > 1) return null // two workers, or two numbers: Claude
+  const rest = text.replace(PHONE, ' ')
+  const ws = words(rest)
+  if (!ws.some((w) => WORKER_VERBS.has(w)) || !ws.some((w) => /^ו?עובד(?:ת)?$/.test(w))) return null
+  if (ws.some((w) => /^(?:ו?ה?עובדים|ו?ה?עובדות|העובד|העובדת|לעובד|לעובדת)$/.test(w))) return null // several, or one that exists
+  // Roles only: no worker names, places or job types are read here (the name is new).
+  const f = find(rest, { ...d, workers: [], places: [], jobTypes: [] }, {}, now)
+  if (f.date || f.shiftKindId || f.description || f.staffing.some((s) => s.count !== 1)) return null
+  const at = f.restAt.filter((_, k) => !WORKER_VERBS.has(f.rest[k]) && !WORKER_WORDS.test(f.rest[k]) && !COMMON.has(f.rest[k]))
+  // The name: one to three words in a row, nothing else unexplained.
+  if (!at.length || at.length > 3 || at.some((x, k) => k > 0 && x !== at[k - 1] + 1)) return null
+  const name = at.map((x) => ws[x])
+  if (name.some((w) => isValue(w) || NOT_DESCRIPTION.test(w) || w.length < 2)) return null
+  return { firstName: name[0], lastName: name.slice(1).join(' '), mobilePhone: (phones[0] ?? '').replace(/[^\d+]/g, ''), roleIds: [...new Set(f.staffing.map((s) => s.roleId))] }
+}
+
+function newWorker(text: string, d: AppData, now: Date): Local {
+  const w = newWorkerPlan(text, d, now)
+  if (!w) return null
+  const full = `${w.firstName} ${w.lastName}`.trim()
+  if (d.workers.some((x) => x.status !== 'inactive' && `${x.firstName} ${x.lastName}`.trim() === full)) return { kind: 'say', text: `כבר יש ברשימה עובד בשם ${full}. אם זה עובד אחר, אפשר לומר שוב עם שם משפחה אחר או להוסיף אותו במסך העובדים.` }
+  const phone = w.mobilePhone ? `, טלפון ${w.mobilePhone}` : ', בלי טלפון'
+  const roles = w.roleIds.map((id) => d.roles.find((r) => r.id === id)?.name).filter(Boolean)
+  const role = roles.length ? `, ${roles.join(' ו')}` : ''
+  return { kind: 'propose', proposal: { ...normalizeProposal({}), summary: `עובד חדש: ${full}${phone}${role}. לאשר, או שיש עוד תיקון?`, workers: [{ ...w, certificationIds: [] }] } }
+}
+
 /** The first sentence of a conversation: handled here, or null for Claude. */
 export function handleFree(text: string, d: AppData, L: Learned, now = new Date()): Local {
-  return fixed(text, d, now) ?? learnedSick(text, d, L, now) ?? learnedJob(text, d, L, now)
+  return fixed(text, d, now) ?? newWorker(text, d, now) ?? learnedSick(text, d, L, now) ?? learnedJob(text, d, L, now)
 }
 
 // ---- Why a sentence went to Claude (the "what went to Claude" log, src/lib/claudeLog.ts) ----
@@ -642,6 +679,12 @@ export function whyNotFree(text: string, d: AppData, L: Learned, now = new Date(
   const out = (reason: string) => ({ reason, understood })
   const extra = (action: Set<string>) => f.rest.filter((_, k) => !action.has(rest[k]) && !ASSIGN.test(rest[k]))
 
+  const tw = words(text.replace(PHONE, ' '))
+  if (tw.some((w) => WORKER_VERBS.has(w)) && tw.some((w) => /^(?:ו?ה?|ל)עובד(?:ת|ים|ות)?$/.test(w))) {
+    if ((text.match(PHONE) ?? []).length > 1) return out('new worker: more than one phone number (several workers?)')
+    if (tw.some((w) => /^(?:ו?ה?עובדים|ו?ה?עובדות|העובד|העובדת|לעובד|לעובדת)$/.test(w))) return out('new worker: speaks of several workers or of one that exists')
+    return out('new worker: the name is not one to three words in a row, or there is a date, kind, job type or a count of a role')
+  }
   if (said(L.sick.words, rest)) {
     if (f.workerIds.length > 1 || f.unsure.length > 1) return out('sick: more than one worker named')
     if (f.location || f.staffing.length || f.shiftKindId || f.description) return out('sick: the sentence also has a place, role, job kind or job type')
