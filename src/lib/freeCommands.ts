@@ -2,6 +2,7 @@ import type { AppData, Proposal, Screen } from './assistant'
 import { isYes, normalizeProposal } from './assistant'
 import type { Edits } from './assistantEdits'
 import { HINTS, type Hint } from './hint'
+import { closeName, nameDistance, nameLimit } from './nameMatch'
 import { solve, type SolverOption } from './solvers'
 import type { AssistantExample, ExampleAction } from '../types/models'
 
@@ -22,29 +23,28 @@ const NUMBERS: Record<string, number> = {
 }
 // Small words that carry no meaning in a command.
 const FILLER = new Set(['לי', 'את', 'עם', 'של', 'גם', 'ו', 'אני', 'צריך', 'רוצה', 'בבקשה', 'יש', 'עוד', 'כולל', 'אתר', 'ה', 'אחד', 'אחת', 'הוא', 'היא', 'תודה', 'טוב', 'אוקיי'])
+// Words that are never a worker's name, even when one sounds close ("חולה" is not "חולדה").
+const NOT_NAMES = ['מישהו', 'מישהי', 'כולם', 'אף', 'הבן', 'הבת', 'הילד', 'הילדה', 'אשתי', 'בעלי', 'אמא', 'אבא', 'הם', 'הן', 'אתה', 'את', 'שלי', 'שלו', 'שלה']
+const COMMON = new Set([
+  ...NOT_NAMES,
+  ...['חולה', 'חולים', 'חולות', 'מחלה', 'במחלה', 'עבודה', 'עבודות', 'עבודת', 'תפתח', 'פתח', 'תפתחי', 'תשבץ', 'שבץ', 'תוסיף', 'תסגור', 'תעביר', 'תבטל', 'תזיז', 'תשים'],
+  ...['לילה', 'יום', 'היום', 'מחר', 'מחרתיים', 'עד', 'בעוד', 'ימים', 'יומיים', 'שבוע', 'שבועיים', 'הקרוב', 'הבא', 'הבאה', 'חופש', 'חופשה', 'מילואים', 'אילוץ', 'לינה'],
+])
 // Words that mean "assign people to it too".
 const ASSIGN = /^(?:ו?תשבץ|ו?שבץ|ו?תשבצי|מישהו|אנשים)$/
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const plus = (now: Date, n: number) => iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n))
 
-const words = (s: string) => s.replace(/[?!.,״"׳:;/]/g, ' ').split(/\s+/).filter(Boolean)
+const words = (s: string) =>
+  s
+    .replace(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/g, (_, a, b, c) => `${a}-${b}${c ? `-${c}` : ''}`) // "15.11" stays one word
+    .replace(/[?!.,״"׳:;/]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
 /** A word without one leading ב/ל/ה/ו: "באילת" -> "אילת". */
 const bare = (w: string) => w.replace(/^(?:ו?[בלה]|ו)(?=.{2,})/, '')
 const singular = (w: string) => w.replace(/(?:ים|ות)$/, '').replace(/א$/, 'אי') // חשמלאים -> חשמלאי
-
-/** Two spellings of one name: equal without geresh, quotes and final letters, or one letter apart. */
-function sameName(a: string, b: string): boolean {
-  const norm = (s: string) => s.replace(/[׳'"״`\-]/g, '').replace(/ך/g, 'כ').replace(/ם/g, 'מ').replace(/ן/g, 'נ').replace(/ף/g, 'פ').replace(/ץ/g, 'צ')
-  const x = norm(a)
-  const y = norm(b)
-  if (x === y) return true
-  if (Math.min(x.length, y.length) < 3 || Math.abs(x.length - y.length) > 1) return false
-  // At most one letter added, dropped or changed.
-  let i = 0
-  while (i < x.length && x[i] === y[i]) i++
-  return x.slice(i + (x.length >= y.length ? 1 : 0)) === y.slice(i + (y.length >= x.length ? 1 : 0))
-}
 
 /** "היום", "מחר", "ביום שלישי 10.11": how a date is said back. */
 export function dayText(date: string, now: Date): string {
@@ -60,16 +60,18 @@ interface Found {
   location?: string
   staffing: { roleId: string; count: number }[]
   workerIds: string[]
+  // A name said that is about equally close to more than one worker: the app asks which one.
+  unsure: { at: number; n: number; ids: string[] }[]
   description?: string
   rest: string[] // words not explained: action words, or things unknown
   restAt: number[] // their places in the sentence
 }
 
 /** Everything in the sentence that the app's own lists explain. */
-function find(said: string, d: AppData, aliases: Record<string, string>, now: Date): Found {
+function find(said: string, d: AppData, aliases: Record<string, string>, now: Date, protect: Set<string> = new Set()): Found {
   const ws = words(said)
   const used = new Array<boolean>(ws.length).fill(false)
-  const out: Found = { staffing: [], workerIds: [], rest: [], restAt: [] }
+  const out: Found = { staffing: [], workerIds: [], unsure: [], rest: [], restAt: [] }
   const take = (i: number, n = 1) => {
     for (let k = i; k < i + n; k++) used[k] = true
   }
@@ -85,16 +87,35 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
       }
     }
   }
-  // Workers: a first name, maybe with the last name.
-  for (let i = 0; i < ws.length; i++) {
-    if (used[i]) continue
-    const w = d.workers.find((x) => x.status !== 'inactive' && (bare(ws[i]) === x.firstName || ws[i] === x.firstName))
-    if (!w) continue
-    out.workerIds.push(w.id)
-    take(i)
-    // The last name as speech recognition wrote it may differ a little from the card (תורגמן / תורג'מן).
-    if (w.lastName && ws[i + 1] && !used[i + 1] && sameName(ws[i + 1], w.lastName)) take(i + 1)
+  // Workers said exactly by first name (maybe with the last name); the rest of the names come last, by closeness.
+  const workerAt = (i: number, exact: boolean) => {
+    if (used[i]) return
+    const said1 = ws[i]
+    if (!exact && (COMMON.has(said1) || COMMON.has(bare(said1)) || protect.has(bare(said1)))) return
+    const near = (heard: string, name: string) => Math.min(nameDistance(heard, name), nameDistance(bare(heard), name))
+    const next = ws[i + 1] && !used[i + 1] ? ws[i + 1] : ''
+    const scored = d.workers
+      .filter((x) => x.status !== 'inactive')
+      .map((x) => {
+        const first = exact ? (bare(said1) === x.firstName || said1 === x.firstName ? 0 : Infinity) : near(said1, x.firstName)
+        const last = next && x.lastName ? nameDistance(next, x.lastName) : Infinity
+        return { x, first, last: last <= nameLimit(x.lastName) ? last : Infinity }
+      })
+      .filter((c) => c.first <= nameLimit(c.x.firstName))
+    if (!scored.length) return
+    // The last name said too decides between workers of one first name.
+    const withLast = scored.filter((c) => c.last < Infinity)
+    const pool = withLast.length ? withLast : scored
+    const total = (c: (typeof pool)[number]) => c.first + (withLast.length ? c.last : 0)
+    const best = Math.min(...pool.map(total))
+    // Equally close (an exact name beats any near one): ask which.
+    const tied = pool.filter((c) => (best === 0 ? total(c) === 0 : total(c) <= best + 0.5))
+    const n = withLast.length ? 2 : 1
+    if (tied.length === 1) out.workerIds.push(tied[0].x.id)
+    else out.unsure.push({ at: i, n, ids: tied.map((c) => c.x.id) })
+    take(i, n)
   }
+  for (let i = 0; i < ws.length; i++) workerAt(i, true)
   // Kinds of job: "לינה", "כולל לינה", "עבודת לילה", "יום" (not the "יום" of "יום שלישי").
   for (let i = 0; i < ws.length; i++) {
     if (used[i]) continue
@@ -124,6 +145,28 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
       if (/^(?:הקרוב|הבא)$/.test(next)) take(i + 1)
     }
   }
+  // "15.11", "ב-15.11.26", "עד 20.11": a day and month, the next one from today when no year is said.
+  for (let i = 0; i < ws.length; i++) {
+    if (used[i]) continue
+    const m = /^(?:ו?[בל]-?|עד-?)?(\d{1,2})-(\d{1,2})(?:-(\d{2,4}))?$/.exec(ws[i])
+    if (!m) continue
+    const [day, month] = [Number(m[1]), Number(m[2])]
+    let year = m[3] ? Number(m[3]) + (m[3].length === 2 ? 2000 : 0) : now.getFullYear()
+    const at = (y: number) => new Date(y, month - 1, day)
+    if (!m[3] && iso(at(year)) < plus(now, 0)) year++
+    const date = at(year)
+    if (date.getMonth() !== month - 1 || date.getDate() !== day) continue // not a real date
+    out.date = iso(date)
+    take(i)
+  }
+  // "בעוד יומיים", "עוד שבוע", "בעוד 3 ימים".
+  for (let i = 0; i < ws.length; i++) {
+    if (used[i] || !/^(?:ב)?עוד$/.test(ws[i])) continue
+    const SPANS: Record<string, number> = { יומיים: 2, שבוע: 7, שבועיים: 14 }
+    const n = NUMBERS[ws[i + 1] ?? ''] ?? (/^\d{1,2}$/.test(ws[i + 1] ?? '') ? Number(ws[i + 1]) : 0)
+    if (SPANS[ws[i + 1] ?? '']) (out.date = plus(now, SPANS[ws[i + 1]])), take(i, 2)
+    else if (n && /^(?:ימים|יום)$/.test(ws[i + 2] ?? '')) (out.date = plus(now, n)), take(i, 3)
+  }
   // "עד" before a date: part of it.
   for (let i = 0; i < ws.length; i++) if (!used[i] && ws[i] === 'עד' && used[i + 1]) take(i)
   // Roles with a count: "שני מטפסים", "טכנאי מצלמות אחד", "חשמלאי".
@@ -142,7 +185,7 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
     let count = 1
     const before = ws[i - 1] ?? ''
     const after = ws[i + r[1]] ?? ''
-    if (i > 0 && !used[i - 1] && (NUMBERS[before] || /^\d$/.test(before))) (count = NUMBERS[before] ?? Number(before)), take(i - 1)
+    if (i > 0 && !used[i - 1] && (NUMBERS[before] || /^\d{1,2}$/.test(before))) (count = NUMBERS[before] ?? Number(before)), take(i - 1)
     else if (NUMBERS[after] && !used[i + r[1]]) (count = NUMBERS[after]), take(i + r[1])
     out.staffing.push({ roleId: r[0], count })
     take(i, r[1])
@@ -154,6 +197,8 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
       if (jw.every((w, k) => !used[i + k] && ws[i + k] === w)) (out.description = j.name), take(i, jw.length)
     }
   }
+  // Names not said exactly: the closest worker, when one is close enough (typos, speech recognition, English).
+  for (let i = 0; i < ws.length; i++) workerAt(i, false)
   ws.forEach((w, i) => {
     if (!used[i] && !FILLER.has(w)) {
       out.rest.push(w)
@@ -169,6 +214,7 @@ export interface Learned {
   job: { words: string[][]; required: JobField[] } // action words of each example
   sick: { words: string[][]; needsDate: boolean }
   aliases: Record<string, string> // a word of the manager's -> roleId
+  protect: Set<string> // learned action words: never read as a worker's name
 }
 
 type JobField = 'date' | 'shiftKindId' | 'location' | 'jobDescription' | 'staffing'
@@ -204,7 +250,7 @@ export function exampleAction(p: Proposal, asked: string[]): ExampleAction | und
 }
 
 export function learn(examples: AssistantExample[], d: AppData): Learned {
-  const L: Learned = { job: { words: [], required: [] }, sick: { words: [], needsDate: false }, aliases: {} }
+  const L: Learned = { job: { words: [], required: [] }, sick: { words: [], needsDate: false }, aliases: {}, protect: new Set() }
   const jobs: ExampleAction[] = []
   for (const ex of examples) {
     const a = ex.action
@@ -221,20 +267,30 @@ export function learn(examples: AssistantExample[], d: AppData): Learned {
         if (i >= 0) L.aliases[singular(bare(ws[i]))] = s.roleId
       }
       f = find(a.said, d, L.aliases, then)
-      const desc = new Set(words(a.job.jobDescription))
-      L.job.words.push(f.rest.filter((w) => !desc.has(w)).map(bare).filter((w) => !ASSIGN.test(w)))
+      // The action's own values are slots, never part of the template, also when the lists did not explain them.
+      const slots = slotWords([a.job.jobDescription, a.job.location])
+      L.job.words.push(f.rest.map(bare).filter((w, k) => !slots.has(w) && !slots.has(f.rest[k]) && !isValue(w) && !ASSIGN.test(w)))
     } else {
       const f = find(a.said, d, L.aliases, then)
-      if (!f.workerIds.includes(a.workerId)) continue // the name was not said as the list has it
-      L.sick.words.push(f.rest.map(bare))
+      const w = d.workers.find((x) => x.id === a.workerId)
+      // The worker's name is a slot: it is the name said, however it was spelled.
+      const name = f.rest.filter((x) => w && (closeName(x, w.firstName) || closeName(bare(x), w.firstName) || closeName(x, w.lastName)))
+      if (!f.workerIds.includes(a.workerId) && !name.length) continue // the sentence does not name him
+      L.sick.words.push(f.rest.filter((x) => !name.includes(x)).map(bare).filter((x) => !isValue(x)))
     }
   }
+  for (const ws of [...L.job.words, ...L.sick.words]) for (const w of ws) L.protect.add(w)
   L.job.required = JOB_FIELDS.filter((k) => jobs.every((a) => a.type === 'job' && (k === 'staffing' ? a.job.staffing.length > 0 : Boolean(a.job[k]))))
   // Built in, from the first time (the user's request): "<worker> חולה <when>". Learned phrasings add to it.
   L.sick.words.push(['חולה'])
   L.sick.needsDate = false
   return L
 }
+
+/** The words of a value (a place, a description): each also without its ב/ל/ה. */
+const slotWords = (values: string[]) => new Set(values.flatMap((v) => words(v ?? '')).flatMap((w) => [w, bare(w)]))
+/** A number or a date written in digits: always a value. */
+const isValue = (w: string) => /\d/.test(w)
 
 /** True when all the action words of one learned example were said. */
 const said = (examples: string[][], rest: string[]) => examples.some((ws) => ws.length > 0 && ws.every((w) => rest.includes(w)))
@@ -252,7 +308,16 @@ export type Local =
   | { kind: 'propose'; proposal: Proposal }
   | { kind: 'advise'; spoken: string; options: SolverOption[]; extra: Edits; extraText: string }
   | { kind: 'ask'; question: string; pending: PendingJob }
+  | { kind: 'which'; question: string; pending: PendingWho }
   | null
+
+/** A name said that is about equally close to more than one worker, waiting for the manager to say which. */
+export interface PendingWho {
+  text: string // the sentence as said
+  at: number // where the name is in it (words)
+  n: number // how many words the name took
+  ids: string[] // the workers it may be
+}
 
 const SCREENS: [RegExp, Screen][] = [
   [/^(?:ה)?(?:יומן|לוח|לוח העבודות|לוח זמנים)$/, 'calendar'],
@@ -293,7 +358,7 @@ function fixed(text: string, d: AppData, now: Date): Local {
   const who = /^(?:מי (?:עובד|עובדים|יוצא|יוצאים|בעבודה|משובץ|משובצים)|מה יש(?: לנו)?|איזה עבודות יש|אילו עבודות יש|מה העבודות|מה הסידור|מה מתוכנן|יש עבודות) (.+)$/.exec(s)
   if (who) {
     const f = find(who[1], d, {}, now)
-    if (f.date && !f.rest.length && !f.location && !f.workerIds.length && !f.staffing.length) return { kind: 'say', text: whoWorks(f.date, d, now) }
+    if (f.date && !f.rest.length && !f.location && !f.workerIds.length && !f.unsure.length && !f.staffing.length) return { kind: 'say', text: whoWorks(f.date, d, now) }
   }
   return null
 }
@@ -342,8 +407,8 @@ const missingOf = (job: PendingJob['job'], required: JobField[]) => required.fil
 
 /** A new job said the way a learned one was. */
 function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
-  const f = find(text, d, L.aliases, now)
-  if (f.workerIds.length) return null // naming workers is beyond what was learned
+  const f = find(text, d, L.aliases, now, L.protect)
+  if (f.workerIds.length || f.unsure.length) return null // naming workers is beyond what was learned
   const rest = f.rest.map(bare)
   if (!said(L.job.words, rest.filter((w) => !ASSIGN.test(w)))) return null
   const action = new Set(L.job.words.flat())
@@ -364,9 +429,9 @@ function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
 /** The answer to a question about a missing detail of a job being opened here. */
 export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned, now: Date): Local {
   const field = p.missing[0]
-  const f = find(text, d, L.aliases, now)
+  const f = find(text, d, L.aliases, now, L.protect)
   const job = { ...p.job }
-  if (f.workerIds.length) return null
+  if (f.workerIds.length || f.unsure.length) return null
   if (field === 'jobDescription' && !f.description) {
     const t = clean(text)
     if (!t || f.date || f.location || f.staffing.length) return null
@@ -388,7 +453,7 @@ export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned,
 /** "יוסי חולה היום", said the way a learned one was: mark sick, and offer a replacement when he is in a job. */
 /** "<worker> חולה <when>": the change to his card and how it is said, or null when the sentence is more than that. */
 export function sickPlan(text: string, d: AppData, L: Learned, now: Date): { workerId: string; extra: Edits; sickText: string; from: string; until: string } | null {
-  const f = find(text, d, L.aliases, now)
+  const f = find(text, d, L.aliases, now, L.protect)
   if (f.workerIds.length !== 1 || f.location || f.staffing.length || f.shiftKindId || f.description) return null
   const rest = f.rest.map(bare)
   if (!said(L.sick.words, rest)) return null
@@ -399,7 +464,7 @@ export function sickPlan(text: string, d: AppData, L: Learned, now: Date): { wor
   const until = f.date ?? today
   if (until < today) return null
   // "חולה מחר" (a day ahead, not "עד מחר"): an absence on that day; he still works today.
-  const ahead = until > today && !words(text).includes('עד')
+  const ahead = until > today && !words(text).some((w) => /^ו?עד(?:-|$)/.test(w))
   const from = ahead ? until : today
   const w = d.workers.find((x) => x.id === f.workerIds[0])!
   const name = `${w.firstName} ${w.lastName}`.trim()
@@ -415,9 +480,67 @@ export function sickPlan(text: string, d: AppData, L: Learned, now: Date): { wor
   return { workerId: w.id, extra, sickText, from, until }
 }
 
+/**
+ * "<name> חולה" where the name is not one worker: about equally close to two or more, the app asks which;
+ * close to none, it says there is no such worker (never a wild guess). Null when the sentence is more than that.
+ */
+function sickWho(text: string, d: AppData, L: Learned, now: Date): Local {
+  const f = find(text, d, L.aliases, now, L.protect)
+  if (f.workerIds.length || f.location || f.staffing.length || f.shiftKindId || f.description || f.unsure.length > 1) return null
+  const rest = f.rest.map(bare)
+  if (!said(L.sick.words, rest)) return null
+  const action = new Set(L.sick.words.flat())
+  const other = f.restAt.filter((_, k) => !action.has(rest[k]))
+  const name = (id: string) => {
+    const w = d.workers.find((x) => x.id === id)!
+    return `${w.firstName} ${w.lastName}`.trim()
+  }
+  if (f.unsure.length === 1 && !other.length) {
+    const u = f.unsure[0]
+    const names = u.ids.map(name)
+    const list = names.length === 2 ? names.join(' או ') : `${names.slice(0, -1).join(', ')} או ${names[names.length - 1]}`
+    return { kind: 'which', question: `למי התכוונת, ${list}?`, pending: { text, at: u.at, n: u.n, ids: u.ids } }
+  }
+  if (!f.unsure.length && other.length === 1) {
+    const heard = words(text)[other[0]]
+    if (heard.length < 2 || COMMON.has(heard) || COMMON.has(bare(heard)) || isValue(heard)) return null
+    return { kind: 'say', text: `לא מצאתי עובד בשם ${heard}. אפשר לומר שוב, עם השם כמו שהוא ברשימת העובדים.` }
+  }
+  return null
+}
+
+/** The answer to "למי התכוונת": the sentence again with the worker picked, or null when the answer is not one of them. */
+export function continueWho(text: string, p: PendingWho, d: AppData, L: Learned, now: Date): { text: string; local: Local } | null {
+  const ws = words(text)
+  const options = p.ids.map((id) => d.workers.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => Boolean(x))
+  let pick = isYes(clean(text)) ? null : pickedOption(text, options.length) // "כן" does not say which
+  if (pick === null) {
+    // A first name, a last name or both: the one option it fits, and only that one.
+    const fits = options.map((w) => {
+      const full = words(`${w.firstName} ${w.lastName}`)
+      const meant = ws.filter((x) => !FILLER.has(x) && !/^(?:ל|את|כן|ה)$/.test(x))
+      return meant.length > 0 && meant.every((x) => full.some((n) => closeName(x, n) || closeName(bare(x), n)))
+    })
+    const only = fits.filter(Boolean).length === 1 ? fits.indexOf(true) : -1
+    // When the said words fit both, the closer last name decides.
+    if (only < 0) {
+      const scores = options.map((w) => Math.min(...ws.map((x) => nameDistance(x, w.lastName || ' '))))
+      const best = Math.min(...scores)
+      if (fits.every(Boolean) && scores.filter((x) => x === best).length === 1 && best <= 1) pick = scores.indexOf(best)
+    } else pick = only
+  }
+  if (pick === null || pick < 0) return null
+  const w = options[pick]
+  const said1 = words(p.text)
+  const fixed1 = [...said1.slice(0, p.at), w.firstName, ...(w.lastName ? [w.lastName] : []), ...said1.slice(p.at + p.n)].join(' ')
+  // With the full name the sentence is about him alone (all workers stay in, as replacements).
+  const local = handleFree(fixed1, d, L, now)
+  return local ? { text: fixed1, local } : null
+}
+
 function learnedSick(text: string, d: AppData, L: Learned, now: Date): Local {
   const plan = sickPlan(text, d, L, now)
-  if (!plan) return null
+  if (!plan) return sickWho(text, d, L, now)
   const { extra, sickText, from, until } = plan
   const w = d.workers.find((x) => x.id === plan.workerId)!
   // Jobs he is in, from today to the last sick day.

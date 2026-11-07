@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { continueJob, exampleAction, handleFree, learn, pickedOption, sickPlan, type Local } from './freeCommands'
+import { continueJob, continueWho, exampleAction, handleFree, learn, pickedOption, sickPlan, type Local } from './freeCommands'
 import { normalizeProposal, proposalErrors, type AppData } from './assistant'
 import type { AssistantExample, ShiftRecord, Worker } from '../types/models'
 
@@ -221,5 +221,88 @@ describe('sick from the first time, and picking by voice', () => {
     expect(pickedOption('את השני', 3)).toBe(1)
     expect(pickedOption('השלישי', 2)).toBeNull()
     expect(pickedOption('לא, תחפש מישהו אחר', 3)).toBeNull()
+  })
+})
+
+describe('worker names said a little differently (typos, speech recognition, English)', () => {
+  const sickOf = (r: Local) => (r?.kind === 'propose' ? r.proposal.editWorkers[0]?.workerId ?? r.proposal.addConstraints[0]?.workerId : null)
+
+  it('finds the closest worker', () => {
+    expect(sickOf(run('יוסיי חולה היום'))).toBe('w2') // a letter too many
+    expect(sickOf(run('דאני חולה היום'))).toBe('w1') // a vowel letter added
+    expect(sickOf(run('משה טורגמן חולה היום'))).toBe('w5') // ט for ת in the last name
+    expect(sickOf(run('Yossi חולה היום'))).toBe('w2') // written in English
+    expect(sickOf(run('moshe חולה היום'))).toBe('w5')
+    expect(sickOf(run('ליוסי חולה היום'))).toBe('w2')
+  })
+
+  it('a card written in English is found by its Hebrew sound', () => {
+    const d = data({ workers: [...base.workers, w('w7', 'David', 'Smith', ['r1'])] })
+    expect(sickOf(run('דוד חולה היום', d))).toBe('w7')
+    expect(sickOf(run('דייויד סמית חולה היום', d))).toBe('w7')
+  })
+
+  it('says there is no such worker when no name is close enough, and never guesses', () => {
+    for (const [s, name] of [['גלעד חולה היום', 'גלעד'], ['רונן חולה היום', 'רונן'], ['אמי חולה מחר', 'אמי']])
+      expect(run(s)).toEqual({ kind: 'say', text: `לא מצאתי עובד בשם ${name}. אפשר לומר שוב, עם השם כמו שהוא ברשימת העובדים.` })
+  })
+
+  it('asks which one when two workers are about equally close', () => {
+    const d = data({ workers: [...base.workers, w('w8', 'יוסי', 'לוי', ['r1'])] })
+    const r = run('יוסי חולה היום', d)
+    expect(r).toMatchObject({ kind: 'which', question: 'למי התכוונת, יוסי כהן או יוסי לוי?' })
+    if (r?.kind !== 'which') return
+    const L = learn(d.assistantExamples, d)
+    expect(sickOf(continueWho('לוי', r.pending, d, L, NOW)?.local ?? null)).toBe('w8')
+    expect(sickOf(continueWho('יוסי כהן', r.pending, d, L, NOW)?.local ?? null)).toBe('w2')
+    expect(sickOf(continueWho('השני', r.pending, d, L, NOW)?.local ?? null)).toBe('w8')
+    expect(continueWho('יוסי כהן', r.pending, d, L, NOW)?.text).toBe('יוסי כהן חולה היום')
+    expect(continueWho('דני', r.pending, d, L, NOW)).toBeNull() // not one of them: Claude
+    expect(continueWho('כן', r.pending, d, L, NOW)).toBeNull()
+    // The last name said decides at once.
+    expect(sickOf(run('יוסי לוי חולה היום', d))).toBe('w8')
+  })
+
+  it('asks also when a misheard name is equally near two', () => {
+    const d = data({ workers: [...base.workers, w('w9', 'אלון', 'שחר', ['r1']), w('w10', 'אילן', 'גבאי', ['r1'])] })
+    expect(run('אלן חולה היום', d)).toMatchObject({ kind: 'which', question: 'למי התכוונת, אלון שחר או אילן גבאי?', pending: { ids: ['w9', 'w10'] } })
+    expect(sickOf(run('אילן חולה היום', d))).toBe('w10') // the exact name wins
+    expect(sickOf(run('אלן גבאי חולה היום', d))).toBe('w10') // the last name decides
+  })
+
+  it('ordinary words are not names', () => {
+    expect(run('הילד שלי חולה היום')).toBeNull()
+    expect(run('מישהו חולה היום')).toBeNull()
+    expect(run('אני חולה היום')).toBeNull()
+    expect(run('תפתח עבודה מחר לילה באילת אתר 123 החלפת אנטנה עם דאני')).toBeNull() // a worker in a job: Claude
+  })
+})
+
+describe('learned patterns keep values as slots', () => {
+  it('a date in digits and a new place in the example are not part of the template', () => {
+    const d = data({
+      assistantExamples: [
+        ex('תפתח עבודה ב-15.11 לילה בבאר שבע 9 החלפת אנטנה שני מטפסים', {
+          jobs: [{ date: '2026-11-15', shiftKindId: 's2', location: 'באר שבע 9', jobDescription: 'החלפת אנטנה', staffing: [{ roleId: 'r1', count: 2 }] }],
+        }),
+      ],
+    })
+    expect(learn(d.assistantExamples, d).job.words).toEqual([['תפתח', 'עבודה']])
+    const r = job(run('תפתח עבודה ב-20.11 יום בערד 17 תחזוקת מצלמות 3 מטפסים', d))
+    expect(r).toMatchObject({ date: '2026-11-20', shiftKindId: 's1', location: 'ערד 17', jobDescription: 'תחזוקת מצלמות', staffing: [{ roleId: 'r1', count: 3 }] })
+  })
+
+  it('a misspelled name in the example is a slot too', () => {
+    const d = data({ assistantExamples: [ex('יוסיי חולה עד מחר', { editWorkers: [{ workerId: 'w2', status: 'sick', sickUntil: '2026-11-07' }] })] })
+    expect(learn(d.assistantExamples, d).sick.words[0]).toEqual(['חולה'])
+  })
+
+  it('reads dates in digits and "בעוד"', () => {
+    const until = (r: Local) => (r?.kind === 'propose' ? r.proposal.editWorkers[0]?.sickUntil ?? r.proposal.addConstraints[0]?.from : null)
+    expect(until(run('יוסי חולה עד 10.11'))).toBe('2026-11-10')
+    expect(until(run('יוסי חולה בעוד יומיים'))).toBe('2026-11-09')
+    expect(run('יוסי חולה בעוד יומיים')).toMatchObject({ kind: 'propose', proposal: { editWorkers: [], addConstraints: [{ workerId: 'w2', from: '2026-11-09' }] } })
+    expect(until(run('יוסי חולה עד 3.1'))).toBe('2027-01-03') // the next 3.1
+    expect(run('יוסי חולה עד 31.2')).toBeNull() // not a real date: Claude
   })
 })

@@ -370,6 +370,7 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Learning: on every confirmed Claude proposal `exampleAction` keeps `AssistantExample.action` (one new job, or one worker sick). `learn()` gets action words, aliases ("מטפסים" = טפסן) and required fields from them. A sentence is handled only when every word is explained; otherwise everything said so far goes to Claude as one turn. Local proposals are checked with `proposalErrors` first.
 - Counter on the assistant screen: free vs Claude turns this month, localStorage `assistant.usage`.
 - Next: more learned actions the same way (on leave / constraints, assign a named worker, move a job), each with its own test set in `src/lib/freeCommands.test.ts`.
+- Names by closeness and values as slots (2026-11-07, user's rule): worker names in free commands are matched by sound (`src/lib/nameMatch.ts`: typos, speech recognition, English spelling either way). Clearly closest = that worker; two about equally close = "למי התכוונת, X או Y?" (answered by first name, last name or "השני", `continueWho`); none close enough = "לא מצאתי עובד בשם X", free. Learning keeps only the action words: the example's own values (date in digits, a new place, a misspelled name, counts) are slots. New date forms: 15.11, בעוד יומיים, בעוד N ימים; counts in digits. Tests: `freeCommands.test.ts` (32 with `nameMatch.test.ts`). The skill `free-commands` has both rules for future actions.
 
 ## Done: worker's personal calendar (2026-11-07)
 
