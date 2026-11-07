@@ -105,7 +105,6 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     setPhase('thinking')
     setError(null)
     fromFree.current = false
-    setUsed(countTurn('paid'))
     conversation.current = [...conversation.current, turn]
     let answer: AssistantAnswer
     let early = ''
@@ -121,6 +120,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       setPhase('idle')
       return
     }
+    // Counted only when Claude answered: a refused call (no credit, no connection) is not charged.
+    setUsed(countTurn('paid'))
     conversation.current = [...conversation.current, { role: 'assistant', content: answer.content }]
     setTalking(true)
     last.current = answer
