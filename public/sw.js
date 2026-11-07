@@ -1,4 +1,4 @@
-// ShiftSmart service worker: makes the app installable and lets it open with a weak signal.
+// Shaly service worker: makes the app installable and lets it open with a weak signal.
 // Pages: network first, cached copy when offline. Built files in /assets have hashed names,
 // so they are cached once and reused. Google APIs, other origins and /api (sign-in) are never touched.
 const CACHE = 'shiftsmart-v3'

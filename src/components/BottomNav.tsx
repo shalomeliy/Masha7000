@@ -7,7 +7,7 @@ export type Tab = 'voice' | 'calendar' | 'toSchedule' | 'workers' | 'archive' | 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'calendar', label: 'יומן', icon: CalendarDays },
   { id: 'toSchedule', label: 'לשיבוץ', icon: ClipboardList },
-  { id: 'voice', label: 'עוזר', icon: Mic },
+  { id: 'voice', label: 'Shaly', icon: Mic },
   { id: 'workers', label: 'עובדים', icon: Users },
   { id: 'settings', label: 'הגדרות', icon: Settings },
 ]

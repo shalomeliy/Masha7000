@@ -161,7 +161,7 @@ function page(c: Ctx, draw: boolean, report: Report): number {
   }
   text(c, draw, report.title, right, 84, font(800, 60), '#ffffff')
   text(c, draw, report.subtitle, right, 160, font(600, 42), '#7dd3fc')
-  text(c, draw, 'ShiftSmart', PAD, 84, font(700, 30), '#64748b', 'left')
+  text(c, draw, 'Shaly', PAD, 84, font(700, 30), '#64748b', 'left')
 
   let y = headH + 40
   const week = report.days.length > 1
@@ -178,7 +178,7 @@ function page(c: Ctx, draw: boolean, report: Report): number {
     for (const s of day.shifts) y += shiftCard(c, draw, s, y) + 24
     y += week ? 24 : 0
   }
-  text(c, draw, 'נשלח מ-ShiftSmart', W / 2, y + 30, font(500, 26), '#94a3b8', 'center')
+  text(c, draw, 'נשלח מ-Shaly', W / 2, y + 30, font(500, 26), '#94a3b8', 'center')
   return y + 80
 }
 
