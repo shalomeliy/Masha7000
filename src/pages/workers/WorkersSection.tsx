@@ -271,20 +271,9 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
       {/* The team's state today: a count per state; a tap shows only those workers. */}
       {tab === "team" && !showInactive && team.length > 0 && (
         <section aria-label={tx("מצב הצוות היום")} className="mb-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-slate-200">{tx("מצב הצוות היום")}</h2>
-            {/* Add a worker: a compact "+" at the row's end (the left side in Hebrew). */}
-            <button
-              type="button"
-              onClick={() => edit(blankWorker())}
-              aria-label={tx("הוספת עובד")}
-              title={tx("הוספת עובד")}
-              className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white active:bg-sky-700"
-            >
-              <Plus size={22} aria-hidden />
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
+          <h2 className="mb-2 text-sm font-semibold text-slate-200">{tx("מצב הצוות היום")}</h2>
+          <div className="flex items-start gap-2">
+          <div className="flex flex-1 flex-wrap gap-2">
             {team.map((t) => (
               <button
                 key={t.id}
@@ -299,6 +288,17 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
                 {`${STATE_NAMES[t.id]} ${t.count}`}
               </button>
             ))}
+          </div>
+            {/* Add a worker: a compact "+" in the same row as the states, at its end (the left side in Hebrew). */}
+            <button
+              type="button"
+              onClick={() => edit(blankWorker())}
+              aria-label={tx("הוספת עובד")}
+              title={tx("הוספת עובד")}
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white active:bg-sky-700"
+            >
+              <Plus size={22} aria-hidden />
+            </button>
           </div>
         </section>
       )}
