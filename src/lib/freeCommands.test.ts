@@ -178,3 +178,25 @@ describe('names as speech recognition writes them', () => {
     expect(run('משה גולדברג חולה היום')).toBeNull()
   })
 })
+
+describe('sick tomorrow', () => {
+  it('is an absence tomorrow, not sick from today', () => {
+    const r = run('יוסי חולה מחר')
+    expect(r?.kind).toBe('propose')
+    if (r?.kind !== 'propose') return
+    expect(r.proposal.editWorkers).toEqual([])
+    expect(r.proposal.addConstraints).toEqual([{ workerId: 'w2', from: '2026-11-08', to: '2026-11-08', nightsOnly: false, note: 'מחלה', kind: '' }])
+    expect(r.proposal.summary).toBe('יוסי כהן חולה מחר. הוא לא משובץ לעבודה בימים האלה. לאשר, או שיש עוד תיקון?')
+  })
+
+  it('"עד מחר" is sick from today', () => {
+    const r = run('יוסי חולה עד מחר')
+    if (r?.kind === 'propose') expect(r.proposal.editWorkers[0]).toMatchObject({ status: 'sick', sickUntil: '2026-11-08' })
+    else throw new Error(JSON.stringify(r))
+  })
+
+  it('a sickness ahead that Claude saved as an absence is learned too', () => {
+    const d = data({ assistantExamples: [ex('אבי אלפסי חולה מחר', { addConstraints: [{ workerId: 'w6', from: '2026-11-07', to: '2026-11-07', note: 'מחלה' }] })] })
+    expect(run('דני חולה מחרתיים', d)?.kind).toBe('propose')
+  })
+})

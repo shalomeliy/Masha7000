@@ -195,6 +195,11 @@ export function exampleAction(p: Proposal, asked: string[]): ExampleAction | und
     // Only the first sentence: the rest is the choice of a replacement.
     return { type: 'sick', said: asked[0].slice(0, 200), workerId: sick[0].workerId, until: sick[0].sickUntil }
   }
+  // A sickness ahead ("חולה מחר") is saved as an absence on that day.
+  const absence = p.addConstraints
+  if (!sick.length && absence.length === 1 && /מחל|חול/.test(absence[0].note) && !p.editWorkers.length && !p.jobs.length && !others && !p.listItems.length) {
+    return { type: 'sick', said: asked[0].slice(0, 200), workerId: absence[0].workerId, until: absence[0].to || absence[0].from }
+  }
   return undefined
 }
 
@@ -391,8 +396,12 @@ function learnedSick(text: string, d: AppData, L: Learned, now: Date): Local {
   const action = new Set(L.sick.words.flat())
   if (rest.some((w) => !action.has(w))) return null
   if (L.sick.needsDate && !f.date) return null
-  const until = f.date ?? plus(now, 0)
-  if (until < plus(now, 0)) return null
+  const today = plus(now, 0)
+  const until = f.date ?? today
+  if (until < today) return null
+  // "חולה מחר" (a day ahead, not "עד מחר"): an absence on that day; he still works today.
+  const ahead = until > today && !words(text).includes('עד')
+  const from = ahead ? until : today
   const w = d.workers.find((x) => x.id === f.workerIds[0])!
   const name = `${w.firstName} ${w.lastName}`.trim()
   const extra: Edits = {
@@ -400,12 +409,12 @@ function learnedSick(text: string, d: AppData, L: Learned, now: Date): Local {
     setCrews: [],
     closeJobs: [],
     deleteJobIds: [],
-    editWorkers: [{ workerId: w.id, mobilePhone: '', addRoleIds: [], removeRoleIds: [], addCertificationIds: [], removeCertificationIds: [], status: 'sick', sickUntil: until }],
-    addConstraints: [],
+    editWorkers: ahead ? [] : [{ workerId: w.id, mobilePhone: '', addRoleIds: [], removeRoleIds: [], addCertificationIds: [], removeCertificationIds: [], status: 'sick', sickUntil: until }],
+    addConstraints: ahead ? [{ workerId: w.id, from: until, to: until, nightsOnly: false, note: 'מחלה', kind: '' }] : [],
   }
-  const sickText = `${name} חולה עד ${until === plus(now, 0) ? 'היום' : dayText(until, now).replace(/^ביום /, 'יום ')}`
+  const sickText = ahead ? `${name} חולה ${dayText(until, now)}` : `${name} חולה עד ${until === today ? 'היום' : dayText(until, now).replace(/^ביום /, 'יום ')}`
   // Jobs he is in, from today to the last sick day.
-  const jobs = d.shifts.filter((s) => !s.closure && s.date >= plus(now, 0) && s.date <= until && s.crew.some((c) => c.workerId === w.id)).sort((a, b) => a.date.localeCompare(b.date))
+  const jobs = d.shifts.filter((s) => !s.closure && s.date >= from && s.date <= until && s.crew.some((c) => c.workerId === w.id)).sort((a, b) => a.date.localeCompare(b.date))
   if (jobs.length) {
     const job = jobs[0]
     const options = solve(d, { kind: 'missing', shiftId: job.id, workerIds: [w.id] })

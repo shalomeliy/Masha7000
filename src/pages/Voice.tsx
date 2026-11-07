@@ -314,6 +314,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         ...normalizeProposal({}),
         ...o.changes,
         editWorkers: [...o.changes.editWorkers, ...(advice.extra?.editWorkers ?? [])],
+        addConstraints: [...o.changes.addConstraints, ...(advice.extra?.addConstraints ?? [])],
         summary: `${advice.extraText ? `${advice.extraText}. ` : ''}${tx('{title}. {v}. לאשר, או שיש עוד תיקון?', { title: o.title, v: o.actions.join('. ') })}`,
         lessons: lesson ? [lesson] : [],
       }
