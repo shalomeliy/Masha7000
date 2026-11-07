@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { generalRoleId, nameError, newId, staffingFor, staffingText, upsert } from '../../lib/catalog'
@@ -10,7 +11,7 @@ import { AddButton, EditMark, EmptyState } from '../workers/common'
 // Work kinds and the people each one needs. A job keeps the places it was given, so changing a
 // kind here changes only jobs it is picked in from now on.
 
-const EXPLAIN = 'כל סוג עבודה אומר כמה אנשים הוא צריך ובאיזה תפקיד. כשבוחרים סוג בעבודה, האנשים שלו נוספים לבד ל"כמה אנשים צריך".'
+const EXPLAIN = tx('כל סוג עבודה אומר כמה אנשים הוא צריך ובאיזה תפקיד. כשבוחרים סוג בעבודה, האנשים שלו נוספים לבד ל"כמה אנשים צריך".')
 
 export function WorkKindsSection() {
   useStarterWorkKinds()
@@ -23,7 +24,7 @@ export function WorkKindsSection() {
   return (
     <>
       {kinds.items.length === 0 ? (
-        <EmptyState text={EXPLAIN} addLabel="הוספת סוג עבודה" onAdd={fresh} />
+        <EmptyState text={EXPLAIN} addLabel={tx('הוספת סוג עבודה')} onAdd={fresh} />
       ) : (
         <>
           <p className="mb-3 text-sm text-slate-400">{EXPLAIN}</p>
@@ -42,12 +43,12 @@ export function WorkKindsSection() {
               </li>
             ))}
           </ul>
-          <AddButton label="הוספת סוג עבודה" onClick={fresh} />
+          <AddButton label={tx('הוספת סוג עבודה')} onClick={fresh} />
         </>
       )}
       <Sheet
         open={editing !== null}
-        title={editing && kinds.items.some((x) => x.id === editing.id) ? 'עריכת סוג עבודה' : 'סוג עבודה חדש'}
+        title={editing && kinds.items.some((x) => x.id === editing.id) ? tx('עריכת סוג עבודה') : tx('סוג עבודה חדש')}
         onClose={() => setEditing(null)}
         locked={kinds.saving}
       >
@@ -90,7 +91,7 @@ function KindForm({ kind, onDone }: { kind: WorkKind; onDone: () => void }) {
 
   return (
     <>
-      <Field label="שם סוג העבודה">
+      <Field label={tx('שם סוג העבודה')}>
         <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </Field>
       <StaffingField value={staffing} onChange={setStaffing} alt />
@@ -98,7 +99,7 @@ function KindForm({ kind, onDone }: { kind: WorkKind; onDone: () => void }) {
         onSave={save}
         onCancel={onDone}
         onDelete={exists ? () => run(() => kinds.save(kinds.items.filter((x) => x.id !== kind.id))) : undefined}
-        deleteWarning={`למחוק את "${kind.name}"? עבודות שכבר נבחר בהן נשארות עם האנשים שהן צריכות.`}
+        deleteWarning={tx('למחוק את "{name}"? עבודות שכבר נבחר בהן נשארות עם האנשים שהן צריכות.', { name: kind.name })}
         busy={busy}
         error={error}
         saveError={saveError}

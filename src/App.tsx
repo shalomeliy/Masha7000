@@ -1,3 +1,4 @@
+import { tx } from './i18n'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -34,7 +35,7 @@ export default function App() {
     return (
       <main className="flex min-h-full items-center justify-center gap-2 text-slate-400">
         <Loader2 className="animate-spin" size={20} aria-hidden />
-        מתחבר...
+        {tx('מתחבר...')}
       </main>
     )
   if (status === 'needsMfa')

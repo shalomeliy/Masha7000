@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { countText, endsNextDay, newId, NIGHT_PLUS, SHIFT_END, SHIFT_START, shiftError, STANDBY_HEADCOUNT, STARTER_SHIFTS, tagNames, upsert } from '../../lib/catalog'
@@ -16,7 +17,7 @@ const blankShift = (): ShiftDefinition => ({
 })
 
 const hoursText = (s: ShiftDefinition) =>
-  `נגמרת ב-${s.endTime}${endsNextDay(s) ? ' למחרת' : ''}${s.thenJob ? ', ואז עוד עבודה לפני החזרה לבסיס' : ''}`
+  tx('נגמרת ב-{endTime}{v}{v2}', { endTime: s.endTime, v: endsNextDay(s) ? tx(' למחרת') : '', v2: s.thenJob ? tx(', ואז עוד עבודה לפני החזרה לבסיס') : '' })
 
 export function ShiftsSection() {
   const shifts = useDriveList('shiftDefinitions')
@@ -38,10 +39,10 @@ export function ShiftsSection() {
     <>
       {shifts.items.length === 0 ? (
         <EmptyState
-          text="תבנית עבודה אומרת אם העבודה נגמרת באותו יום או למחרת, כמה אנשים צריך בה ואילו תפקידים והסמכות חייבים להיות בה."
-          addLabel="הוספת תבנית עבודה"
+          text={tx('תבנית עבודה אומרת אם העבודה נגמרת באותו יום או למחרת, כמה אנשים צריך בה ואילו תפקידים והסמכות חייבים להיות בה.')}
+          addLabel={tx('הוספת תבנית עבודה')}
           onAdd={() => setEditing(blankShift())}
-          starterLabel="להתחיל עם: יום (עד 16:00), לילה (עד 16:00 למחרת), לינה (לילה ואז עוד עבודה)"
+          starterLabel={tx('להתחיל עם: יום (עד 16:00), לילה (עד 16:00 למחרת), לינה (לילה ואז עוד עבודה)')}
           onStarter={addStarter}
           starterBusy={shifts.saving}
           starterError={starterError}
@@ -62,26 +63,26 @@ export function ShiftsSection() {
                     <span className="flex items-center justify-between gap-2">
                       <span className="flex items-center gap-2 font-semibold">
                         {s.name}
-                        {s.isStandby && <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-xs text-violet-200">כוננות</span>}
+                        {s.isStandby && <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-xs text-violet-200">{tx('כוננות')}</span>}
                       </span>
-                      <span className="text-sm text-slate-400">{countText(s.requiredHeadcount ?? 1, 'אדם אחד', 'אנשים')}</span>
+                      <span className="text-sm text-slate-400">{countText(s.requiredHeadcount ?? 1, tx('אדם אחד'), tx('אנשים'))}</span>
                     </span>
                     <span className="block text-sm text-slate-300">{hoursText(s)}</span>
                     <span className="block text-xs text-slate-400">
-                      {names.length ? `נדרש: ${names.join(', ')}` : 'אין תפקיד או הסמכה נדרשים'}
+                      {names.length ? tx('נדרש: {v}', { v: names.join(', ') }) : tx('אין תפקיד או הסמכה נדרשים')}
                     </span>
                   </button>
                 </li>
               )
             })}
           </ul>
-          <AddButton label="הוספת תבנית עבודה" onClick={() => setEditing(blankShift())} />
+          <AddButton label={tx('הוספת תבנית עבודה')} onClick={() => setEditing(blankShift())} />
         </>
       )}
 
       <Sheet
         open={editing !== null}
-        title={editing && shifts.items.some((s) => s.id === editing.id) ? 'עריכת תבנית עבודה' : 'תבנית עבודה חדשה'}
+        title={editing && shifts.items.some((s) => s.id === editing.id) ? tx('עריכת תבנית עבודה') : tx('תבנית עבודה חדשה')}
         onClose={() => setEditing(null)}
         locked={shifts.saving}
       >
@@ -136,12 +137,12 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
 
   return (
     <>
-      <Field label="שם התבנית">
+      <Field label={tx('שם התבנית')}>
         <input autoFocus value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className={inputClass} />
       </Field>
       {draft.thenJob ? (
         <p className="text-sm text-slate-300">
-          לילה, ואחריו הצוות עושה עוד עבודה לפני החזרה לבסיס. נספרת כעבודת לילה.
+          {tx('לילה, ואחריו הצוות עושה עוד עבודה לפני החזרה לבסיס. נספרת כעבודת לילה.')}
         </p>
       ) : (
         <label className="flex min-h-11 items-center gap-3">
@@ -152,42 +153,42 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
             className="size-5 accent-sky-500"
           />
           <span>
-            נגמרת למחרת
-            <span className="block text-xs text-slate-400">עבודת לילה: נגמרת ב-16:00 ביום שאחרי</span>
+            {tx('נגמרת למחרת')}
+            <span className="block text-xs text-slate-400">{tx('עבודת לילה: נגמרת ב-16:00 ביום שאחרי')}</span>
           </span>
         </label>
       )}
       <label className="flex min-h-11 items-center gap-3">
         <input type="checkbox" checked={!!draft.isStandby} onChange={(e) => toggleStandby(e.target.checked)} className="size-5 accent-sky-500" />
         <span>
-          עבודת כוננות
-          <span className="block text-xs text-slate-400">אנשי הצוות ממתינים בבית לקריאה</span>
+          {tx('עבודת כוננות')}
+          <span className="block text-xs text-slate-400">{tx('אנשי הצוות ממתינים בבית לקריאה')}</span>
         </span>
       </label>
-      <Field label="כמה אנשים צריך">
+      <Field label={tx('כמה אנשים צריך')}>
         <input type="number" min={1} inputMode="numeric" value={headcount} onChange={(e) => setHeadcount(e.target.value)} className={inputClass} />
       </Field>
       <div className="space-y-1">
-        <span className="text-sm text-slate-300">תפקידים שחייבים להיות בעבודה</span>
+        <span className="text-sm text-slate-300">{tx('תפקידים שחייבים להיות בעבודה')}</span>
         {roles.items.length ? (
           <Chips options={roles.items} selected={draft.requiredRoleIds} onToggle={toggleIn('requiredRoleIds')} />
         ) : (
-          <p className="text-sm text-amber-300">עוד אין תפקידים. אפשר להוסיף אותם בלשונית "תפקידים".</p>
+          <p className="text-sm text-amber-300">{tx('עוד אין תפקידים. אפשר להוסיף אותם בלשונית "תפקידים".')}</p>
         )}
       </div>
       <div className="space-y-1">
-        <span className="text-sm text-slate-300">הסמכות שחייבות להיות בעבודה</span>
+        <span className="text-sm text-slate-300">{tx('הסמכות שחייבות להיות בעבודה')}</span>
         {certs.items.length ? (
           <Chips options={certs.items} selected={draft.requiredCertificationIds} onToggle={toggleIn('requiredCertificationIds')} />
         ) : (
-          <p className="text-sm text-amber-300">עוד אין הסמכות. אפשר להוסיף אותן בלשונית "הסמכות".</p>
+          <p className="text-sm text-amber-300">{tx('עוד אין הסמכות. אפשר להוסיף אותן בלשונית "הסמכות".')}</p>
         )}
       </div>
       <SheetActions
         onSave={save}
         onCancel={onDone}
         onDelete={exists && !shift.thenJob ? () => write(shifts.items.filter((s) => s.id !== shift.id)) : undefined}
-        deleteWarning={`למחוק את תבנית העבודה "${shift.name}"? אי אפשר לבטל את זה.${inUse ? ` ${countText(inUse, 'עבודה אחת ביומן היא', `עבודות ביומן הן`)} מהתבנית הזו: הן יישארו ביומן בלי תבנית, כעבודת יום רגילה.` : ''}`}
+        deleteWarning={tx('למחוק את תבנית העבודה "{name}"? אי אפשר לבטל את זה.{v}', { name: shift.name, v: inUse ? tx(' {v} מהתבנית הזו: הן יישארו ביומן בלי תבנית, כעבודת יום רגילה.', { v: countText(inUse, tx('עבודה אחת ביומן היא'), tx('עבודות ביומן הן')) }) : '' })}
         busy={busy}
         error={error}
         saveError={saveError}

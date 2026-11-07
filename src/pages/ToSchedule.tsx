@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import { useState } from 'react'
 import { CalendarPlus, Loader2, Trash2 } from 'lucide-react'
 import { DictationField } from '../components/DictationField'
@@ -38,12 +39,12 @@ export function ToSchedule() {
 
   return (
     <section className="space-y-4 px-4 pt-6">
-      <h1 className="text-2xl font-bold">לשיבוץ</h1>
-      <div role="tablist" aria-label="מה להציג" className="grid grid-cols-2 rounded-xl bg-slate-900 p-1">
+      <h1 className="text-2xl font-bold">{tx('לשיבוץ')}</h1>
+      <div role="tablist" aria-label={tx('מה להציג')} className="grid grid-cols-2 rounded-xl bg-slate-900 p-1">
         {(
           [
-            ['jobs', 'עבודות שממתינות'],
-            ['reasons', 'סיבות דחייה'],
+            ['jobs', tx('עבודות שממתינות')],
+            ['reasons', tx('סיבות דחייה')],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -64,7 +65,7 @@ export function ToSchedule() {
       ) : loading ? (
         <p className="flex items-center gap-2 text-slate-400">
           <Loader2 className="animate-spin" size={18} aria-hidden />
-          טוען מגוגל דרייב...
+          {tx('טוען מגוגל דרייב...')}
         </p>
       ) : (
         <div role="tabpanel">{section === 'jobs' ? <JobsSection /> : <ReasonsSection />}</div>
@@ -91,13 +92,13 @@ function JobsSection() {
     <>
       {waiting.length === 0 ? (
         <EmptyState
-          text="אין עבודות שממתינות. עבודת לילה שנסגרה כ'בוצע חלקית' או 'נדחה' תופיע כאן, ואפשר גם להוסיף עבודה ביד."
-          addLabel="הוספת עבודה"
+          text={tx('אין עבודות שממתינות. עבודת לילה שנסגרה כ\'בוצע חלקית\' או \'נדחה\' תופיע כאן, ואפשר גם להוסיף עבודה ביד.')}
+          addLabel={tx('הוספת עבודה')}
           onAdd={() => setEditing(blankJob())}
         />
       ) : (
         <>
-          <AddButton label="הוספת עבודה" onClick={() => setEditing(blankJob())} />
+          <AddButton label={tx('הוספת עבודה')} onClick={() => setEditing(blankJob())} />
           <ul className="mt-3 space-y-2">
             {waiting.map((j) => {
               const outcome = OUTCOMES.find((o) => o.id === j.outcome)
@@ -109,19 +110,18 @@ function JobsSection() {
                     <EditMark />
                     <span className="flex flex-wrap items-center gap-2 text-xs">
                       {j.followUp ? (
-                        <span className="rounded-full border border-sky-500 bg-sky-500/15 px-2 py-0.5 font-semibold text-sky-200">משימת המשך</span>
+                        <span className="rounded-full border border-sky-500 bg-sky-500/15 px-2 py-0.5 font-semibold text-sky-200">{tx('משימת המשך')}</span>
                       ) : (
                         outcome && <span className={`rounded-full border px-2 py-0.5 font-semibold ${outcome.tone}`}>{outcome.label}</span>
                       )}
                       {def && <span className="rounded-full border border-slate-600 px-2 py-0.5 font-semibold text-slate-200">{def.name}</span>}
-                      {j.createdAt && <span className="text-slate-400">מ-{showDate(todayIso(new Date(j.createdAt)))}</span>}
+                      {j.createdAt && <span className="text-slate-400">{tx('מ-{v}', { v: showDate(todayIso(new Date(j.createdAt))) })}</span>}
                     </span>
                     {j.location && <span className="block font-semibold">{j.location}</span>}
                     {j.jobDescription && <span className="block text-sm text-slate-300">{j.jobDescription}</span>}
                     {why && <span className="block text-sm text-slate-400">{why}</span>}
                     <span className="block text-sm text-slate-400">
-                      צריך {staffingText(staffingFor(j.staffing, roles.items, certs.items.map((c) => c.id)), roles.items, certs.items)}
-                    </span>
+                      {tx('צריך {v}', { v: staffingText(staffingFor(j.staffing, roles.items, certs.items.map((c) => c.id)), roles.items, certs.items) })}</span>
                   </button>
                   <TaskHistory job={j} />
                   <JobCardActions job={j} onSchedule={() => setScheduling(blankShift(todayIso(), j))} />
@@ -132,7 +132,7 @@ function JobsSection() {
         </>
       )}
 
-      <Sheet open={editing !== null} title={editing && jobs.items.some((j) => j.id === editing.id) ? 'עריכת עבודה' : 'עבודה חדשה'} onClose={() => setEditing(null)} locked={jobs.saving}>
+      <Sheet open={editing !== null} title={editing && jobs.items.some((j) => j.id === editing.id) ? tx('עריכת עבודה') : tx('עבודה חדשה')} onClose={() => setEditing(null)} locked={jobs.saving}>
         {editing && <JobForm job={editing} onDone={() => setEditing(null)} />}
       </Sheet>
       <ShiftSheet editing={scheduling} onClose={() => setScheduling(null)} />
@@ -158,14 +158,14 @@ function JobCardActions({ job, onSchedule }: { job: PendingJob; onSchedule: () =
   if (confirming)
     return (
       <div className="space-y-3 border-t border-red-500/40 bg-red-500/10 p-3">
-        <p className="text-sm text-red-200">למחוק את העבודה מהרשימה? היא לא תחכה יותר לשיבוץ.</p>
+        <p className="text-sm text-red-200">{tx('למחוק את העבודה מהרשימה? היא לא תחכה יותר לשיבוץ.')}</p>
         {saveError != null && <DriveError error={saveError} action="save" />}
         <div className="flex gap-2">
           <button type="button" disabled={jobs.saving} onClick={remove} className="min-h-11 flex-1 rounded-xl bg-red-500 font-semibold text-slate-950 disabled:opacity-50">
-            {jobs.saving ? 'מוחק...' : 'כן, למחוק'}
+            {jobs.saving ? tx('מוחק...') : tx('כן, למחוק')}
           </button>
           <button type="button" disabled={jobs.saving} onClick={() => setConfirming(false)} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-slate-300 disabled:opacity-50">
-            לא
+            {tx('לא')}
           </button>
         </div>
       </div>
@@ -175,7 +175,7 @@ function JobCardActions({ job, onSchedule }: { job: PendingJob; onSchedule: () =
     <div className="flex border-t border-slate-800">
       <button type="button" onClick={onSchedule} className="flex min-h-12 flex-1 items-center gap-2 px-4 text-sm font-semibold text-sky-400">
         <CalendarPlus size={18} aria-hidden />
-        שיבוץ ביומן
+        {tx('שיבוץ ביומן')}
       </button>
       <button
         type="button"
@@ -183,7 +183,7 @@ function JobCardActions({ job, onSchedule }: { job: PendingJob; onSchedule: () =
         className="flex min-h-12 items-center gap-2 border-s border-slate-800 px-4 text-sm font-semibold text-red-300"
       >
         <Trash2 size={18} aria-hidden />
-        מחיקה
+        {tx('מחיקה')}
       </button>
     </div>
   )
@@ -201,7 +201,7 @@ function TaskHistory({ job }: { job: PendingJob }) {
   return (
     <details className="border-t border-slate-800 px-4 py-2 text-sm">
       <summary className="flex min-h-10 cursor-pointer items-center text-slate-300">
-        {steps.length === 1 ? `מקושרת למשימה מ-${showDate(first.date)}` : `מקושרת ל-${steps.length} משימות קודמות, מ-${showDate(first.date)}`}
+        {steps.length === 1 ? tx('מקושרת למשימה מ-{v}', { v: showDate(first.date) }) : tx('מקושרת ל-{length} משימות קודמות, מ-{v}', { length: steps.length, v: showDate(first.date) })}
       </summary>
       <ol className="space-y-2 border-s border-slate-700 ps-3 pt-1">
         {steps.map(({ shift: s }) => {
@@ -210,9 +210,7 @@ function TaskHistory({ job }: { job: PendingJob }) {
           return (
             <li key={s.id} className="space-y-0.5">
               <span className="block text-xs text-slate-400">
-                יום {dayName(s.date)} {showDate(s.date)}
-                {s.location && ` · ${s.location}`}
-              </span>
+                {tx('יום {weekday} {v2}{v3}', { weekday: dayName(s.date), v2: showDate(s.date), v3: s.location && ` · ${s.location}` })}</span>
               {s.jobDescription && <span className="block text-slate-200">{s.jobDescription}</span>}
               {outcome && (
                 <span className="block text-xs">
@@ -259,7 +257,7 @@ function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
 
   const save = () => {
     const clean = { ...draft, location: draft.location.trim(), jobDescription: draft.jobDescription.trim(), note: draft.note?.trim() || undefined }
-    const err = clean.location || clean.jobDescription ? null : 'צריך למלא מיקום או מהות עבודה'
+    const err = clean.location || clean.jobDescription ? null : tx('צריך למלא מיקום או מהות עבודה')
     setError(err)
     if (!err) write(upsert(jobs.items, clean))
   }
@@ -267,20 +265,20 @@ function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
   return (
     <>
       <ShiftDefField value={draft.shiftDefinitionId} onChange={(shiftDefinitionId) => setDraft((d) => ({ ...d, shiftDefinitionId }))} />
-      <Field label="מיקום">
+      <Field label={tx('מיקום')}>
         <input autoFocus value={draft.location} onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))} className={inputClass} />
       </Field>
       <Suggestions list="places" value={draft.location} onPick={(location) => setDraft((d) => ({ ...d, location }))} />
-      <DictationField label="מהות העבודה" value={draft.jobDescription} onChange={(v) => setDraft((d) => ({ ...d, jobDescription: v }))} />
+      <DictationField label={tx('מהות העבודה')} value={draft.jobDescription} onChange={(v) => setDraft((d) => ({ ...d, jobDescription: v }))} />
       <Suggestions list="jobTypes" value={draft.jobDescription} onPick={(jobDescription) => setDraft((d) => ({ ...d, jobDescription }))} />
       <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind, generalRoleId(roles.items)) }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => setDraft((d) => ({ ...d, staffing }))} />
-      <DictationField label="הערות" value={draft.note ?? ''} onChange={(v) => setDraft((d) => ({ ...d, note: v }))} />
+      <DictationField label={tx('הערות')} value={draft.note ?? ''} onChange={(v) => setDraft((d) => ({ ...d, note: v }))} />
       <SheetActions
         onSave={save}
         onCancel={onDone}
         onDelete={exists ? () => write(jobs.items.filter((j) => j.id !== job.id)) : undefined}
-        deleteWarning="למחוק את העבודה מהרשימה? היא לא תחכה יותר לשיבוץ."
+        deleteWarning={tx('למחוק את העבודה מהרשימה? היא לא תחכה יותר לשיבוץ.')}
         busy={busy}
         error={error}
         saveError={saveError}
@@ -307,10 +305,10 @@ export function ReasonsSection() {
     <>
       {reasons.items.length === 0 ? (
         <EmptyState
-          text="סיבות דחייה הן הרשימה שממנה תבחר כשעבודת לילה נדחית."
-          addLabel="הוספת סיבה"
+          text={tx('סיבות דחייה הן הרשימה שממנה תבחר כשעבודת לילה נדחית.')}
+          addLabel={tx('הוספת סיבה')}
           onAdd={() => setEditing({ id: newId(), name: '' })}
-          starterLabel={`להתחיל עם: ${STARTER_POSTPONE_REASONS.join(', ')}`}
+          starterLabel={tx('להתחיל עם: {v}', { v: STARTER_POSTPONE_REASONS.join(', ') })}
           onStarter={addStarter}
           starterBusy={reasons.saving}
           starterError={starterError}
@@ -331,10 +329,10 @@ export function ReasonsSection() {
               </li>
             ))}
           </ul>
-          <AddButton label="הוספת סיבה" onClick={() => setEditing({ id: newId(), name: '' })} />
+          <AddButton label={tx('הוספת סיבה')} onClick={() => setEditing({ id: newId(), name: '' })} />
         </>
       )}
-      <Sheet open={editing !== null} title={editing && reasons.items.some((r) => r.id === editing.id) ? 'עריכת סיבה' : 'סיבה חדשה'} onClose={() => setEditing(null)} locked={reasons.saving}>
+      <Sheet open={editing !== null} title={editing && reasons.items.some((r) => r.id === editing.id) ? tx('עריכת סיבה') : tx('סיבה חדשה')} onClose={() => setEditing(null)} locked={reasons.saving}>
         {editing && <ReasonForm reason={editing} onDone={() => setEditing(null)} />}
       </Sheet>
     </>
@@ -370,7 +368,7 @@ function ReasonForm({ reason, onDone }: { reason: PostponeReason; onDone: () => 
 
   return (
     <>
-      <Field label="הסיבה">
+      <Field label={tx('הסיבה')}>
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </Field>
       <SheetActions
@@ -378,7 +376,7 @@ function ReasonForm({ reason, onDone }: { reason: PostponeReason; onDone: () => 
         onCancel={onDone}
         // Closed jobs keep the id; a deleted reason just stops showing on them.
         onDelete={exists ? () => write(reasons.items.filter((r) => r.id !== reason.id)) : undefined}
-        deleteWarning="למחוק את הסיבה מהרשימה? בעבודות שכבר נסגרו עם הסיבה הזו היא לא תוצג יותר."
+        deleteWarning={tx('למחוק את הסיבה מהרשימה? בעבודות שכבר נסגרו עם הסיבה הזו היא לא תוצג יותר.')}
         busy={busy}
         error={error}
         saveError={saveError}

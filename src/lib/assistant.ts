@@ -7,7 +7,7 @@ import { endsNextDay, fullName, generalRoleId, isActive, MAX_STAFF, nameError, n
 import { constraintText, isOver } from './constraints'
 import { todayIso } from './dates'
 import { autoAssign, busyCrew, busyText, pullFrom } from './planner'
-import { addDays, dayName, isNightShift, isWaiting, showDate } from './shifts'
+import { addDays, dayName, hebrewDayName, isNightShift, isWaiting, showDate } from './shifts'
 import { toggleKind } from './workKinds'
 import { applyEdits, editCount, type Edits } from './assistantEdits'
 import { workerState } from './workerState'
@@ -27,6 +27,7 @@ import type {
   WorkKind,
   Worker,
 } from '../types/models'
+import { tx } from '../i18n'
 
 export interface AppData {
   roles: Role[]
@@ -130,10 +131,10 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
   const where = (s: ShiftRecord) => s.location.trim() || s.jobDescription.trim()
   const open = (w: Worker) => w.constraints.filter((c) => !isOver(c, today))
   return {
-    today: `${today} (יום ${dayName(today)})`,
+    today: `${today} (יום ${hebrewDayName(today)})`,
     days: Array.from({ length: CALENDAR_DAYS }, (_, i) => {
       const date = addDays(today, i)
-      return `${date} = ${i === 0 ? 'היום, ' : i === 1 ? 'מחר, ' : ''}יום ${dayName(date)} ${showDate(date)}`
+      return `${date} = ${i === 0 ? 'היום, ' : i === 1 ? 'מחר, ' : ''}יום ${hebrewDayName(date)} ${showDate(date)}`
     }),
     roles: named(d.roles),
     certifications: named(d.certifications),
@@ -189,7 +190,7 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((s) => ({
         id: s.id,
-        date: `${s.date} (יום ${dayName(s.date)})`,
+        date: `${s.date} (יום ${hebrewDayName(s.date)})`,
         kind: s.urgent ? 'דחופה' : name(s.shiftDefinitionId ?? '', d.shiftDefinitions),
         location: s.location,
         job: s.jobDescription,
@@ -290,8 +291,8 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   if (remember.length || p.forgetNoteIds.length) {
     d.assistantNotes = [...d.assistantNotes.filter((n) => !p.forgetNoteIds.includes(n.id)), ...remember.map((text) => ({ id: newId(), text, createdAt: at }))]
     changed.add('assistantNotes')
-    if (remember.length) report.push(remember.length === 1 ? 'רשמתי לעצמי לזכור את זה' : `רשמתי לעצמי ${remember.length} דברים לזכור`)
-    if (p.forgetNoteIds.length) report.push(p.forgetNoteIds.length === 1 ? 'מחקתי את זה מהזיכרון' : `מחקתי ${p.forgetNoteIds.length} דברים מהזיכרון`)
+    if (remember.length) report.push(remember.length === 1 ? tx('רשמתי לעצמי לזכור את זה') : tx('רשמתי לעצמי {length} דברים לזכור', { length: remember.length }))
+    if (p.forgetNoteIds.length) report.push(p.forgetNoteIds.length === 1 ? tx('מחקתי את זה מהזיכרון') : tx('מחקתי {length} דברים מהזיכרון', { length: p.forgetNoteIds.length }))
   }
 
   for (const item of p.listItems) {
@@ -299,7 +300,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     d[item.list] = [...list, { id: newId(), name: item.name.trim() }] as never
     changed.add(item.list)
   }
-  if (p.listItems.length) report.push(p.listItems.length === 1 ? 'הוספתי פריט לרשימה' : `הוספתי ${p.listItems.length} פריטים לרשימות`)
+  if (p.listItems.length) report.push(p.listItems.length === 1 ? tx('הוספתי פריט לרשימה') : tx('הוספתי {length} פריטים לרשימות', { length: p.listItems.length }))
 
   for (const w of p.workers) {
     d.workers = [
@@ -316,7 +317,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     ]
     changed.add('workers')
   }
-  if (p.workers.length) report.push(p.workers.length === 1 ? `הוספתי את ${p.workers[0].firstName} לעובדים` : `הוספתי ${p.workers.length} עובדים`)
+  if (p.workers.length) report.push(p.workers.length === 1 ? tx('הוספתי את {v} לעובדים', { v: p.workers[0].firstName }) : tx('הוספתי {length} עובדים', { length: p.workers.length }))
 
   const toAssign = [...p.assignShiftIds]
   const crewed: string[] = [] // new jobs with workers named by the manager
@@ -343,14 +344,14 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
       if (j.crew.length) crewed.push(base.id)
     } else {
       // A waiting job has no field for the job after the night: it goes into the note.
-      const note = [j.note.trim(), hasNext ? `אחרי הלינה: ${[next.location, next.jobDescription].filter(Boolean).join(' - ')}` : ''].filter(Boolean).join('. ')
+      const note = [j.note.trim(), hasNext ? tx('אחרי הלינה: {v}', { v: [next.location, next.jobDescription].filter(Boolean).join(' - ') }) : ''].filter(Boolean).join('. ')
       d.pendingJobs = [...d.pendingJobs, { ...base, reasonIds: [], createdAt: at, ...(note ? { note } : {}) }]
       changed.add('pendingJobs')
       waiting++
     }
   }
-  if (calendar) report.push(calendar === 1 ? 'הוספתי עבודה ליומן' : `הוספתי ${calendar} עבודות ליומן`)
-  if (waiting) report.push(waiting === 1 ? 'הוספתי עבודה לרשימת הממתינות' : `הוספתי ${waiting} עבודות לרשימת הממתינות`)
+  if (calendar) report.push(calendar === 1 ? tx('הוספתי עבודה ליומן') : tx('הוספתי {calendar} עבודות ליומן', { calendar }))
+  if (waiting) report.push(waiting === 1 ? tx('הוספתי עבודה לרשימת הממתינות') : tx('הוספתי {waiting} עבודות לרשימת הממתינות', { waiting }))
 
   const edits = applyEdits(p, d, at, changed)
   report.push(...edits.report)
@@ -373,10 +374,10 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     d.shifts = pullFrom(shift, moves.map((b) => b.worker.id), d.shifts, d.shiftDefinitions, {}, at)
     changed.add('shifts')
     for (const { worker, other } of moves) {
-      const from = `${other.location || other.jobDescription} (יום ${dayName(other.date)} ${showDate(other.date)})`
+      const from = tx('{v} (יום {weekday} {v3})', { v: other.location || other.jobDescription, weekday: dayName(other.date), v3: showDate(other.date) })
       const into = shift.location || shift.jobDescription
-      conflicts.push(`${worker.firstName} כבר משובץ באותו זמן ב${from}. אם תאשר, אעביר אותו ל${into}, ושם יישאר מקום ריק`)
-      report.push(`העברתי את ${worker.firstName} מ${other.location || other.jobDescription} ל${into}`)
+      conflicts.push(tx('{firstName} כבר משובץ באותו זמן ב{from}. אם תאשר, אעביר אותו ל{into}, ושם יישאר מקום ריק', { firstName: worker.firstName, from, into }))
+      report.push(tx('העברתי את {firstName} מ{v} ל{into}', { firstName: worker.firstName, v: other.location || other.jobDescription, into }))
     }
   }
 
@@ -389,8 +390,8 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     changed.add('shifts')
     const where = shift.location || shift.jobDescription
     const names = plan.crew.map((c) => d.workers.find((w) => w.id === c.workerId)).filter((w): w is Worker => Boolean(w)).map((w) => w.firstName)
-    report.push(names.length ? `ב${where} שיבצתי את ${names.join(', ')}` : `ב${where} לא מצאתי עובדים מתאימים`)
-    if (plan.unfilled.length && names.length) report.push(`ב${where} נשארו ${plan.unfilled.length === 1 ? 'מקום אחד פנוי' : `${plan.unfilled.length} מקומות פנויים`}`)
+    report.push(names.length ? tx('ב{where} שיבצתי את {v}', { where, v: names.join(', ') }) : tx('ב{where} לא מצאתי עובדים מתאימים', { where }))
+    if (plan.unfilled.length && names.length) report.push(tx('ב{where} נשארו {v}', { where, v: plan.unfilled.length === 1 ? tx('מקום אחד פנוי') : tx('{length} מקומות פנויים', { length: plan.unfilled.length }) }))
   }
   report.push(...edits.warnings)
   return { data: d, changed, report, errors, conflicts }
@@ -402,14 +403,19 @@ export const proposalConflicts = (p: Proposal, d: AppData) => applyProposal(p, d
 /** The spoken proposal: the model's summary, with any move of a busy worker said before the question. */
 export function summaryWithConflicts(summary: string, conflicts: string[]): string {
   if (!conflicts.length) return summary
-  const ask = 'לאשר, או שיש עוד תיקון?'
+  const ask = tx('לאשר, או שיש עוד תיקון?')
   const body = summary.replace(ask, '').trim().replace(/[.,]$/, '')
-  return `${body}. שים לב: ${conflicts.join('. ')}. לאשר, או שיש עוד תיקון?`
+  return tx('{body}. שים לב: {v}. לאשר, או שיש עוד תיקון?', { body, v: conflicts.join('. ') })
 }
 
 // "כן", "מאשר", "תאשר", "בצע", "סגור" and the like, said alone, after a proposal.
 const YES = /^(כן|כן כן|מאשר|אשר|תאשר|אישור|מאושר|בצע|תבצע|סגור|יאללה|אוקיי|אוקי|בסדר|נכון|יופי|סבבה|כן לאשר|כן תאשר|כן מאשר|לאשר)$/
-export const isYes = (said: string) => YES.test(said.trim().replace(/[.,!?]/g, '').replace(/\s+/g, ' '))
+// The same in the other languages of the app (src/i18n/languages.ts).
+const YES_OTHER = /^(yes|yeah|yep|ok|okay|sure|confirm|approve|go ahead|do it|نعم|أجل|موافق|تمام|أكيد|да|давай|подтверждаю|хорошо|ок|sí|si|vale|confirmo|claro|oui|d'accord|je confirme|ja|jawohl|bestätigen|sim|confirmo|pode|是|是的|好|好的|确认|对|हाँ|हां|ठीक है|জি|হ্যাঁ|ঠিক আছে|جی|ہاں|ٹھیک ہے|ya|oke|setuju|はい|お願いします|evet|tamam|onaylıyorum)$/i
+export const isYes = (said: string) => {
+  const s = said.trim().replace(/[.,!?。！、،]/g, '').replace(/\s+/g, ' ')
+  return YES.test(s) || YES_OTHER.test(s)
+}
 
 // The proposal tool is not strict (its full grammar is over the API's limit), so a field may be
 // missing or of the wrong kind. Everything the app reads is given its empty value here.

@@ -1,15 +1,16 @@
+import { tx } from '../i18n'
 import { authMode, rememberedAccount } from '../lib/google/auth'
 import { GOOGLE_CLIENT_ID } from '../lib/google/config'
 import { useAuth } from '../store/auth'
 
 // What came back from Google, in plain words (?signin=... from the server).
 const NOTICES: Record<string, string> = {
-  'not-allowed': 'המייל הזה לא מורשה להיכנס. בקש מהמנהל להוסיף אותו בהגדרות.',
-  'not-owner': 'רק המנהל יכול לחבר את הדרייב. התחבר עם המייל של המנהל.',
-  cancelled: 'ההתחברות בוטלה.',
-  scopes: 'צריך לסמן את כל ההרשאות (דרייב ויומן) כדי שכולם יוכלו לעבוד על הנתונים. נסה שוב.',
-  failed: 'ההתחברות לא הצליחה. נסה שוב.',
-  'too-many': 'יותר מדי ניסיונות התחברות. חכה כמה דקות ונסה שוב.',
+  'not-allowed': tx('המייל הזה לא מורשה להיכנס. בקש מהמנהל להוסיף אותו בהגדרות.'),
+  'not-owner': tx('רק המנהל יכול לחבר את הדרייב. התחבר עם המייל של המנהל.'),
+  cancelled: tx('ההתחברות בוטלה.'),
+  scopes: tx('צריך לסמן את כל ההרשאות (דרייב ויומן) כדי שכולם יוכלו לעבוד על הנתונים. נסה שוב.'),
+  failed: tx('ההתחברות לא הצליחה. נסה שוב.'),
+  'too-many': tx('יותר מדי ניסיונות התחברות. חכה כמה דקות ונסה שוב.'),
 }
 
 export function SignIn() {
@@ -23,22 +24,20 @@ export function SignIn() {
       <div>
         <h1 className="text-3xl font-bold">Shaly</h1>
         <p className="mt-2 text-slate-400">
-          סידור עבודה 24/7, כוננות ואילוצי עובדים.{' '}
-          {server ? 'הנתונים נשמרים בגוגל דרייב של המנהל.' : 'הנתונים נשמרים בחשבון הגוגל שלך בלבד.'}
-        </p>
+          {tx('סידור עבודה 24/7, כוננות ואילוצי עובדים.{v}{v2}', { v: ' ', v2: server ? tx('הנתונים נשמרים בגוגל דרייב של המנהל.') : tx('הנתונים נשמרים בחשבון הגוגל שלך בלבד.') })}</p>
       </div>
 
       {!GOOGLE_CLIENT_ID && (
         <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
-          חסר מזהה התחברות של גוגל. יש להעתיק את <code>.env.example</code> ל-<code>.env.local</code> ולמלא אותו.
+          {tx('חסר מזהה התחברות של גוגל. יש להעתיק את')}{' '}<code>.env.example</code> {tx('ל-')}<code>.env.local</code> {tx('ולמלא אותו.')}
         </p>
       )}
 
       {ownerGone && (
         <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
           {who?.isOwner
-            ? 'הדרייב שלך לא מחובר לאפליקציה. לחיצה אחת מחברת אותו, ואז כולם עובדים על הנתונים שלך.'
-            : 'הדרייב של המנהל לא מחובר כרגע. המנהל צריך להתחבר, ואז אפשר להמשיך.'}
+            ? tx('הדרייב שלך לא מחובר לאפליקציה. לחיצה אחת מחברת אותו, ואז כולם עובדים על הנתונים שלך.')
+            : tx('הדרייב של המנהל לא מחובר כרגע. המנהל צריך להתחבר, ואז אפשר להמשיך.')}
         </p>
       )}
       {status === 'notAllowed' && (
@@ -49,7 +48,7 @@ export function SignIn() {
       )}
       {status === 'failed' && (
         <p role="alert" className="text-sm text-red-400">
-          השרת לא ענה. נסה שוב בעוד רגע.
+          {tx('השרת לא ענה. נסה שוב בעוד רגע.')}
         </p>
       )}
       {notice && NOTICES[notice] && (
@@ -65,7 +64,7 @@ export function SignIn() {
           disabled={busy}
           className="rounded-xl bg-sky-500 py-4 text-lg font-semibold text-slate-950 disabled:opacity-50"
         >
-          {busy ? 'מתחבר...' : 'חיבור מחדש'}
+          {busy ? tx('מתחבר...') : tx('חיבור מחדש')}
         </button>
       ) : (
         <button
@@ -74,38 +73,37 @@ export function SignIn() {
           disabled={busy || !GOOGLE_CLIENT_ID || (ownerGone && !who?.isOwner)}
           className="rounded-xl bg-sky-500 py-4 text-lg font-semibold text-slate-950 disabled:opacity-50"
         >
-          {busy ? 'מתחבר...' : status === 'notAllowed' ? 'כניסה עם מייל אחר' : account ? 'המשך' : 'התחברות עם Google'}
+          {busy ? tx('מתחבר...') : status === 'notAllowed' ? tx('כניסה עם מייל אחר') : account ? tx('המשך') : tx('התחברות עם Google')}
         </button>
       )}
 
       {!ownerGone && !busy && (
         <p className="text-sm text-slate-400">
           {server
-            ? 'מתחברים פעם אחת בכל מכשיר, והחיבור נשמר.'
+            ? tx('מתחברים פעם אחת בכל מכשיר, והחיבור נשמר.')
             : account
-              ? `${account.email ? `תמשיך כ-${account.email}. ` : ''}החיבור לגוגל מתחדש כל שעה, לחיצה אחת מחדשת אותו.`
+              ? tx('{v}החיבור לגוגל מתחדש כל שעה, לחיצה אחת מחדשת אותו.', { v: account.email ? tx('תמשיך כ-{email}. ', { email: account.email }) : '' })
               : ''}
         </p>
       )}
 
       {error && (
         <p role="alert" className="text-sm text-red-400">
-          ההתחברות נכשלה: {error}
-        </p>
+          {tx('ההתחברות נכשלה: {error}', { error })}</p>
       )}
 
       <p className="text-xs text-slate-500">
-        הכניסה היא בכפוף ל
+        {tx('הכניסה היא בכפוף ל')}
         <a href="/terms.html" className="text-sky-300 underline">
-          תנאי השימוש
+          {tx('תנאי השימוש')}
         </a>{' '}
-        ול
+        {tx('ול')}
         <a href="/privacy.html" className="text-sky-300 underline">
-          מדיניות הפרטיות
+          {tx('מדיניות הפרטיות')}
         </a>
         .{' '}
         <a href="/accessibility.html" className="text-sky-300 underline">
-          הצהרת נגישות
+          {tx('הצהרת נגישות')}
         </a>
       </p>
     </main>

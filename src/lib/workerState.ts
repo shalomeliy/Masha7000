@@ -6,6 +6,7 @@
 import { ABSENCE_NAMES, onDay } from './constraints'
 import { addDays, showDate } from './shifts'
 import type { AbsenceKind, Constraint, Worker } from '../types/models'
+import { tx } from '../i18n'
 
 export type StateId = 'fit' | 'sick' | AbsenceKind | 'inactive'
 
@@ -18,13 +19,13 @@ export interface WorkerState {
 export const STATE_ORDER: StateId[] = ['fit', 'sick', 'vacation', 'study', 'reserve', 'course', 'inactive']
 
 export const STATE_NAMES: Record<StateId, string> = {
-  fit: 'כשירים',
-  sick: 'במחלה',
-  vacation: 'בחופש',
-  study: 'בלימודים',
-  reserve: 'במילואים',
-  course: 'בהשתלמות',
-  inactive: 'לא פעילים',
+  fit: tx('כשירים'),
+  sick: tx('במחלה'),
+  vacation: tx('בחופש'),
+  study: tx('בלימודים'),
+  reserve: tx('במילואים'),
+  course: tx('בהשתלמות'),
+  inactive: tx('לא פעילים'),
 }
 
 // Colors as Tailwind classes: a dot and a soft badge per state.
@@ -45,14 +46,14 @@ export function absenceToday(w: Pick<Worker, 'constraints'>, today: string): Con
 }
 
 export function workerState(w: Pick<Worker, 'status' | 'sickUntil' | 'constraints'>, today: string): WorkerState {
-  if (w.status === 'inactive') return { id: 'inactive', label: 'לא פעיל' }
-  if (w.status === 'sick' && w.sickUntil && w.sickUntil >= today) return { id: 'sick', label: `במחלה עד ${showDate(w.sickUntil)}` }
+  if (w.status === 'inactive') return { id: 'inactive', label: tx('לא פעיל') }
+  if (w.status === 'sick' && w.sickUntil && w.sickUntil >= today) return { id: 'sick', label: tx('במחלה עד {v}', { v: showDate(w.sickUntil) }) }
   const away = absenceToday(w, today)
   if (away?.kind) {
-    const until = away.when === 'dates' && away.to && away.to !== today ? ` עד ${showDate(away.to)}` : away.when === 'weekdays' ? ' היום' : ''
+    const until = away.when === 'dates' && away.to && away.to !== today ? tx(' עד {v}', { v: showDate(away.to) }) : away.when === 'weekdays' ? tx(' היום') : ''
     return { id: away.kind, label: `${ABSENCE_NAMES[away.kind]}${until}` }
   }
-  return { id: 'fit', label: 'כשיר לעבודה' }
+  return { id: 'fit', label: tx('כשיר לעבודה') }
 }
 
 /** How many workers are in each state today, in STATE_ORDER, leaving out states nobody is in. */

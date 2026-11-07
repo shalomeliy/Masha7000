@@ -1,7 +1,8 @@
 import { newId } from './catalog'
 import { dateError } from './dates'
-import { addDays, HEBREW_DAYS, isNightShift, showDate, weekday } from './shifts'
+import { addDays, DAY_NAMES, HEBREW_DAYS, isNightShift, showDate, weekday } from './shifts'
 import type { AbsenceKind, Constraint, DayPart, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
+import { tx } from '../i18n'
 
 // Worker constraints: when a worker cannot work. Pure rules, no I/O. The planner never places a
 // worker a constraint blocks; the screens show why.
@@ -28,28 +29,28 @@ export function normalizeConstraint(raw: Partial<Constraint> & { date?: string; 
 export function constraintError(c: Constraint): string | null {
   if (c.when === 'dates') {
     const from = dateError(c.from ?? '', { required: true })
-    if (from) return `תאריך ההתחלה: ${from}`
+    if (from) return tx('תאריך ההתחלה: {from}', { from })
     const to = dateError(c.to ?? '', { required: true, min: c.from })
-    if (to) return `תאריך הסיום: ${to}`
+    if (to) return tx('תאריך הסיום: {to}', { to })
   }
-  if (c.when === 'weekdays' && !c.weekdays?.length) return 'צריך לסמן לפחות יום אחד בשבוע'
+  if (c.when === 'weekdays' && !c.weekdays?.length) return tx('צריך לסמן לפחות יום אחד בשבוע')
   if (c.when === 'weekdays') {
     const to = dateError(c.to ?? '')
-    if (to) return `תאריך הסיום: ${to}`
+    if (to) return tx('תאריך הסיום: {to}', { to })
   }
   return null
 }
 
 const dayList = (days: number[]) => {
-  const names = [...days].sort().map((d) => HEBREW_DAYS[d])
-  return names.length > 1 ? `${names.slice(0, -1).join(', ')} ו${names.at(-1)}` : names[0]
+  const names = [...days].sort().map((d) => DAY_NAMES[d])
+  return names.length > 1 ? tx('{v} ו{v2}', { v: names.slice(0, -1).join(', '), v2: names.at(-1) }) : names[0]
 }
 
 // The kinds of absence the manager picks from a worker's state (the user's list, 2026-11-06, plus
 // reserve duty and courses).
-export const ABSENCE_NAMES: Record<AbsenceKind, string> = { vacation: 'בחופש', study: 'בלימודים', reserve: 'במילואים', course: 'בהשתלמות' }
+export const ABSENCE_NAMES: Record<AbsenceKind, string> = { vacation: tx('בחופש'), study: tx('בלימודים'), reserve: tx('במילואים'), course: tx('בהשתלמות') }
 
-export const PART_NAMES: Record<DayPart, string> = { morning: 'בבוקר', noon: 'בצהריים', evening: 'בערב' }
+export const PART_NAMES: Record<DayPart, string> = { morning: tx('בבוקר'), noon: tx('בצהריים'), evening: tx('בערב') }
 
 /** "לא זמין 1.11 עד 5.11", "לא זמין בערב ב-2.11", "בלי לילות בימי שלישי", "בלי לילות בכלל". The note is not included. */
 // Sickness is the worker's status, not a constraint the manager typed; the planner and the screens
@@ -62,13 +63,13 @@ export function sickConstraint(w: Pick<Worker, 'status' | 'sickUntil'>): Constra
 }
 
 export function constraintText(c: Constraint): string {
-  if (c.id === SICK_ID) return `במחלה עד ${showDate(c.to!)}`
-  const what = c.kind ? ABSENCE_NAMES[c.kind] : c.nightsOnly ? 'בלי לילות' : c.part ? `לא זמין ${PART_NAMES[c.part]}` : 'לא זמין'
-  if (c.when === 'always') return 'בלי לילות בכלל'
-  if (c.when === 'weekdays') return `${what} ${c.weekdays?.length === 1 ? 'ביום' : 'בימי'} ${dayList(c.weekdays ?? [])}${c.to ? ` עד ${showDate(c.to)}` : ''}`
+  if (c.id === SICK_ID) return tx('במחלה עד {v}', { v: showDate(c.to!) })
+  const what = c.kind ? ABSENCE_NAMES[c.kind] : c.nightsOnly ? tx('בלי לילות') : c.part ? tx('לא זמין {v}', { v: PART_NAMES[c.part] }) : tx('לא זמין')
+  if (c.when === 'always') return tx('בלי לילות בכלל')
+  if (c.when === 'weekdays') return `${what} ${c.weekdays?.length === 1 ? tx('ביום') : tx('בימי')} ${dayList(c.weekdays ?? [])}${c.to ? tx(' עד {v}', { v: showDate(c.to) }) : ''}`
   if (!c.from) return what
   // A Hebrew word between the dates: "1.11 - 5.11" shows reversed in a right-to-left line.
-  return c.to && c.to !== c.from ? `${what} ${showDate(c.from)} עד ${showDate(c.to)}` : `${what} ב-${showDate(c.from)}`
+  return c.to && c.to !== c.from ? tx('{what} {v} עד {v2}', { what, v: showDate(c.from), v2: showDate(c.to) }) : tx('{what} ב-{v}', { what, v: showDate(c.from) })
 }
 
 /** A date range, or a weekly one with a last date, that ended before today no longer matters. */
@@ -170,8 +171,8 @@ export function readAnswer(answer: string): Reading {
 
 /** "ערב · אירוע", "כל היום · לימוד", "כל היום (ניחוש)": what was understood, for the paste preview. */
 export function readingText(r: { part?: DayPart; nightsOnly?: boolean; guess?: boolean; cause?: string }): string {
-  const what = r.nightsOnly ? 'בלי לילה' : r.part ? PART_NAMES[r.part].slice(1) : 'כל היום'
-  return `${what}${r.cause ? ` · ${r.cause}` : ''}${r.guess ? ' (ניחוש, לא הבנתי את המילים)' : ''}`
+  const what = r.nightsOnly ? tx('בלי לילה') : r.part ? PART_NAMES[r.part].slice(1) : tx('כל היום')
+  return `${what}${r.cause ? ` · ${r.cause}` : ''}${r.guess ? tx(' (ניחוש, לא הבנתי את המילים)') : ''}`
 }
 
 // The WhatsApp request the manager sends and the worker fills in: one line per day of the week.

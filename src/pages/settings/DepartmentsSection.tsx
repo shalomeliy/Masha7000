@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { countText, nameError, newId, upsert } from '../../lib/catalog'
@@ -8,7 +9,7 @@ import { AddButton, EditMark, EmptyState } from '../workers/common'
 // The departments a worker can belong to. A worker holds the department's id, so a rename shows on
 // every worker at once, and a delete clears it from the workers who had it.
 
-const EXPLAIN = 'המחלקות שעובד יכול להשתייך אליהן. בוחרים מחלקה בטופס העובד.'
+const EXPLAIN = tx('המחלקות שעובד יכול להשתייך אליהן. בוחרים מחלקה בטופס העובד.')
 
 export function DepartmentsSection() {
   const list = useDriveList('departments')
@@ -19,7 +20,7 @@ export function DepartmentsSection() {
   return (
     <>
       {list.items.length === 0 ? (
-        <EmptyState text={EXPLAIN} addLabel="הוספת מחלקה" onAdd={add} />
+        <EmptyState text={EXPLAIN} addLabel={tx('הוספת מחלקה')} onAdd={add} />
       ) : (
         <>
           <p className="mb-3 text-sm text-slate-400">{EXPLAIN}</p>
@@ -35,18 +36,18 @@ export function DepartmentsSection() {
                   >
                     <EditMark />
                     <span className="font-semibold">{item.name}</span>
-                    {n > 0 && <span className="shrink-0 text-sm text-slate-400">{countText(n, 'עובד אחד', 'עובדים')}</span>}
+                    {n > 0 && <span className="shrink-0 text-sm text-slate-400">{countText(n, tx('עובד אחד'), tx('עובדים'))}</span>}
                   </button>
                 </li>
               )
             })}
           </ul>
-          <AddButton label="הוספת מחלקה" onClick={add} />
+          <AddButton label={tx('הוספת מחלקה')} onClick={add} />
         </>
       )}
       <Sheet
         open={editing !== null}
-        title={editing && list.items.some((x) => x.id === editing.id) ? 'עריכת מחלקה' : 'מחלקה חדשה'}
+        title={editing && list.items.some((x) => x.id === editing.id) ? tx('עריכת מחלקה') : tx('מחלקה חדשה')}
         onClose={() => setEditing(null)}
         locked={list.saving || workers.saving}
       >
@@ -94,7 +95,7 @@ function DepartmentForm({ item, onDone }: { item: Department; onDone: () => void
 
   return (
     <>
-      <Field label="שם המחלקה">
+      <Field label={tx('שם המחלקה')}>
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </Field>
       <SheetActions
@@ -103,8 +104,8 @@ function DepartmentForm({ item, onDone }: { item: Department; onDone: () => void
         onDelete={exists ? remove : undefined}
         deleteWarning={
           used
-            ? `${used === 1 ? 'עובד אחד שייך' : `${used} עובדים שייכים`} למחלקה "${item.name}". אחרי המחיקה ${used === 1 ? 'הוא יישאר' : 'הם יישארו'} בלי מחלקה.`
-            : `למחוק את "${item.name}" מהרשימה?`
+            ? tx('{v} למחלקה "{name}". אחרי המחיקה {v2} בלי מחלקה.', { v: used === 1 ? tx('עובד אחד שייך') : tx('{used} עובדים שייכים', { used }), name: item.name, v2: used === 1 ? tx('הוא יישאר') : tx('הם יישארו') })
+            : tx('למחוק את "{name}" מהרשימה?', { name: item.name })
         }
         busy={busy}
         error={error}

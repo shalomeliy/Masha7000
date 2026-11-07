@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import type { Report, ReportShift, ShiftKind } from './report'
 
 // Draws a report as a PNG card for WhatsApp: a dark header like the app, one white card per shift
@@ -101,7 +102,7 @@ function shiftCard(c: Ctx, draw: boolean, s: ReportShift, top: number): number {
     }
     if (s.next) {
       c.font = font(500, 32)
-      for (const line of wrap(c, `אחרי הלילה: ${s.next}`, maxW)) {
+      for (const line of wrap(c, tx('אחרי הלילה: {next}', { next: s.next }), maxW)) {
         text(c, d, line, inR, yy + 18, font(500, 32), '#6d28d9')
         yy += 44
       }
@@ -113,10 +114,10 @@ function shiftCard(c: Ctx, draw: boolean, s: ReportShift, top: number): number {
     }
     yy += 24
     if (s.crew.length === 0) {
-      text(c, d, 'עוד לא שובצו עובדים', inR, yy + 20, font(600, 34), '#b45309')
+      text(c, d, tx('עוד לא שובצו עובדים'), inR, yy + 20, font(600, 34), '#b45309')
       yy += 52
     } else {
-      text(c, d, `צוות (${s.crew.length})`, inR, yy + 16, font(600, 28), '#64748b')
+      text(c, d, tx('צוות ({length})', { length: s.crew.length }), inR, yy + 16, font(600, 28), '#64748b')
       yy += 46
       for (const m of s.crew) {
         // Name on the right in the worker's own color, role label on the left, like a row in a table.
@@ -171,14 +172,14 @@ function page(c: Ctx, draw: boolean, report: Report): number {
       y += 64
     }
     if (day.shifts.length === 0) {
-      text(c, draw, 'אין עבודות', right, y + 18, font(500, 32), '#94a3b8')
+      text(c, draw, tx('אין עבודות'), right, y + 18, font(500, 32), '#94a3b8')
       y += week ? 64 : 72
       continue
     }
     for (const s of day.shifts) y += shiftCard(c, draw, s, y) + 24
     y += week ? 24 : 0
   }
-  text(c, draw, 'נשלח מ-Shaly', W / 2, y + 30, font(500, 26), '#94a3b8', 'center')
+  text(c, draw, tx('נשלח מ-Shaly'), W / 2, y + 30, font(500, 26), '#94a3b8', 'center')
   return y + 80
 }
 

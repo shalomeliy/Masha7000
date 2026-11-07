@@ -1,3 +1,4 @@
+import { dayNames } from '../i18n'
 import { GENERAL_ROLE_ID, SHIFT_END, endsNextDay, fullName, newId } from './catalog'
 import { dateError, todayIso } from './dates'
 import type { PendingJob, ShiftClosure, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
@@ -30,7 +31,11 @@ export function weekOf(date: string): { start: string; end: string; days: string
 
 export const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
-export const dayName = (date: string) => HEBREW_DAYS[weekday(date)]
+/** The day names in the app's language (HEBREW_DAYS stays for reading WhatsApp answers). */
+export const DAY_NAMES = dayNames()
+export const dayName = (date: string) => DAY_NAMES[weekday(date)]
+/** Always Hebrew: for what the assistant model reads. */
+export const hebrewDayName = (date: string) => HEBREW_DAYS[weekday(date)]
 
 export const showDate = (date: string) => {
   const [, m, d] = date.split('-')

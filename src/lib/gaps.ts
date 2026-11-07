@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import { fullName, isActive, placeText, staffingFor } from './catalog'
 import { blockedCrew, blockingConstraint, constraintText } from './constraints'
 import { fitsSlot, NO_WORKER, workerLoad } from './planner'
@@ -89,9 +90,9 @@ function whyEmpty(slot: StaffSlot, shift: ShiftRecord, ctx: GapContext): string 
   const active = ctx.workers.filter(isActive)
   const fit = active.filter((w) => !inCrew.has(w.id) && fills(w, slot.roleId, slot, ctx.generalId))
   if (!active.some((w) => fills(w, slot.roleId, slot, ctx.generalId))) return NO_WORKER
-  if (!fit.length) return 'כל המתאימים כבר בעבודה הזו'
+  if (!fit.length) return tx('כל המתאימים כבר בעבודה הזו')
   const blocked = fit.map((w) => ({ w, c: blockingConstraint(w, shift, ctx.defs) }))
-  if (blocked.every((b) => b.c)) return `לא זמינים: ${blocked.map((b) => `${fullName(b.w)} (${constraintText(b.c!)})`).join(', ')}`
+  if (blocked.every((b) => b.c)) return tx('לא זמינים: {v}', { v: blocked.map((b) => `${fullName(b.w)} (${constraintText(b.c!)})`).join(', ') })
   return undefined
 }
 

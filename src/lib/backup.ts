@@ -1,3 +1,4 @@
+import { locale, tx } from '../i18n'
 import { DRIVE_FILES } from './google/config'
 import { createCopy, deleteCopy, forgetVersions, listCopies, peekJson, readCopy, writeJson } from './google/drive'
 import type { DriveCopy } from './google/drive'
@@ -32,18 +33,18 @@ export const BACKUP_LISTS = [
 export type BackupList = (typeof BACKUP_LISTS)[number]
 
 export const LIST_TITLES: Record<BackupList, string> = {
-  roles: 'תפקידים',
-  certifications: 'הסמכות',
-  shiftDefinitions: 'תבניות עבודה',
-  postponeReasons: 'סיבות דחייה',
-  places: 'מקומות',
-  jobTypes: 'מהויות עבודה',
-  workKinds: 'סוגי עבודה',
-  departments: 'מחלקות',
-  constraintWords: 'מילים לקריאת אילוצים',
-  workers: 'עובדים',
-  pendingJobs: 'משימות לשיבוץ',
-  shifts: 'עבודות',
+  roles: tx('תפקידים'),
+  certifications: tx('הסמכות'),
+  shiftDefinitions: tx('תבניות עבודה'),
+  postponeReasons: tx('סיבות דחייה'),
+  places: tx('מקומות'),
+  jobTypes: tx('מהויות עבודה'),
+  workKinds: tx('סוגי עבודה'),
+  departments: tx('מחלקות'),
+  constraintWords: tx('מילים לקריאת אילוצים'),
+  workers: tx('עובדים'),
+  pendingJobs: tx('משימות לשיבוץ'),
+  shifts: tx('עבודות'),
 }
 
 export interface Backup {
@@ -53,7 +54,7 @@ export interface Backup {
   files: Record<BackupList, Record<string, unknown>[]>
 }
 
-export const NOT_A_BACKUP = 'הקובץ הזה אינו גיבוי של האפליקציה.'
+export const NOT_A_BACKUP = tx('הקובץ הזה אינו גיבוי של האפליקציה.')
 export class BackupError extends Error {}
 
 export function makeBackup(files: Partial<Record<BackupList, unknown[] | null>>, now = new Date()): Backup {
@@ -85,17 +86,17 @@ export function parseBackup(text: string): Backup {
     throw new BackupError(NOT_A_BACKUP)
   }
   if (!isObject(raw) || raw.app !== APP_MARKER || !isObject(raw.files) || typeof raw.createdAt !== 'string') throw new BackupError(NOT_A_BACKUP)
-  if (raw.version !== BACKUP_VERSION) throw new BackupError('הגיבוי נוצר בגרסה אחרת של האפליקציה ואי אפשר לשחזר אותו.')
+  if (raw.version !== BACKUP_VERSION) throw new BackupError(tx('הגיבוי נוצר בגרסה אחרת של האפליקציה ואי אפשר לשחזר אותו.'))
   if (Number.isNaN(Date.parse(raw.createdAt))) throw new BackupError(NOT_A_BACKUP)
   const files = {} as Backup['files']
   for (const k of BACKUP_LISTS) {
     // Backups made before departments existed: the starter list, as the app would read it.
     // Backups made before work kinds existed: none.
     const list = raw.files[k] === undefined && k === 'departments' ? STARTER_DEPARTMENTS : raw.files[k] === undefined && k === 'workKinds' ? [] : raw.files[k]
-    if (!Array.isArray(list)) throw new BackupError(`${NOT_A_BACKUP} חסרה בו הרשימה "${LIST_TITLES[k]}".`)
+    if (!Array.isArray(list)) throw new BackupError(tx('{NOT_A_BACKUP} חסרה בו הרשימה "{v}".', { NOT_A_BACKUP, v: LIST_TITLES[k] }))
     for (const item of list)
       if (!isObject(item) || typeof item.id !== 'string' || (k === 'shifts' && typeof item.date !== 'string') || !textFieldsOk(item))
-        throw new BackupError(`${NOT_A_BACKUP} הרשימה "${LIST_TITLES[k]}" פגומה.`)
+        throw new BackupError(tx('{NOT_A_BACKUP} הרשימה "{v}" פגומה.', { NOT_A_BACKUP, v: LIST_TITLES[k] }))
     const fix = normalizers[k] as ((r: unknown) => Record<string, unknown>) | undefined
     files[k] = fix ? list.map(fix) : (list as Record<string, unknown>[])
   }
@@ -109,15 +110,15 @@ export function backupCounts(b: Backup) {
 /** "18 עובדים, 412 עבודות, 6 משימות לשיבוץ" */
 export function countsText(c: { workers: number; shifts: number; pendingJobs: number }): string {
   return [
-    countText(c.workers, 'עובד אחד', 'עובדים'),
-    countText(c.shifts, 'עבודה אחת', 'עבודות'),
-    countText(c.pendingJobs, 'משימה אחת לשיבוץ', 'משימות לשיבוץ'),
+    countText(c.workers, tx('עובד אחד'), tx('עובדים')),
+    countText(c.shifts, tx('עבודה אחת'), tx('עבודות')),
+    countText(c.pendingJobs, tx('משימה אחת לשיבוץ'), tx('משימות לשיבוץ')),
   ].join(', ')
 }
 
 /** 29.10.2026, in the app's time zone. */
 export function backupDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Asia/Jerusalem' }).replace(/\//g, '.')
+  return new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'numeric', year: 'numeric', timeZone: 'Asia/Jerusalem' }).replace(/\//g, '.')
 }
 
 const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`

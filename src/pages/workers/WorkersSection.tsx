@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, CalendarX, Filter, Phone, UserX, X } from "lucide-react";
+import { ArrowRight, CalendarX, Phone, UserX, X } from "lucide-react";
 import {
   Chips,
   Field,
@@ -28,12 +28,14 @@ import { daysToRanges, todayIso } from "../../lib/dates";
 import { DateField } from "../../components/DateField";
 import type { AbsenceKind, Constraint, Worker, WorkerStatus } from "../../types/models";
 import { MonthDays } from "../../components/MonthDays";
-import { HEBREW_DAYS } from "../../lib/shifts";
+import { DAY_NAMES } from "../../lib/shifts";
 import { endAbsence, STATE_NAMES, STATE_TONE, teamStates, workerState, type StateId } from "../../lib/workerState";
 import { AddButton, EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
 import { RequestSheet } from "./RequestSheet";
 import { JoinButton, JoinPending } from "./JoinSection";
+import { authMode } from "../../lib/google/auth";
+import { tx } from '../../i18n'
 
 const blankWorker = (): Worker => ({
   id: newId(),
@@ -46,22 +48,22 @@ const blankWorker = (): Worker => ({
 });
 
 const STATUSES: { id: WorkerStatus; name: string }[] = [
-  { id: "active", name: "כשיר לעבודה (חזר לעבוד)" },
-  { id: "sick", name: "במחלה עד תאריך" },
-  { id: "inactive", name: "לא פעיל" },
+  { id: "active", name: tx('כשיר לעבודה (חזר לעבוד)') },
+  { id: "sick", name: tx('במחלה עד תאריך') },
+  { id: "inactive", name: tx('לא פעיל') },
 ];
 
 const ABSENCE_MODES = [
-  { id: "range", label: "מתאריך עד תאריך" },
-  { id: "weekly", label: "קבוע כל שבוע" },
-  { id: "days", label: "ימים מהלוח" },
+  { id: "range", label: tx('מתאריך עד תאריך') },
+  { id: "weekly", label: tx('קבוע כל שבוע') },
+  { id: "days", label: tx('ימים מהלוח') },
 ] as const;
 
 const ABSENCES: { id: AbsenceKind; name: string }[] = [
-  { id: "vacation", name: "חופש" },
-  { id: "study", name: "לימודים" },
-  { id: "reserve", name: "מילואים" },
-  { id: "course", name: "השתלמות או קורס" },
+  { id: "vacation", name: tx('חופש') },
+  { id: "study", name: tx('לימודים') },
+  { id: "reserve", name: tx('מילואים') },
+  { id: "course", name: tx('השתלמות או קורס') },
 ];
 
 const STATUS_COLOR: Record<WorkerStatus, string> = {
@@ -77,7 +79,10 @@ const sickNow = (w: Worker, today: string) =>
 const toggle = (list: string[], id: string) =>
   list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 
-export function WorkersSection() {
+/** The workers screen's tabs: the team list, and one tab for each thing done with the team. */
+export type WorkersTab = "team" | "request" | "join" | "search";
+
+export function WorkersSection({ tab }: { tab: WorkersTab }) {
   const workers = useDriveList("workers");
   const roles = useDriveList("roles");
   const certs = useDriveList("certifications");
@@ -89,134 +94,151 @@ export function WorkersSection() {
     setOnSaved(() => saved ?? null);
   };
   const review = (w: Worker, saved: () => void) => edit(w, saved);
-  const [filterOpen, setFilterOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string[]>([]);
   const [certFilter, setCertFilter] = useState<string[]>([]);
   const [requesting, setRequesting] = useState(false);
-  const [showInactive, setShowInactive] = useState(false);
+  const [inactiveView, setShowInactive] = useState(false);
   const [stateFilter, setStateFilter] = useState<StateId | null>(null);
   const today = todayIso();
 
-  const filtering = roleFilter.length + certFilter.length > 0;
+  // The inactive list and the state filter belong to the team tab; the role filter to the search tab.
+  const showInactive = tab === "team" && inactiveView;
+  const searching = tab === "search";
+  const filtering = searching && roleFilter.length + certFilter.length > 0;
+  const byState = tab === "team" && !showInactive ? stateFilter : null;
   const inactiveCount = workers.items.filter((w) => !isActive(w)).length;
   // Inactive workers are kept (old shifts and reports name them) but listed only behind their own button.
   const listed = workers.items.filter((w) => isActive(w) !== showInactive);
   const team = teamStates(listed, today);
   const shown = filterWorkers(
-    stateFilter && !showInactive
-      ? listed.filter((w) => workerState(w, today).id === stateFilter)
-      : listed,
-    roleFilter,
-    certFilter,
+    byState ? listed.filter((w) => workerState(w, today).id === byState) : listed,
+    searching ? roleFilter : [],
+    searching ? certFilter : [],
     generalRoleId(roles.items),
   ).sort((a, b) => fullName(a).localeCompare(fullName(b), "he"));
-  const filterNames = [
-    ...tagNames(roleFilter, roles.items),
-    ...tagNames(certFilter, certs.items),
-  ];
+
+  const sheets = (
+    <>
+      <WorkerSheet editing={editing} onClose={() => edit(null)} onSaved={onSaved} />
+      <RequestSheet open={requesting} onClose={() => setRequesting(false)} />
+    </>
+  );
+
+  if (tab === "request") {
+    return (
+      <>
+        <TabIntro
+          title={tx("מי לא יכול לעבוד מתי?")}
+          text={tx("שולחים לקבוצת העובדים בוואטסאפ הודעה מוכנה לשבוע שבוחרים. כל עובד עונה באילו ימים הוא לא יכול, ואת התשובה שלו מדביקים אצלו בכרטיס, אז השיבוץ יודע לא לשים אותו בימים האלה.")}
+        />
+        <button
+          type="button"
+          data-hint="requestConstraints"
+          onClick={() => setRequesting(true)}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 font-semibold text-slate-950"
+        >
+          <CalendarX size={20} aria-hidden className="shrink-0" />
+          {tx("בקשת אילוצים בוואטסאפ")}
+        </button>
+        {sheets}
+      </>
+    );
+  }
+
+  if (tab === "join") {
+    return (
+      <>
+        <TabIntro
+          title={tx("העובדים ממלאים לבד")}
+          text={tx("שולחים לעובדים בוואטסאפ קישור לטופס קצר. כל עובד ממלא שם, טלפון, תפקידים והסמכות, והתשובות מחכות כאן. בודקים, שומרים, ורק אז העובד נכנס לרשימה.")}
+        />
+        {/* The details form needs the server (the live site). */}
+        {authMode() === "server" ? (
+          <JoinButton />
+        ) : (
+          <p className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+            {tx("הטופס עובד רק באתר החי של האפליקציה.")}
+          </p>
+        )}
+        <div className="mt-3">
+          <JoinPending onReview={review} />
+        </div>
+        {sheets}
+      </>
+    );
+  }
 
   if (workers.items.length === 0) {
     return (
       <>
         <JoinPending onReview={review} />
         <EmptyState
-          text="כאן נמצאת רשימת העובדים שלך. לכל עובד מסמנים את התפקידים וההסמכות שלו, ואז אפשר לחפש לפיהם."
-          addLabel="הוספת עובד"
+          text={tx("כאן נמצאת רשימת העובדים שלך. לכל עובד מסמנים את התפקידים וההסמכות שלו, ואז אפשר לחפש לפיהם.")}
+          addLabel={tx("הוספת עובד")}
           onAdd={() => edit(blankWorker())}
         />
-        <div className="mt-3">
-          <JoinButton />
-        </div>
-        <WorkerSheet editing={editing} onClose={() => edit(null)} onSaved={onSaved} />
+        {sheets}
       </>
     );
   }
 
   return (
     <>
-      <div className="mb-3 space-y-2">
-        {showInactive ? (
-          <button
-            type="button"
-            onClick={() => setShowInactive(false)}
-            className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-sky-500 px-3 text-start text-sm text-sky-300"
-          >
-            <ArrowRight size={16} aria-hidden className="shrink-0" />
-            חזרה לעובדים הפעילים
-          </button>
-        ) : (
-          <button
-            type="button"
-            data-hint="requestConstraints"
-            onClick={() => setRequesting(true)}
-            className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-emerald-500/50 px-3 text-start text-sm text-emerald-300"
-          >
-            <CalendarX size={16} aria-hidden className="shrink-0" />
-            בקשת אילוצים מהעובדים בוואטסאפ
-          </button>
-        )}
-        {!showInactive && <JoinButton />}
+      {searching && (
+        <div className="mb-3 space-y-3">
+          <TabIntro
+            title={tx("מי מתאים לעבודה?")}
+            text={tx("מסמנים תפקידים או הסמכות, ורואים רק את העובדים שיש להם את כל מה שסימנת.")}
+          />
+          {roles.items.length + certs.items.length === 0 ? (
+            <p className="text-sm text-slate-400">{tx("עוד אין תפקידים או הסמכות. מוסיפים אותם בהגדרות.")}</p>
+          ) : (
+            <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
+              {roles.items.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-sm text-slate-300">{tx("תפקידים")}</span>
+                  <Chips options={roles.items} selected={roleFilter} onToggle={(id) => setRoleFilter((f) => toggle(f, id))} />
+                </div>
+              )}
+              {certs.items.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-sm text-slate-300">{tx("הסמכות")}</span>
+                  <Chips options={certs.items} selected={certFilter} onToggle={(id) => setCertFilter((f) => toggle(f, id))} />
+                </div>
+              )}
+              {filtering && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRoleFilter([]);
+                    setCertFilter([]);
+                  }}
+                  className="flex min-h-11 items-center gap-1 text-sm text-slate-300"
+                >
+                  <X size={16} aria-hidden />
+                  {tx("ניקוי הסינון")}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {showInactive && (
         <button
           type="button"
-          aria-expanded={filterOpen}
-          onClick={() => setFilterOpen(!filterOpen)}
-          className={`flex min-h-11 w-full items-center gap-2 rounded-xl border px-3 text-start text-sm ${
-            filtering
-              ? "border-sky-500 text-sky-300"
-              : "border-slate-700 text-slate-300"
-          }`}
+          onClick={() => setShowInactive(false)}
+          className="mb-3 flex min-h-11 w-full items-center gap-2 rounded-xl border border-sky-500 px-3 text-start text-sm text-sky-300"
         >
-          <Filter size={16} aria-hidden className="shrink-0" />
-          {filtering
-            ? `מסנן לפי: ${filterNames.join(", ")}`
-            : "חיפוש עובדים לפי תפקיד או הסמכה"}
+          <ArrowRight size={16} aria-hidden className="shrink-0" />
+          {tx("חזרה לעובדים הפעילים")}
         </button>
-        {filterOpen && (
-          <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
-            <p className="text-xs text-slate-400">
-              יוצגו רק עובדים שיש להם את כל מה שסימנת.
-            </p>
-            {roles.items.length > 0 && (
-              <div className="space-y-1">
-                <span className="text-sm text-slate-300">תפקידים</span>
-                <Chips
-                  options={roles.items}
-                  selected={roleFilter}
-                  onToggle={(id) => setRoleFilter((f) => toggle(f, id))}
-                />
-              </div>
-            )}
-            {certs.items.length > 0 && (
-              <div className="space-y-1">
-                <span className="text-sm text-slate-300">הסמכות</span>
-                <Chips
-                  options={certs.items}
-                  selected={certFilter}
-                  onToggle={(id) => setCertFilter((f) => toggle(f, id))}
-                />
-              </div>
-            )}
-            {filtering && (
-              <button
-                type="button"
-                onClick={() => {
-                  setRoleFilter([]);
-                  setCertFilter([]);
-                }}
-                className="flex min-h-11 items-center gap-1 text-sm text-slate-300"
-              >
-                <X size={16} aria-hidden />
-                ניקוי הסינון
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
       {/* The team's state today: a count per state; a tap shows only those workers. */}
-      {!showInactive && team.length > 0 && (
-        <section aria-label="מצב הצוות היום" className="mb-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
-          <h2 className="mb-2 text-sm font-semibold text-slate-200">מצב הצוות היום</h2>
+      {tab === "team" && !showInactive && team.length > 0 && (
+        <section aria-label={tx("מצב הצוות היום")} className="mb-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
+          <h2 className="mb-2 text-sm font-semibold text-slate-200">{tx("מצב הצוות היום")}</h2>
           <div className="flex flex-wrap gap-2">
             {team.map((t) => (
               <button
@@ -235,29 +257,29 @@ export function WorkersSection() {
           </div>
         </section>
       )}
-      {!showInactive && <JoinPending onReview={review} />}
+      {tab === "team" && !showInactive && <JoinPending onReview={review} />}
       {showInactive && (
-        <h2 className="mb-1 text-lg font-semibold">עובדים לא פעילים</h2>
+        <h2 className="mb-1 text-lg font-semibold">{tx("עובדים לא פעילים")}</h2>
       )}
       <p className="mb-2 text-sm text-slate-400" aria-live="polite">
-        {stateFilter && !showInactive
-          ? `${STATE_NAMES[stateFilter]}: ${shown.length} מתוך ${listed.length}`
+        {byState
+          ? tx("{v}: {length} מתוך {length2}", { v: STATE_NAMES[byState], length: shown.length, length2: listed.length })
           : filtering
-          ? `${countText(shown.length, "עובד אחד מתאים", "עובדים מתאימים")} מתוך ${listed.length}`
+          ? tx("{v} מתוך {length}", { v: countText(shown.length, tx("עובד אחד מתאים"), tx("עובדים מתאימים")), length: listed.length })
           : countText(
               listed.length,
-              showInactive ? "עובד לא פעיל אחד" : "עובד פעיל אחד",
-              showInactive ? "עובדים לא פעילים" : "עובדים פעילים",
+              showInactive ? tx("עובד לא פעיל אחד") : tx("עובד פעיל אחד"),
+              showInactive ? tx("עובדים לא פעילים") : tx("עובדים פעילים"),
             )}
       </p>
 
       {shown.length === 0 ? (
         <p className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
           {filtering
-            ? "אין עובד שיש לו את כל מה שסימנת."
+            ? tx("אין עובד שיש לו את כל מה שסימנת.")
             : showInactive
-              ? "אין עובדים לא פעילים."
-              : "כל העובדים מסומנים כלא פעילים."}
+              ? tx("אין עובדים לא פעילים.")
+              : tx("כל העובדים מסומנים כלא פעילים.")}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -268,20 +290,29 @@ export function WorkersSection() {
           ))}
         </ul>
       )}
-      {!showInactive && inactiveCount > 0 && (
+      {tab === "team" && !showInactive && inactiveCount > 0 && (
         <button
           type="button"
           onClick={() => setShowInactive(true)}
           className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-xl border border-slate-700 px-3 text-start text-sm text-slate-300"
         >
           <UserX size={16} aria-hidden className="shrink-0" />
-          עובדים לא פעילים ({inactiveCount})
+          {tx("עובדים לא פעילים ({n})", { n: inactiveCount })}
         </button>
       )}
-      <AddButton label="הוספת עובד" onClick={() => edit(blankWorker())} />
-      <WorkerSheet editing={editing} onClose={() => edit(null)} onSaved={onSaved} />
-      <RequestSheet open={requesting} onClose={() => setRequesting(false)} />
+      {tab === "team" && <AddButton label={tx("הוספת עובד")} onClick={() => edit(blankWorker())} />}
+      {sheets}
     </>
+  );
+}
+
+/** The short explanation at the top of an action tab. */
+function TabIntro({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="mb-3 space-y-1 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <h2 className="font-semibold text-slate-100">{title}</h2>
+      <p className="text-sm text-slate-300">{text}</p>
+    </div>
   );
 }
 
@@ -366,8 +397,7 @@ function WorkerCard({
             ))}
             {active.length > 2 && (
               <span className="px-1 text-xs text-amber-200">
-                ועוד {active.length - 2}
-              </span>
+                {tx('ועוד {v}', { v: active.length - 2 })}</span>
             )}
           </span>
         )}
@@ -375,7 +405,7 @@ function WorkerCard({
       {dial && (
         <a
           href={dial}
-          aria-label={`חיוג אל ${fullName(w)}`}
+          aria-label={tx('חיוג אל {v}', { v: fullName(w) })}
           className="flex w-14 shrink-0 items-center justify-center border-s border-slate-800 text-emerald-400"
         >
           <Phone size={22} aria-hidden />
@@ -400,8 +430,8 @@ function WorkerSheet({
       open={editing !== null}
       title={
         editing && workers.items.some((w) => w.id === editing.id)
-          ? "עריכת עובד"
-          : "עובד חדש"
+          ? tx('עריכת עובד')
+          : tx('עובד חדש')
       }
       onClose={onClose}
       locked={workers.saving}
@@ -412,10 +442,10 @@ function WorkerSheet({
 }
 
 const PHONES = [
-  ["mobilePhone", "טלפון נייד (חובה)"],
-  ["homePhone", "טלפון בבית"],
-  ["emergencyPhone1", "טלפון חירום 1"],
-  ["emergencyPhone2", "טלפון חירום 2"],
+  ["mobilePhone", tx('טלפון נייד (חובה)')],
+  ["homePhone", tx('טלפון בבית')],
+  ["emergencyPhone1", tx('טלפון חירום 1')],
+  ["emergencyPhone2", tx('טלפון חירום 2')],
 ] as const;
 
 const OPTIONAL_TEXT = [
@@ -478,19 +508,19 @@ function WorkerForm({
   const save = () => {
     // Names are not unique on purpose: two workers may share a name.
     const err = !draft.firstName.trim()
-      ? "צריך למלא שם פרטי"
+      ? tx('צריך למלא שם פרטי')
       : !draft.lastName.trim()
-        ? "צריך למלא שם משפחה"
+        ? tx('צריך למלא שם משפחה')
         : !draft.mobilePhone?.trim()
-          ? "צריך למלא טלפון נייד"
+          ? tx('צריך למלא טלפון נייד')
           : !isIsraeliMobile(draft.mobilePhone)
-            ? "הטלפון הנייד לא תקין. צריך 10 ספרות שמתחילות ב-05, למשל 050-1234567"
+            ? tx('הטלפון הנייד לא תקין. צריך 10 ספרות שמתחילות ב-05, למשל 050-1234567')
             : draft.idNumber?.trim() && !isIsraeliId(draft.idNumber)
-              ? "תעודת הזהות לא תקינה. צריך 9 ספרות, למשל 012345678"
+              ? tx('תעודת הזהות לא תקינה. צריך 9 ספרות, למשל 012345678')
               : !birthDateValid
-                ? "תאריך הלידה לא תקין"
+                ? tx('תאריך הלידה לא תקין')
                 : draft.status === "sick" && !draft.sickUntil
-                  ? "צריך לבחור עד איזה תאריך העובד במחלה"
+                  ? tx('צריך לבחור עד איזה תאריך העובד במחלה')
                   : null;
     setError(err);
     if (err) return;
@@ -518,7 +548,7 @@ function WorkerForm({
         }
       />
       <div className="grid grid-cols-2 gap-3">
-        <Field label="שם פרטי (חובה)">
+        <Field label={tx('שם פרטי (חובה)')}>
           <input
             autoFocus
             value={draft.firstName}
@@ -526,7 +556,7 @@ function WorkerForm({
             className={inputClass}
           />
         </Field>
-        <Field label="שם משפחה (חובה)">
+        <Field label={tx('שם משפחה (חובה)')}>
           <input
             value={draft.lastName}
             onChange={set("lastName")}
@@ -537,7 +567,7 @@ function WorkerForm({
 
       {/* Small on purpose: a line of its own under the name, not a full form row. */}
       <p className="-mt-3 text-xs text-slate-400">
-        סטטוס:{" "}
+        {tx('סטטוס:')}{" "}
         <button
           type="button"
           onClick={() => setStatusOpen(true)}
@@ -571,7 +601,7 @@ function WorkerForm({
       />
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="ת.ז">
+        <Field label={tx('ת.ז')}>
           <input
             dir="ltr"
             inputMode="numeric"
@@ -581,7 +611,7 @@ function WorkerForm({
             className={`${inputClass} text-right`}
           />
         </Field>
-        <Field label="מספר אישי">
+        <Field label={tx('מספר אישי')}>
           <input
             dir="ltr"
             inputMode="numeric"
@@ -592,7 +622,7 @@ function WorkerForm({
         </Field>
       </div>
       <div className="space-y-1">
-        <span className="text-sm text-slate-300">מחלקה</span>
+        <span className="text-sm text-slate-300">{tx('מחלקה')}</span>
         {departments.items.length ? (
           <Chips
             options={departments.items}
@@ -607,15 +637,15 @@ function WorkerForm({
           />
         ) : (
           <p className="text-sm text-amber-300">
-            עוד אין מחלקות. אפשר להוסיף אותן בהגדרות, "מחלקות".
+            {tx('עוד אין מחלקות. אפשר להוסיף אותן בהגדרות, "מחלקות".')}
           </p>
         )}
       </div>
 
       <div className="space-y-1">
-        <span className="text-sm text-slate-300">תפקידים</span>
+        <span className="text-sm text-slate-300">{tx('תפקידים')}</span>
         <p className="text-xs text-slate-400">
-          כל עובד הוא גם "כללי", בלי לסמן.
+          {tx('כל עובד הוא גם "כללי", בלי לסמן.')}
         </p>
         {specificRoles.length ? (
           <Chips
@@ -627,12 +657,12 @@ function WorkerForm({
           />
         ) : (
           <p className="text-sm text-amber-300">
-            עוד אין תפקידים מלבד "כללי". אפשר להוסיף אותם בלשונית "תפקידים".
+            {tx('עוד אין תפקידים מלבד "כללי". אפשר להוסיף אותם בלשונית "תפקידים".')}
           </p>
         )}
       </div>
       <div className="space-y-1">
-        <span className="text-sm text-slate-300">הסמכות</span>
+        <span className="text-sm text-slate-300">{tx('הסמכות')}</span>
         {certs.items.length ? (
           <Chips
             options={certs.items}
@@ -646,7 +676,7 @@ function WorkerForm({
           />
         ) : (
           <p className="text-sm text-amber-300">
-            עוד אין הסמכות. אפשר להוסיף אותן בלשונית "הסמכות".
+            {tx('עוד אין הסמכות. אפשר להוסיף אותן בלשונית "הסמכות".')}
           </p>
         )}
       </div>
@@ -669,7 +699,7 @@ function WorkerForm({
                 {dial ? (
                   <a
                     href={dial}
-                    aria-label={`חיוג: ${label}`}
+                    aria-label={tx('חיוג: {label}', { label })}
                     className="flex w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300"
                   >
                     <Phone size={18} aria-hidden />
@@ -688,7 +718,7 @@ function WorkerForm({
         })}
       </div>
       <DateField
-        label="תאריך לידה"
+        label={tx('תאריך לידה')}
         value={draft.birthDate ?? ""}
         min="1900-01-01"
         max={todayIso()}
@@ -697,14 +727,14 @@ function WorkerForm({
           setBirthDateValid(valid);
         }}
       />
-      <Field label="כתובת">
+      <Field label={tx('כתובת')}>
         <input
           value={draft.address ?? ""}
           onChange={set("address")}
           className={inputClass}
         />
       </Field>
-      <Field label="הערות">
+      <Field label={tx('הערות')}>
         <textarea
           rows={2}
           value={draft.notes ?? ""}
@@ -721,7 +751,7 @@ function WorkerForm({
             ? () => write(workers.items.filter((w) => w.id !== worker.id), false)
             : undefined
         }
-        deleteWarning={`למחוק את ${fullName(worker)}? אי אפשר לבטל את זה.`}
+        deleteWarning={tx('למחוק את {v}? אי אפשר לבטל את זה.', { v: fullName(worker) })}
         busy={busy}
         error={error}
         saveError={saveError}
@@ -773,34 +803,32 @@ function StatusSheet({
   const choice = "min-h-11 w-full rounded-xl border px-3 text-start text-sm";
 
   return (
-    <Sheet open={open} title="סטטוס העובד" onClose={close}>
+    <Sheet open={open} title={tx('סטטוס העובד')} onClose={close}>
       {step === "ask" && (
         <>
           <p className="text-sm text-slate-300">
-            הסטטוס של {fullName(worker) || "העובד"} עכשיו: {workerState(worker, todayIso()).label}. לשנות
-            אותו?
-          </p>
+            {tx('הסטטוס של {v} עכשיו: {v2}. לשנות אותו?', { v: fullName(worker) || tx('העובד'), v2: workerState(worker, todayIso()).label })}</p>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setStep("pick")}
               className="min-h-11 rounded-xl bg-sky-600 text-sm font-medium text-white"
             >
-              כן, לשנות
+              {tx('כן, לשנות')}
             </button>
             <button
               type="button"
               onClick={close}
               className="min-h-11 rounded-xl border border-slate-700 text-sm text-slate-300"
             >
-              לא
+              {tx('לא')}
             </button>
           </div>
         </>
       )}
       {step === "pick" && (
         <div className="space-y-2">
-          <p className="text-sm text-slate-300">לאיזה סטטוס?</p>
+          <p className="text-sm text-slate-300">{tx('לאיזה סטטוס?')}</p>
           {STATUSES.map((st) => (
             <button
               key={st.id}
@@ -811,12 +839,12 @@ function StatusSheet({
               {st.name}
               {st.id === "inactive" && (
                 <span className="block text-xs text-slate-400">
-                  לא יופיע ברשימת העובדים ולא ישובץ לעבודות
+                  {tx('לא יופיע ברשימת העובדים ולא ישובץ לעבודות')}
                 </span>
               )}
             </button>
           ))}
-          <p className="pt-1 text-sm text-slate-300">או לא זמין לכמה ימים:</p>
+          <p className="pt-1 text-sm text-slate-300">{tx('או לא זמין לכמה ימים:')}</p>
           {ABSENCES.map((a) => (
             <button
               key={a.id}
@@ -834,17 +862,16 @@ function StatusSheet({
             </button>
           ))}
           <p className="text-xs text-slate-400">
-            בימים האלה העובד לא ישובץ לעבודות, והכרטיס שלו יראה את המצב.
+            {tx('בימים האלה העובד לא ישובץ לעבודות, והכרטיס שלו יראה את המצב.')}
           </p>
         </div>
       )}
       {step === "range" && (
         <>
           <p className="text-sm text-slate-300">
-            {ABSENCES.find((a) => a.id === kind)?.name}: באילו ימים?
-          </p>
+            {tx('{v}: באילו ימים?', { v: ABSENCES.find((a) => a.id === kind)?.name })}</p>
           {/* Three ways: a stretch of days, the same weekdays every week, or days picked on a calendar. */}
-          <div role="tablist" aria-label="איך לסמן" className="grid grid-cols-3 rounded-xl bg-slate-900 p-1">
+          <div role="tablist" aria-label={tx('איך לסמן')} className="grid grid-cols-3 rounded-xl bg-slate-900 p-1">
             {ABSENCE_MODES.map((m) => (
               <button
                 key={m.id}
@@ -861,7 +888,7 @@ function StatusSheet({
           {mode === "range" && (
             <>
               <DateField
-                label="מתאריך"
+                label={tx('מתאריך')}
                 value={from}
                 required
                 onChange={(v, ok) => {
@@ -870,7 +897,7 @@ function StatusSheet({
                 }}
               />
               <DateField
-                label="עד תאריך (כולל)"
+                label={tx('עד תאריך (כולל)')}
                 value={to}
                 min={from || todayIso()}
                 required
@@ -883,8 +910,8 @@ function StatusSheet({
           )}
           {mode === "weekly" && (
             <>
-              <div className="flex flex-wrap gap-2" aria-label="ימים בשבוע">
-                {HEBREW_DAYS.map((name, d) => (
+              <div className="flex flex-wrap gap-2" aria-label={tx('ימים בשבוע')}>
+                {DAY_NAMES.map((name, d) => (
                   <button
                     key={name}
                     type="button"
@@ -897,7 +924,7 @@ function StatusSheet({
                 ))}
               </div>
               <DateField
-                label="עד תאריך (לא חובה; ריק = בלי סוף)"
+                label={tx('עד תאריך (לא חובה; ריק = בלי סוף)')}
                 value={to}
                 min={todayIso()}
                 onChange={(v, ok) => {
@@ -915,7 +942,7 @@ function StatusSheet({
                 onToggle={(day) => setPicked((p) => (p.includes(day) ? p.filter((x) => x !== day) : [...p, day]))}
               />
               <p className="text-xs text-slate-400" aria-live="polite">
-                {picked.length ? `סומנו ${picked.length === 1 ? "יום אחד" : `${picked.length} ימים`}` : "לחץ על הימים בלוח"}
+                {picked.length ? tx('סומנו {v}', { v: picked.length === 1 ? tx('יום אחד') : tx('{length} ימים', { length: picked.length }) }) : tx('לחץ על הימים בלוח')}
               </p>
             </>
           )}
@@ -941,14 +968,14 @@ function StatusSheet({
             }}
             className="min-h-11 w-full rounded-xl bg-sky-600 text-sm font-medium text-white disabled:opacity-40"
           >
-            אישור
+            {tx('אישור')}
           </button>
         </>
       )}
       {step === "date" && (
         <>
           <DateField
-            label="במחלה עד (כולל היום הזה)"
+            label={tx('במחלה עד (כולל היום הזה)')}
             value={sickUntil}
             min={todayIso()}
             required
@@ -966,7 +993,7 @@ function StatusSheet({
             }}
             className="min-h-11 w-full rounded-xl bg-sky-600 text-sm font-medium text-white disabled:opacity-40"
           >
-            אישור
+            {tx('אישור')}
           </button>
         </>
       )}

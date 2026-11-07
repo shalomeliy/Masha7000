@@ -1,3 +1,4 @@
+import { monthNames, tx } from '../i18n'
 import { fullName } from './catalog'
 import { isNightShift, weekday } from './shifts'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
@@ -5,7 +6,7 @@ import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 // The monthly report: every worker's shifts in one month, by kind, for payroll and the night allowance.
 // Pure rules, no I/O. A shift counts in the month of its start date, for the workers in its final crew.
 
-export const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+export const HEBREW_MONTHS = monthNames()
 
 /** "2026-10" -> "אוקטובר 2026". */
 export const monthLabel = (month: string) => `${HEBREW_MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`
@@ -49,7 +50,7 @@ export interface MonthReport extends PeriodReport {
   month: string
 }
 
-export const DELETED_WORKER = 'עובד שנמחק'
+export const DELETED_WORKER = tx('עובד שנמחק')
 
 /**
  * Counts the month. `upTo` (today) leaves out shifts that have not started yet, so the current
@@ -101,30 +102,30 @@ export function periodReport(from: string, to: string, records: ShiftRecord[], w
 }
 
 export const COLUMNS = [
-  { key: 'day', label: 'יום' },
-  { key: 'night', label: 'לילה' },
-  { key: 'urgent', label: 'דחופות' },
-  { key: 'weekend', label: 'סופ"ש' },
-  { key: 'total', label: 'סה"כ' },
-  { key: 'swappedOut', label: 'הוחלף' },
+  { key: 'day', label: tx('יום') },
+  { key: 'night', label: tx('לילה') },
+  { key: 'urgent', label: tx('דחופות') },
+  { key: 'weekend', label: tx('סופ"ש') },
+  { key: 'total', label: tx('סה"כ') },
+  { key: 'swappedOut', label: tx('הוחלף') },
 ] as const
 
 /** WhatsApp text: one line per worker who worked or was swapped, then the totals. */
-export const monthText = (rep: MonthReport) => periodText(`דוח עבודות ${monthLabel(rep.month)}`, 'בחודש', rep)
+export const monthText = (rep: MonthReport) => periodText(tx('דוח עבודות {v}', { v: monthLabel(rep.month) }), tx('בחודש'), rep)
 
 /** WhatsApp text for any period; `inPeriod` is "בחודש" or "בשבוע". */
 export function periodText(title: string, inPeriod: string, rep: PeriodReport): string {
   const line = (r: Omit<MonthRow, 'workerId' | 'name'>) =>
-    [`${r.total} עבודות`, `יום ${r.day}`, `לילה ${r.night}`, r.urgent && `דחופות ${r.urgent}`, r.weekend && `סופ"ש ${r.weekend}`, r.swappedOut && `הוחלף ${r.swappedOut}`]
+    [tx('{total} עבודות', { total: r.total }), tx('יום {day}', { day: r.day }), tx('לילה {night}', { night: r.night }), r.urgent && tx('דחופות {urgent}', { urgent: r.urgent }), r.weekend && tx('סופ"ש {weekend}', { weekend: r.weekend }), r.swappedOut && tx('הוחלף {swappedOut}', { swappedOut: r.swappedOut })]
       .filter(Boolean)
       .join(' · ')
   const active = rep.rows.filter((r) => r.total || r.swappedOut)
   return [
     `*${title}*`,
     '',
-    ...(active.length ? active.map((r) => `*${r.name}*: ${line(r)}`) : [`אין עבודות ${inPeriod} הזה`]),
+    ...(active.length ? active.map((r) => `*${r.name}*: ${line(r)}`) : [tx('אין עבודות {inPeriod} הזה', { inPeriod })]),
     '',
-    `*סה"כ*: ${rep.shifts} עבודות ${inPeriod} · ${line(rep.totals)}`,
+    tx('*סה"כ*: {shifts} עבודות {inPeriod} · {v}', { shifts: rep.shifts, inPeriod, v: line(rep.totals) }),
   ].join('\n')
 }
 
@@ -137,9 +138,9 @@ function cell(v: string | number): string {
 /** CSV for Excel: a BOM so Hebrew shows, every worker, and a totals row. */
 export function monthCsv(rep: PeriodReport): string {
   const lines = [
-    ['עובד', ...COLUMNS.map((c) => c.label)],
+    [tx('עובד'), ...COLUMNS.map((c) => c.label)],
     ...rep.rows.map((r) => [r.name, ...COLUMNS.map((c) => r[c.key])]),
-    ['סה"כ', ...COLUMNS.map((c) => rep.totals[c.key])],
+    [tx('סה"כ'), ...COLUMNS.map((c) => rep.totals[c.key])],
   ]
   return '﻿' + lines.map((l) => l.map(cell).join(',')).join('\r\n') + '\r\n'
 }

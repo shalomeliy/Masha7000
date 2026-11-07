@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { ChevronDown, Minus, Plus } from 'lucide-react'
 import { Chips } from '../../components/Sheet'
@@ -33,11 +34,11 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-slate-300">כמה אנשים צריך</span>
+        <span className="text-sm text-slate-300">{tx('כמה אנשים צריך')}</span>
         <div className="flex items-center gap-1">
           <button
             type="button"
-            aria-label="פחות אנשים"
+            aria-label={tx('פחות אנשים')}
             disabled={value.length <= 1}
             onClick={() => resize(value.length - 1)}
             className="flex size-11 items-center justify-center rounded-lg border border-slate-700 text-slate-200 disabled:opacity-40"
@@ -49,7 +50,7 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
           </span>
           <button
             type="button"
-            aria-label="עוד אדם"
+            aria-label={tx('עוד אדם')}
             disabled={value.length >= MAX_STAFF}
             onClick={() => resize(value.length + 1)}
             className="flex size-11 items-center justify-center rounded-lg border border-slate-700 text-slate-200 disabled:opacity-40"
@@ -64,7 +65,7 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
             <div className="flex items-center gap-2">
             <span className="w-5 shrink-0 text-center text-sm text-slate-400">{i + 1}</span>
             <select
-              aria-label={`תפקיד לאדם ${i + 1}`}
+              aria-label={tx('תפקיד לאדם {v}', { v: i + 1 })}
               value={s.roleId}
               // A new role here replaces the place's other roles too, except in the kind editor that shows them.
               onChange={(e) => setSlot(i, { roleId: e.target.value, alsoRoleIds: toggleOff(s.alsoRoleIds, e.target.value), altRoleIds: alt ? s.altRoleIds?.filter((id) => id !== e.target.value) : undefined })}
@@ -79,25 +80,25 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
 <button
               type="button"
               aria-expanded={open === i}
-              aria-label={`הסמכות ותפקידים נוספים לאדם ${i + 1}`}
+              aria-label={tx('הסמכות ותפקידים נוספים לאדם {v}', { v: i + 1 })}
               onClick={() => setOpen(open === i ? null : i)}
               className={`${selectClass} flex items-center justify-between gap-1 text-start`}
             >
-              <span className="truncate">{needText(s) || 'בלי הסמכה'}</span>
+              <span className="truncate">{needText(s) || tx('בלי הסמכה')}</span>
               <ChevronDown size={16} className={`shrink-0 ${open === i ? 'rotate-180' : ''}`} aria-hidden />
             </button>
             </div>
             {open === i && (
               <div className="space-y-2 ps-7">
-                <span className="block text-xs text-slate-400">הסמכות (האדם צריך את כולן)</span>
+                <span className="block text-xs text-slate-400">{tx('הסמכות (האדם צריך את כולן)')}</span>
                 {certs.items.length ? (
                   <Chips options={certs.items} selected={slotCerts(s)} onToggle={(id) => setSlot(i, { certificationId: undefined, certificationIds: toggle(slotCerts(s), id) })} />
                 ) : (
-                  <p className="text-xs text-amber-300">עוד אין הסמכות.</p>
+                  <p className="text-xs text-amber-300">{tx('עוד אין הסמכות.')}</p>
                 )}
                 {moreRoles(s).length > 0 && (
                   <>
-                    <span className="block text-xs text-slate-400">תפקידים שאותו אדם צריך גם להחזיק</span>
+                    <span className="block text-xs text-slate-400">{tx('תפקידים שאותו אדם צריך גם להחזיק')}</span>
                     <Chips options={moreRoles(s)} selected={s.alsoRoleIds ?? []} onToggle={(id) => setSlot(i, { alsoRoleIds: toggle(s.alsoRoleIds ?? [], id) })} />
                   </>
                 )}
@@ -105,26 +106,25 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
             )}
             {alt ? (
               <select
-                aria-label={`תפקיד נוסף שמתאים לאדם ${i + 1}`}
+                aria-label={tx('תפקיד נוסף שמתאים לאדם {v}', { v: i + 1 })}
                 value={s.altRoleIds?.[0] ?? ''}
                 onChange={(e) => setSlot(i, { altRoleIds: e.target.value ? [e.target.value] : undefined })}
                 className={`${selectClass} text-slate-300`}
               >
-                <option value="">בלי תפקיד נוסף</option>
+                <option value="">{tx('בלי תפקיד נוסף')}</option>
                 {roles.items
                   .filter((r) => r.id !== s.roleId && r.id !== general)
                   .map((r) => (
                     <option key={r.id} value={r.id}>
-                      או {r.name}
-                    </option>
+                      {tx('או {name}', { name: r.name })}</option>
                   ))}
               </select>
             ) : (
               (!!s.kindId || !!s.altRoleIds?.length) && (
                 <p className="ps-7 text-xs text-slate-400">
                   {[
-                    s.altRoleIds?.length && `מתאים גם: ${s.altRoleIds.map((id) => roles.items.find((r) => r.id === id)?.name).filter(Boolean).join(', ')}`,
-                    s.kindId && `מתוך "${kinds.items.find((k) => k.id === s.kindId)?.name ?? 'סוג עבודה שנמחק'}"`,
+                    s.altRoleIds?.length && tx('מתאים גם: {v}', { v: s.altRoleIds.map((id) => roles.items.find((r) => r.id === id)?.name).filter(Boolean).join(', ') }),
+                    s.kindId && tx('מתוך "{v}"', { v: kinds.items.find((k) => k.id === s.kindId)?.name ?? tx('סוג עבודה שנמחק') }),
                   ]
                     .filter(Boolean)
                     .join(' · ')}

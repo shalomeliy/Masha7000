@@ -1,6 +1,7 @@
+import { language, tx } from '../i18n'
 import { joinTranscripts } from './dictation'
 
-// Hebrew speech in and out, for the voice assistant. In: the browser's speech recognition (he-IL),
+// Speech in and out in the app's language, for the voice assistant. In: the browser's speech recognition,
 // as in DictationField. Out: the browser's speech synthesis, free and on the phone itself.
 
 interface Recognition {
@@ -22,10 +23,10 @@ export const canListen = Boolean(Speech)
 export const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window
 
 export const LISTEN_ERRORS: Record<string, string> = {
-  'not-allowed': 'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן.',
-  'service-not-allowed': 'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן.',
-  network: 'זיהוי הדיבור צריך אינטרנט.',
-  'no-speech': 'לא נשמע דיבור. נסה שוב.',
+  'not-allowed': tx('אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן.'),
+  'service-not-allowed': tx('אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן.'),
+  network: tx('זיהוי הדיבור צריך אינטרנט.'),
+  'no-speech': tx('לא נשמע דיבור. נסה שוב.'),
 }
 
 // A pause this long after the last words ends the listening, so the manager need not tap again.
@@ -42,7 +43,7 @@ export interface Listening {
 export function listen(onText: (text: string) => void, onEnd: (text: string, error?: string) => void): Listening | null {
   if (!Speech) return null
   const r = new Speech()
-  r.lang = 'he-IL'
+  r.lang = language().speech
   r.interimResults = true
   r.continuous = true
   let text = ''
@@ -60,7 +61,7 @@ export function listen(onText: (text: string) => void, onEnd: (text: string, err
     quietStop()
   }
   r.onerror = (e) => {
-    if (e.error !== 'aborted' && !(e.error === 'no-speech' && text)) error = LISTEN_ERRORS[e.error] ?? 'זיהוי הדיבור לא הצליח. אפשר להקליד במקום.'
+    if (e.error !== 'aborted' && !(e.error === 'no-speech' && text)) error = LISTEN_ERRORS[e.error] ?? tx('זיהוי הדיבור לא הצליח. אפשר להקליד במקום.')
   }
   r.onend = () => {
     clearTimeout(timer)
@@ -73,16 +74,16 @@ export function listen(onText: (text: string) => void, onEnd: (text: string, err
 
 let voice: SpeechSynthesisVoice | null | undefined
 const hebrewVoice = () => {
-  if (voice === undefined || voice === null) voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith('he')) ?? null
+  if (voice === undefined || voice === null) voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(language().code)) ?? null
   return voice
 }
 
 // How fast replies are read, chosen on the assistant screen and kept on this phone.
 export const RATES = [
-  { value: 0.8, name: 'איטי' },
-  { value: 1, name: 'רגיל' },
-  { value: 1.25, name: 'מהיר' },
-  { value: 1.5, name: 'מהיר מאוד' },
+  { value: 0.8, name: tx('איטי') },
+  { value: 1, name: tx('רגיל') },
+  { value: 1.25, name: tx('מהיר') },
+  { value: 1.5, name: tx('מהיר מאוד') },
 ] as const
 const RATE_KEY = 'assistant.rate'
 let current: number | undefined
@@ -108,9 +109,9 @@ export function nextRate(): number {
   current = v
   return v
 }
-export const rateName = (v: number) => RATES.find((r) => r.value === v)?.name ?? 'רגיל'
+export const rateName = (v: number) => RATES.find((r) => r.value === v)?.name ?? tx('רגיל')
 
-/** Reads the text aloud in Hebrew; `onDone` when it ends or cannot start. */
+/** Reads the text aloud in the app's language; `onDone` when it ends or cannot start. */
 export function speak(text: string, onDone?: () => void) {
   if (!canSpeak || !text) {
     onDone?.()
@@ -118,7 +119,7 @@ export function speak(text: string, onDone?: () => void) {
   }
   speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(text)
-  u.lang = 'he-IL'
+  u.lang = language().speech
   u.rate = current ?? (current = speechRate())
   const v = hebrewVoice()
   if (v) u.voice = v

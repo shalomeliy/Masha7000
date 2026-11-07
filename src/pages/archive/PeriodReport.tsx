@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { ChevronLeft, ChevronRight, Download, MessageCircle } from 'lucide-react'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { COLUMNS, addMonths, csvFileName, monthCsv, monthLabel, monthReport, monthText } from '../../lib/monthReport'
@@ -23,9 +24,9 @@ export function MonthReport({ month, today, onMonth, onWorker }: Props & { month
       rep={rep}
       label={monthLabel(month)}
       current={month === today.slice(0, 7)}
-      inPeriod="בחודש"
-      prevLabel="החודש הקודם"
-      nextLabel="החודש הבא"
+      inPeriod={tx('בחודש')}
+      prevLabel={tx('החודש הקודם')}
+      nextLabel={tx('החודש הבא')}
       onPrev={() => onMonth(addMonths(month, -1))}
       onNext={() => onMonth(addMonths(month, 1))}
       text={monthText(rep)}
@@ -45,9 +46,9 @@ export function WeekReport({ week, today, onWeek, onWorker }: Props & { week: st
       rep={rep}
       label={weekLabel(week)}
       current={week === weekOf(today)}
-      inPeriod="בשבוע"
-      prevLabel="השבוע הקודם"
-      nextLabel="השבוע הבא"
+      inPeriod={tx('בשבוע')}
+      prevLabel={tx('השבוע הקודם')}
+      nextLabel={tx('השבוע הבא')}
       onPrev={() => onWeek(addDays(week, -7))}
       onNext={() => onWeek(addDays(week, 7))}
       text={weekText(rep)}
@@ -101,7 +102,7 @@ function PeriodReport({
         </button>
         <p className="text-center font-semibold">
           {label}
-          {current && <span className="block text-xs font-normal text-slate-400">עד היום</span>}
+          {current && <span className="block text-xs font-normal text-slate-400">{tx('עד היום')}</span>}
         </p>
         <button
           type="button"
@@ -116,19 +117,17 @@ function PeriodReport({
 
       {rep.shifts === 0 ? (
         <p role="status" className="rounded-2xl border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
-          אין עבודות {inPeriod} הזה
-        </p>
+          {tx('אין עבודות {inPeriod} הזה', { inPeriod })}</p>
       ) : (
         <>
           <p role="status" className="text-sm text-slate-300">
-            {rep.shifts === 1 ? 'עבודה אחת' : `${rep.shifts} עבודות`} {inPeriod}. דחופות וסופ"ש כבר נספרו ביום או בלילה. לחיצה על עובד מציגה את העבודות שלו.
-          </p>
+            {tx('{v} {inPeriod}. דחופות וסופ"ש כבר נספרו ביום או בלילה. לחיצה על עובד מציגה את העבודות שלו.', { v: rep.shifts === 1 ? tx('עבודה אחת') : tx('{shifts} עבודות', { shifts: rep.shifts }), inPeriod })}</p>
           <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900">
             <table className="w-full text-sm">
               <thead className="text-xs text-slate-400">
                 <tr className="border-b border-slate-800">
                   <th scope="col" className="sticky start-0 bg-slate-900 px-3 py-2 text-start font-medium">
-                    עובד
+                    {tx('עובד')}
                   </th>
                   {COLUMNS.map((c) => (
                     <th key={c.key} scope="col" className={`${num} font-medium ${c.key === 'total' ? 'text-slate-200' : ''}`}>
@@ -156,7 +155,7 @@ function PeriodReport({
               <tfoot>
                 <tr className="font-semibold">
                   <th scope="row" className="sticky start-0 bg-slate-900 px-3 py-2 text-start">
-                    סה"כ
+                    {tx('סה"כ')}
                   </th>
                   {COLUMNS.map((c) => (
                     <td key={c.key} className={num}>
@@ -176,11 +175,11 @@ function PeriodReport({
               className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 font-semibold text-slate-950"
             >
               <MessageCircle size={18} aria-hidden />
-              שליחה בוואטסאפ
+              {tx('שליחה בוואטסאפ')}
             </a>
             <button type="button" onClick={download} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-700 text-sm text-slate-200">
               <Download size={18} aria-hidden />
-              הורדה לאקסל
+              {tx('הורדה לאקסל')}
             </button>
           </div>
         </>

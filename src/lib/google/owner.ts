@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 // The owner's controls on the server: who may sign in, and disconnecting the owner's Drive.
 
 export interface AccessList {
@@ -6,10 +7,10 @@ export interface AccessList {
 }
 
 const REASONS: Record<string, string> = {
-  'bad-email': 'זו לא כתובת מייל תקינה.',
-  'owner-implicit': 'זה המייל שלך, הוא תמיד מורשה.',
-  'not-owner': 'רק המנהל יכול לשנות את הרשימה.',
-  'no-session': 'החיבור במכשיר הזה נגמר. צריך להתחבר שוב.',
+  'bad-email': tx('זו לא כתובת מייל תקינה.'),
+  'owner-implicit': tx('זה המייל שלך, הוא תמיד מורשה.'),
+  'not-owner': tx('רק המנהל יכול לשנות את הרשימה.'),
+  'no-session': tx('החיבור במכשיר הזה נגמר. צריך להתחבר שוב.'),
 }
 
 async function call<T>(body: object): Promise<T> {
@@ -22,10 +23,10 @@ async function call<T>(body: object): Promise<T> {
       body: JSON.stringify(body),
     })
   } catch {
-    throw new Error('אין חיבור לאינטרנט.')
+    throw new Error(tx('אין חיבור לאינטרנט.'))
   }
   const data = (await res.json().catch(() => ({}))) as T & { reason?: string }
-  if (!res.ok) throw new Error(REASONS[data.reason ?? ''] ?? 'השרת לא הצליח. נסה שוב.')
+  if (!res.ok) throw new Error(REASONS[data.reason ?? ''] ?? tx('השרת לא הצליח. נסה שוב.'))
   return data
 }
 

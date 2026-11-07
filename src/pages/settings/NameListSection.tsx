@@ -1,3 +1,4 @@
+import { language, tx } from '../../i18n'
 import { useState } from 'react'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { nameError, newId, upsert } from '../../lib/catalog'
@@ -19,29 +20,33 @@ interface Item {
 const TEXT: Record<Kind, { field: TextField; explain: string; add: string; edit: string; fresh: string; label: string; one: string }> = {
   places: {
     field: 'location',
-    explain: 'מקומות שחוזרים על עצמם. כשממלאים מיקום בעבודה ביומן או בעבודה לשיבוץ, הם מופיעים מתחת לשדה ואפשר לבחור בלחיצה.',
-    add: 'הוספת מקום',
-    edit: 'עריכת מקום',
-    fresh: 'מקום חדש',
-    label: 'שם המקום',
-    one: 'המקום',
+    explain: tx('מקומות שחוזרים על עצמם. כשממלאים מיקום בעבודה ביומן או בעבודה לשיבוץ, הם מופיעים מתחת לשדה ואפשר לבחור בלחיצה.'),
+    add: tx('הוספת מקום'),
+    edit: tx('עריכת מקום'),
+    fresh: tx('מקום חדש'),
+    label: tx('שם המקום'),
+    one: tx('המקום'),
   },
   jobTypes: {
     field: 'jobDescription',
-    explain: 'מהות עבודה שחוזרת על עצמה. כשממלאים מהות עבודה, היא מופיעה מתחת לשדה ואפשר לבחור בלחיצה.',
-    add: 'הוספת מהות עבודה',
-    edit: 'עריכת מהות עבודה',
-    fresh: 'מהות עבודה חדשה',
-    label: 'מהות העבודה',
-    one: 'השם',
+    explain: tx('מהות עבודה שחוזרת על עצמה. כשממלאים מהות עבודה, היא מופיעה מתחת לשדה ואפשר לבחור בלחיצה.'),
+    add: tx('הוספת מהות עבודה'),
+    edit: tx('עריכת מהות עבודה'),
+    fresh: tx('מהות עבודה חדשה'),
+    label: tx('מהות העבודה'),
+    one: tx('השם'),
   },
 }
 
 // A number after a Hebrew prefix letter takes a hyphen: "ב-2 עבודות ביומן", "ועבודה אחת".
-const withPrefix = (prefix: string, n: number, one: string, many: string) => (n === 1 ? `${prefix}${one}` : `${prefix}${prefix ? '-' : ''}${n} ${many}`)
+// Other languages write the prefix ("in", "and") as its own word.
+const withPrefix = (prefix: string, n: number, one: string, many: string) => {
+  const glue = language().code === 'he' ? '' : prefix && !prefix.endsWith(' ') ? ' ' : ''
+  return n === 1 ? `${prefix}${glue}${one}` : `${prefix}${glue || (prefix ? '-' : '')}${n} ${many}`
+}
 
 const usageText = (u: { shifts: number; jobs: number }, prefix = '') =>
-  [u.shifts && withPrefix(prefix, u.shifts, 'עבודה אחת ביומן', 'עבודות ביומן'), u.jobs && withPrefix(u.shifts ? 'ו' : prefix, u.jobs, 'עבודה אחת לשיבוץ', 'עבודות לשיבוץ')]
+  [u.shifts && withPrefix(prefix, u.shifts, tx('עבודה אחת ביומן'), tx('עבודות ביומן')), u.jobs && withPrefix(u.shifts ? tx('ו') : prefix, u.jobs, tx('עבודה אחת לשיבוץ'), tx('עבודות לשיבוץ'))]
     .filter(Boolean)
     .join(' ')
 
@@ -71,7 +76,7 @@ export function NameListSection({ kind }: { kind: Kind }) {
           text={t.explain}
           addLabel={t.add}
           onAdd={() => setEditing({ id: newId(), name: '' })}
-          starterLabel={used.length ? `להתחיל עם מה שכבר כתוב ביומן: ${used.slice(0, 5).join(', ')}${used.length > 5 ? ' ועוד' : ''}` : undefined}
+          starterLabel={used.length ? tx('להתחיל עם מה שכבר כתוב ביומן: {v}{v2}', { v: used.slice(0, 5).join(', '), v2: used.length > 5 ? tx(' ועוד') : '' }) : undefined}
           onStarter={used.length ? addUsed : undefined}
           starterBusy={list.saving}
           starterError={starterError}
@@ -156,7 +161,7 @@ function NameForm({ kind, item, onDone }: { kind: Kind; item: Item; onDone: () =
 
   return (
     <>
-      <Field label={t.label} hint={renamed && used ? `השם יתעדכן גם ${usageText(u, 'ב')} עם "${item.name}".` : undefined}>
+      <Field label={t.label} hint={renamed && used ? tx('השם יתעדכן גם {v} עם "{name}".', { v: usageText(u, tx('ב')), name: item.name }) : undefined}>
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </Field>
       <SheetActions
@@ -165,8 +170,8 @@ function NameForm({ kind, item, onDone }: { kind: Kind; item: Item; onDone: () =
         onDelete={exists ? () => run(() => list.save(list.items.filter((x) => x.id !== item.id))) : undefined}
         deleteWarning={
           used
-            ? `${t.one} יימחק מהרשימה בלבד. ${usageText(u, 'ב')} עם "${item.name}" הטקסט יישאר כמו שהוא.`
-            : `למחוק את "${item.name}" מהרשימה?`
+            ? tx('{one} יימחק מהרשימה בלבד. {v} עם "{name}" הטקסט יישאר כמו שהוא.', { one: t.one, v: usageText(u, tx('ב')), name: item.name })
+            : tx('למחוק את "{name}" מהרשימה?', { name: item.name })
         }
         busy={busy}
         error={error}

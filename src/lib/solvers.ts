@@ -5,7 +5,7 @@
 import { generalRoleId, isActive, staffingFor } from './catalog'
 import { NO_EDITS, type Edits } from './assistantEdits'
 import { autoAssign, type PlanContext } from './planner'
-import { addDays, dayName, moveShift, showDate } from './shifts'
+import { addDays, hebrewDayName, moveShift, showDate } from './shifts'
 import type { AppData } from './assistant'
 import type { ShiftRecord, StaffSlot } from '../types/models'
 
@@ -58,7 +58,7 @@ function setup(d: AppData): Setup {
 }
 
 const where = (s: ShiftRecord) => s.location || s.jobDescription || 'העבודה'
-const when = (date: string) => `יום ${dayName(date)} ${showDate(date)}`
+const when = (date: string) => `יום ${hebrewDayName(date)} ${showDate(date)}`
 const names = (S: Setup, crew: ShiftRecord['crew']) => crew.map((c) => S.name(c.workerId)).filter(Boolean).join(', ')
 
 /** Options for one job: fill it now (without `out`), move it to the first day a full crew fits, or go short. */

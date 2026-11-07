@@ -5,6 +5,7 @@ import { requestText } from '../../lib/constraints'
 import { todayIso } from '../../lib/dates'
 import { whatsappHref } from '../../lib/report'
 import { addDays, showDate, weekOf } from '../../lib/shifts'
+import { tx } from '../../i18n'
 
 // The constraints request the manager sends to the workers' group. Each worker fills in the
 // days and sends it back; the reply is pasted into that worker's constraints.
@@ -27,20 +28,19 @@ export function RequestSheet({ open, onClose }: { open: boolean; onClose: () => 
   }
 
   return (
-    <Sheet open={open} title="בקשת אילוצים מהעובדים" onClose={onClose}>
+    <Sheet open={open} title={tx('בקשת אילוצים מהעובדים')} onClose={onClose}>
       <div className="flex items-center justify-between rounded-xl bg-slate-900 p-1">
-        <button type="button" aria-label="שבוע קודם" onClick={() => move(-7)} className="flex size-11 items-center justify-center text-slate-300">
+        <button type="button" aria-label={tx('שבוע קודם')} onClick={() => move(-7)} className="flex size-11 items-center justify-center text-slate-300">
           <ChevronRight size={20} aria-hidden />
         </button>
         <span className="text-sm font-medium">
-          שבוע {showDate(weekStart)} עד {showDate(addDays(weekStart, 6))}
-        </span>
-        <button type="button" aria-label="שבוע הבא" onClick={() => move(7)} className="flex size-11 items-center justify-center text-slate-300">
+          {tx('שבוע {v} עד {v2}', { v: showDate(weekStart), v2: showDate(addDays(weekStart, 6)) })}</span>
+        <button type="button" aria-label={tx('שבוע הבא')} onClick={() => move(7)} className="flex size-11 items-center justify-center text-slate-300">
           <ChevronLeft size={20} aria-hidden />
         </button>
       </div>
       <pre className="max-h-[40dvh] overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-800 bg-slate-950 p-3 font-sans text-sm text-slate-200">{text}</pre>
-      <p className="text-xs text-slate-400">כשעובד עונה, פתח את העובד, לחץ "הדבקת תשובה מוואטסאפ" והדבק את ההודעה שלו.</p>
+      <p className="text-xs text-slate-400">{tx('כשעובד עונה, פתח את העובד, לחץ "הדבקת תשובה מוואטסאפ" והדבק את ההודעה שלו.')}</p>
       <a
         href={whatsappHref(text)}
         target="_blank"
@@ -48,7 +48,7 @@ export function RequestSheet({ open, onClose }: { open: boolean; onClose: () => 
         className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 font-semibold text-slate-950"
       >
         <MessageCircle size={20} aria-hidden />
-        שליחה בוואטסאפ
+        {tx('שליחה בוואטסאפ')}
       </a>
       <div className="flex gap-2">
         {'share' in navigator && (
@@ -58,16 +58,16 @@ export function RequestSheet({ open, onClose }: { open: boolean; onClose: () => 
             className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-700 text-sm text-slate-200"
           >
             <Share2 size={18} aria-hidden />
-            שיתוף
+            {tx('שיתוף')}
           </button>
         )}
         <button type="button" onClick={copy} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-700 text-sm text-slate-200">
           <Copy size={18} aria-hidden />
-          {copied ? 'הועתק' : 'העתקה'}
+          {copied ? tx('הועתק') : tx('העתקה')}
         </button>
       </div>
       <button type="button" onClick={onClose} className="min-h-12 w-full rounded-xl border border-slate-700 text-slate-300">
-        סגירה
+        {tx('סגירה')}
       </button>
     </Sheet>
   )

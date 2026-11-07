@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { Check, Moon, MoonStar, Sun } from 'lucide-react'
 import { endsNextDay } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
@@ -14,7 +15,7 @@ export function ShiftDefField({ value, onChange }: { value: string | undefined; 
   const defs = useDriveList('shiftDefinitions')
   return (
     <fieldset className="space-y-2 rounded-2xl border-2 border-sky-500/60 bg-sky-500/5 p-3">
-      <legend className="px-1 text-base font-semibold text-slate-100">תבנית עבודה</legend>
+      <legend className="px-1 text-base font-semibold text-slate-100">{tx('תבנית עבודה')}</legend>
       {defs.items.length ? (
         <div className="grid grid-cols-3 gap-2">
           {defs.items.map((d) => {
@@ -36,7 +37,7 @@ export function ShiftDefField({ value, onChange }: { value: string | undefined; 
           })}
         </div>
       ) : (
-        <p className="text-sm text-amber-300">עוד אין תבניות עבודה. אפשר להוסיף אותן בלשונית "עובדים", "תבניות".</p>
+        <p className="text-sm text-amber-300">{tx('עוד אין תבניות עבודה. אפשר להוסיף אותן בלשונית "עובדים", "תבניות".')}</p>
       )}
     </fieldset>
   )

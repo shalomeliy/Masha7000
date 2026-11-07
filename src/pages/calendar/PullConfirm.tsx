@@ -6,6 +6,7 @@ import { fillInsFor } from '../../lib/moveAdvice'
 import { busyText } from '../../lib/planner'
 import { dayName, showDate } from '../../lib/shifts'
 import type { ShiftRecord, Worker } from '../../types/models'
+import { tx } from '../../i18n'
 
 // Asked before a worker busy in another job at the same time is put into this one: on yes, they
 // leave that job, and the manager picks who takes their place there so it is not left short.
@@ -48,28 +49,26 @@ export function PullConfirm({
 
   if (step === 'sure')
     return (
-      <div role="alertdialog" aria-label="העברת עובד מעבודה אחרת" className={box}>
+      <div role="alertdialog" aria-label={tx('העברת עובד מעבודה אחרת')} className={box}>
         <p className="font-semibold">{busyText(pulls)}.</p>
-        <p>אם תמשיך, {many ? 'הם יוסרו מהעבודות ההן ויעברו' : 'הוא יוסר מהעבודה ההיא ויעבור'} לעבודה הזו. בטוח?</p>
+        <p>{tx('אם תמשיך, {v} לעבודה הזו. בטוח?', { v: many ? tx('הם יוסרו מהעבודות ההן ויעברו') : tx('הוא יוסר מהעבודה ההיא ויעבור') })}</p>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => setStep('fill')} className={yes}>
-            כן, להעביר
+            {tx('כן, להעביר')}
           </button>
           <button type="button" onClick={onNo} className={no}>
-            לא
+            {tx('לא')}
           </button>
         </div>
       </div>
     )
 
   return (
-    <div role="alertdialog" aria-label="מי ייכנס במקומו" className={box}>
+    <div role="alertdialog" aria-label={tx('מי ייכנס במקומו')} className={box}>
       {pulls.map((p, i) => (
         <label key={p.worker.id} className="block space-y-1">
           <span className="block font-semibold">
-            מי ייכנס במקום {fullName(p.worker)} בעבודה ביום {dayName(p.other.date)} {showDate(p.other.date)}
-            {p.other.location && ` (${p.other.location})`}?
-          </span>
+            {tx('מי ייכנס במקום {v} בעבודה ביום {weekday} {v3}{v4}?', { v: fullName(p.worker), weekday: dayName(p.other.date), v3: showDate(p.other.date), v4: p.other.location && ` (${p.other.location})` })}</span>
           {options[i].length ? (
             <select
               value={fillIns[p.worker.id] ?? ''}
@@ -83,19 +82,19 @@ export function PullConfirm({
                     {fullName(w)}
                   </option>
                 ))}
-              <option value="">להשאיר את המקום ריק</option>
+              <option value="">{tx('להשאיר את המקום ריק')}</option>
             </select>
           ) : (
-            <span className="block text-orange-200">אין עובד פנוי עם התפקיד וההסמכה של המקום הזה. המקום שם יישאר ריק.</span>
+            <span className="block text-orange-200">{tx('אין עובד פנוי עם התפקיד וההסמכה של המקום הזה. המקום שם יישאר ריק.')}</span>
           )}
         </label>
       ))}
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => onYes(Object.fromEntries(Object.entries(fillIns).filter(([, v]) => v)))} className={yes}>
-          אישור
+          {tx('אישור')}
         </button>
         <button type="button" onClick={onNo} className={no}>
-          ביטול
+          {tx('ביטול')}
         </button>
       </div>
     </div>

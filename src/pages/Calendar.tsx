@@ -18,6 +18,9 @@ import { ShareSheet } from './calendar/ShareSheet'
 import { ShiftSheet } from './calendar/ShiftEditor'
 import { WeekPlanSheet } from './calendar/WeekPlanSheet'
 import { EditMark, WorkerDial } from './workers/common'
+import { dayNames, tx } from '../i18n'
+
+const SHORT_DAYS = dayNames('short')
 
 // The week, Sunday to Saturday, with every shift in it. Urgent shifts can be opened any moment.
 
@@ -71,10 +74,10 @@ export function Calendar() {
     if (!r || r.date === day) return
     setDropError(null)
     setDropRefused(null)
-    if (day < today) return setDropRefused('אי אפשר להעביר עבודה ליום שכבר עבר.')
+    if (day < today) return setDropRefused(tx('אי אפשר להעביר עבודה ליום שכבר עבר.'))
     const moved = moveShift(r, day)
     const busy = busyCrew(moved, workers.items, shifts.items, defs.items)
-    if (busy.length) return setDropRefused(`${busyText(busy)}. אי אפשר להעביר את העבודה ליום הזה לפני שמחליפים ${busy.length > 1 ? 'אותם' : 'אותו'}.`)
+    if (busy.length) return setDropRefused(tx('{v}. אי אפשר להעביר את העבודה ליום הזה לפני שמחליפים {v2}.', { v: busyText(busy), v2: busy.length > 1 ? tx('אותם') : tx('אותו') }))
     try {
       await shifts.save(upsert(shifts.items, moved))
     } catch (e) {
@@ -84,14 +87,14 @@ export function Calendar() {
 
   return (
     <section className="space-y-4 px-4 pt-6">
-      <h1 className="text-2xl font-bold">יומן עבודות</h1>
+      <h1 className="text-2xl font-bold">{tx('יומן עבודות')}</h1>
 
       {failed ? (
         <DriveError error={failed.query.error} action="load" onRetry={() => lists.forEach((l) => l.query.isError && l.query.refetch())} />
       ) : loading ? (
         <p className="flex items-center gap-2 text-slate-400">
           <Loader2 className="animate-spin" size={18} aria-hidden />
-          טוען מגוגל דרייב...
+          {tx('טוען מגוגל דרייב...')}
         </p>
       ) : (
         <>
@@ -103,7 +106,7 @@ export function Calendar() {
               className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-amber-500 font-semibold text-slate-950"
             >
               <Zap size={20} aria-hidden />
-              עבודה דחופה עכשיו
+              {tx('עבודה דחופה עכשיו')}
             </button>
             <button
               type="button"
@@ -112,18 +115,18 @@ export function Calendar() {
               className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-700 font-semibold text-slate-200"
             >
               <Plus size={20} aria-hidden />
-              עבודה חדשה
+              {tx('עבודה חדשה')}
             </button>
           </div>
 
           <div className="flex items-center justify-between rounded-xl bg-slate-900 p-1">
-            <button type="button" aria-label="השבוע הקודם" onClick={() => changeWeek(addDays(week.start, -7))} className="flex size-11 items-center justify-center text-slate-300">
+            <button type="button" aria-label={tx('השבוע הקודם')} onClick={() => changeWeek(addDays(week.start, -7))} className="flex size-11 items-center justify-center text-slate-300">
               <ChevronRight size={22} aria-hidden />
             </button>
             <button type="button" onClick={() => changeWeek(weekOf(today).start)} className="min-h-11 px-3 text-sm">
-              {week.days.includes(today) ? 'השבוע' : 'שבוע'} {showDate(week.start)} - {showDate(week.end)}
+              {week.days.includes(today) ? tx('השבוע') : tx('שבוע')} {showDate(week.start)} - {showDate(week.end)}
             </button>
-            <button type="button" aria-label="השבוע הבא" onClick={() => changeWeek(addDays(week.start, 7))} className="flex size-11 items-center justify-center text-slate-300">
+            <button type="button" aria-label={tx('השבוע הבא')} onClick={() => changeWeek(addDays(week.start, 7))} className="flex size-11 items-center justify-center text-slate-300">
               <ChevronLeft size={22} aria-hidden />
             </button>
           </div>
@@ -133,15 +136,15 @@ export function Calendar() {
             data-hint="shareWeek"
             onClick={() =>
               setSharing({
-                title: 'סידור השבוע לוואטסאפ',
+                title: tx('סידור השבוע לוואטסאפ'),
                 report: weekData(week.start, ctx),
-                warning: counts.missing ? `שים לב: ${counts.missing === 1 ? 'עבודה אחת עוד חסרה' : `${counts.missing} עבודות עוד חסרות`} עובדים.` : undefined,
+                warning: counts.missing ? tx('שים לב: {v} עובדים.', { v: counts.missing === 1 ? tx('עבודה אחת עוד חסרה') : tx('{missing} עבודות עוד חסרות', { missing: counts.missing }) }) : undefined,
               })
             }
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/50 text-sm font-semibold text-emerald-300"
           >
             <MessageCircle size={18} aria-hidden />
-            שליחת סידור השבוע בוואטסאפ
+            {tx('שליחת סידור השבוע בוואטסאפ')}
           </button>
 
           {weekShifts.length > 0 && (
@@ -152,7 +155,7 @@ export function Calendar() {
               className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 text-sm font-semibold text-slate-950 disabled:bg-slate-800 disabled:text-slate-400"
             >
               <Wand2 size={18} aria-hidden />
-              {toPlan.length ? `שבץ את השבוע (${toPlan.length === 1 ? 'עבודה אחת' : `${toPlan.length} עבודות`})` : 'אין עבודות פתוחות לשבץ'}
+              {toPlan.length ? tx('שבץ את השבוע ({v})', { v: toPlan.length === 1 ? tx('עבודה אחת') : tx('{length} עבודות', { length: toPlan.length }) }) : tx('אין עבודות פתוחות לשבץ')}
             </button>
           )}
 
@@ -166,7 +169,7 @@ export function Calendar() {
           )}
 
           {/* One tap jumps to a day's first shift; it stays on top while scrolling, so the next jump is one tap too. */}
-          <nav aria-label="קפיצה ליום" className="sticky top-0 z-10 -mx-4 grid grid-cols-7 gap-1 bg-slate-950 px-4 py-2">
+          <nav aria-label={tx('קפיצה ליום')} className="sticky top-0 z-10 -mx-4 grid grid-cols-7 gap-1 bg-slate-950 px-4 py-2">
             {week.days.map((day) => {
               const hidden = filter && !records.some((r) => r.date === day && shown(r))
               return (
@@ -175,12 +178,12 @@ export function Calendar() {
                   type="button"
                   disabled={!!hidden}
                   onClick={() => document.getElementById(`day-${day}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  aria-label={`יום ${dayName(day)} ${showDate(day)}`}
+                  aria-label={tx('יום {weekday} {v2}', { weekday: dayName(day), v2: showDate(day) })}
                   className={`flex min-h-11 flex-col items-center justify-center rounded-lg text-xs disabled:opacity-30 ${
                     day === today ? 'bg-sky-500/20 text-sky-300' : 'bg-slate-900 text-slate-300'
                   }`}
                 >
-                  <span className="font-semibold">{'אבגדהוש'[weekday(day)]}</span>
+                  <span className="font-semibold">{SHORT_DAYS[weekday(day)]}</span>
                   <span>{Number(day.slice(8))}</span>
                 </button>
               )
@@ -208,29 +211,29 @@ export function Calendar() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <h2 className={`text-sm font-semibold ${day === today ? 'text-sky-400' : 'text-slate-400'}`}>
-                      יום {dayName(day)} {showDate(day)}
-                      {day === today && ' · היום'}
+                      {tx('יום {weekday}', { weekday: dayName(day) })} {showDate(day)}
+                      {day === today && tx(' · היום')}
                       {missingToday > 0 && (
                         <span className="ms-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
-                          <span className="sr-only">חסרים עובדים ב-</span>
+                          <span className="sr-only">{tx('חסרים עובדים ב-')}</span>
                           {missingToday}
-                          <span className="sr-only"> {missingToday === 1 ? 'עבודה' : 'עבודות'}</span>
+                          <span className="sr-only"> {missingToday === 1 ? tx('עבודה') : tx('עבודות')}</span>
                         </span>
                       )}
                     </h2>
                     {all.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => setSharing({ title: `יום ${dayName(day)} ${showDate(day)} לוואטסאפ`, report: dayData(day, ctx) })}
+                        onClick={() => setSharing({ title: tx('יום {weekday} {v2} לוואטסאפ', { weekday: dayName(day), v2: showDate(day) }), report: dayData(day, ctx) })}
                         className="flex min-h-11 items-center gap-1.5 px-2 text-xs text-emerald-300"
                       >
                         <MessageCircle size={16} aria-hidden />
-                        שליחת היום
+                        {tx('שליחת היום')}
                       </button>
                     )}
                   </div>
                   {dayShifts.length === 0 ? (
-                    <p className="text-sm text-slate-600">אין עבודות</p>
+                    <p className="text-sm text-slate-600">{tx('אין עבודות')}</p>
                   ) : (
                     <ul className="space-y-2">
                       {dayShifts.map((r) => (
@@ -302,7 +305,7 @@ function ShiftCard({
   const missing = gaps.missing.length > 0
   const warnIds = new Set([...gaps.doubleIds, ...gaps.nightIds])
   const warnOf = (id: string) =>
-    [gaps.doubleIds.includes(id) && 'כבר בעבודה אחרת באותו זמן', gaps.nightIds.includes(id) && 'מעל 2 לילות השבוע'].filter(Boolean).join(', ')
+    [gaps.doubleIds.includes(id) && tx('כבר בעבודה אחרת באותו זמן'), gaps.nightIds.includes(id) && tx('מעל 2 לילות השבוע')].filter(Boolean).join(', ')
   const showClose = night && (canClose || !!r.closure)
 
   return (
@@ -322,26 +325,25 @@ function ShiftCard({
           {!r.closure && gaps.kinds.length === 0 && (
             <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-300">
               <Check size={12} aria-hidden />
-              מאויש
+              {tx('מאויש')}
             </span>
           )}
-          {r.urgent && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 font-semibold text-amber-300">דחופה מ-{r.startTime}</span>}
+          {r.urgent && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 font-semibold text-amber-300">{tx('דחופה מ-{startTime}', { startTime: r.startTime })}</span>}
           {def && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">{def.name}</span>}
-          {r.fromJobId && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-300">המשך של משימה קודמת</span>}
+          {r.fromJobId && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-300">{tx('המשך של משימה קודמת')}</span>}
           {r.urgent && r.endDate && (
             <span className="text-slate-400">
-              עד יום {dayName(r.endDate)} {r.endTime}
-            </span>
+              {tx('עד יום {weekday} {endTime}', { weekday: dayName(r.endDate), endTime: r.endTime })}</span>
           )}
         </span>
         {r.location && <span className="block font-semibold">{r.location}</span>}
         {r.jobDescription && <span className="block text-sm text-slate-300">{r.jobDescription}</span>}
-        {nextJobText(r) && <span className="block text-sm text-violet-300">אחרי הלילה: {nextJobText(r)}</span>}
+        {nextJobText(r) && <span className="block text-sm text-violet-300">{tx('אחרי הלילה: {v}', { v: nextJobText(r) })}</span>}
         {missing && (
           <span className="block space-y-0.5 text-xs text-red-300">
             {gaps.missing.map((m, i) => (
               <span key={i} className="block">
-                <span className="font-semibold">חסר: {placeText(m.slot, roles.items, certs.items)}</span>
+                <span className="font-semibold">{tx('חסר: {v}', { v: placeText(m.slot, roles.items, certs.items) })}</span>
                 {m.why && <span className="text-red-300/80"> · {m.why}</span>}
               </span>
             ))}
@@ -367,7 +369,7 @@ function ShiftCard({
                 {constraint.note && ` (${constraint.note})`}
               </span>
             ))}
-            <span className="block text-orange-400">לחץ על העבודה כדי להחליף {blocked.length > 1 ? 'אותם' : 'אותו'}</span>
+            <span className="block text-orange-400">{tx('לחץ על העבודה כדי להחליף {v}', { v: blocked.length > 1 ? tx('אותם') : tx('אותו') })}</span>
           </span>
         )}
       </button>
@@ -398,7 +400,7 @@ function ShiftCard({
               className={`flex min-h-12 items-center gap-1.5 px-4 text-sm text-slate-300 ${showClose ? '' : 'flex-1'}`}
             >
               <CalendarArrowUp size={16} aria-hidden />
-              העברה ליום אחר
+              {tx('העברה ליום אחר')}
             </button>
           )}
           {showClose && (
@@ -409,7 +411,7 @@ function ShiftCard({
                   <span className="min-w-0 truncate text-slate-400">{[reasonText, r.closure?.note].filter(Boolean).join(' · ')}</span>
                 </>
               ) : (
-                <span className="font-semibold text-sky-400">סגירת עבודה</span>
+                <span className="font-semibold text-sky-400">{tx('סגירת עבודה')}</span>
               )}
             </button>
           )}
@@ -420,10 +422,10 @@ function ShiftCard({
 }
 
 const STATUS: { kind: GapKind; label: string; tone: string }[] = [
-  { kind: 'missing', label: 'חסרים עובדים', tone: 'border-red-500/60 bg-red-500/15 text-red-200' },
-  { kind: 'blocked', label: 'התנגשות אילוץ', tone: 'border-orange-500/60 bg-orange-500/15 text-orange-200' },
-  { kind: 'double', label: 'אותו עובד פעמיים', tone: 'border-amber-500/60 bg-amber-500/10 text-amber-200' },
-  { kind: 'nights', label: 'מעל 2 לילות', tone: 'border-amber-500/60 bg-amber-500/10 text-amber-200' },
+  { kind: 'missing', label: tx('חסרים עובדים'), tone: 'border-red-500/60 bg-red-500/15 text-red-200' },
+  { kind: 'blocked', label: tx('התנגשות אילוץ'), tone: 'border-orange-500/60 bg-orange-500/15 text-orange-200' },
+  { kind: 'double', label: tx('אותו עובד פעמיים'), tone: 'border-amber-500/60 bg-amber-500/10 text-amber-200' },
+  { kind: 'nights', label: tx('מעל 2 לילות'), tone: 'border-amber-500/60 bg-amber-500/10 text-amber-200' },
 ]
 
 // The week at a glance: how many shifts still need something; a tap shows only those.
@@ -433,11 +435,11 @@ function WeekStatus({ counts, filter, onFilter }: { counts: Record<GapKind, numb
     return (
       <p role="status" className="flex min-h-11 items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-300">
         <Check size={18} aria-hidden />
-        כל העבודות השבוע מאוישות
+        {tx('כל העבודות השבוע מאוישות')}
       </p>
     )
   return (
-    <div role="group" aria-label="מצב השבוע" className="flex flex-wrap gap-2">
+    <div role="group" aria-label={tx('מצב השבוע')} className="flex flex-wrap gap-2">
       {chips.map((s) => (
         <button
           key={s.kind}
@@ -452,7 +454,7 @@ function WeekStatus({ counts, filter, onFilter }: { counts: Record<GapKind, numb
       ))}
       {filter && (
         <button type="button" onClick={() => onFilter(null)} className="min-h-11 rounded-full border border-slate-700 px-3 text-sm text-slate-300">
-          הצג הכול
+          {tx('הצג הכול')}
         </button>
       )}
     </div>

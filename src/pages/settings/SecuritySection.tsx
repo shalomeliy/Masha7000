@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { mfaStatus, logoutEverywhere, newRecoveryCodes } from '../../lib/google/mfa'
@@ -26,7 +27,7 @@ export function SecuritySection() {
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-semibold">אבטחה</h2>
+      <h2 className="text-lg font-semibold">{tx('אבטחה')}</h2>
       {codes ? (
         <RecoveryCodes
           codes={codes}
@@ -38,16 +39,14 @@ export function SecuritySection() {
       ) : (
         <>
           <p className="text-sm text-slate-400">
-            הכניסה מוגנת באימות דו-שלבי.{' '}
-            {status.data ? `נשארו לך ${status.data.recoveryLeft} קודי גיבוי.` : ''}
-          </p>
+            {tx('הכניסה מוגנת באימות דו-שלבי.{v}{v2}', { v: ' ', v2: status.data ? tx('נשארו לך {recoveryLeft} קודי גיבוי.', { recoveryLeft: status.data.recoveryLeft }) : '' })}</p>
           <button
             type="button"
             disabled={fresh.isPending}
             onClick={() => (confirm === 'codes' ? fresh.mutate() : setConfirm('codes'))}
             className={`w-full rounded-xl border py-3 ${confirm === 'codes' ? 'border-amber-500 bg-amber-500/10 text-amber-200' : 'border-slate-700 text-slate-300'}`}
           >
-            {confirm === 'codes' ? 'הקודים הישנים יפסיקו לעבוד. לחץ שוב' : 'קודי גיבוי חדשים'}
+            {confirm === 'codes' ? tx('הקודים הישנים יפסיקו לעבוד. לחץ שוב') : tx('קודי גיבוי חדשים')}
           </button>
         </>
       )}
@@ -57,9 +56,9 @@ export function SecuritySection() {
         onClick={() => (confirm === 'everywhere' ? everywhere.mutate() : setConfirm('everywhere'))}
         className={`w-full rounded-xl border py-3 ${confirm === 'everywhere' ? 'border-red-500 bg-red-500/20 text-red-200' : 'border-slate-700 text-slate-300'}`}
       >
-        {confirm === 'everywhere' ? 'לנתק את כל המכשירים שלך? לחץ שוב' : 'ניתוק מכל המכשירים'}
+        {confirm === 'everywhere' ? tx('לנתק את כל המכשירים שלך? לחץ שוב') : tx('ניתוק מכל המכשירים')}
       </button>
-      <p className="text-xs text-slate-500">לטלפון או מחשב שאבד: מנתק את החשבון שלך בכל מקום, גם כאן. אחר כך נכנסים מחדש עם גוגל וקוד.</p>
+      <p className="text-xs text-slate-500">{tx('לטלפון או מחשב שאבד: מנתק את החשבון שלך בכל מקום, גם כאן. אחר כך נכנסים מחדש עם גוגל וקוד.')}</p>
       {error && (
         <p role="alert" className="text-sm text-red-400">
           {error.message}
@@ -67,11 +66,11 @@ export function SecuritySection() {
       )}
       <p className="text-sm">
         <a href="/privacy.html" className="text-sky-300 underline">
-          מדיניות פרטיות
+          {tx('מדיניות פרטיות')}
         </a>
         {' · '}
         <a href="/terms.html" className="text-sky-300 underline">
-          תנאי שימוש
+          {tx('תנאי שימוש')}
         </a>
       </p>
     </div>

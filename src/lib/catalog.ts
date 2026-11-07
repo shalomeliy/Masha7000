@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import type { Department, Role, ShiftDefinition, StaffSlot, Worker } from '../types/models'
 import { normalizeConstraint } from './constraints'
 
@@ -128,7 +129,7 @@ export const slotCerts = (slot: StaffSlot): string[] => slot.certificationIds ??
 /** "מטפס או מנהל טיפוס" for a place that more than one role fills; "מטפס + מנהל עבודה" when one person holds both. */
 export function slotRoleNames(slot: StaffSlot, roles: Role[]): string {
   const name = (id: string) => roles.find((r) => r.id === id)?.name ?? GENERAL_ROLE_NAME
-  return [[slot.roleId, ...(slot.altRoleIds ?? [])].map(name).join(' או '), ...(slot.alsoRoleIds ?? []).map(name)].join(' + ')
+  return [[slot.roleId, ...(slot.altRoleIds ?? [])].map(name).join(tx(' או ')), ...(slot.alsoRoleIds ?? []).map(name)].join(' + ')
 }
 
 /** "טפסן (חשמלאי מוסמך, רתך)" for one place. */
@@ -141,7 +142,7 @@ export function placeText(slot: StaffSlot, roles: Role[], certs: { id: string; n
 /** "2 אנשים: טפסן (חשמלאי מוסמך), כללי" for a job card. */
 export function staffingText(slots: StaffSlot[], roles: Role[], certs: { id: string; name: string }[]): string {
   const names = slots.map((s) => placeText(s, roles, certs))
-  return `${countText(slots.length, 'אדם אחד', 'אנשים')}: ${names.join(', ')}`
+  return `${countText(slots.length, tx('אדם אחד'), tx('אנשים'))}: ${names.join(', ')}`
 }
 
 /** Grows or shrinks to `n` people; new people need "כללי" and no certification. */
@@ -152,8 +153,8 @@ export function resizeStaffing(slots: StaffSlot[], n: number, generalId: string)
 
 /** Returns an error message for a name, or null when it is valid. `selfId` is skipped when editing. */
 export function nameError(name: string, existing: { id: string; name: string }[], selfId?: string): string | null {
-  if (!name.trim()) return 'צריך למלא שם'
-  if (existing.some((e) => e.id !== selfId && normalize(e.name) === normalize(name))) return 'השם הזה כבר קיים'
+  if (!name.trim()) return tx('צריך למלא שם')
+  if (existing.some((e) => e.id !== selfId && normalize(e.name) === normalize(name))) return tx('השם הזה כבר קיים')
   return null
 }
 
@@ -162,8 +163,8 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
 export function shiftError(shift: Omit<ShiftDefinition, 'id'>, existing: ShiftDefinition[], selfId?: string): string | null {
   const n = nameError(shift.name, existing, selfId)
   if (n) return n
-  if (!TIME.test(shift.startTime) || !TIME.test(shift.endTime)) return 'צריך שעת התחלה ושעת סיום'
-  if (!Number.isInteger(shift.requiredHeadcount) || (shift.requiredHeadcount ?? 0) < 1) return 'צריך לפחות אדם אחד בעבודה'
+  if (!TIME.test(shift.startTime) || !TIME.test(shift.endTime)) return tx('צריך שעת התחלה ושעת סיום')
+  if (!Number.isInteger(shift.requiredHeadcount) || (shift.requiredHeadcount ?? 0) < 1) return tx('צריך לפחות אדם אחד בעבודה')
   return null
 }
 

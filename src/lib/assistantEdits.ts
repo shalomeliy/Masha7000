@@ -11,6 +11,7 @@ import { applyClosure, blankShift, isNightShift, moveShift, pendingAfterShiftSav
 import { endAbsence } from './workerState'
 import type { AbsenceKind, Constraint, PendingJob, StaffSlot, Worker, WorkerStatus } from '../types/models'
 import type { AppData } from './assistant'
+import { tx } from '../i18n'
 
 export interface StaffLine {
   roleId: string
@@ -106,7 +107,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     }
     d.workers = upsert(d.workers, next)
     changed.add('workers')
-    report.push(`עדכנתי את ${worker.firstName}`)
+    report.push(tx('עדכנתי את {firstName}', { firstName: worker.firstName }))
   }
 
   for (const c of e.addConstraints) {
@@ -130,7 +131,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     }
     d.workers = upsert(d.workers, { ...worker, constraints: [...worker.constraints, constraint] })
     changed.add('workers')
-    report.push(c.kind ? `רשמתי ש${worker.firstName} ${constraintText(constraint)}` : `רשמתי אילוץ ל${worker.firstName}`)
+    report.push(c.kind ? tx('רשמתי ש{firstName} {v}', { firstName: worker.firstName, v: constraintText(constraint) }) : tx('רשמתי אילוץ ל{firstName}', { firstName: worker.firstName }))
   }
 
   e.editJobs.forEach((j, i) => {
@@ -157,7 +158,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       changed.add('shifts').add('pendingJobs')
       touched.add(next.id)
       if (j.autoAssign) toAssign.push(next.id)
-      report.push(j.date && j.date !== shift.date ? `הזזתי את העבודה ב${where(next)}` : `עדכנתי את העבודה ב${where(next)}`)
+      report.push(j.date && j.date !== shift.date ? tx('הזזתי את העבודה ב{v}', { v: where(next) }) : tx('עדכנתי את העבודה ב{v}', { v: where(next) }))
     } else if (job) {
       const edited: PendingJob = fields(job)
       if (j.date) {
@@ -166,12 +167,12 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
         d.pendingJobs = pendingAfterShiftSave(upsert(d.pendingJobs, edited), created)
         changed.add('shifts').add('pendingJobs')
         if (j.autoAssign) toAssign.push(created.id)
-        report.push(`שיבצתי ליומן את העבודה ב${where(created)}`)
+        report.push(tx('שיבצתי ליומן את העבודה ב{v}', { v: where(created) }))
       } else {
         d.pendingJobs = upsert(d.pendingJobs, edited)
         changed.add('pendingJobs')
         if (j.autoAssign) errors.push(`${n}: אפשר לשבץ עובדים רק לעבודה עם תאריך`)
-        report.push(`עדכנתי את העבודה הממתינה ב${where(edited)}`)
+        report.push(tx('עדכנתי את העבודה הממתינה ב{v}', { v: where(edited) }))
       }
     } else errors.push(`${n}: אין עבודה עם id "${j.id}"`)
   })
@@ -197,7 +198,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     d.shifts = upsert(d.shifts, { ...shift, crew, ...(swaps.length ? { swaps: [...(shift.swaps ?? []), ...swaps] } : {}) })
     changed.add('shifts')
     touched.add(shift.id)
-    report.push(crew.length ? `ב${where(shift)} שמתי את ${crew.map((m) => d.workers.find((w) => w.id === m.workerId)?.firstName).join(', ')}` : `ב${where(shift)} הורדתי את כל העובדים`)
+    report.push(crew.length ? tx('ב{v} שמתי את {v2}', { v: where(shift), v2: crew.map((m) => d.workers.find((w) => w.id === m.workerId)?.firstName).join(', ') }) : tx('ב{v} הורדתי את כל העובדים', { v: where(shift) }))
   }
 
   // A worker in two jobs at once is handled by the caller (applyProposal: the manager is warned and
@@ -207,7 +208,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     if (!shift) continue
     for (const m of shift.crew) {
       const w = d.workers.find((x) => x.id === m.workerId)
-      if (w?.status === 'sick' && w.sickUntil && w.sickUntil >= shift.date) warnings.push(`שים לב, ${w.firstName} רשום חולה עד ${w.sickUntil.slice(8)}.${Number(w.sickUntil.slice(5, 7))}`)
+      if (w?.status === 'sick' && w.sickUntil && w.sickUntil >= shift.date) warnings.push(tx('שים לב, {firstName} רשום חולה עד {v}.{v2}', { firstName: w.firstName, v: w.sickUntil.slice(8), v2: Number(w.sickUntil.slice(5, 7)) }))
     }
   }
 
@@ -225,7 +226,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     d.shifts = out.records
     d.pendingJobs = out.pending
     changed.add('shifts').add('pendingJobs')
-    report.push(c.outcome === 'done' ? `סגרתי את העבודה ב${where(shift)} כבוצעה` : `סגרתי את העבודה ב${where(shift)}, והמשך שלה מחכה בלשיבוץ`)
+    report.push(c.outcome === 'done' ? tx('סגרתי את העבודה ב{v} כבוצעה', { v: where(shift) }) : tx('סגרתי את העבודה ב{v}, והמשך שלה מחכה בלשיבוץ', { v: where(shift) }))
   }
 
   for (const id of e.deleteJobIds) {
@@ -235,11 +236,11 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       // A job scheduled into it comes back to "לשיבוץ" by itself (isWaiting).
       d.shifts = d.shifts.filter((s) => s.id !== id)
       changed.add('shifts')
-      report.push(`מחקתי את העבודה ב${where(shift)}${shift.fromJobId ? ', והיא חזרה לרשימת הממתינות' : ''}`)
+      report.push(tx('מחקתי את העבודה ב{v}{v2}', { v: where(shift), v2: shift.fromJobId ? tx(', והיא חזרה לרשימת הממתינות') : '' }))
     } else if (job) {
       d.pendingJobs = d.pendingJobs.filter((p) => p.id !== id)
       changed.add('pendingJobs')
-      report.push(`מחקתי את העבודה הממתינה ב${where(job)}`)
+      report.push(tx('מחקתי את העבודה הממתינה ב{v}', { v: where(job) }))
     } else errors.push(`אין עבודה עם id "${id}" למחיקה`)
   }
 

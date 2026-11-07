@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { dateError } from '../lib/dates'
 import { inputClass } from './Sheet'
+import { tx } from '../i18n'
 
 // The one date input of the app: a tap opens the calendar; a typed date is checked
 // against the calendar on blur. `onChange` reports the value and whether it is valid,
@@ -24,7 +25,7 @@ export function DateField({
 
   const check = (input: HTMLInputElement) => {
     // A half-typed date gives value "" with badInput, which is not the same as an empty field.
-    const err = input.validity.badInput ? 'התאריך הזה לא קיים ביומן' : dateError(input.value, { min, max, required })
+    const err = input.validity.badInput ? tx('התאריך הזה לא קיים ביומן') : dateError(input.value, { min, max, required })
     setError(err)
     onChange(input.value, err === null)
   }

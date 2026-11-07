@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
@@ -115,10 +116,10 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     if (call?.name === 'propose') {
       const p = normalizeProposal(call.input)
       const problems = proposalErrors(p, data)
-      if (problems.length && fixes < MAX_FIXES) return send(userTurn(answer, '', `ההצעה לא תקינה: ${problems.join('; ')}. תקן והצע שוב, או שאל את המנהל.`, true), fixes + 1)
+      if (problems.length && fixes < MAX_FIXES) return send(userTurn(answer, '', tx('ההצעה לא תקינה: {v}. תקן והצע שוב, או שאל את המנהל.', { v: problems.join('; ') }), true), fixes + 1)
       if (problems.length) {
         setProposal(null)
-        say('לא הצלחתי להבין את הבקשה עד הסוף. נסה להגיד אותה שוב במילים אחרות.')
+        say(tx('לא הצלחתי להבין את הבקשה עד הסוף. נסה להגיד אותה שוב במילים אחרות.'))
         reset()
       } else {
         offer(p)
@@ -141,7 +142,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       const problem: Problem = i.kind === 'day' ? { kind: 'day', date: i.date } : i.kind === 'missing' ? { kind: 'missing', shiftId: i.shiftId, workerIds: i.workerIds ?? [] } : { kind: 'job', shiftId: i.shiftId }
       solved.current = { problem: problem.kind, options: solve(data, problem) }
       // Once per turn: a model asking again is told to solve it itself.
-      return send(userTurn(answer, '', fixes > MAX_FIXES ? 'פתור את הבעיה עם advise.' : optionsText(solved.current.options)), fixes + 1)
+      return send(userTurn(answer, '', fixes > MAX_FIXES ? tx('פתור את הבעיה עם advise.') : optionsText(solved.current.options)), fixes + 1)
     } else if (call?.name === 'rank') {
       setProposal(null)
       const r = call.input as { spoken: string; order: number[]; notes: string[] }
@@ -164,7 +165,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       if (String(call.input.question ?? '') !== early) say(String(call.input.question ?? ''))
     } else {
       setProposal(null)
-      say(answer.text || 'לא הבנתי. נסה שוב.')
+      say(answer.text || tx('לא הבנתי. נסה שוב.'))
     }
     setPhase('idle')
   }
@@ -197,11 +198,11 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         if (changed.has(key)) await (lists[key].save as (items: unknown[]) => Promise<void>)(next[key])
       }
     } catch {
-      setError('השמירה בגוגל דרייב נכשלה. כלום לא אבד, אפשר לנסות שוב.')
+      setError(tx('השמירה בגוגל דרייב נכשלה. כלום לא אבד, אפשר לנסות שוב.'))
       setPhase('idle')
       return
     }
-    if (byButton) setLines((l) => [...l, { who: 'me', text: 'מאשר' }])
+    if (byButton) setLines((l) => [...l, { who: 'me', text: tx('מאשר') }])
     say(`${report.join('. ')}.`)
     reset()
     setPhase('idle')
@@ -209,8 +210,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
 
   const cancel = () => {
     stopSpeaking()
-    setLines((l) => [...l, { who: 'me', text: 'ביטול' }])
-    say('ביטלתי. לא נשמר כלום.')
+    setLines((l) => [...l, { who: 'me', text: tx('ביטול') }])
+    say(tx('ביטלתי. לא נשמר כלום.'))
     reset()
   }
 
@@ -223,7 +224,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       return
     }
     asked.current = [...asked.current, text]
-    void send(userTurn(last.current, text, proposal ? 'המנהל לא אישר עדיין. התיקון שלו בהודעה הבאה.' : undefined))
+    void send(userTurn(last.current, text, proposal ? tx('המנהל לא אישר עדיין. התיקון שלו בהודעה הבאה.') : undefined))
   }
 
   // A picked solution goes back to the assistant, which turns it into a proposal to confirm.
@@ -238,18 +239,18 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       const p: Proposal = {
         ...normalizeProposal({}),
         ...o.changes,
-        summary: `${o.title}. ${o.actions.join('. ')}. לאשר, או שיש עוד תיקון?`,
+        summary: tx('{title}. {v}. לאשר, או שיש עוד תיקון?', { title: o.title, v: o.actions.join('. ') }),
         lessons: lesson ? [lesson] : [],
       }
       // The data may have changed since the options were computed: then the assistant redoes it.
       if (!proposalErrors(p, data).length) {
-        setLines((l) => [...l, { who: 'me', text: `פתרון ${i + 1}` }])
-        asked.current = [...asked.current, `פתרון ${i + 1}: ${o.title}`]
+        setLines((l) => [...l, { who: 'me', text: tx('פתרון {v}', { v: i + 1 }) }])
+        asked.current = [...asked.current, tx('פתרון {v}: {title}', { v: i + 1, title: o.title })]
         offer(p)
         return
       }
     }
-    handleSaid(`תעשה את פתרון ${i + 1}: ${o.title}`)
+    handleSaid(tx('תעשה את פתרון {v}: {title}', { v: i + 1, title: o.title }))
   }
 
   const toggleMic = () => {
@@ -288,7 +289,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
 
   const busy = phase === 'thinking' || phase === 'saving' || loading
   const status =
-    phase === 'listening' ? 'מקשיב... אפשר לדבר' : phase === 'thinking' ? 'חושב...' : phase === 'saving' ? 'שומר...' : loading ? 'טוען נתונים...' : proposal ? 'לאשר, או לתקן?' : advice ? 'איזה פתרון לעשות?' : talking ? 'לחץ וענה' : 'לחץ ודבר'
+    phase === 'listening' ? tx('מקשיב... אפשר לדבר') : phase === 'thinking' ? tx('חושב...') : phase === 'saving' ? tx('שומר...') : loading ? tx('טוען נתונים...') : proposal ? tx('לאשר, או לתקן?') : advice ? tx('איזה פתרון לעשות?') : talking ? tx('לחץ וענה') : tx('לחץ ודבר')
 
   return (
     <section className="flex min-h-[calc(100dvh-6rem)] flex-col items-center px-4 pt-10">
@@ -298,7 +299,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           onClick={toggleMic}
           disabled={busy}
           aria-pressed={phase === 'listening'}
-          aria-label={phase === 'listening' ? 'עצירת ההקשבה' : 'דבר עם Shaly'}
+          aria-label={phase === 'listening' ? tx('עצירת ההקשבה') : tx('דבר עם Shaly')}
           className={`flex size-44 items-center justify-center rounded-full border-4 shadow-xl transition active:scale-95 disabled:opacity-50 ${
             phase === 'listening' ? 'animate-pulse border-red-400 bg-red-500/20 text-red-100' : 'border-sky-400 bg-sky-500/15 text-sky-100'
           }`}
@@ -337,16 +338,16 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           <div className="flex gap-3">
             <button type="button" onClick={() => void confirm(true)} className="flex min-h-12 items-center gap-2 rounded-xl bg-emerald-600 px-6 font-semibold text-white">
               <Check size={20} aria-hidden />
-              אשר
+              {tx('אשר')}
             </button>
             <button type="button" onClick={correct} className="flex min-h-12 items-center gap-2 rounded-xl bg-sky-600 px-6 font-semibold text-white">
               <Pencil size={20} aria-hidden />
-              תקן
+              {tx('תקן')}
             </button>
           </div>
         )}
         {advice && phase === 'idle' && (
-          <ol className="w-full max-w-md space-y-3" aria-label="פתרונות">
+          <ol className="w-full max-w-md space-y-3" aria-label={tx('פתרונות')}>
             {advice.options.map((o, i) => (
               <li key={i} className="rounded-2xl border border-slate-700 bg-slate-800/60 p-4 text-sm text-slate-100">
                 <p className="font-semibold">{`${i + 1}. ${o.title}`}</p>
@@ -358,7 +359,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
                 <p className="mt-2 text-emerald-300">{o.why}</p>
                 <p className="mt-1 text-amber-300">{o.cost}</p>
                 <button type="button" onClick={() => pickOption(i)} className="mt-3 min-h-11 w-full rounded-xl bg-sky-600 font-semibold text-white">
-                  {`תעשה את פתרון ${i + 1}`}
+                  {tx('תעשה את פתרון {v}', { v: i + 1 })}
                 </button>
               </li>
             ))}
@@ -366,7 +367,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         )}
         {talking && phase === 'idle' && (
           <button type="button" onClick={cancel} className="min-h-11 px-3 text-sm text-slate-400 underline underline-offset-4">
-            {proposal ? 'ביטול, לסגור בלי לשמור' : 'לסגור את השיחה'}
+            {proposal ? tx('ביטול, לסגור בלי לשמור') : tx('לסגור את השיחה')}
           </button>
         )}
       </div>
@@ -381,9 +382,9 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
             }}
             className="flex gap-2"
           >
-            <input ref={typedRef} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="אפשר גם להקליד" className={inputClass} disabled={busy} />
+            <input ref={typedRef} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={tx('אפשר גם להקליד')} className={inputClass} disabled={busy} />
             <button type="submit" disabled={busy || !typed.trim()} className="min-h-11 rounded-xl bg-sky-600 px-4 font-semibold text-white disabled:opacity-50">
-              שלח
+              {tx('שלח')}
             </button>
           </form>
         )}
@@ -391,7 +392,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           {lines.length > 0 && (
             <button type="button" onClick={() => setShowText((s) => !s)} aria-expanded={showText} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
               <MessageSquareText size={18} aria-hidden />
-              {showText ? 'הסתר טקסט' : 'הצג טקסט'}
+              {showText ? tx('הסתר טקסט') : tx('הצג טקסט')}
             </button>
           )}
           {canSpeak && (
@@ -400,41 +401,41 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
               onClick={() => {
                 const v = nextRate()
                 setRate(v)
-                speak(`ככה אני מדבר בקצב ${rateName(v)}`)
+                speak(tx('ככה אני מדבר בקצב {v}', { v: rateName(v) }))
               }}
-              aria-label={`מהירות הדיבור: ${rateName(rate)}. לחיצה משנה`}
+              aria-label={tx('מהירות הדיבור: {v}. לחיצה משנה', { v: rateName(rate) })}
               className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200"
             >
               <Gauge size={18} aria-hidden />
-              {`קצב: ${rateName(rate)}`}
+              {tx('קצב: {v}', { v: rateName(rate) })}
             </button>
           )}
           {canListen && (
             <button type="button" onClick={() => setTyping((t) => !t)} aria-pressed={typing} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
               <Keyboard size={18} aria-hidden />
-              הקלדה
+              {tx('הקלדה')}
             </button>
           )}
           {data.assistantNotes.length > 0 && (
             <button type="button" onClick={() => setShowNotes((s) => !s)} aria-expanded={showNotes} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
               <BookMarked size={18} aria-hidden />
-              {`מה אני זוכר (${data.assistantNotes.length})`}
+              {tx('מה אני זוכר ({length})', { length: data.assistantNotes.length })}
             </button>
           )}
         </div>
         {showNotes && data.assistantNotes.length > 0 && (
-          <ul className="space-y-2" aria-label="מה העוזר זוכר">
+          <ul className="space-y-2" aria-label={tx('מה העוזר זוכר')}>
             {data.assistantNotes.map((n) => (
               <li key={n.id} className="flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-2 text-sm text-slate-100">
                 <span className="flex-1">
                   {n.text}
-                  {n.learned && <span className="ms-2 rounded-full bg-violet-500/20 px-2 text-xs text-violet-200">למדתי</span>}
+                  {n.learned && <span className="ms-2 rounded-full bg-violet-500/20 px-2 text-xs text-violet-200">{tx('למדתי')}</span>}
                 </span>
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void lists.assistantNotes.save(data.assistantNotes.filter((x) => x.id !== n.id)).catch(() => setError('המחיקה בגוגל דרייב נכשלה. נסה שוב.'))}
-                  aria-label={`למחוק: ${n.text}`}
+                  onClick={() => void lists.assistantNotes.save(data.assistantNotes.filter((x) => x.id !== n.id)).catch(() => setError(tx('המחיקה בגוגל דרייב נכשלה. נסה שוב.')))}
+                  aria-label={tx('למחוק: {text}', { text: n.text })}
                   className="flex size-11 items-center justify-center rounded-xl text-slate-400 hover:text-red-300 disabled:opacity-50"
                 >
                   <Trash2 size={18} aria-hidden />

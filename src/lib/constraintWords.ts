@@ -1,5 +1,6 @@
 import { WORD_GROUPS } from './constraints'
 import type { WordGroup, WordGroupSetting } from '../types/models'
+import { tx } from '../i18n'
 
 // The manager's own words for reading constraints. `readAnswer` reads the tables in constraints.ts;
 // the manager's changes are applied to those same arrays in place, so every reader sees them
@@ -10,13 +11,13 @@ export const BUILT_IN: Record<WordGroup, readonly string[]> = Object.fromEntries
 ) as Record<WordGroup, string[]>
 
 export const GROUPS: { id: WordGroup; title: string; explain: string }[] = [
-  { id: 'wholeDay', title: 'כל היום', explain: 'מילים שאומרות שהעובד לא זמין כל היום, למשל לימודים, חופש.' },
-  { id: 'events', title: 'אירוע בערב', explain: 'אירועים שקורים בערב, למשל חתונה. אם כתוב גם בוקר או צהריים, זה מה שקובע.' },
-  { id: 'morningEvents', title: 'אירוע בבוקר', explain: 'אירועים שקורים בבוקר, למשל ברית.' },
-  { id: 'cant', title: 'לא יכול', explain: 'מילים כלליות של "לא יכול". נקרא ככל היום.' },
-  { id: 'morning', title: 'בוקר', explain: 'מילים שאומרות בוקר.' },
-  { id: 'noon', title: 'צהריים', explain: 'מילים שאומרות צהריים או אחר הצהריים.' },
-  { id: 'evening', title: 'ערב ולילה', explain: 'מילים שאומרות ערב. "לילה" לבד נקרא כ"בלי לילה".' },
+  { id: 'wholeDay', title: tx('כל היום'), explain: tx('מילים שאומרות שהעובד לא זמין כל היום, למשל לימודים, חופש.') },
+  { id: 'events', title: tx('אירוע בערב'), explain: tx('אירועים שקורים בערב, למשל חתונה. אם כתוב גם בוקר או צהריים, זה מה שקובע.') },
+  { id: 'morningEvents', title: tx('אירוע בבוקר'), explain: tx('אירועים שקורים בבוקר, למשל ברית.') },
+  { id: 'cant', title: tx('לא יכול'), explain: tx('מילים כלליות של "לא יכול". נקרא ככל היום.') },
+  { id: 'morning', title: tx('בוקר'), explain: tx('מילים שאומרות בוקר.') },
+  { id: 'noon', title: tx('צהריים'), explain: tx('מילים שאומרות צהריים או אחר הצהריים.') },
+  { id: 'evening', title: tx('ערב ולילה'), explain: tx('מילים שאומרות ערב. "לילה" לבד נקרא כ"בלי לילה".') },
 ]
 
 const clean = (w: string) => w.replace(/\s+/g, ' ').trim()
@@ -45,8 +46,8 @@ export function removeWord(id: WordGroup, setting: WordGroupSetting | undefined,
 /** An error for a new word, or null. Words match inside longer words, so two letters would match almost anything. */
 export function wordError(word: string, words: string[]): string | null {
   const w = clean(word)
-  if (w.length < 2) return 'צריך לפחות שתי אותיות'
-  if (words.some((x) => same(x, w))) return 'המילה כבר ברשימה'
+  if (w.length < 2) return tx('צריך לפחות שתי אותיות')
+  if (words.some((x) => same(x, w))) return tx('המילה כבר ברשימה')
   return null
 }
 

@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 // Dates are stored as YYYY-MM-DD strings. A typed date must exist on the calendar
 // (no 31.2) and fall inside the field's range.
 
@@ -13,10 +14,10 @@ const show = (v: string) => v.split('-').reverse().join('.')
 
 // Hebrew error for the field, or null when the value is fine. Empty is fine unless required.
 export function dateError(value: string, { min, max, required }: { min?: string; max?: string; required?: boolean } = {}): string | null {
-  if (!value) return required ? 'צריך לבחור תאריך' : null
-  if (!isRealDate(value)) return 'התאריך הזה לא קיים ביומן'
-  if (min && value < min) return `התאריך צריך להיות מ-${show(min)} והלאה`
-  if (max && value > max) return `התאריך צריך להיות עד ${show(max)}`
+  if (!value) return required ? tx('צריך לבחור תאריך') : null
+  if (!isRealDate(value)) return tx('התאריך הזה לא קיים ביומן')
+  if (min && value < min) return tx('התאריך צריך להיות מ-{v} והלאה', { v: show(min) })
+  if (max && value > max) return tx('התאריך צריך להיות עד {v}', { v: show(max) })
   return null
 }
 

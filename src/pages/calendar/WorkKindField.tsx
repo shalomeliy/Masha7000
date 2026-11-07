@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { Check } from 'lucide-react'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { useStarterWorkKinds } from '../../lib/data/useStarterWorkKinds'
@@ -13,7 +14,7 @@ export function WorkKindField({ value, onToggle }: { value: string[] | undefined
   if (!kinds.items.length) return null
   return (
     <fieldset className="space-y-2">
-      <legend className="text-sm text-slate-300">סוג עבודה (אפשר לבחור כמה)</legend>
+      <legend className="text-sm text-slate-300">{tx('סוג עבודה (אפשר לבחור כמה)')}</legend>
       <div className="flex flex-wrap gap-2">
         {kinds.items.map((k) => {
           const on = picked.includes(k.id)
@@ -29,12 +30,12 @@ export function WorkKindField({ value, onToggle }: { value: string[] | undefined
             >
               {on && <Check size={16} strokeWidth={3} aria-hidden />}
               {k.name}
-              <span className={`text-xs font-normal ${on ? 'text-slate-800' : 'text-slate-400'}`}>{k.staffing.length === 1 ? 'אדם אחד' : `${k.staffing.length} אנשים`}</span>
+              <span className={`text-xs font-normal ${on ? 'text-slate-800' : 'text-slate-400'}`}>{k.staffing.length === 1 ? tx('אדם אחד') : tx('{length} אנשים', { length: k.staffing.length })}</span>
             </button>
           )
         })}
       </div>
-      {picked.length > 1 && <p className="text-xs text-slate-400">עובד שמתאים לכמה סוגים יכסה את כולם, ואז צריך פחות אנשים.</p>}
+      {picked.length > 1 && <p className="text-xs text-slate-400">{tx('עובד שמתאים לכמה סוגים יכסה את כולם, ואז צריך פחות אנשים.')}</p>}
     </fieldset>
   )
 }

@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { Sheet, SheetActions } from '../../components/Sheet'
 import { fullName, generalRoleId, staffingFor, upsert } from '../../lib/catalog'
@@ -14,7 +15,7 @@ import type { ShiftRecord } from '../../types/models'
 export function WeekPlanSheet({ shifts, onClose }: { shifts: ShiftRecord[] | null; onClose: () => void }) {
   const saved = useDriveList('shifts')
   return (
-    <Sheet open={shifts !== null} title="תצוגה מקדימה: שיבוץ השבוע" onClose={onClose} locked={saved.saving}>
+    <Sheet open={shifts !== null} title={tx('תצוגה מקדימה: שיבוץ השבוע')} onClose={onClose} locked={saved.saving}>
       {shifts && <WeekPlan shifts={shifts} onDone={onClose} />}
     </Sheet>
   )
@@ -41,7 +42,7 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
   const changed = items.filter((i) => i.added.length > 0)
   const name = (id: string) => {
     const w = workers.items.find((x) => x.id === id)
-    return w ? fullName(w) : 'עובד שנמחק'
+    return w ? fullName(w) : tx('עובד שנמחק')
   }
   const roleName = (id: string) => roles.items.find((r) => r.id === id)?.name ?? ''
 
@@ -63,18 +64,16 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
     <>
       <p className="text-sm text-slate-300">
         {changed.length
-          ? `${changed.length === 1 ? 'עבודה אחת תקבל' : `${changed.length} עבודות יקבלו`} עובדים. עובדים ששמת בעצמך נשארים. שום דבר לא נשמר עד "שמור הכול".`
-          : 'לא נמצאו עובדים מתאימים למקומות הפנויים. שום דבר לא ישתנה.'}
+          ? tx('{v} עובדים. עובדים ששמת בעצמך נשארים. שום דבר לא נשמר עד "שמור הכול".', { v: changed.length === 1 ? tx('עבודה אחת תקבל') : tx('{length} עבודות יקבלו', { length: changed.length }) })
+          : tx('לא נמצאו עובדים מתאימים למקומות הפנויים. שום דבר לא ישתנה.')}
       </p>
       <ul className="space-y-2">
         {items.map(({ shift: r, added, unfilled, why }) => (
           <li key={r.id} className={`space-y-1 rounded-xl border p-3 text-sm ${unfilled.length ? 'border-red-500/60' : 'border-slate-800'}`}>
             <p className="font-semibold">
-              יום {dayName(r.date)} {showDate(r.date)}
-              {r.location && ` · ${r.location}`}
-            </p>
+              {tx('יום {weekday} {v2}{v3}', { weekday: dayName(r.date), v2: showDate(r.date), v3: r.location && ` · ${r.location}` })}</p>
             {r.jobDescription && <p className="text-slate-400">{r.jobDescription}</p>}
-            {nextJobText(r) && <p className="text-violet-300">אחרי הלילה: {nextJobText(r)}</p>}
+            {nextJobText(r) && <p className="text-violet-300">{tx('אחרי הלילה: {v}', { v: nextJobText(r) })}</p>}
             {added.map((c) => (
               <p key={c.workerId} className="text-emerald-300">
                 + {name(c.workerId)}
@@ -83,7 +82,7 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
             ))}
             {unfilled.map((s, i) => (
               <p key={i} className="text-red-300">
-                <span className="font-semibold">עדיין חסר: {placeText(s, roles.items, certs.items)}</span> · {why[i]}
+                <span className="font-semibold">{tx('עדיין חסר: {v}', { v: placeText(s, roles.items, certs.items) })}</span> · {why[i]}
               </p>
             ))}
           </li>
@@ -92,7 +91,7 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
       <SheetActions
         onSave={save}
         onCancel={onDone}
-        saveLabel="שמור הכול"
+        saveLabel={tx('שמור הכול')}
         busy={busy}
         error={null}
         saveError={saveError}

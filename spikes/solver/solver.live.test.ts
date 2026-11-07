@@ -3,6 +3,7 @@
 // Run: LIVE=1 npx vitest run spikes/solver/solver.live.test.ts --dir . --silent=false
 import { readFileSync } from 'node:fs'
 import Anthropic from '@anthropic-ai/sdk'
+import { assertPaidCallAllowed } from '../../api/_lib/spendGuard.js'
 import { it } from 'vitest'
 import { runAssistant, SYSTEM } from '../../api/_lib/assistant'
 import { solve, optionsText, type Problem } from '../../src/lib/solvers'
@@ -143,6 +144,7 @@ async function call(client: Anthropic, system: string, messages: Anthropic.Messa
 }
 
 it.skipIf(!process.env.LIVE)('code solves, model words', { timeout: 120_000 }, async () => {
+  assertPaidCallAllowed()
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
   const ctx = JSON.stringify(snapshot(data, NOW))
   const system = `${SYSTEM}\n${MODE}\nהנתונים של האפליקציה עכשיו:\n${ctx}`

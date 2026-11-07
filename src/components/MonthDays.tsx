@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { HEBREW_DAYS } from '../lib/shifts'
+import { DAY_NAMES } from '../lib/shifts'
+import { dayNames, monthNames, tx } from '../i18n'
 
 // A month calendar for picking any set of days (a tap marks or unmarks a day). Days before `min`
 // cannot be picked. Weeks run Sunday to Saturday, right to left.
 
-const MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+const MONTHS = monthNames()
+const SHORT_DAYS = dayNames('short')
 const iso = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 
 export function MonthDays({ selected, onToggle, min }: { selected: string[]; onToggle: (day: string) => void; min: string }) {
@@ -24,17 +26,17 @@ export function MonthDays({ selected, onToggle, min }: { selected: string[]; onT
   return (
     <div className="rounded-2xl border border-slate-700 p-2">
       <div className="mb-2 flex items-center justify-between">
-        <button type="button" aria-label="החודש הקודם" disabled={atStart} onClick={() => move(-1)} className="flex size-11 items-center justify-center text-slate-300 disabled:opacity-30">
+        <button type="button" aria-label={tx('החודש הקודם')} disabled={atStart} onClick={() => move(-1)} className="flex size-11 items-center justify-center text-slate-300 disabled:opacity-30">
           <ChevronRight size={20} aria-hidden />
         </button>
         <span className="font-semibold">{`${MONTHS[month]} ${year}`}</span>
-        <button type="button" aria-label="החודש הבא" onClick={() => move(1)} className="flex size-11 items-center justify-center text-slate-300">
+        <button type="button" aria-label={tx('החודש הבא')} onClick={() => move(1)} className="flex size-11 items-center justify-center text-slate-300">
           <ChevronLeft size={20} aria-hidden />
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center text-xs text-slate-400">
-        {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map((d, i) => (
-          <abbr key={d + i} title={HEBREW_DAYS[i]} className="no-underline">
+        {SHORT_DAYS.map((d, i) => (
+          <abbr key={d + i} title={DAY_NAMES[i]} className="no-underline">
             {d}
           </abbr>
         ))}
@@ -51,7 +53,7 @@ export function MonthDays({ selected, onToggle, min }: { selected: string[]; onT
               type="button"
               disabled={past}
               aria-pressed={on}
-              aria-label={`${d} ב${MONTHS[month]}`}
+              aria-label={tx('{d} ב{v}', { d, v: MONTHS[month] })}
               onClick={() => onToggle(day)}
               className={`min-h-10 rounded-lg text-sm ${on ? 'bg-sky-600 font-semibold text-white' : 'text-slate-200'} disabled:opacity-30`}
             >

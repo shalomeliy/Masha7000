@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import { fullName, isActive, slotCerts, workerHasRole } from './catalog'
 import { blockingConstraint, constraintText } from './constraints'
 import { addDays, dayName, isNightShift, showDate, weekOf, weekShiftCount } from './shifts'
@@ -40,7 +41,7 @@ export const fitsSlot = (w: Worker, slot: StaffSlot, generalId: string) =>
   slotCerts(slot).every((id) => w.certificationIds.includes(id))
 
 /** Why a place stays empty when no worker at all holds everything it needs, with what to do about it. */
-export const NO_WORKER = 'אין עובד שמחזיק את כל הדרישות של המקום הזה. כדאי להוסיף עובד כזה, או לסמן לעובד קיים את מה שחסר לו בלשונית "עובדים".'
+export const NO_WORKER = tx('אין עובד שמחזיק את כל הדרישות של המקום הזה. כדאי להוסיף עובד כזה, או לסמן לעובד קיים את מה שחסר לו בלשונית "עובדים".')
 
 /** The role a worker fills a place in: the place's own role when they hold it, else the other role they hold. */
 export const roleInSlot = (w: Worker, slot: StaffSlot, generalId: string) =>
@@ -100,7 +101,7 @@ export function busyCrew(shift: ShiftRecord, workers: Worker[], records: ShiftRe
 export function busyText(busy: { worker: Worker; other: ShiftRecord }[]): string | null {
   if (!busy.length) return null
   return busy
-    .map(({ worker, other }) => `${fullName(worker)} כבר בעבודה ביום ${dayName(other.date)} ${showDate(other.date)}${other.location ? ` (${other.location})` : ''}`)
+    .map(({ worker, other }) => tx('{v} כבר בעבודה ביום {weekday} {v3}{v4}', { v: fullName(worker), weekday: dayName(other.date), v3: showDate(other.date), v4: other.location ? ` (${other.location})` : '' }))
     .join(', ')
 }
 
@@ -123,8 +124,8 @@ export function workerLoad(worker: Worker, shift: ShiftRecord, ctx: Pick<PlanCon
 /** Warning to show next to a worker in this shift, or null. */
 export function loadWarning(load: WorkerLoad): string | null {
   if (load.blocked) return `${constraintText(load.blocked)}${load.blocked.note ? ` (${load.blocked.note})` : ''}`
-  if (load.busy) return 'כבר בעבודה אחרת באותו זמן'
-  if (load.overNightLimit) return `כבר שובץ ל-${load.nights} לילות השבוע`
+  if (load.busy) return tx('כבר בעבודה אחרת באותו זמן')
+  if (load.overNightLimit) return tx('כבר שובץ ל-{nights} לילות השבוע', { nights: load.nights })
   return null
 }
 
@@ -245,13 +246,13 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
       const busy = fit.filter((c) => !c.load.blocked && c.load.busy)
       if (blocked.length || busy.length)
         return [
-          blocked.length && `לא זמינים: ${blocked.map((c) => `${fullName(c.worker)} (${constraintText(c.load.blocked!)})`).join(', ')}`,
-          busy.length && `בעבודה אחרת באותו זמן: ${busy.map((c) => fullName(c.worker)).join(', ')}`,
+          blocked.length && tx('לא זמינים: {v}', { v: blocked.map((c) => `${fullName(c.worker)} (${constraintText(c.load.blocked!)})`).join(', ') }),
+          busy.length && tx('בעבודה אחרת באותו זמן: {v}', { v: busy.map((c) => fullName(c.worker)).join(', ') }),
         ]
           .filter(Boolean)
           .join(' · ')
       return fit.length || candidates.some((c) => fitsSlot(c.worker, slot, ctx.generalId))
-        ? 'כל המתאימים כבר בעבודה הזו'
+        ? tx('כל המתאימים כבר בעבודה הזו')
         : NO_WORKER
     }),
   }

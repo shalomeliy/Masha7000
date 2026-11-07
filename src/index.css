@@ -26,3 +26,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .hint-blink { animation: none; }
 }
+
+/* Arrows drawn for right-to-left ("back" points right) turn around in left-to-right languages. */
+[dir='ltr'] svg.lucide-chevron-left,
+[dir='ltr'] svg.lucide-chevron-right,
+[dir='ltr'] svg.lucide-arrow-right {
+  transform: scaleX(-1);
+}

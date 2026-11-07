@@ -1,5 +1,6 @@
 import { driveErrorText, isAuthExpired } from '../lib/data/errors'
 import { useAuth } from '../store/auth'
+import { tx } from '../i18n'
 
 /** A failed Drive call, in plain words, with the one action that fixes it. */
 export function DriveError({ error, action, onRetry }: { error: unknown; action: 'load' | 'save'; onRetry?: () => void }) {
@@ -9,12 +10,12 @@ export function DriveError({ error, action, onRetry }: { error: unknown; action:
   const fix =
     reason === 'owner-disconnected'
       ? who?.isOwner
-        ? { label: 'חיבור מחדש', run: reconnect }
+        ? { label: tx('חיבור מחדש'), run: reconnect }
         : null
       : reason === 'not-allowed'
         ? null
         : reason
-          ? { label: 'התחברות מחדש', run: login }
+          ? { label: tx('התחברות מחדש'), run: login }
           : null
 
   return (
@@ -29,7 +30,7 @@ export function DriveError({ error, action, onRetry }: { error: unknown; action:
           }}
           className="min-h-11 rounded-xl border border-red-400/50 px-4 font-semibold"
         >
-          {fix ? fix.label : 'נסה שוב'}
+          {fix ? fix.label : tx('נסה שוב')}
         </button>
       )}
     </div>

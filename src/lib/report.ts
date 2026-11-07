@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import { GENERAL_ROLE_NAME, endsNextDay, fullName } from './catalog'
 import { dayName, showDate, sortShifts, weekOf } from './shifts'
 import { UNKNOWN_WORKER_COLOR, workerColors } from './workerColor'
@@ -48,15 +49,15 @@ function reportShift(r: ShiftRecord, ctx: ReportContext, colors: Map<string, str
   const kind: ShiftKind = r.urgent ? 'urgent' : !def ? 'other' : endsNextDay(def) ? 'night' : 'day'
   return {
     kind,
-    kindLabel: r.urgent ? `דחופה מ-${r.startTime}` : (def?.name ?? 'עבודה'),
+    kindLabel: r.urgent ? tx('דחופה מ-{startTime}', { startTime: r.startTime }) : (def?.name ?? tx('עבודה')),
     location: r.location,
-    until: r.urgent && r.endDate ? `עד יום ${dayName(r.endDate)} ${showDate(r.endDate)} ${r.endTime ?? ''}`.trim() : undefined,
+    until: r.urgent && r.endDate ? tx('עד יום {weekday} {v2} {v3}', { weekday: dayName(r.endDate), v2: showDate(r.endDate), v3: r.endTime ?? '' }).trim() : undefined,
     job: r.jobDescription,
     next: nextJobText(r),
     crew: r.crew.map((c) => {
       const w = ctx.workers.find((x) => x.id === c.workerId)
       return {
-        name: w ? fullName(w) : 'עובד שנמחק',
+        name: w ? fullName(w) : tx('עובד שנמחק'),
         role: ctx.roles.find((x) => x.id === c.roleId)?.name ?? GENERAL_ROLE_NAME,
         color: colors.get(c.workerId) ?? UNKNOWN_WORKER_COLOR,
       }
@@ -68,19 +69,19 @@ function reportDay(date: string, ctx: ReportContext): ReportDay {
   const shifts = sortShifts(ctx.shifts).filter((r) => r.date === date)
   // Colors from the whole worker list, so a worker keeps theirs whoever else works that day.
   const colors = workerColors(ctx.workers)
-  return { date, title: `יום ${dayName(date)} ${showDate(date)}`, shifts: shifts.map((r) => reportShift(r, ctx, colors)) }
+  return { date, title: tx('יום {weekday} {v2}', { weekday: dayName(date), v2: showDate(date) }), shifts: shifts.map((r) => reportShift(r, ctx, colors)) }
 }
 
 export function dayData(date: string, ctx: ReportContext): Report {
-  return { title: 'סידור עבודות', subtitle: `יום ${dayName(date)}, ${showDate(date)}.${year(date)}`, days: [reportDay(date, ctx)] }
+  return { title: tx('סידור עבודות'), subtitle: tx('יום {weekday}, {v2}.{v3}', { weekday: dayName(date), v2: showDate(date), v3: year(date) }), days: [reportDay(date, ctx)] }
 }
 
 export function weekData(anyDay: string, ctx: ReportContext): Report {
   const week = weekOf(anyDay)
   return {
-    title: 'סידור עבודות לשבוע',
+    title: tx('סידור עבודות לשבוע'),
     // A Hebrew word between the dates: "1.11 - 7.11" shows reversed in a right-to-left line.
-    subtitle: `${showDate(week.start)} עד ${showDate(week.end)}.${year(week.end)}`,
+    subtitle: tx('{v} עד {v2}.{v3}', { v: showDate(week.start), v2: showDate(week.end), v3: year(week.end) }),
     days: week.days.map((d) => reportDay(d, ctx)),
   }
 }
@@ -93,14 +94,14 @@ function shiftText(s: ReportShift): string[] {
   const lines = [`${KIND_ICON[s.kind]} *${s.kindLabel}*${s.location ? `  ·  📍 *${s.location}*` : ''}`]
   if (s.until) lines.push(`⏰ ${s.until}`)
   if (s.job) lines.push(`🔧 ${s.job}`)
-  if (s.next) lines.push(`➡️ אחרי הלילה: ${s.next}`)
-  if (s.crew.length === 0) lines.push('⚠️ _עוד לא שובצו עובדים_')
-  else lines.push(`👷 *צוות (${s.crew.length}):*`, ...s.crew.map((c) => `   • ${c.name} · _${c.role}_`))
+  if (s.next) lines.push(tx('➡️ אחרי הלילה: {next}', { next: s.next }))
+  if (s.crew.length === 0) lines.push(tx('⚠️ _עוד לא שובצו עובדים_'))
+  else lines.push(tx('👷 *צוות ({length}):*', { length: s.crew.length }), ...s.crew.map((c) => `   • ${c.name} · _${c.role}_`))
   return lines
 }
 
 function dayText(day: ReportDay): string[] {
-  if (day.shifts.length === 0) return ['_אין עבודות_']
+  if (day.shifts.length === 0) return [tx('_אין עבודות_')]
   return day.shifts.flatMap((s, i) => [...(i ? [''] : []), ...shiftText(s)])
 }
 

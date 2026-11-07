@@ -15,9 +15,25 @@ const CLASS = 'hint-blink'
 // The screen mounts after the tab changes; look for the button for this long.
 const WAIT_MS = 4000
 
+let last: { id: Hint; at: number } | null = null
+const listeners = new Set<(id: Hint) => void>()
+
+/** The hint asked for in the last few seconds, so a screen that mounts now can open the right tab. */
+export function recentHint(): Hint | null {
+  return last && Date.now() - last.at < WAIT_MS ? last.id : null
+}
+
+/** Called on every hint, for a screen that is already open; returns the unsubscribe. */
+export function onHint(listener: (id: Hint) => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
 /** Blinks the button with data-hint=`id` once it is on screen, until it is tapped (or 60s pass). */
 export function showHint(id: Hint) {
   const started = Date.now()
+  last = { id, at: started }
+  listeners.forEach((l) => l(id))
   const look = () => {
     const el = document.querySelector<HTMLElement>(`[data-hint="${id}"]`)
     if (!el) {

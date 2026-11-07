@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Mic, Square } from 'lucide-react'
 import { inputClass } from './Sheet'
 import { joinTranscripts } from '../lib/dictation'
+import { language, tx } from '../i18n'
 
 // Text field with Hebrew voice dictation (Web Speech API, he-IL). See docs/spikes/hebrew-dictation.md.
 // The mic button shows only where the browser has speech recognition; the phone keyboard's own
@@ -24,10 +25,10 @@ const Speech = (window as unknown as { SpeechRecognition?: RecognitionCtor; webk
   (window as unknown as { webkitSpeechRecognition?: RecognitionCtor }).webkitSpeechRecognition
 
 const ERRORS: Record<string, string> = {
-  'not-allowed': 'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן, או להשתמש במיקרופון של המקלדת.',
-  'service-not-allowed': 'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן, או להשתמש במיקרופון של המקלדת.',
-  network: 'ההכתבה צריכה אינטרנט. אפשר להקליד, או להשתמש במיקרופון של המקלדת.',
-  'no-speech': 'לא נשמע דיבור. נסה שוב.',
+  'not-allowed': tx('אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן, או להשתמש במיקרופון של המקלדת.'),
+  'service-not-allowed': tx('אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות הדפדפן, או להשתמש במיקרופון של המקלדת.'),
+  network: tx('ההכתבה צריכה אינטרנט. אפשר להקליד, או להשתמש במיקרופון של המקלדת.'),
+  'no-speech': tx('לא נשמע דיבור. נסה שוב.'),
 }
 
 export function DictationField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
@@ -44,7 +45,7 @@ export function DictationField({ label, value, onChange, placeholder }: { label:
       return
     }
     const r = new Speech()
-    r.lang = 'he-IL'
+    r.lang = language().speech
     r.interimResults = true
     r.continuous = true
     const base = value.trim() ? `${value.trim()} ` : ''
@@ -53,7 +54,7 @@ export function DictationField({ label, value, onChange, placeholder }: { label:
       for (let i = 0; i < e.results.length; i++) pieces.push(e.results[i][0].transcript)
       onChange(base + joinTranscripts(pieces))
     }
-    r.onerror = (e) => e.error !== 'aborted' && setError(ERRORS[e.error] ?? 'ההכתבה לא הצליחה. אפשר להקליד במקום.')
+    r.onerror = (e) => e.error !== 'aborted' && setError(ERRORS[e.error] ?? tx('ההכתבה לא הצליחה. אפשר להקליד במקום.'))
     r.onend = () => {
       rec.current = null
       setListening(false)
@@ -80,7 +81,7 @@ export function DictationField({ label, value, onChange, placeholder }: { label:
           }`}
         >
           {listening ? <Square size={16} aria-hidden /> : <Mic size={18} aria-hidden />}
-          {listening ? 'מקשיב... לחץ לעצירה' : 'הכתבה בקול'}
+          {listening ? tx('מקשיב... לחץ לעצירה') : tx('הכתבה בקול')}
         </button>
       )}
       {error && (

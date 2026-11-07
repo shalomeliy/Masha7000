@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { countText, isGeneralRole, nameError, newId, removeTagReferences, STARTER_CERTIFICATIONS, STARTER_ROLES, tagUsage, upsert } from '../../lib/catalog'
@@ -15,25 +16,25 @@ interface Tag {
 
 const TEXT: Record<TagKind, { one: string; linked: string; it: string; add: string; edit: string; fresh: string; field: string; explain: string; starter: string[] }> = {
   roles: {
-    one: 'התפקיד',
-    linked: 'משויך',
-    it: 'אותו',
-    add: 'הוספת תפקיד',
-    edit: 'עריכת תפקיד',
-    fresh: 'תפקיד חדש',
-    field: 'שם התפקיד',
-    explain: 'תפקיד הוא מה שהעובד יודע לעשות, למשל טפסן או חשמלאי. לכל עובד אפשר לסמן כמה תפקידים שרוצים.',
+    one: tx('התפקיד'),
+    linked: tx('משויך'),
+    it: tx('אותו'),
+    add: tx('הוספת תפקיד'),
+    edit: tx('עריכת תפקיד'),
+    fresh: tx('תפקיד חדש'),
+    field: tx('שם התפקיד'),
+    explain: tx('תפקיד הוא מה שהעובד יודע לעשות, למשל טפסן או חשמלאי. לכל עובד אפשר לסמן כמה תפקידים שרוצים.'),
     starter: STARTER_ROLES.filter((name) => !isGeneralRole({ name })), // "כללי" is always there
   },
   certifications: {
-    one: 'ההסמכה',
-    linked: 'משויכת',
-    it: 'אותה',
-    add: 'הוספת הסמכה',
-    edit: 'עריכת הסמכה',
-    fresh: 'הסמכה חדשה',
-    field: 'שם ההסמכה',
-    explain: 'הסמכה היא אישור שיש לעובד, למשל עבודה בגובה 40 מטר. לכל עובד אפשר לסמן כמה הסמכות שרוצים.',
+    one: tx('ההסמכה'),
+    linked: tx('משויכת'),
+    it: tx('אותה'),
+    add: tx('הוספת הסמכה'),
+    edit: tx('עריכת הסמכה'),
+    fresh: tx('הסמכה חדשה'),
+    field: tx('שם ההסמכה'),
+    explain: tx('הסמכה היא אישור שיש לעובד, למשל עבודה בגובה 40 מטר. לכל עובד אפשר לסמן כמה הסמכות שרוצים.'),
     starter: STARTER_CERTIFICATIONS,
   },
 }
@@ -63,7 +64,7 @@ export function TagSection({ kind }: { kind: TagKind }) {
           text={t.explain}
           addLabel={t.add}
           onAdd={() => setEditing({ id: newId(), name: '' })}
-          starterLabel={`להתחיל עם: ${t.starter.join(', ')}`}
+          starterLabel={tx('להתחיל עם: {v}', { v: t.starter.join(', ') })}
           onStarter={addStarter}
           starterBusy={tags.saving}
           starterError={starterError}
@@ -78,9 +79,9 @@ export function TagSection({ kind }: { kind: TagKind }) {
                   <li key={tag.id} className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-2">
                     <span>
                       <span className="block font-semibold">{tag.name}</span>
-                      <span className="block text-xs text-slate-400">כל העובדים, קבוע</span>
+                      <span className="block text-xs text-slate-400">{tx('כל העובדים, קבוע')}</span>
                     </span>
-                    <span className="shrink-0 text-sm text-slate-400">{countText(workers.items.length, 'עובד אחד', 'עובדים')}</span>
+                    <span className="shrink-0 text-sm text-slate-400">{countText(workers.items.length, tx('עובד אחד'), tx('עובדים'))}</span>
                   </li>
                 )
               return (
@@ -92,7 +93,7 @@ export function TagSection({ kind }: { kind: TagKind }) {
                   >
                     <EditMark />
                     <span className="font-semibold">{tag.name}</span>
-                    <span className="shrink-0 text-sm text-slate-400">{countText(u.workers, 'עובד אחד', 'עובדים')}</span>
+                    <span className="shrink-0 text-sm text-slate-400">{countText(u.workers, tx('עובד אחד'), tx('עובדים'))}</span>
                   </button>
                 </li>
               )
@@ -115,7 +116,7 @@ export function TagSection({ kind }: { kind: TagKind }) {
 }
 
 // "לעובד אחד" / "ל-3 עובדים": a number after a Hebrew prefix letter takes a hyphen.
-const toCount = (n: number, one: string, many: string) => (n === 1 ? `ל${one}` : `ל-${n} ${many}`)
+const toCount = (n: number, one: string, many: string) => (n === 1 ? tx('ל{one}', { one }) : tx('ל-{n} {many}', { n, many }))
 
 function TagForm({ kind, tag, onDone }: { kind: TagKind; tag: Tag; onDone: () => void }) {
   const tags = useDriveList(kind)
@@ -158,8 +159,8 @@ function TagForm({ kind, tag, onDone }: { kind: TagKind; tag: Tag; onDone: () =>
     })
 
   // "ממנו" for one worker, "ממנה" for one shift, "מהם" for more.
-  const fromThem = u.workers + u.shifts > 1 ? 'מהם' : u.workers ? 'ממנו' : 'ממנה'
-  const parts = [u.workers && toCount(u.workers, 'עובד אחד', 'עובדים'), u.shifts && toCount(u.shifts, 'עבודה אחת', 'עבודות')].filter(Boolean)
+  const fromThem = u.workers + u.shifts > 1 ? tx('מהם') : u.workers ? tx('ממנו') : tx('ממנה')
+  const parts = [u.workers && toCount(u.workers, tx('עובד אחד'), tx('עובדים')), u.shifts && toCount(u.shifts, tx('עבודה אחת'), tx('עבודות'))].filter(Boolean)
 
   return (
     <>
@@ -170,7 +171,7 @@ function TagForm({ kind, tag, onDone }: { kind: TagKind; tag: Tag; onDone: () =>
         onSave={save}
         onCancel={onDone}
         onDelete={exists ? remove : undefined}
-        deleteWarning={parts.length ? `${t.one} ${t.linked} ${parts.join(' ו')}. המחיקה תסיר ${t.it} גם ${fromThem}.` : undefined}
+        deleteWarning={parts.length ? tx('{one} {linked} {v}. המחיקה תסיר {it} גם {fromThem}.', { one: t.one, linked: t.linked, v: parts.join(tx(' ו')), it: t.it, fromThem }) : undefined}
         busy={busy}
         error={error}
         saveError={saveError}

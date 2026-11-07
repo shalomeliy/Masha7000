@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode, TouchEvent } from 'react'
 import { holdBack } from './backStack'
@@ -168,9 +169,9 @@ export function SheetActions({
   onCancel,
   onDelete,
   deleteWarning,
-  deleteLabel = 'מחיקה',
-  confirmLabel = 'כן, למחוק',
-  saveLabel = 'שמירה',
+  deleteLabel = tx('מחיקה'),
+  confirmLabel = tx('כן, למחוק'),
+  saveLabel = tx('שמירה'),
   busy,
   error,
   saveError,
@@ -198,23 +199,23 @@ export function SheetActions({
       {saveError != null && <DriveError error={saveError} action="save" />}
       {confirming ? (
         <div className="space-y-3 rounded-xl border border-red-500/40 bg-red-500/10 p-3">
-          <p className="text-sm text-red-200">{deleteWarning ?? 'למחוק? אי אפשר לבטל את זה.'}</p>
+          <p className="text-sm text-red-200">{deleteWarning ?? tx('למחוק? אי אפשר לבטל את זה.')}</p>
           <div className="flex gap-2">
             <button type="button" disabled={busy} onClick={onDelete} className="min-h-11 flex-1 rounded-xl bg-red-500 font-semibold text-slate-950 disabled:opacity-50">
               {confirmLabel}
             </button>
             <button type="button" onClick={() => setConfirming(false)} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-slate-300">
-              לא
+              {tx('לא')}
             </button>
           </div>
         </div>
       ) : (
         <div className="flex gap-2">
           <button type="button" disabled={busy} onClick={onSave} className="min-h-12 flex-[2] rounded-xl bg-sky-500 font-semibold text-slate-950 disabled:opacity-50">
-            {busy ? 'שומר...' : saveLabel}
+            {busy ? tx('שומר...') : saveLabel}
           </button>
           <button type="button" disabled={busy} onClick={onCancel} className="min-h-12 flex-1 rounded-xl border border-slate-700 text-slate-300 disabled:opacity-50">
-            ביטול
+            {tx('ביטול')}
           </button>
           {onDelete && (
             <button type="button" onClick={() => setConfirming(true)} className="min-h-12 flex-1 rounded-xl border border-red-500/50 text-red-300">

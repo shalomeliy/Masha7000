@@ -1,10 +1,11 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { ClipboardPaste, Plus, X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
 import { blankConstraint, constraintError, constraintText, endedByReply, isOver, mergeReply, parseReply, readAnswer, readingText, replacedByReply } from '../../lib/constraints'
 import { todayIso } from '../../lib/dates'
-import { addDays, HEBREW_DAYS, showDate, weekday, weekOf } from '../../lib/shifts'
+import { addDays, DAY_NAMES, showDate, weekday, weekOf } from '../../lib/shifts'
 import type { Constraint, DayPart } from '../../types/models'
 
 // The worker's constraints inside the worker editor. Saved with the worker.
@@ -13,18 +14,18 @@ const pill = (on: boolean) =>
   `min-h-11 rounded-full border px-4 text-sm ${on ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-slate-700 text-slate-300'}`
 
 const WHEN: { id: Constraint['when']; label: string }[] = [
-  { id: 'dates', label: 'בתאריכים' },
-  { id: 'weekdays', label: 'כל שבוע בימים' },
-  { id: 'always', label: 'תמיד' },
+  { id: 'dates', label: tx('בתאריכים') },
+  { id: 'weekdays', label: tx('כל שבוע בימים') },
+  { id: 'always', label: tx('תמיד') },
 ]
 
 // Which part of the day. An evening keeps the day shift (until 16:00) open; nights only blocks night jobs.
 const PARTS: { id: DayPart | undefined | 'nights'; label: string }[] = [
-  { id: undefined, label: 'כל היום' },
-  { id: 'morning', label: 'בוקר' },
-  { id: 'noon', label: 'צהריים' },
-  { id: 'evening', label: 'ערב' },
-  { id: 'nights', label: 'רק בלי לילה' },
+  { id: undefined, label: tx('כל היום') },
+  { id: 'morning', label: tx('בוקר') },
+  { id: 'noon', label: tx('צהריים') },
+  { id: 'evening', label: tx('ערב') },
+  { id: 'nights', label: tx('רק בלי לילה') },
 ]
 // The same choices in the paste preview's list, where a value has to be a string.
 const partKey = (c: Constraint) => (c.nightsOnly ? 'nights' : (c.part ?? 'all'))
@@ -52,8 +53,8 @@ export function ConstraintsField({
 
   return (
     <div className="space-y-2">
-      <span className="text-sm text-slate-300">אילוצים</span>
-      <p className="text-xs text-slate-400">מתי העובד לא יכול לעבוד. "שבץ" לא יבחר אותו בזמנים האלה.</p>
+      <span className="text-sm text-slate-300">{tx('אילוצים')}</span>
+      <p className="text-xs text-slate-400">{tx('מתי העובד לא יכול לעבוד. "שבץ" לא יבחר אותו בזמנים האלה.')}</p>
       {shown.map((c) =>
         editing?.id === c.id ? (
           <ConstraintEditor key={c.id} initial={editing} onSave={save} onCancel={() => setEditing(null)} />
@@ -62,14 +63,14 @@ export function ConstraintsField({
             <button type="button" onClick={() => setEditing(c)} className="min-h-11 min-w-0 flex-1 px-3 py-2 text-start text-sm">
               <span className="block text-amber-200">
                 {constraintText(c)}
-                {isOver(c, today) && ' (עבר)'}
+                {isOver(c, today) && tx(' (עבר)')}
               </span>
-              {c.guess && <span className="block text-xs text-red-300">ניחוש: לא הבנתי את המילים. לחץ כדי לבדוק.</span>}
+              {c.guess && <span className="block text-xs text-red-300">{tx('ניחוש: לא הבנתי את המילים. לחץ כדי לבדוק.')}</span>}
               {c.note && <span className="block truncate text-xs text-slate-400">{c.note}</span>}
             </button>
             <button
               type="button"
-              aria-label={`מחיקת האילוץ: ${constraintText(c)}`}
+              aria-label={tx('מחיקת האילוץ: {v}', { v: constraintText(c) })}
               onClick={() => onChange(value.filter((x) => x.id !== c.id))}
               className="flex size-11 shrink-0 items-center justify-center text-slate-400"
             >
@@ -98,7 +99,7 @@ export function ConstraintsField({
             className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl border border-slate-700 text-sm text-slate-200"
           >
             <Plus size={16} aria-hidden />
-            הוספת אילוץ
+            {tx('הוספת אילוץ')}
           </button>
           <button
             type="button"
@@ -106,7 +107,7 @@ export function ConstraintsField({
             className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl border border-slate-700 text-sm text-slate-200"
           >
             <ClipboardPaste size={16} aria-hidden />
-            הדבקת תשובה מוואטסאפ
+            {tx('הדבקת תשובה מוואטסאפ')}
           </button>
         </div>
       )}
@@ -132,7 +133,7 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
   const save = () => {
     // Checked by the manager: no longer a guess.
     const clean: Constraint = { ...c, note: c.note?.trim() || undefined, nightsOnly: c.nightsOnly || undefined, guess: undefined }
-    const err = !datesValid.from || !datesValid.to ? 'יש תאריך לא תקין' : constraintError(clean)
+    const err = !datesValid.from || !datesValid.to ? tx('יש תאריך לא תקין') : constraintError(clean)
     setError(err)
     if (!err) onSave(clean)
   }
@@ -149,7 +150,7 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
       {c.when === 'dates' && (
         <div className="grid grid-cols-2 gap-3">
           <DateField
-            label="מתאריך"
+            label={tx('מתאריך')}
             value={c.from ?? ''}
             required
             onChange={(from, ok) => {
@@ -158,12 +159,12 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
               setDatesValid((v) => ({ ...v, from: ok }))
             }}
           />
-          <DateField label="עד תאריך" value={c.to ?? ''} min={c.from} required onChange={(to, ok) => (set({ to }), setDatesValid((v) => ({ ...v, to: ok })))} />
+          <DateField label={tx('עד תאריך')} value={c.to ?? ''} min={c.from} required onChange={(to, ok) => (set({ to }), setDatesValid((v) => ({ ...v, to: ok })))} />
         </div>
       )}
       {c.when === 'weekdays' && (
         <div className="flex flex-wrap gap-2">
-          {HEBREW_DAYS.map((name, d) => {
+          {DAY_NAMES.map((name, d) => {
             const on = !!c.weekdays?.includes(d)
             return (
               <button
@@ -181,14 +182,14 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
       )}
       {c.when === 'weekdays' && (
         <DateField
-          label="עד תאריך (לא חובה, ריק = כל שבוע בלי סוף)"
+          label={tx('עד תאריך (לא חובה, ריק = כל שבוע בלי סוף)')}
           value={c.to ?? ''}
           min={todayIso()}
           onChange={(to, ok) => (set({ to: to || undefined }), setDatesValid((v) => ({ ...v, to: ok })))}
         />
       )}
       {c.when === 'always' ? (
-        <p className="text-sm text-slate-300">העובד לא ישובץ אף פעם לעבודת לילה.</p>
+        <p className="text-sm text-slate-300">{tx('העובד לא ישובץ אף פעם לעבודת לילה.')}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {PARTS.map((p) => {
@@ -207,7 +208,7 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
           })}
         </div>
       )}
-      <DictationField label="פירוט (לא חובה)" value={c.note ?? ''} onChange={(note) => set({ note })} placeholder="למשל: חתונה של אח, תור לרופא" />
+      <DictationField label={tx('פירוט (לא חובה)')} value={c.note ?? ''} onChange={(note) => set({ note })} placeholder={tx('למשל: חתונה של אח, תור לרופא')} />
       <p className="text-sm text-amber-200">{constraintText(c)}</p>
       {error && (
         <p role="alert" className="text-sm text-red-300">
@@ -216,10 +217,10 @@ function ConstraintEditor({ initial, onSave, onCancel }: { initial: Constraint; 
       )}
       <div className="flex gap-2">
         <button type="button" onClick={save} className="min-h-11 flex-[2] rounded-xl bg-sky-500 text-sm font-semibold text-slate-950">
-          אישור
+          {tx('אישור')}
         </button>
         <button type="button" onClick={onCancel} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-sm text-slate-300">
-          ביטול
+          {tx('ביטול')}
         </button>
       </div>
     </div>
@@ -248,17 +249,16 @@ function PasteReply({
 
   return (
     <div className="space-y-3 rounded-2xl border border-sky-500/40 bg-slate-950 p-3">
-      <DictationField label="הדבק כאן את התשובה של העובד" value={text} onChange={(t) => (setText(t), setFixes({}))} />
+      <DictationField label={tx('הדבק כאן את התשובה של העובד')} value={text} onChange={(t) => (setText(t), setFixes({}))} />
       {parsed && !parsed.weekStart && (
         <div className="flex items-center gap-2 text-sm text-slate-300">
-          <span>לא מצאתי תאריכים בהודעה. השבוע:</span>
-          <button type="button" aria-label="שבוע קודם" onClick={() => setWeekStart(addDays(weekStart, -7))} className="min-h-11 px-2 text-sky-300">
+          <span>{tx('לא מצאתי תאריכים בהודעה. השבוע:')}</span>
+          <button type="button" aria-label={tx('שבוע קודם')} onClick={() => setWeekStart(addDays(weekStart, -7))} className="min-h-11 px-2 text-sky-300">
             ›
           </button>
           <span>
-            {showDate(weekStart)} עד {showDate(addDays(weekStart, 6))}
-          </span>
-          <button type="button" aria-label="שבוע הבא" onClick={() => setWeekStart(addDays(weekStart, 7))} className="min-h-11 px-2 text-sky-300">
+            {tx('{v} עד {v2}', { v: showDate(weekStart), v2: showDate(addDays(weekStart, 6)) })}</span>
+          <button type="button" aria-label={tx('שבוע הבא')} onClick={() => setWeekStart(addDays(weekStart, 7))} className="min-h-11 px-2 text-sky-300">
             ‹
           </button>
         </div>
@@ -269,8 +269,8 @@ function PasteReply({
             parsed.constraints.map((c, i) => {
               const day =
                 c.when === 'weekdays'
-                  ? `כל יום ${HEBREW_DAYS[c.weekdays![0]]}${c.to ? ` עד ${showDate(c.to)}` : ', בלי סוף'}`
-                  : `${HEBREW_DAYS[weekday(c.from!)]} ${showDate(c.from!)}`
+                  ? tx('כל יום {weekday}{v2}', { weekday: DAY_NAMES[c.weekdays![0]], v2: c.to ? tx(' עד {v}', { v: showDate(c.to) }) : tx(', בלי סוף') })
+                  : `${DAY_NAMES[weekday(c.from!)]} ${showDate(c.from!)}`
               return (
                 <div key={i} className={`flex items-center gap-2 rounded-xl border px-2 py-1 ${c.guess ? 'border-red-500/50' : 'border-amber-500/30'}`}>
                   <div className="min-w-0 flex-1">
@@ -280,7 +280,7 @@ function PasteReply({
                     <span className="block truncate text-xs text-slate-400">"{c.note}"</span>
                   </div>
                   <select
-                    aria-label={`תיקון ${day}`}
+                    aria-label={tx('תיקון {day}', { day })}
                     value={partKey(c)}
                     onChange={(e) => setFixes({ ...fixes, [i]: e.target.value })}
                     className="min-h-11 shrink-0 rounded-lg border border-slate-700 bg-slate-900 px-2 text-sm text-slate-200"
@@ -295,21 +295,18 @@ function PasteReply({
               )
             })
           ) : (
-            <p className="text-emerald-300">אין אילוצים בתשובה הזו.</p>
+            <p className="text-emerald-300">{tx('אין אילוצים בתשובה הזו.')}</p>
           )}
-          {parsed.constraints.length > 0 && <p className="text-xs text-slate-400">בדוק מה הבנתי בכל יום. אם טעיתי, בחר נכון ברשימה שליד היום.</p>}
+          {parsed.constraints.length > 0 && <p className="text-xs text-slate-400">{tx('בדוק מה הבנתי בכל יום. אם טעיתי, בחר נכון ברשימה שליד היום.')}</p>}
           {ended.map((c) => (
             <p key={c.id} className="text-sky-300">
-              {constraintText(c)}
-              {c.note && ` (${c.note})`}: יסתיים ב-{showDate(addDays(week, -1))}, כי התשובה החדשה מחליפה אותו מהשבוע הזה. אם זה עדיין נכון, העובד צריך לכתוב שוב "כל שבוע".
-            </p>
+              {tx('{v}{v2}: יסתיים ב-{v3}, כי התשובה החדשה מחליפה אותו מהשבוע הזה. אם זה עדיין נכון, העובד צריך לכתוב שוב "כל שבוע".', { v: constraintText(c), v2: c.note && ` (${c.note})`, v3: showDate(addDays(week, -1)) })}</p>
           ))}
           {replaced > 0 && (
             <p className="text-sky-300">
-              כבר הדבקת תשובה לשבוע הזה. התשובה החדשה תחליף את {replaced === 1 ? 'האילוץ' : `${replaced} האילוצים`} שהגיעו ממנה.
-            </p>
+              {tx('כבר הדבקת תשובה לשבוע הזה. התשובה החדשה תחליף את {v} שהגיעו ממנה.', { v: replaced === 1 ? tx('האילוץ') : tx('{replaced} האילוצים', { replaced }) })}</p>
           )}
-          {parsed.notes && <p className="text-slate-300">הערות: {parsed.notes} (יתווספו להערות של העובד)</p>}
+          {parsed.notes && <p className="text-slate-300">{tx('הערות: {notes} (יתווספו להערות של העובד)', { notes: parsed.notes })}</p>}
         </div>
       )}
       <div className="flex gap-2">
@@ -319,10 +316,10 @@ function PasteReply({
           onClick={() => parsed && onDone(parsed.constraints, parsed.notes, week)}
           className="min-h-11 flex-[2] rounded-xl bg-sky-500 text-sm font-semibold text-slate-950 disabled:opacity-50"
         >
-          הוספה לאילוצים
+          {tx('הוספה לאילוצים')}
         </button>
         <button type="button" onClick={onCancel} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-sm text-slate-300">
-          ביטול
+          {tx('ביטול')}
         </button>
       </div>
     </div>

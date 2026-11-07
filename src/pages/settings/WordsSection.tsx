@@ -6,6 +6,7 @@ import { upsert } from '../../lib/catalog'
 import { addWord, BUILT_IN, groupWords, GROUPS, removeWord, wordError } from '../../lib/constraintWords'
 import { useDriveList } from '../../lib/data/useDriveList'
 import type { WordGroup, WordGroupSetting } from '../../types/models'
+import { tx } from '../../i18n'
 
 // The words a worker's WhatsApp answer is read by, one card per group. Every change is saved at once.
 
@@ -25,7 +26,7 @@ export function WordsSection() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-slate-400">
-        לפי המילים האלה האפליקציה מבינה תשובת אילוצים מוואטסאפ: האם העובד לא זמין בבוקר, בצהריים, בערב או כל היום. מספיק תחילת מילה: "חתונ" מתאים גם ל"חתונה" וגם ל"בחתונות".
+        {tx('לפי המילים האלה האפליקציה מבינה תשובת אילוצים מוואטסאפ: האם העובד לא זמין בבוקר, בצהריים, בערב או כל היום. מספיק תחילת מילה: "חתונ" מתאים גם ל"חתונה" וגם ל"בחתונות".')}
       </p>
       {saveError != null && <DriveError error={saveError} action="save" />}
       {GROUPS.map((g) => (
@@ -87,7 +88,7 @@ function WordGroupCard({
               type="button"
               disabled={busy}
               onClick={() => onChange(removeWord(id, setting, w))}
-              aria-label={`הסרת המילה ${w.trim()}`}
+              aria-label={tx('הסרת המילה {trim}', { trim: w.trim() })}
               className={`flex min-h-9 items-center gap-1 rounded-full border px-3 text-sm disabled:opacity-50 ${
                 BUILT_IN[id].includes(w) ? 'border-slate-700 text-slate-200' : 'border-sky-500/60 text-sky-200'
               }`}
@@ -97,7 +98,7 @@ function WordGroupCard({
             </button>
           </li>
         ))}
-        {list.length === 0 && <li className="text-sm text-amber-300">אין מילים בקבוצה הזו.</li>}
+        {list.length === 0 && <li className="text-sm text-amber-300">{tx('אין מילים בקבוצה הזו.')}</li>}
       </ul>
       <form
         className="flex gap-2"
@@ -106,9 +107,9 @@ function WordGroupCard({
           add()
         }}
       >
-        <input value={word} onChange={(e) => setWord(e.target.value)} placeholder="מילה חדשה" aria-label={`מילה חדשה ל${title}`} className={inputClass} />
+        <input value={word} onChange={(e) => setWord(e.target.value)} placeholder={tx('מילה חדשה')} aria-label={tx('מילה חדשה ל{title}', { title })} className={inputClass} />
         <button type="submit" disabled={busy} className="min-h-12 shrink-0 rounded-xl bg-sky-500 px-4 font-semibold text-slate-950 disabled:opacity-50">
-          הוספה
+          {tx('הוספה')}
         </button>
       </form>
       {error && (
@@ -118,7 +119,7 @@ function WordGroupCard({
       )}
       {changed && (
         <button type="button" disabled={busy} onClick={onReset} className="text-sm text-slate-400 underline disabled:opacity-50">
-          החזרת המילים המקוריות
+          {tx('החזרת המילים המקוריות')}
         </button>
       )}
     </section>

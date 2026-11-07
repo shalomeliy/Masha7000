@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import type { Worker } from '../types/models'
 import { isGeneralRole } from './catalog'
 
@@ -42,7 +43,7 @@ export const joinUrl = (code: string, origin = window.location.origin) => `${ori
 export const joinCodeOf = (pathname: string) => /^\/join\/([\w-]{8,64})\/?$/.exec(pathname)?.[1] ?? null
 
 export const joinMessage = (url: string) =>
-  `שלום לכולם, כדי שיהיו לי הפרטים המעודכנים של כל אחד, נא למלא את הטופס הקצר בקישור (שתי דקות):\n${url}`
+  tx('שלום לכולם, כדי שיהיו לי הפרטים המעודכנים של כל אחד, נא למלא את הטופס הקצר בקישור (שתי דקות):\n{url}', { url })
 
 const digits = (s: string | undefined) => (s ?? '').replace(/\D/g, '').replace(/^972/, '0')
 
@@ -88,15 +89,15 @@ export const formLists = (roles: Tag[], certifications: Tag[], departments: Tag[
 })
 
 const REASONS: Record<string, string> = {
-  closed: 'הטופס הזה כבר סגור. בקש מהמנהל קישור חדש.',
-  already: 'כבר שלחת את הפרטים שלך, ואי אפשר לשלוח שוב. אם צריך לתקן משהו, פנה למנהל.',
-  name: 'צריך למלא שם פרטי ושם משפחה.',
-  mobile: 'הטלפון הנייד לא תקין. צריך 10 ספרות שמתחילות ב-05.',
-  id: 'תעודת הזהות לא תקינה. צריך 9 ספרות.',
-  full: 'יש כרגע יותר מדי טפסים שממתינים למנהל. נסה שוב מחר.',
-  'no-session': 'החיבור במכשיר הזה נגמר. צריך להתחבר שוב.',
-  'not-allowed': 'אין לך הרשאה לזה.',
-  'not-configured': 'הטופס עובד רק באתר החי.',
+  closed: tx('הטופס הזה כבר סגור. בקש מהמנהל קישור חדש.'),
+  already: tx('כבר שלחת את הפרטים שלך, ואי אפשר לשלוח שוב. אם צריך לתקן משהו, פנה למנהל.'),
+  name: tx('צריך למלא שם פרטי ושם משפחה.'),
+  mobile: tx('הטלפון הנייד לא תקין. צריך 10 ספרות שמתחילות ב-05.'),
+  id: tx('תעודת הזהות לא תקינה. צריך 9 ספרות.'),
+  full: tx('יש כרגע יותר מדי טפסים שממתינים למנהל. נסה שוב מחר.'),
+  'no-session': tx('החיבור במכשיר הזה נגמר. צריך להתחבר שוב.'),
+  'not-allowed': tx('אין לך הרשאה לזה.'),
+  'not-configured': tx('הטופס עובד רק באתר החי.'),
 }
 
 async function call<T>(init: RequestInit, query = ''): Promise<T> {
@@ -104,10 +105,10 @@ async function call<T>(init: RequestInit, query = ''): Promise<T> {
   try {
     res = await fetch(`/api/join${query}`, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...init })
   } catch {
-    throw new Error('אין חיבור לאינטרנט. נסה שוב.')
+    throw new Error(tx('אין חיבור לאינטרנט. נסה שוב.'))
   }
   const data = (await res.json().catch(() => ({}))) as T & { reason?: string }
-  if (!res.ok) throw new Error(REASONS[data.reason ?? ''] ?? 'משהו השתבש. נסה שוב בעוד רגע.')
+  if (!res.ok) throw new Error(REASONS[data.reason ?? ''] ?? tx('משהו השתבש. נסה שוב בעוד רגע.'))
   return data
 }
 const post = <T>(body: object) => call<T>({ method: 'POST', body: JSON.stringify(body) })

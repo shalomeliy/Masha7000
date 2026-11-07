@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import type { LucideIcon } from 'lucide-react'
 import { Pencil, Phone, Plus } from 'lucide-react'
 import { DriveError } from '../../components/DriveError'
@@ -47,7 +48,7 @@ export function EmptyState({
           disabled={starterBusy}
           className="min-h-12 w-full rounded-xl border border-slate-700 px-3 text-sm text-slate-200 disabled:opacity-50"
         >
-          {starterBusy ? 'שומר...' : starterLabel}
+          {starterBusy ? tx('שומר...') : starterLabel}
         </button>
       )}
       {starterError != null && <DriveError error={starterError} action="save" />}
@@ -62,7 +63,7 @@ export function EditMark() {
 
 /** A worker's name; with a dialable mobile number, tapping it opens the phone's dialer with the number ready. */
 export function WorkerDial({ worker, suffix, className = '' }: { worker: Worker | undefined; suffix?: string; className?: string }) {
-  const name = worker ? fullName(worker) : 'עובד שנמחק'
+  const name = worker ? fullName(worker) : tx('עובד שנמחק')
   const dial = telHref(worker?.mobilePhone)
   const text = (
     <span className="truncate">
@@ -72,7 +73,7 @@ export function WorkerDial({ worker, suffix, className = '' }: { worker: Worker 
   )
   if (!dial) return <span className={`inline-flex items-center ${className}`}>{text}</span>
   return (
-    <a href={dial} aria-label={`חיוג אל ${name}`} className={`inline-flex items-center gap-1 ${className}`}>
+    <a href={dial} aria-label={tx('חיוג אל {name}', { name })} className={`inline-flex items-center gap-1 ${className}`}>
       <Phone size={14} aria-hidden className="shrink-0 text-emerald-400" />
       {text}
     </a>

@@ -1,14 +1,15 @@
+import { tx } from '../../i18n'
 // Two-step sign-in on the server (/api/mfa): after Google, a 6-digit code from an authenticator app.
 
 const REASONS: Record<string, string> = {
-  'wrong-code': 'הקוד לא נכון. בדוק שהקלדת את 6 הספרות שמופיעות עכשיו באפליקציה, ונסה שוב.',
-  'too-many': 'יותר מדי ניסיונות. חכה רבע שעה ונסה שוב.',
-  'setup-expired': 'עבר יותר מדי זמן מההכנה. לחץ "התחלה מחדש" ונסה שוב.',
-  enrolled: 'האימות כבר הוגדר לחשבון הזה. הקלד קוד מהאפליקציה.',
-  'not-enrolled': 'האימות עוד לא הוגדר לחשבון הזה.',
-  'no-session': 'החיבור במכשיר הזה נגמר. צריך להתחבר שוב.',
-  'not-allowed': 'המייל הזה לא מורשה להיכנס.',
-  'not-owner': 'רק המנהל יכול לאפס אימות של מישהו אחר.',
+  'wrong-code': tx('הקוד לא נכון. בדוק שהקלדת את 6 הספרות שמופיעות עכשיו באפליקציה, ונסה שוב.'),
+  'too-many': tx('יותר מדי ניסיונות. חכה רבע שעה ונסה שוב.'),
+  'setup-expired': tx('עבר יותר מדי זמן מההכנה. לחץ "התחלה מחדש" ונסה שוב.'),
+  enrolled: tx('האימות כבר הוגדר לחשבון הזה. הקלד קוד מהאפליקציה.'),
+  'not-enrolled': tx('האימות עוד לא הוגדר לחשבון הזה.'),
+  'no-session': tx('החיבור במכשיר הזה נגמר. צריך להתחבר שוב.'),
+  'not-allowed': tx('המייל הזה לא מורשה להיכנס.'),
+  'not-owner': tx('רק המנהל יכול לאפס אימות של מישהו אחר.'),
 }
 
 async function call<T>(body: object): Promise<T> {
@@ -21,10 +22,10 @@ async function call<T>(body: object): Promise<T> {
       body: JSON.stringify(body),
     })
   } catch {
-    throw new Error('אין חיבור לאינטרנט.')
+    throw new Error(tx('אין חיבור לאינטרנט.'))
   }
   const data = (await res.json().catch(() => ({}))) as T & { reason?: string }
-  if (!res.ok) throw new Error(REASONS[data.reason ?? ''] ?? 'השרת לא הצליח. נסה שוב.')
+  if (!res.ok) throw new Error(REASONS[data.reason ?? ''] ?? tx('השרת לא הצליח. נסה שוב.'))
   return data
 }
 

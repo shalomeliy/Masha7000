@@ -19,6 +19,7 @@ import {
 } from '../../lib/join'
 import { whatsappHref } from '../../lib/report'
 import type { Worker } from '../../types/models'
+import { tx } from '../../i18n'
 
 // The manager's side of the workers' details form: the link to send, and the answers waiting.
 // Works only with the server (the live site); answers live there until added or thrown away.
@@ -44,7 +45,7 @@ export function JoinButton() {
         className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-sky-500/50 px-3 text-start text-sm text-sky-300"
       >
         <UserPlus size={16} aria-hidden className="shrink-0" />
-        טופס פרטים לעובדים: שליחת קישור בוואטסאפ
+        {tx('טופס פרטים לעובדים: שליחת קישור בוואטסאפ')}
       </button>
       <JoinSheet open={open} onClose={() => setOpen(false)} />
     </>
@@ -95,18 +96,18 @@ function JoinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   }
 
   return (
-    <Sheet open={open} title="טופס פרטים לעובדים" onClose={done}>
+    <Sheet open={open} title={tx('טופס פרטים לעובדים')} onClose={done}>
       <p className="text-sm text-slate-300">
-        שולחים את הקישור לקבוצה. כל עובד ממלא את הפרטים שלו בטלפון, בלי להתחבר לשום דבר. מה שהם שולחים מחכה לך כאן ברשימת העובדים, ואתה מאשר כל אחד לפני שהוא נכנס.
+        {tx('שולחים את הקישור לקבוצה. כל עובד ממלא את הפרטים שלו בטלפון, בלי להתחבר לשום דבר. מה שהם שולחים מחכה לך כאן ברשימת העובדים, ואתה מאשר כל אחד לפני שהוא נכנס.')}
       </p>
       {closed ? (
-        <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">הטופס סגור. מי שינסה לפתוח את הקישור הישן יראה שהוא סגור.</p>
+        <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">{tx('הטופס סגור. מי שינסה לפתוח את הקישור הישן יראה שהוא סגור.')}</p>
       ) : link.isError ? (
         <p role="alert" className="text-sm text-red-300">{(link.error as Error).message}</p>
       ) : !url ? (
         <p className="flex items-center gap-2 text-slate-400">
           <Loader2 className="animate-spin" size={18} aria-hidden />
-          מכין את הקישור...
+          {tx('מכין את הקישור...')}
         </p>
       ) : (
         <>
@@ -118,7 +119,7 @@ function JoinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 font-semibold text-slate-950"
           >
             <MessageCircle size={20} aria-hidden />
-            שליחה בוואטסאפ
+            {tx('שליחה בוואטסאפ')}
           </a>
           <div className="flex gap-2">
             {'share' in navigator && (
@@ -128,12 +129,12 @@ function JoinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
                 className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-700 text-sm text-slate-200"
               >
                 <Share2 size={18} aria-hidden />
-                שיתוף
+                {tx('שיתוף')}
               </button>
             )}
             <button type="button" onClick={copy} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-700 text-sm text-slate-200">
               <Copy size={18} aria-hidden />
-              {copied ? 'הועתק' : 'העתקה'}
+              {copied ? tx('הועתק') : tx('העתקה')}
             </button>
           </div>
         </>
@@ -141,31 +142,31 @@ function JoinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 
       {confirmNew ? (
         <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
-          <p>הקישור הישן יפסיק לעבוד, וצריך לשלוח לקבוצה את החדש. טפסים שכבר נשלחו נשארים.</p>
+          <p>{tx('הקישור הישן יפסיק לעבוד, וצריך לשלוח לקבוצה את החדש. טפסים שכבר נשלחו נשארים.')}</p>
           <div className="flex gap-2">
             <button type="button" disabled={change.isPending} onClick={() => change.mutate(true)} className="min-h-11 flex-1 rounded-xl bg-amber-400 font-semibold text-slate-950 disabled:opacity-50">
-              כן, קישור חדש
+              {tx('כן, קישור חדש')}
             </button>
             <button type="button" onClick={() => setConfirmNew(false)} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-slate-300">
-              ביטול
+              {tx('ביטול')}
             </button>
           </div>
         </div>
       ) : (
         <div className="flex gap-2">
           <button type="button" onClick={() => setConfirmNew(true)} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-sm text-slate-300">
-            {closed ? 'פתיחה מחדש עם קישור חדש' : 'קישור חדש'}
+            {closed ? tx('פתיחה מחדש עם קישור חדש') : tx('קישור חדש')}
           </button>
           {!closed && (
             <button type="button" disabled={change.isPending} onClick={() => change.mutate(false)} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-sm text-slate-300 disabled:opacity-50">
-              סגירת הטופס
+              {tx('סגירת הטופס')}
             </button>
           )}
         </div>
       )}
       {change.isError && <p role="alert" className="text-sm text-red-300">{(change.error as Error).message}</p>}
       <button type="button" onClick={done} className="min-h-12 w-full rounded-xl border border-slate-700 text-slate-300">
-        סגירה
+        {tx('סגירה')}
       </button>
     </Sheet>
   )
@@ -194,8 +195,8 @@ export function JoinPending({ onReview }: { onReview: (worker: Worker, done: () 
 
   return (
     <section className="mb-3 space-y-2 rounded-2xl border border-sky-500/40 bg-sky-500/10 p-3" aria-live="polite">
-      <h2 className="font-semibold text-sky-200">{list.length === 1 ? 'עובד אחד מילא את הטופס' : `${list.length} עובדים מילאו את הטופס`}</h2>
-      <p className="text-xs text-slate-400">בודקים את הפרטים ושומרים, ורק אז העובד נכנס לרשימה.</p>
+      <h2 className="font-semibold text-sky-200">{list.length === 1 ? tx('עובד אחד מילא את הטופס') : tx('{length} עובדים מילאו את הטופס', { length: list.length })}</h2>
+      <p className="text-xs text-slate-400">{tx('בודקים את הפרטים ושומרים, ורק אז העובד נכנס לרשימה.')}</p>
       <ul className="space-y-2">
         {list.map((s) => {
           const existing = matchWorker(s, workers.items)
@@ -204,23 +205,23 @@ export function JoinPending({ onReview }: { onReview: (worker: Worker, done: () 
               <div>
                 <p className="font-medium">{fullName(s)}</p>
                 <p dir="ltr" className="text-end text-sm text-slate-400">{s.mobilePhone}</p>
-                {existing && <p className="text-xs text-amber-300">כבר ברשימה בשם {fullName(existing)}. שמירה תעדכן את הפרטים שלו.</p>}
+                {existing && <p className="text-xs text-amber-300">{tx('כבר ברשימה בשם {v}. שמירה תעדכן את הפרטים שלו.', { v: fullName(existing) })}</p>}
               </div>
               {confirming === s.id ? (
                 <div className="flex gap-2">
                   <button type="button" onClick={() => remove.mutate({ id: s.id, allowAgain: true })} disabled={remove.isPending} className="min-h-11 flex-1 rounded-xl bg-red-500 text-sm font-semibold text-slate-950 disabled:opacity-50">
-                    כן, למחוק (יוכל למלא שוב)
+                    {tx('כן, למחוק (יוכל למלא שוב)')}
                   </button>
                   <button type="button" onClick={() => setConfirming(null)} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-sm text-slate-300">
-                    ביטול
+                    {tx('ביטול')}
                   </button>
                 </div>
               ) : (
                 <div className="flex gap-2">
                   <button type="button" onClick={() => review(s)} className="min-h-11 flex-1 rounded-xl bg-sky-500 text-sm font-semibold text-slate-950">
-                    {existing ? 'בדיקה ועדכון' : 'בדיקה והוספה'}
+                    {existing ? tx('בדיקה ועדכון') : tx('בדיקה והוספה')}
                   </button>
-                  <button type="button" aria-label={`מחיקת הטופס של ${fullName(s)}`} onClick={() => setConfirming(s.id)} className="flex min-h-11 w-11 items-center justify-center rounded-xl border border-slate-700 text-slate-300">
+                  <button type="button" aria-label={tx('מחיקת הטופס של {v}', { v: fullName(s) })} onClick={() => setConfirming(s.id)} className="flex min-h-11 w-11 items-center justify-center rounded-xl border border-slate-700 text-slate-300">
                     <Trash2 size={18} aria-hidden />
                   </button>
                 </div>

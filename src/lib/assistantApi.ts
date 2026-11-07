@@ -1,3 +1,4 @@
+import { language, tx } from '../i18n'
 // Talking to /api/assistant. The conversation is kept here in the shape the Claude API wants
 // (user and assistant turns in order, the assistant's blocks sent back unchanged), and is sent
 // whole each turn: the server keeps nothing.
@@ -18,13 +19,13 @@ export interface AssistantAnswer {
 }
 
 const REASONS: Record<string, string> = {
-  'not-owner': 'העוזר הקולי פתוח רק לחשבון של המנהל.',
-  'no-session': 'החיבור במכשיר הזה נגמר. צריך להתחבר שוב.',
-  'mfa-required': 'צריך להתחבר שוב עם הקוד מאפליקציית האימות.',
-  'no-key': 'העוזר הקולי עוד לא מחובר. צריך להוסיף את מפתח Anthropic בהגדרות של Vercel.',
-  'not-configured': 'העוזר הקולי עובד רק באתר עצמו, לא בגרסה המקומית.',
-  'too-many': 'יותר מדי בקשות בזמן קצר. נסה שוב בעוד כמה דקות.',
-  refused: 'העוזר לא יכול לענות על זה. נסה לנסח אחרת.',
+  'not-owner': tx('העוזר הקולי פתוח רק לחשבון של המנהל.'),
+  'no-session': tx('החיבור במכשיר הזה נגמר. צריך להתחבר שוב.'),
+  'mfa-required': tx('צריך להתחבר שוב עם הקוד מאפליקציית האימות.'),
+  'no-key': tx('העוזר הקולי עוד לא מחובר. צריך להוסיף את מפתח Anthropic בהגדרות של Vercel.'),
+  'not-configured': tx('העוזר הקולי עובד רק באתר עצמו, לא בגרסה המקומית.'),
+  'too-many': tx('יותר מדי בקשות בזמן קצר. נסה שוב בעוד כמה דקות.'),
+  refused: tx('העוזר לא יכול לענות על זה. נסה לנסח אחרת.'),
 }
 
 /** The next user turn: plain words, or, after a tool call, its result followed by the words. */
@@ -46,13 +47,14 @@ export async function askAssistant(messages: Turn[], context: unknown, onEarly?:
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, context }),
+      // The language the assistant speaks in: the app's (Settings).
+      body: JSON.stringify({ messages, context: { ...(context as object), replyLanguage: language().english } }),
     })
   } catch {
-    throw new Error('אין חיבור לאינטרנט.')
+    throw new Error(tx('אין חיבור לאינטרנט.'))
   }
   if (res.status === 404) throw new Error(REASONS['not-configured'])
-  const failed = (reason?: string) => new Error(REASONS[reason ?? ''] ?? 'העוזר לא הצליח לענות. נסה שוב.')
+  const failed = (reason?: string) => new Error(REASONS[reason ?? ''] ?? tx('העוזר לא הצליח לענות. נסה שוב.'))
   if (!res.ok || !res.body || !(res.headers.get('content-type') ?? '').includes('ndjson')) {
     const data = (await res.json().catch(() => ({}))) as { reason?: string }
     throw failed(data.reason)

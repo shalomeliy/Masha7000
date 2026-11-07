@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, RotateCcw, Trash2 } from 'lucide-react'
@@ -38,15 +39,15 @@ export function AccessSection() {
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-semibold">מי יכול להיכנס</h2>
+      <h2 className="text-lg font-semibold">{tx('מי יכול להיכנס')}</h2>
       <p className="text-sm text-slate-400">
-        כל מייל ברשימה נכנס עם חשבון הגוגל שלו ורואה ועורך את אותם נתונים, מהדרייב שלך. מי שנמחק מהרשימה מנותק מיד מכל המכשירים, וגישה שכבר קיבל נגמרת תוך שעה לכל היותר.
+        {tx('כל מייל ברשימה נכנס עם חשבון הגוגל שלו ורואה ועורך את אותם נתונים, מהדרייב שלך. מי שנמחק מהרשימה מנותק מיד מכל המכשירים, וגישה שכבר קיבל נגמרת תוך שעה לכל היותר.')}
       </p>
 
       {access.isPending ? (
         <p className="flex items-center gap-2 text-slate-400">
           <Loader2 className="animate-spin" size={18} aria-hidden />
-          טוען...
+          {tx('טוען...')}
         </p>
       ) : access.isError ? (
         <p role="alert" className="text-sm text-red-400">
@@ -58,7 +59,7 @@ export function AccessSection() {
             <span className="flex-1 truncate" dir="ltr">
               {access.data.owner}
             </span>
-            <span className="text-slate-400">אתה (המנהל)</span>
+            <span className="text-slate-400">{tx('אתה (המנהל)')}</span>
           </li>
           {access.data.emails.map((e) => (
             <li key={e} className="flex min-h-12 flex-wrap items-center gap-2 px-4 py-1 text-sm">
@@ -72,7 +73,7 @@ export function AccessSection() {
                 className={`flex min-h-11 items-center gap-1 rounded-lg px-3 ${confirm === `reset:${e}` ? 'bg-amber-500/20 text-amber-200' : 'text-slate-400'}`}
               >
                 <RotateCcw size={16} aria-hidden />
-                {confirm === `reset:${e}` ? 'לאפס? לחץ שוב' : resetDone === e ? 'אופס' : 'איפוס אימות'}
+                {confirm === `reset:${e}` ? tx('לאפס? לחץ שוב') : resetDone === e ? tx('אופס') : tx('איפוס אימות')}
               </button>
               <button
                 type="button"
@@ -81,7 +82,7 @@ export function AccessSection() {
                 className={`flex min-h-11 items-center gap-1 rounded-lg px-3 ${confirm === e ? 'bg-red-500/20 text-red-300' : 'text-slate-400'}`}
               >
                 <Trash2 size={16} aria-hidden />
-                {confirm === e ? 'למחוק? לחץ שוב' : 'מחיקה'}
+                {confirm === e ? tx('למחוק? לחץ שוב') : tx('מחיקה')}
               </button>
             </li>
           ))}
@@ -101,16 +102,16 @@ export function AccessSection() {
           inputMode="email"
           autoComplete="off"
           placeholder="name@gmail.com"
-          aria-label="מייל להוספה"
+          aria-label={tx('מייל להוספה')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className={`${inputClass} flex-1`}
         />
         <button type="submit" disabled={change.isPending || !email.trim()} className="min-h-11 rounded-xl bg-sky-500 px-4 font-semibold text-slate-950 disabled:opacity-50">
-          הוספה
+          {tx('הוספה')}
         </button>
       </form>
-      <p className="text-xs text-slate-500">איפוס אימות: למי שאיבד את הטלפון. הוא ינותק מכל המכשירים, ובכניסה הבאה יגדיר את אפליקציית האימות מחדש.</p>
+      <p className="text-xs text-slate-500">{tx('איפוס אימות: למי שאיבד את הטלפון. הוא ינותק מכל המכשירים, ובכניסה הבאה יגדיר את אפליקציית האימות מחדש.')}</p>
       {reset.isError && (
         <p role="alert" className="text-sm text-red-400">
           {(reset.error as Error).message}
@@ -129,9 +130,9 @@ export function AccessSection() {
           onClick={() => (confirm === 'disconnect' ? disconnect.mutate() : setConfirm('disconnect'))}
           className={`w-full rounded-xl border py-3 ${confirm === 'disconnect' ? 'border-red-500 bg-red-500/20 text-red-200' : 'border-slate-700 text-slate-300'}`}
         >
-          {confirm === 'disconnect' ? 'לנתק לכולם? לחץ שוב' : 'ניתוק הדרייב'}
+          {confirm === 'disconnect' ? tx('לנתק לכולם? לחץ שוב') : tx('ניתוק הדרייב')}
         </button>
-        <p className="text-xs text-slate-500">מנתק את הגישה של האפליקציה לדרייב שלך, לכל המשתמשים, עד שתתחבר מחדש. הנתונים עצמם לא נמחקים.</p>
+        <p className="text-xs text-slate-500">{tx('מנתק את הגישה של האפליקציה לדרייב שלך, לכל המשתמשים, עד שתתחבר מחדש. הנתונים עצמם לא נמחקים.')}</p>
         {disconnect.isError && (
           <p role="alert" className="text-sm text-red-400">
             {(disconnect.error as Error).message}

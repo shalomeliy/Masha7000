@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import { periodReport, periodText } from './monthReport'
 import type { PeriodReport } from './monthReport'
 import { weekday } from './shifts'
@@ -41,4 +42,4 @@ export function weekReport(sunday: string, records: ShiftRecord[], workers: Work
   return { week: sunday, ...periodReport(from, to, records, workers, defs, upTo) }
 }
 
-export const weekText = (rep: WeekReport) => periodText(`דוח עבודות שבועי ${weekLabel(rep.week)}`, 'בשבוע', rep)
+export const weekText = (rep: WeekReport) => periodText(tx('דוח עבודות שבועי {v}', { v: weekLabel(rep.week) }), tx('בשבוע'), rep)

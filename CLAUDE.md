@@ -14,6 +14,15 @@ Reply to the user in Hebrew (masculine form), short and direct, no emojis.
 - Product direction: `docs/PRODUCT-DIRECTION.md`. Do not invent beyond it; ask the user.
 - Git: remote `https://github.com/shalomeliy/Masha7000`, branch `master`. Standing rule from the user: at the end of every version, commit and push to that repo.
 
+## Never spend the API key locally
+
+The app's Anthropic key (`ANTHROPIC_API_KEY`, set only in Vercel) pays real money and has a small monthly cap. On 2026-11-06 a local translation run with it used up the whole month. So:
+
+- Never use the app's key for development work: not for scripts, translations, spikes, tests or trying things out. Never put it in `.env.local`.
+- The local dev server's `/api/assistant` always answers with a fixed stand-in (`api/_lib/assistantMock.ts`) and never calls Anthropic.
+- Every paid call goes through `api/_lib/spendGuard.ts`: refused unless running on Vercel (`VERCEL=1`). Any new code that calls Anthropic must check it first. Do not weaken or bypass it.
+- A tool that really needs a model locally (for example `scripts/translate.mjs`) uses its own key with its own spend limit (`TRANSLATE_API_KEY`), and only after the user says to run it.
+
 ## Project skills
 
 Base skills (inherited from the template): `architecture-plan`, `ce-compound`, `ce-compound-refresh`, `ce-debug`, `ce-simplify-code`, `drop-generic-design`, `feature-spike`, `loop-engineering`, `rtl-chat`, `ui-ux-review`, `write-feature-spec`, and the agents `architecture-expert`, `change-reviewer`, `design-expert`, `product-expert`, `qa-expert`, `security-expert`.

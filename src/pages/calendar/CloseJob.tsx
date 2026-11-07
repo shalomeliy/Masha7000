@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useState } from 'react'
 import { DictationField } from '../../components/DictationField'
 import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
@@ -17,7 +18,7 @@ export function CloseSheet({ shift, onClose }: { shift: ShiftRecord | null; onCl
   const shifts = useDriveList('shifts')
   const pending = useDriveList('pendingJobs')
   return (
-    <Sheet open={shift !== null} title="סגירת עבודה" onClose={onClose} locked={shifts.saving || pending.saving}>
+    <Sheet open={shift !== null} title={tx('סגירת עבודה')} onClose={onClose} locked={shifts.saving || pending.saving}>
       {shift && <CloseForm shift={shift} onDone={onClose} />}
     </Sheet>
   )
@@ -49,7 +50,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       if (next.pending !== pending.items) await pending.save(next.pending)
       onDone()
     } catch (e) {
-      if (shiftSaved) setError('הסגירה נשמרה, אבל רשימת "לשיבוץ" עוד לא עודכנה. לחץ שוב על הכפתור כדי להשלים.')
+      if (shiftSaved) setError(tx('הסגירה נשמרה, אבל רשימת "לשיבוץ" עוד לא עודכנה. לחץ שוב על הכפתור כדי להשלים.'))
       setSaveError(e)
     } finally {
       setBusy(false)
@@ -57,8 +58,8 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   }
 
   const save = () => {
-    if (!outcome) return setError('צריך לבחור איך העבודה הסתיימה')
-    if (outcome === 'partial' && !mode) return setError('צריך לבחור מה קורה עם מה שנשאר')
+    if (!outcome) return setError(tx('צריך לבחור איך העבודה הסתיימה'))
+    if (outcome === 'partial' && !mode) return setError(tx('צריך לבחור מה קורה עם מה שנשאר'))
     const closure = {
       outcome,
       note: outcome === 'done' ? undefined : note.trim() || undefined,
@@ -79,7 +80,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       <p className="text-sm text-slate-400">
         {[shift.location, shift.jobDescription].filter(Boolean).join(' · ')}
       </p>
-      <div role="radiogroup" aria-label="איך העבודה הסתיימה" className="grid grid-cols-3 gap-2">
+      <div role="radiogroup" aria-label={tx('איך העבודה הסתיימה')} className="grid grid-cols-3 gap-2">
         {OUTCOMES.map((o) => (
           <button
             key={o.id}
@@ -96,23 +97,23 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
 
       {outcome === 'postponed' && (
         <div className="space-y-1">
-          <span className="text-sm text-slate-300">סיבת הדחייה</span>
+          <span className="text-sm text-slate-300">{tx('סיבת הדחייה')}</span>
           {reasons.items.length ? (
             <Chips options={reasons.items} selected={reasonIds} onToggle={(id) => setReasonIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))} />
           ) : (
-            <p className="text-sm text-amber-300">עוד אין רשימת סיבות. אפשר להוסיף אותה בלשונית "לשיבוץ", או לכתוב את הסיבה כאן למטה.</p>
+            <p className="text-sm text-amber-300">{tx('עוד אין רשימת סיבות. אפשר להוסיף אותה בלשונית "לשיבוץ", או לכתוב את הסיבה כאן למטה.')}</p>
           )}
         </div>
       )}
       {outcome === 'partial' && (
         <>
-          <DictationField label="מה בוצע (לא חובה)" value={note} onChange={setNote} />
-          <div role="radiogroup" aria-label="מה קורה עם מה שנשאר" className="space-y-2">
-            <span className="text-sm text-slate-300">מה קורה עם מה שנשאר?</span>
+          <DictationField label={tx('מה בוצע (לא חובה)')} value={note} onChange={setNote} />
+          <div role="radiogroup" aria-label={tx('מה קורה עם מה שנשאר')} className="space-y-2">
+            <span className="text-sm text-slate-300">{tx('מה קורה עם מה שנשאר?')}</span>
             {(
               [
-                ['reopen', 'לפתוח מחדש את אותה משימה', 'המשימה חוזרת ללשונית "לשיבוץ" כמו שהיא.'],
-                ['followUp', 'לסגור ולפתוח משימת המשך', 'המשימה הזו נסגרת. אתה כותב מה נשאר, וזו משימה חדשה שמקושרת אליה.'],
+                ['reopen', tx('לפתוח מחדש את אותה משימה'), tx('המשימה חוזרת ללשונית "לשיבוץ" כמו שהיא.')],
+                ['followUp', tx('לסגור ולפתוח משימת המשך'), tx('המשימה הזו נסגרת. אתה כותב מה נשאר, וזו משימה חדשה שמקושרת אליה.')],
               ] as const
             ).map(([id, title, explain]) => (
               <button
@@ -130,26 +131,26 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           </div>
           {mode === 'followUp' && (
             <div className="space-y-3 rounded-xl border border-sky-500/40 p-3">
-              <span className="block font-semibold text-sky-300">משימת ההמשך</span>
-              <Field label="מיקום">
+              <span className="block font-semibold text-sky-300">{tx('משימת ההמשך')}</span>
+              <Field label={tx('מיקום')}>
                 <input value={followUp.location} onChange={(e) => setFollowUp((f) => ({ ...f, location: e.target.value }))} className={inputClass} />
               </Field>
               <Suggestions list="places" value={followUp.location} onPick={(location) => setFollowUp((f) => ({ ...f, location }))} />
-              <DictationField label="מה נשאר לעשות" value={followUp.jobDescription} onChange={(v) => setFollowUp((f) => ({ ...f, jobDescription: v }))} />
+              <DictationField label={tx('מה נשאר לעשות')} value={followUp.jobDescription} onChange={(v) => setFollowUp((f) => ({ ...f, jobDescription: v }))} />
             </div>
           )}
         </>
       )}
-      {outcome === 'postponed' && <DictationField label="פרטים נוספים (לא חובה אם בחרת סיבה)" value={note} onChange={setNote} />}
-      {outcome && outcome !== 'done' && <p className="text-sm text-slate-400">העבודה תופיע בלשונית "לשיבוץ" עד שתשבץ אותה ביומן.</p>}
+      {outcome === 'postponed' && <DictationField label={tx('פרטים נוספים (לא חובה אם בחרת סיבה)')} value={note} onChange={setNote} />}
+      {outcome && outcome !== 'done' && <p className="text-sm text-slate-400">{tx('העבודה תופיע בלשונית "לשיבוץ" עד שתשבץ אותה ביומן.')}</p>}
 
       <SheetActions
         onSave={save}
         onCancel={onDone}
         onDelete={shift.closure ? () => write(undefined) : undefined}
-        deleteWarning="לבטל את הסגירה? העבודה תחזור להיות פתוחה, כאילו לא נסגרה."
-        deleteLabel="ביטול הסגירה"
-        confirmLabel="כן, לבטל"
+        deleteWarning={tx('לבטל את הסגירה? העבודה תחזור להיות פתוחה, כאילו לא נסגרה.')}
+        deleteLabel={tx('ביטול הסגירה')}
+        confirmLabel={tx('כן, לבטל')}
         busy={busy}
         error={error}
         saveError={saveError}

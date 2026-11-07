@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import { fullName } from './catalog'
 import { addDays, sortShifts } from './shifts'
 import type { CrewSwap, PendingJob, ShiftRecord, Worker } from '../types/models'
@@ -14,10 +15,10 @@ export interface ArchiveFilter {
 }
 
 export const RANGES = [
-  { id: 'month', label: 'חודש אחרון', days: 30 },
-  { id: 'quarter', label: '3 חודשים', days: 91 },
-  { id: 'half', label: 'חצי שנה', days: 182 },
-  { id: 'all', label: 'הכול', days: 0 },
+  { id: 'month', label: tx('חודש אחרון'), days: 30 },
+  { id: 'quarter', label: tx('3 חודשים'), days: 91 },
+  { id: 'half', label: tx('חצי שנה'), days: 182 },
+  { id: 'all', label: tx('הכול'), days: 0 },
 ] as const
 
 /** From/to for a quick range ending today; "הכול" leaves both open. */

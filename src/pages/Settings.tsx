@@ -1,3 +1,5 @@
+import { tx } from '../i18n'
+import { LanguagePicker } from './settings/LanguagePicker'
 import { useEffect, useState } from 'react'
 import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -31,11 +33,11 @@ interface Step {
 }
 
 const STEP_LABELS = [
-  'כתיבת קובץ בדיקה לגוגל דרייב',
-  'קריאת הקובץ חזרה מגוגל דרייב',
-  'מציאת או יצירת היומן Smart Shifts',
-  'יצירת אירוע בדיקה ביומן',
-  'קריאת האירוע ומחיקתו',
+  tx('כתיבת קובץ בדיקה לגוגל דרייב'),
+  tx('קריאת הקובץ חזרה מגוגל דרייב'),
+  tx('מציאת או יצירת היומן Smart Shifts'),
+  tx('יצירת אירוע בדיקה ביומן'),
+  tx('קריאת האירוע ומחיקתו'),
 ]
 
 // Connection check: proves the whole Google round trip (Drive appData + Calendar) from the browser.
@@ -44,7 +46,7 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
     () => writeJson('connection_check.json', { at: new Date().toISOString() }),
     async () => {
       const data = await readJson<{ at: string }>('connection_check.json')
-      if (!data?.at) throw new Error('הקובץ לא נמצא')
+      if (!data?.at) throw new Error(tx('הקובץ לא נמצא'))
     },
     async () => {
       calendarId = await ensureShiftsCalendar()
@@ -53,7 +55,7 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
       const start = new Date(Date.now() + 60 * 60 * 1000)
       const end = new Date(start.getTime() + 30 * 60 * 1000)
       const ev = await upsertEvent(calendarId, {
-        summary: 'בדיקת חיבור Shaly',
+        summary: tx('בדיקת חיבור Shaly'),
         description: JSON.stringify({ check: true }),
         start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
         end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
@@ -63,7 +65,7 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
     },
     async () => {
       const found = await listEvents(calendarId, new Date(checkStart.getTime() - 1000), new Date(checkStart.getTime() + 3600_000))
-      if (!found.some((e) => e.id === eventId)) throw new Error('האירוע לא נמצא ביומן')
+      if (!found.some((e) => e.id === eventId)) throw new Error(tx('האירוע לא נמצא ביומן'))
       await deleteEvent(calendarId, eventId)
     },
   ]
@@ -89,48 +91,48 @@ type ListId = 'roles' | 'certifications' | 'shiftDefinitions' | 'workKinds' | 'p
 const LISTS: { id: ListId; title: string; explain: string }[] = [
   {
     id: 'roles',
-    title: 'תפקידים',
-    explain: 'טפסן, חשמלאי... מה כל עובד יודע לעשות',
+    title: tx('תפקידים'),
+    explain: tx('טפסן, חשמלאי... מה כל עובד יודע לעשות'),
   },
   {
     id: 'certifications',
-    title: 'הסמכות',
-    explain: 'אישורים שיש לעובדים, למשל עבודה בגובה',
+    title: tx('הסמכות'),
+    explain: tx('אישורים שיש לעובדים, למשל עבודה בגובה'),
   },
   {
     id: 'shiftDefinitions',
-    title: 'תבניות עבודה',
-    explain: 'יום, לילה, כוננות',
+    title: tx('תבניות עבודה'),
+    explain: tx('יום, לילה, כוננות'),
   },
   {
     id: 'workKinds',
-    title: 'סוגי עבודה',
-    explain: 'טיפוס, ריתוך... וכמה אנשים כל סוג צריך',
+    title: tx('סוגי עבודה'),
+    explain: tx('טיפוס, ריתוך... וכמה אנשים כל סוג צריך'),
   },
   {
     id: 'postponeReasons',
-    title: 'סיבות דחייה',
-    explain: 'למה עבודת לילה נדחתה',
+    title: tx('סיבות דחייה'),
+    explain: tx('למה עבודת לילה נדחתה'),
   },
   {
     id: 'places',
-    title: 'מקומות',
-    explain: 'מקומות עבודה שחוזרים, לבחירה מהירה',
+    title: tx('מקומות'),
+    explain: tx('מקומות עבודה שחוזרים, לבחירה מהירה'),
   },
   {
     id: 'jobTypes',
-    title: 'מהויות עבודה',
-    explain: 'מהות עבודה שחוזרת, לבחירה מהירה',
+    title: tx('מהויות עבודה'),
+    explain: tx('מהות עבודה שחוזרת, לבחירה מהירה'),
   },
   {
     id: 'departments',
-    title: 'מחלקות',
-    explain: 'המחלקה של כל עובד',
+    title: tx('מחלקות'),
+    explain: tx('המחלקה של כל עובד'),
   },
   {
     id: 'constraintWords',
-    title: 'מילים לקריאת אילוצים',
-    explain: 'איך מבינים תשובה מוואטסאפ',
+    title: tx('מילים לקריאת אילוצים'),
+    explain: tx('איך מבינים תשובה מוואטסאפ'),
   },
 ]
 
@@ -153,13 +155,13 @@ interface Group {
 }
 
 const PANELS: Record<PanelId, { title: string; explain: string }> = {
-  archive: { title: 'ארכיון ודוחות', explain: 'כל העבודות שהיו: מי עבד, איפה, ודוחות שבועיים וחודשיים' },
-  access: { title: 'מי יכול להיכנס', explain: 'הוספה והסרה של אנשים שמשתמשים באפליקציה' },
-  security: { title: 'אימות דו-שלבי', explain: 'קוד מהטלפון בכל כניסה, וקודי גיבוי' },
-  backup: { title: 'גיבוי ושחזור', explain: 'שמירת עותק של כל הנתונים והחזרה שלו' },
-  connection: { title: 'בדיקת חיבור לגוגל', explain: 'בודקת שהשמירה בדרייב והיומן עובדים' },
-  account: { title: 'החשבון שלי', explain: 'עם איזה מייל נכנסת, והתנתקות' },
-  feedback: { title: 'בקשת תכונות חדשות', explain: 'רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח' },
+  archive: { title: tx('ארכיון ודוחות'), explain: tx('כל העבודות שהיו: מי עבד, איפה, ודוחות שבועיים וחודשיים') },
+  access: { title: tx('מי יכול להיכנס'), explain: tx('הוספה והסרה של אנשים שמשתמשים באפליקציה') },
+  security: { title: tx('אימות דו-שלבי'), explain: tx('קוד מהטלפון בכל כניסה, וקודי גיבוי') },
+  backup: { title: tx('גיבוי ושחזור'), explain: tx('שמירת עותק של כל הנתונים והחזרה שלו') },
+  connection: { title: tx('בדיקת חיבור לגוגל'), explain: tx('בודקת שהשמירה בדרייב והיומן עובדים') },
+  account: { title: tx('החשבון שלי'), explain: tx('עם איזה מייל נכנסת, והתנתקות') },
+  feedback: { title: tx('בקשת תכונות חדשות'), explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח') },
 }
 
 const listItem = (id: ListId): Entry => {
@@ -172,68 +174,68 @@ function groups(isOwner: boolean, server: boolean): Group[] {
   const all: Group[] = [
     {
       id: 'jobs',
-      title: 'עבודות ושיבוץ',
-      explain: 'מה שבוחרים כשפותחים עבודה ביומן ובמסך לשיבוץ',
+      title: tx('עבודות ושיבוץ'),
+      explain: tx('מה שבוחרים כשפותחים עבודה ביומן ובמסך לשיבוץ'),
       icon: ClipboardList,
       items: [listItem('workKinds'), listItem('shiftDefinitions'), listItem('places'), listItem('jobTypes'), listItem('postponeReasons')],
     },
     {
       id: 'workers',
-      title: 'עובדים',
-      explain: 'מה שמתארים לכל עובד במסך העובדים',
+      title: tx('עובדים'),
+      explain: tx('מה שמתארים לכל עובד במסך העובדים'),
       icon: Users,
       items: [listItem('roles'), listItem('certifications'), listItem('departments'), listItem('constraintWords')],
     },
     {
       id: 'archive',
-      title: 'ארכיון',
-      explain: 'עבודות שכבר עברו, ודוחות',
+      title: tx('ארכיון'),
+      explain: tx('עבודות שכבר עברו, ודוחות'),
       icon: ArchiveIcon,
       items: [panelItem('archive')],
     },
     {
       id: 'security',
-      title: 'גישה ואבטחה',
-      explain: 'מי נכנס לאפליקציה ואיך',
+      title: tx('גישה ואבטחה'),
+      explain: tx('מי נכנס לאפליקציה ואיך'),
       icon: ShieldCheck,
       items: [...(isOwner ? [panelItem('access')] : []), ...(server ? [panelItem('security')] : [])],
     },
     {
       id: 'data',
-      title: 'נתונים וגוגל',
-      explain: 'גיבוי, ובדיקה שהחיבור לגוגל עובד',
+      title: tx('נתונים וגוגל'),
+      explain: tx('גיבוי, ובדיקה שהחיבור לגוגל עובד'),
       icon: HardDrive,
       items: [panelItem('backup'), panelItem('connection')],
     },
     {
       id: 'legal',
-      title: 'מידע משפטי ונגישות',
-      explain: 'פרטיות, תנאי שימוש ונגישות',
+      title: tx('מידע משפטי ונגישות'),
+      explain: tx('פרטיות, תנאי שימוש ונגישות'),
       icon: Scale,
       // Plain pages outside the app, so they also open without signing in.
       items: [
-        { href: '/privacy.html', title: 'מדיניות פרטיות', explain: 'איזה מידע נשמר, איפה, מי רואה אותו, והזכויות שלך' },
-        { href: '/terms.html', title: 'תנאי שימוש', explain: 'הכללים לשימוש באפליקציה, ומי אחראי על מה' },
-        { href: '/accessibility.html', title: 'הצהרת נגישות', explain: 'מה נגיש, מה עוד לא, ואיך מדווחים על בעיה' },
+        { href: '/privacy.html', title: tx('מדיניות פרטיות'), explain: tx('איזה מידע נשמר, איפה, מי רואה אותו, והזכויות שלך') },
+        { href: '/terms.html', title: tx('תנאי שימוש'), explain: tx('הכללים לשימוש באפליקציה, ומי אחראי על מה') },
+        { href: '/accessibility.html', title: tx('הצהרת נגישות'), explain: tx('מה נגיש, מה עוד לא, ואיך מדווחים על בעיה') },
         {
           href: 'mailto:shalom.eliy@gmail.com?subject=Shaly',
-          title: 'פנייה בנושא פרטיות או נגישות',
-          explain: 'בקשה לראות, לתקן או למחוק מידע, או דיווח על בעיית נגישות',
+          title: tx('פנייה בנושא פרטיות או נגישות'),
+          explain: tx('בקשה לראות, לתקן או למחוק מידע, או דיווח על בעיית נגישות'),
         },
       ],
     },
     {
       id: 'feedback',
-      title: 'בקשת תכונות חדשות',
-      explain: 'רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח',
+      title: tx('בקשת תכונות חדשות'),
+      explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח'),
       icon: Lightbulb,
       // Sent by the server, so it shows only where the server is on.
       items: server ? [panelItem('feedback')] : [],
     },
     {
       id: 'account',
-      title: 'החשבון שלי',
-      explain: 'עם איזה מייל נכנסת, והתנתקות',
+      title: tx('החשבון שלי'),
+      explain: tx('עם איזה מייל נכנסת, והתנתקות'),
       icon: UserCircle,
       items: [panelItem('account')],
     },
@@ -306,7 +308,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
     </button>
   )
   // From an item, Back goes to its topic; from a topic opened straight to its one item, to the first screen.
-  const back = backButton(group ? group.title : 'הגדרות', () => setOpen(null))
+  const back = backButton(group ? group.title : tx('הגדרות'), () => setOpen(null))
 
   if (open === 'archive')
     return (
@@ -335,16 +337,16 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
         {open === 'feedback' && <FeatureRequestSection />}
         {open === 'account' && (
           <div className="space-y-3">
-            <h1 className="text-2xl font-bold">החשבון שלי</h1>
+            <h1 className="text-2xl font-bold">{tx('החשבון שלי')}</h1>
             {who && (
               <p className="text-sm text-slate-400">
-                מחובר כ-<span dir="ltr">{who.email}</span>
+                {tx('מחובר כ-')}<span dir="ltr">{who.email}</span>
               </p>
             )}
             <button type="button" onClick={logout} className="w-full rounded-xl border border-slate-700 py-3 text-slate-300">
-              התנתקות
+              {tx('התנתקות')}
             </button>
-            {authMode() === 'server' && <p className="text-xs text-slate-500">מנתק רק את המכשיר הזה. שאר המכשירים נשארים מחוברים.</p>}
+            {authMode() === 'server' && <p className="text-xs text-slate-500">{tx('מנתק רק את המכשיר הזה. שאר המכשירים נשארים מחוברים.')}</p>}
           </div>
         )}
       </section>
@@ -372,7 +374,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
     const hasLists = group.items.some((e) => 'id' in e && isList(e.id))
     return (
       <section className="space-y-4 px-4 pt-6">
-        {backButton('הגדרות', () => setGroupId(null))}
+        {backButton(tx('הגדרות'), () => setGroupId(null))}
         <h1 className="text-2xl font-bold">{group.title}</h1>
         {hasLists && failed && <DriveError error={failed.query.error} action="load" onRetry={retry} />}
         <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
@@ -409,7 +411,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
                   {body}
                   {list && !failed && (
                     <span className="shrink-0 text-sm text-slate-400">
-                      {loading ? <Loader2 className="animate-spin" size={16} aria-label="טוען" /> : count(e.id as ListId)}
+                      {loading ? <Loader2 className="animate-spin" size={16} aria-label={tx('טוען')} /> : count(e.id as ListId)}
                     </span>
                   )}
                   <ChevronLeft size={18} aria-hidden className="shrink-0 text-slate-500" />
@@ -424,7 +426,8 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
 
   return (
     <section className="space-y-4 px-4 pt-6">
-      <h1 className="text-2xl font-bold">הגדרות</h1>
+      <h1 className="text-2xl font-bold">{tx('הגדרות')}</h1>
+      <LanguagePicker />
       <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
         {topics.map((g) => (
           <li key={g.id}>
@@ -455,7 +458,7 @@ function Loading() {
   return (
     <p className="flex items-center gap-2 text-slate-400">
       <Loader2 className="animate-spin" size={18} aria-hidden />
-      טוען מגוגל דרייב...
+      {tx('טוען מגוגל דרייב...')}
     </p>
   )
 }
@@ -471,14 +474,14 @@ function ConnectionCheck() {
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-      <h2 className="text-lg font-semibold">בדיקת חיבור לגוגל</h2>
-      <p className="mt-1 text-sm text-slate-400">בודקת שהאפליקציה יכולה לשמור בדרייב ולכתוב ליומן. אירוע הבדיקה נמחק בסוף.</p>
+      <h2 className="text-lg font-semibold">{tx('בדיקת חיבור לגוגל')}</h2>
+      <p className="mt-1 text-sm text-slate-400">{tx('בודקת שהאפליקציה יכולה לשמור בדרייב ולכתוב ליומן. אירוע הבדיקה נמחק בסוף.')}</p>
       <ol className="mt-4 space-y-2">
         {steps.map((s) => (
           <li key={s.label} className="flex items-start gap-2 text-sm">
-            {s.state === 'ok' && <CheckCircle2 className="shrink-0 text-emerald-400" size={18} aria-label="הצליח" />}
-            {s.state === 'fail' && <XCircle className="shrink-0 text-red-400" size={18} aria-label="נכשל" />}
-            {s.state === 'running' && <Loader2 className="shrink-0 animate-spin text-sky-400" size={18} aria-label="רץ" />}
+            {s.state === 'ok' && <CheckCircle2 className="shrink-0 text-emerald-400" size={18} aria-label={tx('הצליח')} />}
+            {s.state === 'fail' && <XCircle className="shrink-0 text-red-400" size={18} aria-label={tx('נכשל')} />}
+            {s.state === 'running' && <Loader2 className="shrink-0 animate-spin text-sky-400" size={18} aria-label={tx('רץ')} />}
             {s.state === 'idle' && <span className="inline-block size-[18px] shrink-0 rounded-full border border-slate-600" />}
             <span>
               {s.label}
@@ -493,7 +496,7 @@ function ConnectionCheck() {
         disabled={running}
         className="mt-4 w-full rounded-xl bg-sky-500 py-3 font-semibold text-slate-950 disabled:opacity-50"
       >
-        {running ? 'בודק...' : 'הרץ בדיקה'}
+        {running ? tx('בודק...') : tx('הרץ בדיקה')}
       </button>
     </div>
   )

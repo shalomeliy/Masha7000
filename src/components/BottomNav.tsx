@@ -1,3 +1,4 @@
+import { tx } from '../i18n'
 import { CalendarDays, ClipboardList, Mic, Settings, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -5,11 +6,11 @@ export type Tab = 'voice' | 'calendar' | 'toSchedule' | 'workers' | 'archive' | 
 
 // 'archive' has no button of its own: it opens inside "הגדרות".
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: 'calendar', label: 'יומן', icon: CalendarDays },
-  { id: 'toSchedule', label: 'לשיבוץ', icon: ClipboardList },
+  { id: 'calendar', label: tx('יומן'), icon: CalendarDays },
+  { id: 'toSchedule', label: tx('לשיבוץ'), icon: ClipboardList },
   { id: 'voice', label: 'Shaly', icon: Mic },
-  { id: 'workers', label: 'עובדים', icon: Users },
-  { id: 'settings', label: 'הגדרות', icon: Settings },
+  { id: 'workers', label: tx('עובדים'), icon: Users },
+  { id: 'settings', label: tx('הגדרות'), icon: Settings },
 ]
 
 // `voice` only for the owner: the assistant spends the owner's Anthropic credit.

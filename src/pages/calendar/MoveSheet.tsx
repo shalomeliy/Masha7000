@@ -1,3 +1,4 @@
+import { tx } from '../../i18n'
 import { useMemo, useState } from 'react'
 import { Check, Lightbulb } from 'lucide-react'
 import { DateField } from '../../components/DateField'
@@ -19,7 +20,7 @@ import { PullConfirm } from './PullConfirm'
 export function MoveSheet({ shift, onClose }: { shift: ShiftRecord | null; onClose: () => void }) {
   const shifts = useDriveList('shifts')
   return (
-    <Sheet open={shift !== null} title="העברת עבודה ליום אחר" onClose={onClose} locked={shifts.saving}>
+    <Sheet open={shift !== null} title={tx('העברת עבודה ליום אחר')} onClose={onClose} locked={shifts.saving}>
       {shift && <MoveForm key={shift.id} shift={shift} onDone={onClose} />}
     </Sheet>
   )
@@ -86,13 +87,13 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
 
   const save = async () => {
     const err = !valid
-      ? 'התאריך לא תקין'
+      ? tx('התאריך לא תקין')
       : date === shift.date
-        ? 'בחר יום אחר מהיום של העבודה'
+        ? tx('בחר יום אחר מהיום של העבודה')
         : date < today
-          ? 'אי אפשר להעביר עבודה ליום שכבר עבר'
+          ? tx('אי אפשר להעביר עבודה ליום שכבר עבר')
           : clashes.length
-          ? `${busyText(clashes)}. אי אפשר להעביר: קודם החלף ${clashes.length > 1 ? 'אותם' : 'אותו'} בעריכת העבודה.`
+          ? tx('{v}. אי אפשר להעביר: קודם החלף {v2} בעריכת העבודה.', { v: busyText(clashes), v2: clashes.length > 1 ? tx('אותם') : tx('אותו') })
           : null
     setError(err)
     if (err) return
@@ -111,23 +112,19 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   return (
     <>
       <p className="text-sm text-slate-300">
-        העבודה עוברת עם כל העובדים שבה.
-        {isNightShift(shift, defs.items) && ' עבודת לילה ממשיכה גם ביום שאחריו, כמו קודם.'}
-      </p>
+        {tx('העבודה עוברת עם כל העובדים שבה. {v}', { v: isNightShift(shift, defs.items) && tx(' עבודת לילה ממשיכה גם ביום שאחריו, כמו קודם.') })}</p>
       {chosen ? (
         pickedFits ? (
           <p role="status" className="rounded-xl border border-emerald-500/60 bg-emerald-500/10 p-3 text-sm text-emerald-200">
-            ביום {dayName(date)} {showDate(date)} כל העובדים זמינים וכל המקומות בעבודה מלאים. אפשר ללחוץ "העברה".
-          </p>
+            {tx('ביום {weekday} {v2} כל העובדים זמינים וכל המקומות בעבודה מלאים. אפשר ללחוץ "העברה".', { weekday: dayName(date), v2: showDate(date) })}</p>
         ) : (
           <div role="status" className="space-y-3 rounded-xl border border-orange-500/60 bg-orange-500/10 p-3 text-sm text-orange-100">
             <p className="font-semibold">
-              ביום {dayName(date)} {showDate(date)} העבודה לא מסתדרת עם אותם עובדים.
-            </p>
+              {tx('ביום {weekday} {v2} העבודה לא מסתדרת עם אותם עובדים.', { weekday: dayName(date), v2: showDate(date) })}</p>
             {dayFix ? (
-              <SwapChoice swap={dayFix} title="כדי שתסתדר ביום הזה" roles={roles.items} workers={workers.items} busy={busy} onSwap={saveSwap} />
+              <SwapChoice swap={dayFix} title={tx('כדי שתסתדר ביום הזה')} roles={roles.items} workers={workers.items} busy={busy} onSwap={saveSwap} />
             ) : (
-              <p>גם עם החלפה של עד {MAX_SWAPS} עובדים אי אפשר להשלים אותה ביום הזה.</p>
+              <p>{tx('גם עם החלפה של עד {MAX_SWAPS} עובדים אי אפשר להשלים אותה ביום הזה.', { MAX_SWAPS })}</p>
             )}
           </div>
         )
@@ -149,32 +146,31 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
                   : 'border-slate-700 text-slate-300'
             }`}
           >
-            {fitDays.has(d) && <Check size={14} aria-label="מתאים עם אותם עובדים" />}
+            {fitDays.has(d) && <Check size={14} aria-label={tx('מתאים עם אותם עובדים')} />}
             {dayName(d)} {showDate(d)}
-            {d === shift.date && ' (עכשיו)'}
+            {d === shift.date && tx(' (עכשיו)')}
           </button>
         ))}
       </div>
-      {fitDays.size > 0 && <p className="text-xs text-emerald-300">ימים עם סימן וי: העבודה מתאימה בהם עם אותם עובדים, בלי להחליף אף אחד.</p>}
-      <DateField label="או תאריך אחר" value={date} min={today} required onChange={(d, ok) => (setDate(d), setValid(ok))} />
+      {fitDays.size > 0 && <p className="text-xs text-emerald-300">{tx('ימים עם סימן וי: העבודה מתאימה בהם עם אותם עובדים, בלי להחליף אף אחד.')}</p>}
+      <DateField label={tx('או תאריך אחר')} value={date} min={today} required onChange={(d, ok) => (setDate(d), setValid(ok))} />
       {clashes.length > 0 && (
         <p role="status" className="rounded-xl border border-red-500/60 bg-red-500/10 p-3 text-sm text-red-200">
-          {busyText(clashes)}. עובד לא יכול להיות בשתי עבודות באותו זמן.
-        </p>
+          {tx('{v}. עובד לא יכול להיות בשתי עבודות באותו זמן.', { v: busyText(clashes) })}</p>
       )}
       {blocked.length > 0 && (
         <div role="status" className="space-y-1 rounded-xl border border-orange-500/60 bg-orange-500/10 p-3 text-sm text-orange-200">
-          <p className="font-medium">ביום הזה יש לעובדים האלה אילוץ:</p>
+          <p className="font-medium">{tx('ביום הזה יש לעובדים האלה אילוץ:')}</p>
           {blocked.map(({ worker, constraint }) => (
             <p key={worker.id}>
               {fullName(worker)}: {constraintText(constraint)}
               {constraint.note && ` (${constraint.note})`}
             </p>
           ))}
-          <p className="text-orange-300">אפשר להעביר בכל זאת, ואז להחליף אותם בעריכת העבודה.</p>
+          <p className="text-orange-300">{tx('אפשר להעביר בכל זאת, ואז להחליף אותם בעריכת העבודה.')}</p>
         </div>
       )}
-      <SheetActions onSave={save} onCancel={onDone} saveLabel="העברה" busy={busy} error={error} saveError={saveError} />
+      <SheetActions onSave={save} onCancel={onDone} saveLabel={tx('העברה')} busy={busy} error={error} saveError={saveError} />
     </>
   )
 }
@@ -196,30 +192,30 @@ function AdviceBox({
   onPick: (date: string) => void
   onSwap: (swap: SwapAdvice, fillIns?: Record<string, string>) => void
 }) {
-  const when = (d: string) => `יום ${dayName(d)} ${showDate(d)}`
+  const when = (d: string) => tx('יום {weekday} {v2}', { weekday: dayName(d), v2: showDate(d) })
   const { fitDate, swap, pull } = advice
   return (
     <div role="status" className="space-y-3 rounded-xl border border-sky-500/60 bg-sky-500/10 p-3 text-sm text-sky-100">
       <p className="flex items-center gap-2 font-semibold">
         <Lightbulb size={16} aria-hidden />
-        המלצה להעברה
+        {tx('המלצה להעברה')}
       </p>
-      {pull && <SwapChoice swap={pull} title="הכי מוקדם, אם מעבירים עובד מעבודה אחרת" roles={roles} workers={workers} busy={busy} onSwap={onSwap} />}
-      {swap && <SwapChoice swap={swap} title={pull ? 'בלי לגעת בעבודות אחרות' : 'הכי מוקדם'} roles={roles} workers={workers} busy={busy} onSwap={onSwap} />}
+      {pull && <SwapChoice swap={pull} title={tx('הכי מוקדם, אם מעבירים עובד מעבודה אחרת')} roles={roles} workers={workers} busy={busy} onSwap={onSwap} />}
+      {swap && <SwapChoice swap={swap} title={pull ? tx('בלי לגעת בעבודות אחרות') : tx('הכי מוקדם')} roles={roles} workers={workers} busy={busy} onSwap={onSwap} />}
       {fitDate ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p>
-            {swap || pull ? 'בלי להחליף אף אחד' : 'היום הכי קרוב שמתאים עם אותם עובדים'}: <strong>{when(fitDate)}</strong>
+            {swap || pull ? tx('בלי להחליף אף אחד') : tx('היום הכי קרוב שמתאים עם אותם עובדים')}: <strong>{when(fitDate)}</strong>
           </p>
           <button type="button" onClick={() => onPick(fitDate)} className="min-h-11 rounded-xl border border-sky-500 px-4 font-semibold text-sky-200">
-            לבחור את היום הזה
+            {tx('לבחור את היום הזה')}
           </button>
         </div>
       ) : (
         <p className="text-sky-200">
           {swap || pull
-            ? `בלי להחליף אף אחד אין יום מתאים ב-${ADVICE_DAYS} הימים הקרובים.`
-            : `לא מצאתי יום מתאים ב-${ADVICE_DAYS} הימים הקרובים, גם לא עם החלפה של עד ${MAX_SWAPS} עובדים.`}
+            ? tx('בלי להחליף אף אחד אין יום מתאים ב-{ADVICE_DAYS} הימים הקרובים.', { ADVICE_DAYS })
+            : tx('לא מצאתי יום מתאים ב-{ADVICE_DAYS} הימים הקרובים, גם לא עם החלפה של עד {MAX_SWAPS} עובדים.', { ADVICE_DAYS, MAX_SWAPS })}
         </p>
       )}
     </div>
@@ -268,46 +264,43 @@ function SwapOption({
   busy: boolean
   onSwap: () => void
 }) {
-  const when = (d: string) => `יום ${dayName(d)} ${showDate(d)}`
+  const when = (d: string) => tx('יום {weekday} {v2}', { weekday: dayName(d), v2: showDate(d) })
   const role = (id: string) => roles.find((r) => r.id === id)?.name
   const overNights = workers.filter((w) => swap.nightIds.includes(w.id))
   const many = swap.swaps.length > 1
   return (
     <div className="space-y-2">
       <p>
-        {title}: <strong>{when(swap.date)}</strong>, עם {many ? 'ההחלפות האלה' : 'ההחלפה הזו'}:
+        {title}: <strong>{when(swap.date)}</strong>{tx(', עם')}{' '}{many ? tx('ההחלפות האלה') : tx('ההחלפה הזו')}:
       </p>
       <ul className="space-y-1">
         {swap.swaps.map((s) => (
           <li key={s.in.id} className="rounded-lg bg-slate-900/60 px-3 py-2">
             {s.out ? (
               <>
-                במקום <strong>{fullName(s.out)}</strong> נכנס <strong>{fullName(s.in)}</strong>
+                {tx('במקום')}{' '}<strong>{fullName(s.out)}</strong> {tx('נכנס')}{' '}<strong>{fullName(s.in)}</strong>
               </>
             ) : (
               <>
-                למקום הריק נכנס <strong>{fullName(s.in)}</strong>
+                {tx('למקום הריק נכנס')}{' '}<strong>{fullName(s.in)}</strong>
               </>
             )}
             {role(s.roleId) && <span className="text-sky-300"> ({role(s.roleId)})</span>}
             {s.from && (
               <span className="block text-xs text-orange-300">
-                עובר מהעבודה ביום {dayName(s.from.date)} {showDate(s.from.date)}
-                {s.from.location && ` (${s.from.location})`}
-              </span>
+                {tx('עובר מהעבודה ביום {weekday} {v2}{v3}', { weekday: dayName(s.from.date), v2: showDate(s.from.date), v3: s.from.location && ` (${s.from.location})` })}</span>
             )}
           </li>
         ))}
         {swap.dropped.map((w) => (
           <li key={w.id} className="rounded-lg bg-slate-900/60 px-3 py-2">
-            <strong>{fullName(w)}</strong> יוצא מהעבודה
+            <strong>{fullName(w)}</strong> {tx('יוצא מהעבודה')}
           </li>
         ))}
       </ul>
-      {overNights.length > 0 && <p className="text-orange-200">שים לב: {overNights.map(fullName).join(', ')} כבר עם הרבה לילות השבוע.</p>}
+      {overNights.length > 0 && <p className="text-orange-200">{tx('שים לב: {v} כבר עם הרבה לילות השבוע.', { v: overNights.map(fullName).join(', ') })}</p>}
       <button type="button" disabled={busy} onClick={onSwap} className="min-h-11 w-full rounded-xl bg-sky-600 px-4 font-semibold text-white disabled:opacity-60">
-        להעביר ל{when(swap.date)} עם {many ? 'ההחלפות' : 'ההחלפה'}
-      </button>
+        {tx('להעביר ל{v} עם {v2}', { v: when(swap.date), v2: many ? tx('ההחלפות') : tx('ההחלפה') })}</button>
     </div>
   )
 }

@@ -3,6 +3,7 @@
 // Run: LIVE=1 npx vitest run spikes/advisor/advisor.live.test.ts --dir . --silent=false
 import { readFileSync, writeFileSync } from 'node:fs'
 import Anthropic from '@anthropic-ai/sdk'
+import { assertPaidCallAllowed } from '../../api/_lib/spendGuard.js'
 import { it } from 'vitest'
 import { SYSTEM, TOOLS } from '../../api/_lib/assistant'
 import { snapshot, type AppData } from '../../src/lib/assistant'
@@ -85,6 +86,7 @@ const out: string[] = []
 
 for (const model of process.env.MODEL ? [process.env.MODEL] : ['claude-haiku-5-5', 'claude-sonnet-5-5']) {
   it.skipIf(!process.env.LIVE)(model, { timeout: 300_000 }, async () => {
+    assertPaidCallAllowed()
     const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
     let cost = 0
     for (const said of PROBLEMS) {

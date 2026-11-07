@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { onVercel } from './spendGuard.js'
 
 // The voice assistant's brain. The app sends what the manager said (the whole conversation so far)
 // and a snapshot of its lists; Claude answers with exactly one tool call: a question back, a spoken
@@ -222,6 +223,20 @@ export function earlyText(tool: string, partialJson: string): string | null {
  * One turn of the conversation. `context` is the app's snapshot (lists and near shifts), as JSON.
  * `onEarly` gets the spoken part of the answer as soon as it is written, before the whole answer.
  */
+// The app can be shown in other languages (src/i18n/languages.ts); then the assistant speaks that
+// language. Only these names are accepted, so the field cannot carry other instructions.
+const REPLY_LANGUAGES = ['English', 'Arabic', 'Russian', 'Spanish', 'French', 'German', 'Portuguese', 'Simplified Chinese', 'Hindi', 'Bengali', 'Urdu', 'Indonesian', 'Japanese', 'Turkish']
+export function languageNote(context: unknown): { type: 'text'; text: string }[] {
+  const lang = (context as { replyLanguage?: unknown }).replyLanguage
+  if (typeof lang !== 'string' || !REPLY_LANGUAGES.includes(lang)) return []
+  return [
+    {
+      type: 'text',
+      text: `The manager uses the app in ${lang}. Everything you say to him (every spoken answer, question, summary and option, and any text in a tool call that he hears or reads) must be in natural, everyday ${lang}, not in Hebrew. He also speaks to you in ${lang}. The app's data, lists and the instructions above are in Hebrew: keep the names of workers, places and list items as they are written, and translate everything else.`,
+    },
+  ]
+}
+
 export async function runAssistant(
   apiKey: string,
   messages: unknown,
@@ -230,6 +245,8 @@ export async function runAssistant(
   onEarly?: (text: string) => void,
 ): Promise<AssistantReply> {
   if (!validConversation(messages) || !context || typeof context !== 'object') return { ok: false, reason: 'bad-body' }
+  // Paid calls only from Vercel: on this machine nothing is sent, whatever key is given (spendGuard.ts).
+  if (!onVercel()) return { ok: false, reason: 'no-key' }
   const client = new Anthropic({ apiKey, maxRetries: 1, timeout: 40_000 })
   let res: Anthropic.Message
   try {
@@ -241,6 +258,7 @@ export async function runAssistant(
         { type: 'text', text: SYSTEM },
         { type: 'text', text: MODE, cache_control: { type: 'ephemeral' } },
         { type: 'text', text: `הנתונים של האפליקציה עכשיו:\n${JSON.stringify(context)}` },
+        ...languageNote(context),
       ],
       tools: TOOLS,
       tool_choice: { type: 'auto' },

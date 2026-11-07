@@ -11,6 +11,8 @@ const env = Object.fromEntries(
     .filter((l) => /^\w+=/.test(l))
     .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]),
 )
+// Paid calls only from Vercel (api/_lib/spendGuard.ts, CLAUDE.md): this spike can no longer run here.
+if (process.env.VERCEL !== '1') throw new Error('Paid Anthropic calls are blocked outside Vercel')
 if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY missing in .env.local')
 const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
 
