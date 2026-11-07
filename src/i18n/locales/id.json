@@ -946,5 +946,9 @@
  "⚠️ _עוד לא שובצו עובדים_": "⚠️ _Belum ada pekerja yang dijadwalkan_",
  "➡️ אחרי הלילה: {next}": "➡️ Setelah malam: {next}",
  "👷 *צוות ({length}):*": "👷 *Tim ({length}):*",
- "{v}. לחיצה נוספת על \"שמירה\" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.": "{v}. Tekan \"Simpan\" sekali lagi untuk memindahkan {v2} ke pekerjaan ini; tempatnya di pekerjaan lain akan kosong."
+ "החודש: {free} פקודות בחינם, {paid} דרך Claude (בתשלום)": "Bulan ini: {free} perintah gratis, {paid} lewat Claude (berbayar)",
+ "בחר לכל עובד מה לעשות, ואז לחץ שוב על \"שמירה\". עובד שעובר לכאן ישאיר מקום ריק בעבודה השנייה.": "Pilih apa yang dilakukan untuk setiap pekerja, lalu tekan \"Simpan\" lagi. Pekerja yang pindah ke sini meninggalkan tempat kosong di pekerjaan lain.",
+ "עובדים שכבר משובצים בעבודה אחרת": "Pekerja yang sudah ditugaskan di pekerjaan lain",
+ "יעבור לכאן": "Pindah ke sini",
+ "להשאיר אותו שם": "Biarkan di sana"
 }

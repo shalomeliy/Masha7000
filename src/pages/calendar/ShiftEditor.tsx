@@ -69,7 +69,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   // Who takes a pulled worker's place in the job they leave; none leaves it empty.
   const [fillIns, setFillIns] = useState<Record<string, string>>({})
   // Set by the first "שמירה" while workers are busy elsewhere: the second one moves them (busyError).
-  const [moveAsked, setMoveAsked] = useState<string | null>(null)
+  const [moveAsked, setMoveAsked] = useState<string[]>([])
   const [asking, setAsking] = useState<{ worker: Worker; other: ShiftRecord; apply: () => void } | null>(null)
   const exists = shifts.items.some((s) => s.id === shift.id)
 
@@ -93,19 +93,25 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
 
   // A worker cannot be in two shifts that run at the same time (a night job runs into the next afternoon).
   const pulledIn = (r: ShiftRecord) => pulled.filter((id) => r.crew.some((c) => c.workerId === id))
-  // The user's rule (2026-11-07): a busy worker is a warning, not a wall. The first "שמירה" shows who is
-  // busy where; pressing it again moves them here and leaves their place in the other job empty.
-  // Only a closed job keeps them (it is history), so then they must be replaced.
+  // The user's rule (2026-11-07): a busy worker is a warning, not a wall. The first "שמירה" lists who is
+  // busy where, each with "להשאיר אותו שם" (he leaves this job instead); pressing "שמירה" again moves
+  // the rest here and leaves their place in the other job empty. Only a closed job keeps them (it is
+  // history), so then they must be replaced.
   const busyIn = (r: ShiftRecord) => busyCrew(r, workers.items, pullFrom(r, pulledIn(r), shifts.items, defs.items, fillIns), defs.items)
   const busyError = (r: ShiftRecord) => {
     const busy = busyIn(r)
     if (!busy.length) return null
-    const them = busy.length > 1 ? tx('אותם') : tx('אותו')
-    if (busy.some((b) => b.other.closure)) return tx('{v}. החלף {v2} לפני השמירה.', { v: busyText(busy), v2: them })
-    const key = busy.map((b) => b.worker.id).sort().join(',')
-    if (moveAsked === key) return null
-    setMoveAsked(key)
-    return tx('{v}. לחיצה נוספת על "שמירה" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.', { v: busyText(busy), v2: them })
+    if (busy.some((b) => b.other.closure)) return tx('{v}. החלף {v2} לפני השמירה.', { v: busyText(busy), v2: busy.length > 1 ? tx('אותם') : tx('אותו') })
+    // Already listed: whoever is still in the crew is moved. Someone newly busy is asked about first.
+    if (busy.every((b) => moveAsked.includes(b.worker.id))) return null
+    setMoveAsked(busy.map((b) => b.worker.id))
+    return tx('בחר לכל עובד מה לעשות, ואז לחץ שוב על "שמירה". עובד שעובר לכאן ישאיר מקום ריק בעבודה השנייה.')
+  }
+  // The busy workers listed after the first "שמירה" who are still in the crew.
+  const listedBusy = moveAsked.length ? busyIn(draft).filter((b) => moveAsked.includes(b.worker.id) && !b.other.closure) : []
+  const keepThere = (id: string) => {
+    setDraft((d) => ({ ...d, crew: d.crew.filter((c) => c.workerId !== id) }))
+    setError(null)
   }
 
   const save = () => {
@@ -393,6 +399,21 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         )}
       </div>
 
+      {listedBusy.length > 0 && (
+        <ul className="space-y-2" aria-label={tx('עובדים שכבר משובצים בעבודה אחרת')}>
+          {listedBusy.map((b) => (
+            <li key={b.worker.id} className="space-y-2 rounded-xl border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-100">
+              <p>{busyText([b])}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-amber-500/20 px-2 py-1 text-xs">{tx('יעבור לכאן')}</span>
+                <button type="button" onClick={() => keepThere(b.worker.id)} className="min-h-11 rounded-xl border border-slate-600 px-3 text-slate-100">
+                  {tx('להשאיר אותו שם')}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
       <SheetActions
         onSave={save}
         onCancel={onDone}

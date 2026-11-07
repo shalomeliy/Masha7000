@@ -946,5 +946,9 @@
  "⚠️ _עוד לא שובצו עובדים_": "⚠️ _No workers assigned yet_",
  "➡️ אחרי הלילה: {next}": "➡️ After the night: {next}",
  "👷 *צוות ({length}):*": "👷 *Crew ({length}):*",
- "{v}. לחיצה נוספת על \"שמירה\" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.": "{v}. Press \"Save\" again to move {v2} to this job; their place in the other job will be left empty."
+ "החודש: {free} פקודות בחינם, {paid} דרך Claude (בתשלום)": "This month: {free} free commands, {paid} through Claude (paid)",
+ "בחר לכל עובד מה לעשות, ואז לחץ שוב על \"שמירה\". עובד שעובר לכאן ישאיר מקום ריק בעבודה השנייה.": "Choose what to do with each worker, then press \"Save\" again. A worker who moves here leaves an empty place in the other job.",
+ "עובדים שכבר משובצים בעבודה אחרת": "Workers already assigned to another job",
+ "יעבור לכאן": "Moves here",
+ "להשאיר אותו שם": "Keep him there"
 }

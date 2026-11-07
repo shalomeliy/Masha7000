@@ -946,5 +946,9 @@
  "⚠️ _עוד לא שובצו עובדים_": "⚠️ _Henüz çalışan atanmadı_",
  "➡️ אחרי הלילה: {next}": "➡️ Geceden sonra: {next}",
  "👷 *צוות ({length}):*": "👷 *Ekip ({length}):*",
- "{v}. לחיצה נוספת על \"שמירה\" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.": "{v}. {v2} bu işe taşımak için \"Kaydet\"e tekrar basın; diğer işteki yeri boş kalacak."
+ "החודש: {free} פקודות בחינם, {paid} דרך Claude (בתשלום)": "Bu ay: {free} ücretsiz komut, {paid} Claude üzerinden (ücretli)",
+ "בחר לכל עובד מה לעשות, ואז לחץ שוב על \"שמירה\". עובד שעובר לכאן ישאיר מקום ריק בעבודה השנייה.": "Her çalışan için ne yapılacağını seçin, ardından \"Kaydet\"e tekrar basın. Buraya geçen çalışan diğer işte boş bir yer bırakır.",
+ "עובדים שכבר משובצים בעבודה אחרת": "Başka bir işe zaten atanmış çalışanlar",
+ "יעבור לכאן": "Buraya geçer",
+ "להשאיר אותו שם": "Orada kalsın"
 }

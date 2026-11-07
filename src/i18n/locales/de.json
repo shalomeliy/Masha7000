@@ -946,5 +946,9 @@
  "⚠️ _עוד לא שובצו עובדים_": "⚠️ _Noch keine Mitarbeiter eingeteilt_",
  "➡️ אחרי הלילה: {next}": "➡️ Nach der Nacht: {next}",
  "👷 *צוות ({length}):*": "👷 *Team ({length}):*",
- "{v}. לחיצה נוספת על \"שמירה\" תעביר {v2} לעבודה הזו, ובעבודה השנייה יישאר מקום ריק.": "{v}. Tippen Sie noch einmal auf „Speichern“, um {v2} zu diesem Einsatz zu verschieben; der Platz im anderen Einsatz bleibt dann leer."
+ "החודש: {free} פקודות בחינם, {paid} דרך Claude (בתשלום)": "Diesen Monat: {free} kostenlose Befehle, {paid} über Claude (kostenpflichtig)",
+ "בחר לכל עובד מה לעשות, ואז לחץ שוב על \"שמירה\". עובד שעובר לכאן ישאיר מקום ריק בעבודה השנייה.": "Wählen Sie für jeden Mitarbeiter, was passieren soll, und tippen Sie dann noch einmal auf „Speichern“. Wer hierher wechselt, hinterlässt im anderen Einsatz einen freien Platz.",
+ "עובדים שכבר משובצים בעבודה אחרת": "Mitarbeiter, die schon in einem anderen Einsatz sind",
+ "יעבור לכאן": "Wechselt hierher",
+ "להשאיר אותו שם": "Dort lassen"
 }
