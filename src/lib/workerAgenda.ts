@@ -42,6 +42,19 @@ export function workerAgenda(
   return soon
 }
 
+/** The card's rows: each of the next days, today first, even an empty one (the user's rule: always 3).
+ * `items` start on that day (one that began before today starts today); `going` began earlier and
+ * still runs that day, so an empty-looking day says what it is part of instead of "free". */
+export type AgendaDay = { date: string; items: AgendaItem[]; going: AgendaItem[] }
+
+export function agendaDays(items: AgendaItem[], today: string, days = AGENDA_DAYS): AgendaDay[] {
+  const start = (i: AgendaItem) => (i.date < today ? today : i.date)
+  return Array.from({ length: days }, (_, n) => {
+    const date = addDays(today, n)
+    return { date, items: items.filter((i) => start(i) === date), going: items.filter((i) => start(i) < date && date <= i.endDate) }
+  })
+}
+
 /** What the item says: an absence in words, or the job's place and work. */
 export function agendaText(item: AgendaItem, roles: Role[]): { title: string; detail: string } {
   if (item.type === 'away') return { title: constraintText(item.constraint), detail: '' }

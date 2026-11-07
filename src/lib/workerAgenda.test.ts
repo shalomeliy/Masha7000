@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeConstraint } from './constraints'
-import { agendaConstraintIds, workerAgenda } from './workerAgenda'
+import { agendaConstraintIds, agendaDays, workerAgenda } from './workerAgenda'
 import { workerState } from './workerState'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
@@ -43,6 +43,17 @@ describe('workerAgenda', () => {
     const items = workerAgenda(w({ constraints: [{ id: 'g', when: 'dates', from: TODAY, to: TODAY, guess: true }] }), [], defs, TODAY)
     expect(items).toHaveLength(1)
     expect(agendaConstraintIds(items)).toEqual([])
+  })
+})
+
+describe('agendaDays', () => {
+  it('always 3 rows, today first: an empty day is free, a day a longer item runs on says it goes on', () => {
+    const worker = w({ constraints: [{ id: 'v', when: 'dates', from: '2026-11-05', to: '2026-11-08', kind: 'vacation' }] })
+    const days = agendaDays(workerAgenda(worker, [shift('n', '2026-11-09', ['w'], 'night')], defs, TODAY), TODAY)
+    expect(days.map((d) => d.date)).toEqual(['2026-11-07', '2026-11-08', '2026-11-09'])
+    expect(days.map((d) => d.items.map((i) => i.key))).toEqual([['c-v'], [], ['job-n']])
+    expect(days[1].going.map((i) => i.key)).toEqual(['c-v'])
+    expect(agendaDays([], TODAY).every((d) => !d.items.length && !d.going.length)).toBe(true)
   })
 })
 

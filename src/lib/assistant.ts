@@ -482,7 +482,7 @@ export function normalizeProposal(raw: unknown): Proposal {
       to: S(c.to),
       nightsOnly: B(c.nightsOnly),
       note: S(c.note),
-      kind: (['vacation', 'study', 'reserve', 'course'] as const).find((k) => k === c.kind) ?? '',
+      kind: (['vacation', 'study', 'reserve', 'course', 'sick'] as const).find((k) => k === c.kind) ?? '',
     })),
   }
 }

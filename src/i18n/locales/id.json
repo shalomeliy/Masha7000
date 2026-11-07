@@ -970,5 +970,7 @@
  "מקרא": "Keterangan",
  "נשאר מהתקציב החודש: {left} מתוך {limit}": "Sisa anggaran bulan ini: {left} dari {limit}",
  "נשאר מהתקציב": "Sisa anggaran",
- "נספר מ-{date}. מה שנוצל לפני כן לא נכלל.": "Dihitung sejak {date}. Pengeluaran sebelumnya tidak termasuk."
+ "נספר מ-{date}. מה שנוצל לפני כן לא נכלל.": "Dihitung sejak {date}. Pengeluaran sebelumnya tidak termasuk.",
+ "פנוי": "Kosong",
+ "המשך: {v}": "Lanjutan: {v}"
 }

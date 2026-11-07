@@ -125,6 +125,13 @@ describe('workers', () => {
     const out = applyProposal(p({ addConstraints: [{ workerId: 'w2', from: '2026-11-15', to: '', nightsOnly: true, note: 'חתונה' }] }), data(), NOW).data
     expect(out.workers[1].constraints[0]).toMatchObject({ when: 'dates', from: '2026-11-15', to: '2026-11-15', nightsOnly: true, note: 'חתונה' })
   })
+
+  it('"חולה ביום שלישי" (a day with the note מחלה) is saved as sickness at once, not a plain "לא זמין"', () => {
+    const out = applyProposal(p({ addConstraints: [{ workerId: 'w2', from: '2026-11-10', to: '2026-11-10', nightsOnly: false, note: 'מחלה', kind: '' }] }), data(), NOW)
+    expect(out.data.workers[1].constraints[0]).toMatchObject({ kind: 'sick', from: '2026-11-10', note: 'מחלה' })
+    expect(out.report.join(' ')).toContain('במחלה')
+    expect(normalizeProposal({ addConstraints: [{ workerId: 'w2', from: '2026-11-10', kind: 'sick' }] }).addConstraints[0].kind).toBe('sick')
+  })
 })
 
 describe('normalizeProposal', () => {

@@ -46,7 +46,10 @@ export function ConstraintsField({
   const today = todayIso()
   const [editing, setEditing] = useState<Constraint | null>(null)
   const [pasting, setPasting] = useState(false)
-  const shown = value.filter((c) => !hidden.includes(c.id) || editing?.id === c.id).sort((a, b) => Number(isOver(a, today)) - Number(isOver(b, today)) || (a.from ?? '').localeCompare(b.from ?? ''))
+  // A constraint that already ended is not listed (the user's rule); it stays saved, for the month view.
+  const shown = value
+    .filter((c) => (!hidden.includes(c.id) && !isOver(c, today)) || editing?.id === c.id)
+    .sort((a, b) => (a.from ?? '').localeCompare(b.from ?? ''))
 
   const save = (c: Constraint) => {
     onChange(value.some((x) => x.id === c.id) ? value.map((x) => (x.id === c.id ? c : x)) : [...value, c])
@@ -61,12 +64,9 @@ export function ConstraintsField({
         editing?.id === c.id ? (
           <ConstraintEditor key={c.id} initial={editing} onSave={save} onCancel={() => setEditing(null)} />
         ) : (
-          <div key={c.id} className={`flex items-center gap-1 rounded-xl border border-amber-500/30 bg-amber-500/5 ${isOver(c, today) ? 'opacity-50' : ''}`}>
+          <div key={c.id} className={`flex items-center gap-1 rounded-xl border ${c.kind === 'sick' ? 'border-rose-500/30 bg-rose-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
             <button type="button" onClick={() => setEditing(c)} className="min-h-11 min-w-0 flex-1 px-3 py-2 text-start text-sm">
-              <span className="block text-amber-200">
-                {constraintText(c)}
-                {isOver(c, today) && tx(' (עבר)')}
-              </span>
+              <span className={`block ${c.kind === 'sick' ? 'text-rose-200' : 'text-amber-200'}`}>{constraintText(c)}</span>
               {c.guess && <span className="block text-xs text-red-300">{tx('ניחוש: לא הבנתי את המילים. לחץ כדי לבדוק.')}</span>}
               {c.note && <span className="block truncate text-xs text-slate-400">{c.note}</span>}
             </button>

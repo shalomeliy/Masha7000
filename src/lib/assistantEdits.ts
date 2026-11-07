@@ -5,7 +5,7 @@
 
 import { crewSwaps } from './archive'
 import { fullName, generalRoleId, isActive, MAX_STAFF, newId, upsert, workerHasRole } from './catalog'
-import { constraintError, constraintText } from './constraints'
+import { constraintError, constraintText, normalizeConstraint } from './constraints'
 import { isRealDate } from './dates'
 import { applyClosure, blankShift, isNightShift, moveShift, pendingAfterShiftSave } from './shifts'
 import { endAbsence } from './workerState'
@@ -116,14 +116,15 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       errors.push(`אין עובד עם id "${c.workerId}"`)
       continue
     }
-    const constraint: Constraint = {
+    // Normalized now, not only on the next load: a day with the note "מחלה" ("חולה ביום שלישי") is sickness.
+    const constraint: Constraint = normalizeConstraint({
       id: newId(),
       when: 'dates',
       from: c.from,
       to: c.to || c.from,
       ...(c.kind ? { kind: c.kind } : c.nightsOnly ? { nightsOnly: true } : {}),
       ...(c.note.trim() ? { note: c.note.trim() } : {}),
-    }
+    })
     const err = constraintError(constraint)
     if (err) {
       errors.push(`אילוץ של ${worker.firstName}: ${err}`)
@@ -131,7 +132,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     }
     d.workers = upsert(d.workers, { ...worker, constraints: [...worker.constraints, constraint] })
     changed.add('workers')
-    report.push(c.kind ? tx('רשמתי ש{firstName} {v}', { firstName: worker.firstName, v: constraintText(constraint) }) : tx('רשמתי אילוץ ל{firstName}', { firstName: worker.firstName }))
+    report.push(constraint.kind ? tx('רשמתי ש{firstName} {v}', { firstName: worker.firstName, v: constraintText(constraint) }) : tx('רשמתי אילוץ ל{firstName}', { firstName: worker.firstName }))
   }
 
   e.editJobs.forEach((j, i) => {

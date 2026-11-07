@@ -970,5 +970,7 @@
  "מקרא": "Legenda",
  "נשאר מהתקציב החודש: {left} מתוך {limit}": "Orçamento restante este mês: {left} de {limit}",
  "נשאר מהתקציב": "Orçamento restante",
- "נספר מ-{date}. מה שנוצל לפני כן לא נכלל.": "Contado desde {date}. O que foi gasto antes não está incluído."
+ "נספר מ-{date}. מה שנוצל לפני כן לא נכלל.": "Contado desde {date}. O que foi gasto antes não está incluído.",
+ "פנוי": "Livre",
+ "המשך: {v}": "Continua: {v}"
 }
