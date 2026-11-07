@@ -482,6 +482,12 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
               {realDev ? 'בדיקה מקומית: עוזר אמיתי (עולה כסף)' : 'בדיקה מקומית: תשובת דמה (חינם)'}
             </button>
           )}
+          {/* Dev server only: what was learned from Claude so far, to see why a request still went to Claude. */}
+          {import.meta.env.DEV && (
+            <p className="w-full text-center text-xs text-slate-500">
+              {`נלמד מ-Claude: חולה ${data.assistantExamples.filter((e) => e.action?.type === 'sick').length}, עבודה חדשה ${data.assistantExamples.filter((e) => e.action?.type === 'job').length} (מתוך ${data.assistantExamples.length} בקשות שאושרו)`}
+            </p>
+          )}
           {lines.length > 0 && (
             <button type="button" onClick={() => setShowText((s) => !s)} aria-expanded={showText} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
               <MessageSquareText size={18} aria-hidden />

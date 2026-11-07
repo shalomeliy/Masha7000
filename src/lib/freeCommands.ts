@@ -33,6 +33,19 @@ const words = (s: string) => s.replace(/[?!.,״"׳:;/]/g, ' ').split(/\s+/).filt
 const bare = (w: string) => w.replace(/^(?:ו?[בלה]|ו)(?=.{2,})/, '')
 const singular = (w: string) => w.replace(/(?:ים|ות)$/, '').replace(/א$/, 'אי') // חשמלאים -> חשמלאי
 
+/** Two spellings of one name: equal without geresh, quotes and final letters, or one letter apart. */
+function sameName(a: string, b: string): boolean {
+  const norm = (s: string) => s.replace(/[׳'"״`\-]/g, '').replace(/ך/g, 'כ').replace(/ם/g, 'מ').replace(/ן/g, 'נ').replace(/ף/g, 'פ').replace(/ץ/g, 'צ')
+  const x = norm(a)
+  const y = norm(b)
+  if (x === y) return true
+  if (Math.min(x.length, y.length) < 3 || Math.abs(x.length - y.length) > 1) return false
+  // At most one letter added, dropped or changed.
+  let i = 0
+  while (i < x.length && x[i] === y[i]) i++
+  return x.slice(i + (x.length >= y.length ? 1 : 0)) === y.slice(i + (y.length >= x.length ? 1 : 0))
+}
+
 /** "היום", "מחר", "ביום שלישי 10.11": how a date is said back. */
 export function dayText(date: string, now: Date): string {
   if (date === plus(now, 0)) return 'היום'
@@ -79,7 +92,8 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
     if (!w) continue
     out.workerIds.push(w.id)
     take(i)
-    if (w.lastName && ws[i + 1] === w.lastName) take(i + 1)
+    // The last name as speech recognition wrote it may differ a little from the card (תורגמן / תורג'מן).
+    if (w.lastName && ws[i + 1] && !used[i + 1] && sameName(ws[i + 1], w.lastName)) take(i + 1)
   }
   // Kinds of job: "לינה", "כולל לינה", "עבודת לילה", "יום" (not the "יום" of "יום שלישי").
   for (let i = 0; i < ws.length; i++) {
@@ -163,9 +177,10 @@ const JOB_FIELDS: JobField[] = ['date', 'shiftKindId', 'location', 'jobDescripti
 /** What a confirmed proposal teaches, if it is an action the app can learn (one new job, or one worker sick). */
 export function exampleAction(p: Proposal, asked: string[]): ExampleAction | undefined {
   if (!asked.length) return undefined
-  const others =
-    p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length + p.editJobs.length + p.closeJobs.length + p.deleteJobIds.length + p.addConstraints.length
-  if (p.jobs.length === 1 && !others && !p.editWorkers.length && !p.setCrews.length && !p.jobs[0].crew.length) {
+  // Notes and lessons may come with any action; they do not change what the action is.
+  const others = p.assignShiftIds.length + p.workers.length + p.closeJobs.length + p.deleteJobIds.length
+  // A new place or job type may be added to the lists together with the job.
+  if (p.jobs.length === 1 && !others && !p.editJobs.length && !p.addConstraints.length && !p.editWorkers.length && !p.setCrews.length && !p.jobs[0].crew.length) {
     const j = p.jobs[0]
     return {
       type: 'job',
@@ -174,9 +189,9 @@ export function exampleAction(p: Proposal, asked: string[]): ExampleAction | und
     }
   }
   const sick = p.editWorkers.filter((w) => w.status === 'sick')
-  // A replacement picked for him (crews, a moved job) may come with it.
-  const besides = others - p.editJobs.length
-  if (sick.length === 1 && p.editWorkers.length === 1 && !p.jobs.length && !besides) {
+  // A replacement picked for him (crews, a moved job) and an absence of the same worker may come with it.
+  const otherWorker = p.addConstraints.some((c) => c.workerId !== sick[0]?.workerId)
+  if (sick.length === 1 && p.editWorkers.length === 1 && !p.jobs.length && !others && !p.listItems.length && !otherWorker) {
     // Only the first sentence: the rest is the choice of a replacement.
     return { type: 'sick', said: asked[0].slice(0, 200), workerId: sick[0].workerId, until: sick[0].sickUntil }
   }

@@ -18,7 +18,7 @@ const shift = (id: string, date: string, location: string, crew: [string, string
 const base: AppData = {
   roles: [{ id: 'r1', name: 'טפסן' }, { id: 'r2', name: 'חשמלאי' }, { id: 'r4', name: 'טכנאי מצלמות' }],
   certifications: [],
-  workers: [w('w1', 'דני', 'לוי', ['r1']), w('w2', 'יוסי', 'כהן', ['r1']), w('w3', 'אלי', 'פרץ', ['r1']), w('w4', 'רון', 'מזרחי', ['r1'])],
+  workers: [w('w1', 'דני', 'לוי', ['r1']), w('w2', 'יוסי', 'כהן', ['r1']), w('w3', 'אלי', 'פרץ', ['r1']), w('w4', 'רון', 'מזרחי', ['r1']), w('w5', 'משה', "תורג'מן", ['r1']), w('w6', 'אבי', 'אלפסי', ['r1'])],
   shiftDefinitions: [
     { id: 's1', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
     { id: 's2', name: 'לילה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
@@ -156,10 +156,25 @@ describe('a sick worker, learned from Claude', () => {
 
 describe('what a confirmed proposal teaches', () => {
   it('only one new job, or one worker sick', () => {
-    expect(exampleAction(normalizeProposal({ jobs: [{ date: '2026-11-08' }], rememberNotes: ['x'] }), ['a'])).toBeUndefined()
+    expect(exampleAction(normalizeProposal({ jobs: [{ date: '2026-11-08' }], workers: [{ firstName: 'x' }] }), ['a'])).toBeUndefined()
     expect(exampleAction(normalizeProposal({ jobs: [{}, {}] }), ['a'])).toBeUndefined()
     expect(exampleAction(normalizeProposal({ editWorkers: [{ workerId: 'w1', status: 'sick', sickUntil: '2026-11-08' }], setCrews: [{ shiftId: 'a', crew: [] }] }), ['דני חולה', 'פתרון 1'])).toEqual({
       type: 'sick', said: 'דני חולה', workerId: 'w1', until: '2026-11-08',
     })
+  })
+})
+
+describe('names as speech recognition writes them', () => {
+  it('learns from "<first> <last> חולה" and handles another worker said with a slightly different last name', () => {
+    const d = data({
+      assistantExamples: [ex('אבי אלפסי חולה מחר', { editWorkers: [{ workerId: 'w6', status: 'sick', sickUntil: '2026-11-07' }], lessons: ['x'], rememberNotes: ['y'] })],
+    })
+    const r = run('משה תורגמן חולה היום', d)
+    expect(r?.kind).toBe('propose')
+    if (r?.kind === 'propose') expect(r.proposal.editWorkers[0]).toMatchObject({ workerId: 'w5', status: 'sick', sickUntil: '2026-11-07' })
+  })
+
+  it('a last name too different is not taken as his', () => {
+    expect(run('משה גולדברג חולה היום')).toBeNull()
   })
 })
