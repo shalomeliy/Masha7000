@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, CalendarX, Phone, UserX, X } from "lucide-react";
+import { ArrowRight, CalendarX, Phone, Search, UserX, X } from "lucide-react";
 import {
   Chips,
   Field,
@@ -36,6 +36,7 @@ import { RequestSheet } from "./RequestSheet";
 import { JoinButton, JoinPending } from "./JoinSection";
 import { authMode } from "../../lib/google/auth";
 import { tx } from '../../i18n'
+import { searchWorkers } from "../../lib/workerSearch";
 
 const blankWorker = (): Worker => ({
   id: newId(),
@@ -86,6 +87,8 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
   const workers = useDriveList("workers");
   const roles = useDriveList("roles");
   const certs = useDriveList("certifications");
+  const departments = useDriveList("departments");
+  const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Worker | null>(null);
   // Set while the open form came from a worker's answer: run once it is saved (removes the answer).
   const [onSaved, setOnSaved] = useState<(() => void) | null>(null);
@@ -104,14 +107,19 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
   // The inactive list and the state filter belong to the team tab; the role filter to the search tab.
   const showInactive = tab === "team" && inactiveView;
   const searching = tab === "search";
-  const filtering = searching && roleFilter.length + certFilter.length > 0;
+  const typed = searching && query.trim() !== "";
+  const filtering = searching && (typed || roleFilter.length + certFilter.length > 0);
   const byState = tab === "team" && !showInactive ? stateFilter : null;
   const inactiveCount = workers.items.filter((w) => !isActive(w)).length;
   // Inactive workers are kept (old shifts and reports name them) but listed only behind their own button.
-  const listed = workers.items.filter((w) => isActive(w) !== showInactive);
+  // Typed text searches everyone, inactive workers too, so an old name can still be found.
+  const listed = typed ? workers.items : workers.items.filter((w) => isActive(w) !== showInactive);
   const team = teamStates(listed, today);
+  const found = typed
+    ? searchWorkers(listed, query, { roles: roles.items, certifications: certs.items, departments: departments.items }, today)
+    : listed;
   const shown = filterWorkers(
-    byState ? listed.filter((w) => workerState(w, today).id === byState) : listed,
+    byState ? found.filter((w) => workerState(w, today).id === byState) : found,
     searching ? roleFilter : [],
     searching ? certFilter : [],
     generalRoleId(roles.items),
@@ -188,8 +196,30 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
         <div className="mb-3 space-y-3">
           <TabIntro
             title={tx("מי מתאים לעבודה?")}
-            text={tx("מסמנים תפקידים או הסמכות, ורואים רק את העובדים שיש להם את כל מה שסימנת.")}
+            text={tx("כותבים שם, טלפון, ת.ז או כל פרט אחר, או מסמנים תפקידים והסמכות, ורואים רק את העובדים שמתאימים.")}
           />
+          <label className="relative block">
+            <span className="sr-only">{tx("חיפוש עובד")}</span>
+            <Search size={18} aria-hidden className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={tx("שם, טלפון, ת.ז, מחלקה...")}
+              enterKeyHint="search"
+              className={`${inputClass} ps-10 pe-11 [&::-webkit-search-cancel-button]:appearance-none`}
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label={tx("ניקוי החיפוש")}
+                className="absolute end-0 top-0 flex h-full w-11 items-center justify-center text-slate-400"
+              >
+                <X size={18} aria-hidden />
+              </button>
+            )}
+          </label>
           {roles.items.length + certs.items.length === 0 ? (
             <p className="text-sm text-slate-400">{tx("עוד אין תפקידים או הסמכות. מוסיפים אותם בהגדרות.")}</p>
           ) : (
@@ -212,6 +242,7 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
                   onClick={() => {
                     setRoleFilter([]);
                     setCertFilter([]);
+                    setQuery("");
                   }}
                   className="flex min-h-11 items-center gap-1 text-sm text-slate-300"
                 >
@@ -275,7 +306,9 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
 
       {shown.length === 0 ? (
         <p className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
-          {filtering
+          {typed
+            ? tx("לא נמצא עובד שמתאים לחיפוש.")
+            : filtering
             ? tx("אין עובד שיש לו את כל מה שסימנת.")
             : showInactive
               ? tx("אין עובדים לא פעילים.")
