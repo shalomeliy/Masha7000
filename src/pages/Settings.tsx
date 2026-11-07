@@ -52,7 +52,7 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
       const start = new Date(Date.now() + 60 * 60 * 1000)
       const end = new Date(start.getTime() + 30 * 60 * 1000)
       const ev = await upsertEvent(calendarId, {
-        summary: 'בדיקת חיבור ShiftSmart',
+        summary: 'בדיקת חיבור Shaly',
         description: JSON.stringify({ check: true }),
         start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
         end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
@@ -214,7 +214,7 @@ function groups(isOwner: boolean, server: boolean): Group[] {
         { href: '/terms.html', title: 'תנאי שימוש', explain: 'הכללים לשימוש באפליקציה, ומי אחראי על מה' },
         { href: '/accessibility.html', title: 'הצהרת נגישות', explain: 'מה נגיש, מה עוד לא, ואיך מדווחים על בעיה' },
         {
-          href: 'mailto:shalom.eliy@gmail.com?subject=ShiftSmart',
+          href: 'mailto:shalom.eliy@gmail.com?subject=Shaly',
           title: 'פנייה בנושא פרטיות או נגישות',
           explain: 'בקשה לראות, לתקן או למחוק מידע, או דיווח על בעיית נגישות',
         },

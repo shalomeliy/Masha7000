@@ -298,7 +298,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           onClick={toggleMic}
           disabled={busy}
           aria-pressed={phase === 'listening'}
-          aria-label={phase === 'listening' ? 'עצירת ההקשבה' : 'דבר עם העוזר'}
+          aria-label={phase === 'listening' ? 'עצירת ההקשבה' : 'דבר עם Shaly'}
           className={`flex size-44 items-center justify-center rounded-full border-4 shadow-xl transition active:scale-95 disabled:opacity-50 ${
             phase === 'listening' ? 'animate-pulse border-red-400 bg-red-500/20 text-red-100' : 'border-sky-400 bg-sky-500/15 text-sky-100'
           }`}

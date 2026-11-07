@@ -21,7 +21,7 @@ export function SignIn() {
   return (
     <main className="mx-auto flex min-h-full max-w-md flex-col justify-center gap-6 px-6">
       <div>
-        <h1 className="text-3xl font-bold">ShiftSmart</h1>
+        <h1 className="text-3xl font-bold">Shaly</h1>
         <p className="mt-2 text-slate-400">
           סידור עבודה 24/7, כוננות ואילוצי עובדים.{' '}
           {server ? 'הנתונים נשמרים בגוגל דרייב של המנהל.' : 'הנתונים נשמרים בחשבון הגוגל שלך בלבד.'}
