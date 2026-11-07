@@ -444,7 +444,7 @@ function WorkerCard({
             {active.slice(0, 2).map((c) => (
               <span
                 key={c.id}
-                className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-200"
+                className={`rounded-full px-2 py-0.5 text-xs ${c.kind === "sick" ? "bg-rose-500/15 text-rose-200" : "bg-amber-500/15 text-amber-200"}`}
               >
                 {constraintText(c)}
               </span>
@@ -542,6 +542,17 @@ function WorkerForm({
   // The next 3 days, from the draft: a status or an absence just picked shows before saving.
   const agenda = useWorkerAgenda(draft);
   const [monthOpen, setMonthOpen] = useState(false);
+  // An X in the personal or monthly calendar: 'sick' is the status sickness (back to work), else a dated constraint.
+  const removeAway = (id: string) =>
+    setDraft((d) =>
+      id === "sick"
+        ? { ...d, status: "active", sickUntil: undefined }
+        : { ...d, constraints: d.constraints.filter((c) => c.id !== id) },
+    );
+  const editSick = () => {
+    setMonthOpen(false);
+    setStatusOpen(true);
+  };
 
   const set = (field: TextField) => (e: { target: { value: string } }) => {
     const value = e.target.value;
@@ -663,7 +674,8 @@ function WorkerForm({
         <WorkerAgenda
           items={agenda.items}
           loading={agenda.loading}
-          onRemove={(id) => setDraft((d) => ({ ...d, constraints: d.constraints.filter((c) => c.id !== id) }))}
+          onRemove={removeAway}
+          onEditSick={editSick}
           onOpen={() => setMonthOpen(true)}
         />
       )}
@@ -672,7 +684,8 @@ function WorkerForm({
           worker={draft}
           open={monthOpen}
           onClose={() => setMonthOpen(false)}
-          onRemove={(id) => setDraft((d) => ({ ...d, constraints: d.constraints.filter((c) => c.id !== id) }))}
+          onRemove={removeAway}
+          onEditSick={editSick}
         />
       )}
 

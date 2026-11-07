@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, X } from 'lucide-react'
 import { Sheet } from '../../components/Sheet'
 import { dayNames, monthNames, tx } from '../../i18n'
 import { fullName } from '../../lib/catalog'
@@ -52,11 +52,13 @@ export function WorkerMonth({
   open,
   onClose,
   onRemove,
+  onEditSick,
 }: {
   worker: Worker
   open: boolean
   onClose: () => void
-  onRemove: (constraintId: string) => void // a dated constraint, removed from the card (saved with "שמירה")
+  onRemove: (constraintId: string) => void // a dated constraint, removed from the card (saved with "שמירה"); 'sick' ends the status sickness
+  onEditSick: () => void // the status sheet, to change the sickness's last day
 }) {
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
@@ -83,8 +85,18 @@ export function WorkerMonth({
             <span className={`block ${tone.text}`}>{constraintText(e.constraint)}</span>
             {note && note !== 'מחלה' && <span className="block truncate text-xs text-slate-400">{note}</span>}
           </span>
-          {/* Dated ones are removed here (not in the card's list). Status sickness goes on the status line, weekly ones in the list. */}
-          {e.key !== 'sick' && e.constraint.when === 'dates' && (
+          {/* Dated ones and sickness are changed here (not in the card's list); weekly ones in the list. */}
+          {e.key === 'sick' && (
+            <button
+              type="button"
+              aria-label={tx('עריכת המחלה')}
+              onClick={onEditSick}
+              className="flex size-11 shrink-0 items-center justify-center text-slate-400"
+            >
+              <Pencil size={16} aria-hidden />
+            </button>
+          )}
+          {e.constraint.when === 'dates' && (
             <button
               type="button"
               aria-label={tx('מחיקת האילוץ: {v}', { v: constraintText(e.constraint) })}

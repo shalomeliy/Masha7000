@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, X } from 'lucide-react'
+import { CalendarDays, ChevronLeft, Pencil, X } from 'lucide-react'
 import { dayNames, tx } from '../../i18n'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { todayIso } from '../../lib/dates'
@@ -20,11 +20,13 @@ export function WorkerAgenda({
   items,
   loading,
   onRemove,
+  onEditSick,
   onOpen,
 }: {
   items: AgendaItem[]
   loading: boolean
-  onRemove: (constraintId: string) => void
+  onRemove: (constraintId: string) => void // 'sick' ends the status sickness
+  onEditSick: () => void // the status sheet, to change the sickness's last day
   onOpen: () => void // the worker's month
 }) {
   const defs = useDriveList('shiftDefinitions')
@@ -45,8 +47,21 @@ export function WorkerAgenda({
           <span className={`block ${job ? 'text-slate-100' : sick ? 'text-rose-200' : 'text-amber-200'}`}>{job ? title || tx('עבודה') : title}</span>
           {job && <span className="block text-xs text-slate-400">{[kind, detail, until].filter(Boolean).join(' · ')}</span>}
         </span>
-        {/* Sickness from today is the worker's status, changed on the status line; any other absence goes here. */}
-        {item.type === 'away' && item.key !== 'sick' && (
+        {/* Sickness from today is the worker's status: the pencil changes its last day, the X ends it. */}
+        {item.type === 'away' && item.key === 'sick' && (
+          <button
+            type="button"
+            aria-label={tx('עריכת המחלה')}
+            onClick={(e) => {
+              e.stopPropagation()
+              onEditSick()
+            }}
+            className="flex size-11 shrink-0 items-center justify-center text-slate-400"
+          >
+            <Pencil size={16} aria-hidden />
+          </button>
+        )}
+        {item.type === 'away' && (
           <button
             type="button"
             aria-label={tx('מחיקת האילוץ: {v}', { v: title })}
