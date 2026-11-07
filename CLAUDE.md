@@ -21,7 +21,7 @@ The app's Anthropic key (`ANTHROPIC_API_KEY`, set only in Vercel) pays real mone
 - Never use the app's key for development work: not for scripts, translations, spikes, tests or trying things out. Never put it in `.env.local`.
 - The local dev server's `/api/assistant` always answers with a fixed stand-in (`api/_lib/assistantMock.ts`) and never calls Anthropic.
 - Every paid call goes through `api/_lib/spendGuard.ts`: refused unless running on Vercel (`VERCEL=1`). Any new code that calls Anthropic must check it first. Do not weaken or bypass it.
-- A tool that really needs a model locally (for example `scripts/translate.mjs`) uses its own key with its own spend limit (`TRANSLATE_API_KEY`), and only after the user says to run it.
+- No script calls the API for development work. Translations of new texts are written by Claude in the session (see HANDOFF "app languages").
 
 ## Project skills
 
