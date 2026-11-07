@@ -3,7 +3,7 @@
 // The server (api/_lib/assistant.ts) only proposes; every change is made here, by the same rules
 // the screens use.
 
-import { endsNextDay, fullName, generalRoleId, isActive, MAX_STAFF, nameError, newId, staffingFor, upsert } from './catalog'
+import { endsNextDay, fullName, generalRoleId, isActive, MAX_STAFF, nameError, newId, staffingFor, upsert, workerHasRole } from './catalog'
 import { constraintText, isOver } from './constraints'
 import { todayIso } from './dates'
 import { autoAssign } from './planner'
@@ -57,6 +57,7 @@ export interface ProposedJob {
   note: string
   autoAssign: boolean
   nextJob: { location: string; jobDescription: string } // "לינה" only: the job after the night; empty otherwise
+  crew: { workerId: string; roleId: string }[] // workers the manager named for the new job; [] = none named
 }
 
 export interface Proposal extends Edits {
@@ -219,6 +220,12 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
     }
     for (const k of j.workKindIds) if (!has(d.workKinds, k)) errors.push(`${n}: אין סוג עבודה עם id "${k}"`)
     if (j.autoAssign && !j.date) errors.push(`${n}: אפשר לשבץ עובדים רק לעבודה עם תאריך`)
+    if (j.crew.length && !j.date) errors.push(`${n}: אפשר לשים עובדים רק בעבודה עם תאריך`)
+    for (const m of j.crew) {
+      const w = d.workers.find((x) => x.id === m.workerId)
+      if (!w) errors.push(`${n}: אין עובד עם id "${m.workerId}"`)
+      else if (!has(d.roles, m.roleId) || !workerHasRole(w, m.roleId, generalRoleId(d.roles))) errors.push(`${n}: ל${fullName(w)} אין את התפקיד עם id "${m.roleId}"`)
+    }
   })
   for (const id of p.forgetNoteIds) if (!has(d.assistantNotes, id)) errors.push(`אין הערה שמורה עם id "${id}"`)
   for (const id of p.assignShiftIds) if (!has(d.shifts, id)) errors.push(`אין עבודה ביומן עם id "${id}"`)
@@ -324,7 +331,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     const next = { location: j.nextJob.location.trim(), jobDescription: j.nextJob.jobDescription.trim() }
     const hasNext = Boolean(kind?.thenJob && (next.location || next.jobDescription))
     if (j.date) {
-      d.shifts = [...d.shifts, { ...base, date: j.date, crew: [], ...(hasNext ? { nextJob: next } : {}) }]
+      d.shifts = [...d.shifts, { ...base, date: j.date, crew: j.crew, ...(hasNext ? { nextJob: next } : {}) }]
       changed.add('shifts')
       calendar++
       if (j.autoAssign) toAssign.push(base.id)
@@ -391,6 +398,7 @@ export function normalizeProposal(raw: unknown): Proposal {
         note: S(j.note),
         autoAssign: B(j.autoAssign),
         nextJob: { location: S(next.location), jobDescription: S(next.jobDescription) },
+        crew: A(j.crew, (m) => ({ workerId: S(m.workerId), roleId: S(m.roleId) })).filter((m, k, list) => m.workerId && list.findIndex((x) => x.workerId === m.workerId) === k),
       }
     }),
     assignShiftIds: SS(p.assignShiftIds),

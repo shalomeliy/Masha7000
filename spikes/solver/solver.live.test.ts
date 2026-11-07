@@ -4,7 +4,9 @@
 import { readFileSync } from 'node:fs'
 import Anthropic from '@anthropic-ai/sdk'
 import { it } from 'vitest'
-import { SYSTEM } from '../../api/_lib/assistant'
+import { runAssistant, SYSTEM } from '../../api/_lib/assistant'
+import { solve, optionsText, type Problem } from '../../src/lib/solvers'
+import { userTurn, type Turn } from '../../src/lib/assistantApi'
 import { snapshot, type AppData } from '../../src/lib/assistant'
 import { generalRoleId, staffingFor } from '../../src/lib/catalog'
 import { autoAssign } from '../../src/lib/planner'
@@ -174,3 +176,32 @@ it.skipIf(!process.env.LIVE)('code solves, model words', { timeout: 120_000 }, a
   )
   console.log(`[total A] ${(one.ms / 1000).toFixed(1)}s   [total B] ${((one.ms + two.ms) / 1000).toFixed(1)}s`)
 })
+
+// The built version: the real prompt and tools, solve() in the app, rank by the model.
+for (const said of [
+  'דני חולה, הוא לא יכול לצאת ביום ראשון לאילת. מה עושים?',
+  'חסרים לי אנשים ביום שלישי, תסדר לי',
+  'תעדכן את הכלל על יוסי: הוא כן עולה לגובה 40 אם עומר לידו',
+]) {
+  it.skipIf(!process.env.LIVE)(`built: ${said}`, { timeout: 120_000 }, async () => {
+    const ctx = snapshot(data, NOW)
+    const conv: Turn[] = [{ role: 'user', content: said }]
+    const t0 = Date.now()
+    let early = 0
+    for (let step = 0; step < 3; step++) {
+      const t = Date.now()
+      const r = await runAssistant(env.ANTHROPIC_API_KEY, conv, ctx, 'claude-haiku-5-5', () => (early ||= Date.now() - t0))
+      if (!r.ok) throw new Error(r.reason)
+      const call = r.call as { id: string; name: string; input: Record<string, unknown> } | null
+      console.log(`[${step}] ${((Date.now() - t) / 1000).toFixed(1)}s ${call?.name}: ${JSON.stringify(call?.input).slice(0, 500)}`)
+      conv.push({ role: 'assistant', content: r.content as never })
+      if (call?.name !== 'solve') break
+      const i = call.input as { kind: Problem['kind']; shiftId: string; workerIds: string[]; date: string }
+      const p: Problem = i.kind === 'day' ? { kind: 'day', date: i.date } : i.kind === 'missing' ? { kind: 'missing', shiftId: i.shiftId, workerIds: i.workerIds } : { kind: 'job', shiftId: i.shiftId }
+      const options = solve(data, p)
+      console.log(options.map((o, k) => `   ${k + 1}. ${o.title} | ${o.cost}`).join('\n'))
+      conv.push(userTurn({ content: [], call, text: '' } as never, '', optionsText(options)))
+    }
+    console.log(`[total] ${((Date.now() - t0) / 1000).toFixed(1)}s, spoken heard after ${(early / 1000).toFixed(1)}s`)
+  })
+}

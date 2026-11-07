@@ -3,6 +3,8 @@ import { BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pe
 import { inputClass } from '../components/Sheet'
 import { applyProposal, isYes, MAX_EXAMPLES, normalizeProposal, proposalErrors, snapshot, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
+import type { Edits } from '../lib/assistantEdits'
+import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
 import { askAssistant, userTurn, type AssistantAnswer, type Turn } from '../lib/assistantApi'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
@@ -17,7 +19,8 @@ type Phase = 'idle' | 'listening' | 'thinking' | 'saving'
 // The assistant's answer to a hard problem: up to 5 ranked solutions.
 interface Advice {
   spoken: string
-  options: { title: string; actions: string[]; why: string; cost: string }[]
+  options: { title: string; actions: string[]; why: string; cost: string; kind?: OptionKind; changes?: Edits }[]
+  problem?: Problem['kind'] // set when the app's planner computed the options (solve)
 }
 
 interface Line {
@@ -61,6 +64,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [talking, setTalking] = useState(false) // a conversation is open: it can be closed without saving
   const typedRef = useRef<HTMLInputElement>(null)
   const conversation = useRef<Turn[]>([])
+  const solved = useRef<{ problem: Problem['kind']; options: SolverOption[] } | null>(null) // the planner's last options
   const asked = useRef<string[]>([]) // what the manager said in this conversation, for the example kept on a yes
   const last = useRef<AssistantAnswer | null>(null)
   const listening = useRef<Listening | null>(null)
@@ -131,6 +135,25 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           onNavigate(screen)
           if (hint && hint in HINTS) showHint(hint)
         }, text ? 1800 : 0)
+    } else if (call?.name === 'solve') {
+      // The planner computes the options here, in milliseconds; the model then ranks and words them.
+      const i = call.input as { kind: Problem['kind']; shiftId: string; workerIds: string[]; date: string }
+      const problem: Problem = i.kind === 'day' ? { kind: 'day', date: i.date } : i.kind === 'missing' ? { kind: 'missing', shiftId: i.shiftId, workerIds: i.workerIds ?? [] } : { kind: 'job', shiftId: i.shiftId }
+      solved.current = { problem: problem.kind, options: solve(data, problem) }
+      // Once per turn: a model asking again is told to solve it itself.
+      return send(userTurn(answer, '', fixes > MAX_FIXES ? 'פתור את הבעיה עם advise.' : optionsText(solved.current.options)), fixes + 1)
+    } else if (call?.name === 'rank') {
+      setProposal(null)
+      const r = call.input as { spoken: string; order: number[]; notes: string[] }
+      const all = solved.current?.options ?? []
+      const order = (r.order ?? []).filter((n, k, list) => n >= 1 && n <= all.length && list.indexOf(n) === k)
+      const shown = (order.length ? order : all.map((_, k) => k + 1)).map((n, k) => {
+        const o = all[n - 1]
+        const note = r.notes?.[k]?.trim()
+        return { ...o, cost: note ? `${o.cost}. ${note}` : o.cost }
+      })
+      setAdvice({ spoken: r.spoken, options: shown, problem: solved.current?.problem })
+      if (r.spoken !== early) say(r.spoken)
     } else if (call?.name === 'advise') {
       setProposal(null)
       const a = call.input as unknown as Advice
@@ -199,6 +222,25 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     if (!advice) return
     const o = advice.options[i]
     setAdvice(null)
+    if (o.changes && advice.problem) {
+      // The planner's option carries its own changes: a proposal at once, no model call. Picking
+      // another kind than the recommended one is a preference worth remembering.
+      const lesson = o.kind && advice.options[0].kind ? preferenceLesson(advice.problem, o.kind, advice.options[0].kind) : null
+      const p: Proposal = {
+        ...normalizeProposal({}),
+        ...o.changes,
+        summary: `${o.title}. ${o.actions.join('. ')}. לאשר, או שיש עוד תיקון?`,
+        lessons: lesson ? [lesson] : [],
+      }
+      // The data may have changed since the options were computed: then the assistant redoes it.
+      if (!proposalErrors(p, data).length) {
+        setLines((l) => [...l, { who: 'me', text: `פתרון ${i + 1}` }])
+        asked.current = [...asked.current, `פתרון ${i + 1}: ${o.title}`]
+        setProposal(p)
+        say(p.summary)
+        return
+      }
+    }
     handleSaid(`תעשה את פתרון ${i + 1}: ${o.title}`)
   }
 

@@ -41,7 +41,7 @@ export const SYSTEM = `אתה סדרן עבודה ותיק בצוות שטח (א
 - propose: כשהמנהל רוצה לשנות משהו וכל שדות החובה ידועים. summary חוזר בקצרה ובשפה חמה על כל השינויים ומסתיים במילים "לאשר, או שיש עוד תיקון?". אחרי כל תיקון של המנהל, הצע מחדש את כל השינויים המעודכנים (לא רק את התיקון).
 
 מה אפשר לשנות (propose):
-1. jobs: עבודה חדשה. shiftKindId מתוך shiftKinds; location מקום אחד (שני מקומות הם שתי עבודות); staffing עם roleId מתוך roles (אם לא נאמר כמה ומי, שאל). date: YYYY-MM-DD מתוך days, או "" אם המנהל אומר שאין תאריך עדיין או "לשיבוץ" (נכנס לרשימת הממתינות). workKindIds רק אם נאמר סוג עבודה מתוך workKinds (הוא מוסיף את האנשים שלו לבד; אל תכפיל אותם ב-staffing). certificationIds רק אם נאמרה הסמכה. nextJob ריק ("") בכל תבנית בלי hasNextJob. autoAssign: true רק אם המנהל ביקש שהמערכת תבחר עובדים (לעבודה עם תאריך בלבד).
+1. jobs: עבודה חדשה. shiftKindId מתוך shiftKinds; location מקום אחד (שני מקומות הם שתי עבודות); staffing עם roleId מתוך roles (אם לא נאמר כמה ומי, שאל). date: YYYY-MM-DD מתוך days, או "" אם המנהל אומר שאין תאריך עדיין או "לשיבוץ" (נכנס לרשימת הממתינות). workKindIds רק אם נאמר סוג עבודה מתוך workKinds (הוא מוסיף את האנשים שלו לבד; אל תכפיל אותם ב-staffing). certificationIds רק אם נאמרה הסמכה. nextJob ריק ("") בכל תבנית בלי hasNextJob. crew = העובדים שהמנהל ביקש לשים בעבודה (workerId ו-roleId שיש להם), אחרת []; עם crew לא צריך autoAssign, ואם חסרים עוד אנשים, autoAssign: true ישלים. autoAssign: true רק אם המנהל ביקש שהמערכת תבחר עובדים (לעבודה עם תאריך בלבד).
 2. assignShiftIds: לשבץ אוטומטית עובדים לעבודות קיימות ביומן (id מתוך shifts).
 3. workers: עובד חדש: שם פרטי ושם משפחה (חובה), נייד, תפקידים והסמכות מתוך הרשימות.
 4. listItems: פריט חדש ברשימה: places (מקומות), jobTypes (מהויות עבודה), roles (תפקידים), certifications (הסמכות), postponeReasons (סיבות דחייה).
@@ -106,6 +106,7 @@ export const TOOLS: Anthropic.Tool[] = [
           note: str,
           autoAssign: { type: 'boolean' },
           nextJob: obj({ location: str, jobDescription: str }),
+          crew: { type: 'array', items: obj({ workerId: str, roleId: str }) },
         }),
       },
       assignShiftIds: strs,
@@ -152,6 +153,18 @@ export const TOOLS: Anthropic.Tool[] = [
     }),
   },
   {
+    name: 'solve',
+    description: 'A staffing problem the app solves itself with its planner: workers missing from a job, a job lacking people, or a day lacking people.',
+    strict: true,
+    input_schema: obj({ kind: { type: 'string', enum: ['missing', 'job', 'day'] }, shiftId: str, workerIds: strs, date: str }),
+  },
+  {
+    name: 'rank',
+    description: "Rank and word the app's options for the manager. spoken first.",
+    strict: true,
+    input_schema: obj({ spoken: str, order: { type: 'array', items: { type: 'integer' } }, notes: strs }),
+  },
+  {
     name: 'advise',
     description: '1 to 3 short ranked solutions to a staffing problem (only as many as needed); spoken first.',
     strict: true,
@@ -166,8 +179,11 @@ export const TOOLS: Anthropic.Tool[] = [
 // It gets better from the manager's own answers: the lessons it wrote down and the requests he
 // confirmed come back in the data every turn (remembered, examples). The model itself never changes.
 const MODE = `
-שאלה מסובכת: בעיית שיבוץ שצריך לפתור ("חסרים לי אנשים", "מישהו חולה, מה עושים", "תציע לי פתרונות", "איך לסדר את השבוע"): קרא ל-advise. תחשוב לאט וכמו סדרן ותיק: בדוק תפקידים, הסמכות, אילוצים (cannot), מצב (now), מחלות, מי כבר עובד באותם ימים (לילה ולינה תופסים גם את היום שאחריו), עומס לילות בשבוע (מעל 2 זה עומס), ההיסטוריה, remembered ו-examples. כתוב קודם את spoken. החזר רק כמה פתרונות שבאמת צריך: פתרון אחד כשהוא מובהק, שניים כשיש התלבטות אמיתית, לעולם לא יותר משלושה. מהטוב לפחות טוב, וקצרים: title של כמה מילים, actions = עד 2 צעדים, בשמות ותאריכים, why = משפט קצר אחד, cost = משפט קצר אחד. אל תציע פתרון ששובר כלל קשיח (עובד בלי התפקיד או ההסמכה, חולה או חסום) בלי להגיד את זה במפורש ב-cost. spoken: 2 עד 3 משפטים עם ההמלצה הראשונה, ובסוף "לעשות את זה?" (פתרון אחד) או "איזה פתרון לעשות?". אם המנהל מבקש עוד פתרונות, קרא שוב ל-advise עם הפתרונות הקודמים ועוד אחד או שניים חדשים, בסך הכל עד שלושה; אם כבר יש שלושה, אמור שאלה כל האפשרויות הסבירות. אם חסר מידע חיוני, ask_user.
-אם בשיחה כבר יש advise והמנהל בוחר פתרון ("תעשה את 2", "הראשון"), הפוך את הפעולות שלו ל-propose.
+בעיית שיבוץ ("דני חולה, מי יחליף אותו", "חסרים לי אנשים בראשון", "אין לי מי לשלוח לדימונה", "תציע לי פתרונות"): אל תפתור בעצמך. קרא מיד ל-solve, והאפליקציה תחשב את האפשרויות לפי כללי השיבוץ בתוך שבריר שנייה: kind = missing (עובדים שלא יכולים לעבוד בעבודה מסוימת: shiftId ו-workerIds), job (עבודה ביומן שחסרים בה אנשים: shiftId), day (יום שחסרים בו אנשים בכמה עבודות: date). שדה שלא שייך: "" או []. אחר כך האפליקציה תשלח לך את האפשרויות, ותקרא ל-rank כדי לדרג ולנסח. אם המנהל אמר שעובד חולה או בחופש, זה גם שינוי בכרטיס שלו: הוסף אותו כשהמנהל בוחר פתרון.
+רק כשהבעיה לא מתאימה ל-solve (עומס על שבוע שלם, שאלה פתוחה על איך לסדר דברים), או שהאפליקציה לא מצאה פתרון: קרא ל-advise. תחשוב כמו סדרן ותיק: בדוק תפקידים, הסמכות, אילוצים (cannot), מצב (now), מחלות, מי כבר עובד באותם ימים (לילה ולינה תופסים גם את היום שאחריו), עומס לילות בשבוע (מעל 2 זה עומס), ההיסטוריה, remembered ו-examples. כתוב קודם את spoken. החזר רק כמה פתרונות שבאמת צריך: פתרון אחד כשהוא מובהק, שניים כשיש התלבטות אמיתית, לעולם לא יותר משלושה. מהטוב לפחות טוב, וקצרים: title של כמה מילים, actions = עד 2 צעדים, בשמות ותאריכים, why = משפט קצר אחד, cost = משפט קצר אחד. אל תציע פתרון ששובר כלל קשיח (עובד בלי התפקיד או ההסמכה, חולה או חסום) בלי להגיד את זה במפורש ב-cost. spoken: 2 עד 3 משפטים עם ההמלצה הראשונה, ובסוף "לעשות את זה?" (פתרון אחד) או "איזה פתרון לעשות?". אם המנהל מבקש עוד פתרונות, קרא שוב ל-advise עם הפתרונות הקודמים ועוד אחד או שניים חדשים, בסך הכל עד שלושה. אם חסר מידע חיוני, ask_user.
+אם בשיחה כבר יש advise והמנהל בוחר פתרון ("תעשה את 2", "הראשון"), הפוך את הפעולות שלו ל-propose. (בחירה מתוך rank האפליקציה מבצעת לבד.)
+
+כללים: המנהל יכול להוסיף, לעדכן ולמחוק כללים בקול. "תזכור ש..." או "כלל חדש" = rememberNotes. "תעדכן את הכלל על יוסי" = forgetNoteIds של הכלל הישן מ-remembered ו-rememberNotes של הנוסח החדש, באותה הצעה. "תשכח את..." = forgetNoteIds. "מה הכללים?" = answer שמקריא את remembered בקצרה.
 
 ללמוד מהמנהל: remembered הם כללים שלמדת ממנו, ו-examples הן בקשות קודמות שהוא אישר ומה עשית בהן. עבוד כמו שהן מראות: אותן מילים, אותם הרגלים, אותן העדפות. בכל propose, מלא lessons: כלל קצר וכללי לכל דבר שלמדת בשיחה הזו ושיחזור בפעם הבאה. למשל כשהמנהל תיקן אותך ("לא, אצלנו מטפס זה טפסן"), כשהוא בחר פתרון מסוים מתוך advise ("כשטפסן עם הסמכה חולה, המנהל מעדיף לדחות ולא לשלוח בלי הסמכה"), או כשהוא הוסיף משהו שלא שאלת. אל תכתוב כלל שכבר נמצא ב-remembered, ואל תכתוב כלל על עבודה אחת מסוימת. אם לא למדת כלום, lessons ריק.`
 
@@ -187,7 +203,7 @@ export function validConversation(messages: unknown): messages is Anthropic.Mess
 // The first thing said in each tool, in its schema order: it can be spoken while the rest is still
 // being written (the user's request: hear the recommendation in a few seconds). Not `summary`: a
 // proposal may still be refused by the app and sent back for fixing.
-const EARLY: Record<string, string> = { advise: 'spoken', ask_user: 'question', answer: 'text' }
+const EARLY: Record<string, string> = { advise: 'spoken', rank: 'spoken', ask_user: 'question', answer: 'text' }
 
 /** The early field once its string is complete in the tool input written so far, else null. */
 export function earlyText(tool: string, partialJson: string): string | null {
@@ -228,9 +244,8 @@ export async function runAssistant(
       ],
       tools: TOOLS,
       tool_choice: { type: 'auto' },
-      // Medium, not low: a little slower, but it weighs the data before answering (the user wants it
-      // professional, on the cheap model only).
-      output_config: { effort: 'medium' },
+      // Low: the hard thinking is the planner's (solve), the model recognizes and words (docs/spikes/solver.md).
+      output_config: { effort: 'low' },
       messages,
     })
     let tool = ''

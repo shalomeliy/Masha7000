@@ -42,6 +42,7 @@ const job = (over: Partial<ProposedJob> = {}): ProposedJob => ({
   note: '',
   autoAssign: false,
   nextJob: { location: '', jobDescription: '' },
+  crew: [],
   ...over,
 })
 
@@ -224,5 +225,14 @@ describe('learning from the manager', () => {
     const all = [ex('1', 'לינה באילת שני טפסנים'), ex('2', 'עובד חדש'), ex('3', 'יום בדימונה טפסן'), ex('4', 'לינה בערד')]
     expect(relevantExamples(all, 'תפתח לינה באילת', 2).map((e) => e.id)).toEqual(['1', '4'])
     expect(relevantExamples(all, 'משהו אחר', 2).map((e) => e.id)).toEqual(['4', '3'])
+  })
+})
+
+describe('a new job with named workers', () => {
+  it('puts them in; a role the worker lacks is refused', () => {
+    const d = data()
+    const named = job({ crew: [{ workerId: 'w1', roleId: 'climb' }] })
+    expect(applyProposal(proposal({ jobs: [named] }), d, NOW).data.shifts.at(-1)?.crew).toEqual([{ workerId: 'w1', roleId: 'climb' }])
+    expect(proposalErrors(proposal({ jobs: [job({ crew: [{ workerId: 'w3', roleId: 'climb' }] })] }), d)).toHaveLength(1)
   })
 })
