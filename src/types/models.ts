@@ -173,7 +173,13 @@ export interface AssistantExample {
   said: string // what the manager said, corrections included
   did: string // the summary he confirmed
   createdAt: string // ISO time
+  action?: ExampleAction // what was confirmed, when it is an action the app can learn to do alone (src/lib/freeCommands.ts)
 }
+
+// A confirmed action the app learns from: `said` is what the manager said for it, the rest what it did.
+export type ExampleAction =
+  | { type: 'job'; said: string; job: { date: string; shiftKindId: string; location: string; jobDescription: string; staffing: { roleId: string; count: number }[]; autoAssign: boolean } }
+  | { type: 'sick'; said: string; workerId: string; until: string }
 
 export interface PostponeReason {
   id: string

@@ -1,4 +1,4 @@
-import { tx } from '../i18n'
+import { language, tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
@@ -8,6 +8,7 @@ import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
 import { askAssistant, userTurn, type AssistantAnswer, type Turn } from '../lib/assistantApi'
 import { realAssistantOn, setRealAssistant } from '../dev/realAssistant'
+import { continueJob, countTurn, exampleAction, handleFree, learn, usage, type Local, type PendingJob } from '../lib/freeCommands'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
 import { canListen, canSpeak, listen, nextRate, rateName, speak, speechRate, stopSpeaking, type Listening } from '../lib/speech'
@@ -23,6 +24,8 @@ interface Advice {
   spoken: string
   options: { title: string; actions: string[]; why: string; cost: string; kind?: OptionKind; changes?: Edits }[]
   problem?: Problem['kind'] // set when the app's planner computed the options (solve)
+  extra?: Edits // made here without Claude (freeCommands): changes that go with any picked option (the worker marked sick)
+  extraText?: string // and how they are said
 }
 
 interface Line {
@@ -61,6 +64,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [typed, setTyped] = useState('')
   const [rate, setRate] = useState(speechRate)
   const [realDev, setRealDev] = useState(realAssistantOn)
+  const [used, setUsed] = useState(usage)
   const [error, setError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [conflicts, setConflicts] = useState<string[]>([])
@@ -71,6 +75,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const solved = useRef<{ problem: Problem['kind']; options: SolverOption[] } | null>(null) // the planner's last options
   const asked = useRef<string[]>([]) // what the manager said in this conversation, for the example kept on a yes
   const last = useRef<AssistantAnswer | null>(null)
+  const pendingJob = useRef<PendingJob | null>(null) // a job being opened here, free, waiting for a missing detail
+  const fromFree = useRef(false) // the open proposal was made here, not by Claude: nothing to learn from it
   const listening = useRef<Listening | null>(null)
 
   useEffect(() => () => {
@@ -87,6 +93,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     conversation.current = []
     last.current = null
     asked.current = []
+    pendingJob.current = null
+    fromFree.current = false
     setProposal(null)
     setAdvice(null)
     setTalking(false)
@@ -96,6 +104,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const send = async (turn: Turn, fixes = 0) => {
     setPhase('thinking')
     setError(null)
+    fromFree.current = false
+    setUsed(countTurn('paid'))
     conversation.current = [...conversation.current, turn]
     let answer: AssistantAnswer
     let early = ''
@@ -190,7 +200,14 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     if (asked.current.length && proposal.summary) {
       next.assistantExamples = [
         ...data.assistantExamples,
-        { id: newId(), said: asked.current.join(' / ').slice(0, 400), did: proposal.summary.slice(0, 500), createdAt: new Date().toISOString() },
+        {
+          id: newId(),
+          said: asked.current.join(' / ').slice(0, 400),
+          did: proposal.summary.slice(0, 500),
+          createdAt: new Date().toISOString(),
+          // What Claude did, so the next request said this way is done here, free (freeCommands).
+          ...(fromFree.current ? {} : { action: exampleAction(proposal, asked.current) }),
+        },
       ].slice(-MAX_EXAMPLES)
       changed.add('assistantExamples')
     }
@@ -225,8 +242,62 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       void confirm(false)
       return
     }
+    // A free solution offered here: a yes takes the first one.
+    if (advice?.extra && isYes(text)) {
+      pickOption(0)
+      return
+    }
     asked.current = [...asked.current, text]
+    // Before Claude: what the app can do by itself, free (Hebrew only, and only while Claude is not
+    // in the conversation). Anything it does not fully understand goes to Claude with all that was said.
+    if (conversation.current.length === 0 && language().code === 'he') {
+      const now = new Date()
+      const learned = learn(data.assistantExamples, data)
+      const local = pendingJob.current ? continueJob(text, pendingJob.current, data, learned, now) : asked.current.length === 1 ? handleFree(text, data, learned, now) : null
+      if (actFree(local)) return
+      pendingJob.current = null
+      setProposal(null)
+      setAdvice(null)
+      void send({ role: 'user', content: asked.current.join('. ') })
+      return
+    }
     void send(userTurn(last.current, text, proposal ? tx('המנהל לא אישר עדיין. התיקון שלו בהודעה הבאה.') : undefined))
+  }
+
+  // Does what freeCommands found; false when it is nothing (or not valid), for Claude.
+  const actFree = (local: Local): boolean => {
+    if (!local) return false
+    if (local.kind === 'propose' && proposalErrors(local.proposal, data).length) return false
+    setUsed(countTurn('free'))
+    setError(null)
+    if (local.kind === 'open') {
+      say(local.text)
+      reset()
+      setTimeout(() => {
+        onNavigate(local.screen)
+        if (local.hint) showHint(local.hint)
+      }, 1500)
+    } else if (local.kind === 'say') {
+      say(local.text)
+      reset()
+    } else if (local.kind === 'ask') {
+      pendingJob.current = local.pending
+      setTalking(true)
+      say(local.question)
+    } else if (local.kind === 'propose') {
+      pendingJob.current = null
+      fromFree.current = true
+      setTalking(true)
+      offer(local.proposal)
+    } else {
+      pendingJob.current = null
+      fromFree.current = true
+      setTalking(true)
+      setProposal(null)
+      setAdvice({ spoken: local.spoken, options: local.options, problem: 'missing', extra: local.extra, extraText: local.extraText })
+      say(local.spoken)
+    }
+    return true
   }
 
   // A picked solution goes back to the assistant, which turns it into a proposal to confirm.
@@ -241,7 +312,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       const p: Proposal = {
         ...normalizeProposal({}),
         ...o.changes,
-        summary: tx('{title}. {v}. לאשר, או שיש עוד תיקון?', { title: o.title, v: o.actions.join('. ') }),
+        editWorkers: [...o.changes.editWorkers, ...(advice.extra?.editWorkers ?? [])],
+        summary: `${advice.extraText ? `${advice.extraText}. ` : ''}${tx('{title}. {v}. לאשר, או שיש עוד תיקון?', { title: o.title, v: o.actions.join('. ') })}`,
         lessons: lesson ? [lesson] : [],
       }
       // The data may have changed since the options were computed: then the assistant redoes it.
@@ -317,6 +389,9 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         <p className="text-lg text-slate-300" role="status">
           {status}
         </p>
+        {(used.free > 0 || used.paid > 0) && (
+          <p className="text-xs text-slate-400">{tx('החודש: {free} פקודות בחינם, {paid} דרך Claude (בתשלום)', { free: used.free, paid: used.paid })}</p>
+        )}
         {heard && <p className="max-w-sm text-center text-slate-100">{heard}</p>}
         {error && (
           <p role="alert" className="max-w-sm text-center text-amber-300">
