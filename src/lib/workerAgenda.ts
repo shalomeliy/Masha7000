@@ -2,7 +2,7 @@
 // the days they are away (sickness, vacation and the other absences, and ordinary dated constraints),
 // in date order. Weekly constraints are not in it: they stay in the card's constraints list.
 
-import { constraintText, isOver, shiftDays, sickConstraint } from './constraints'
+import { constraintText, isOver, onDay, shiftDays, sickConstraint } from './constraints'
 import { addDays } from './shifts'
 import type { Constraint, Role, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
@@ -54,3 +54,40 @@ export function agendaText(item: AgendaItem, roles: Role[]): { title: string; de
  * (the user's rule: each shown once). A guess read from WhatsApp stays in the list, to be checked there. */
 export const agendaConstraintIds = (items: AgendaItem[]): string[] =>
   items.flatMap((i) => (i.type === 'away' && i.key !== 'sick' && !i.constraint.guess ? [i.constraint.id] : []))
+
+// ---- The worker's month: everything on each day, past days too ----
+
+export type DayEntry =
+  | { type: 'job'; key: string; shift: ShiftRecord; roleId: string; endDate: string }
+  | { type: 'away'; key: string; constraint: Constraint; sick: boolean }
+
+/** Every day of `month` (YYYY-MM) with what the worker has on it: jobs (a night job on both its
+ * days), sickness, absences and constraints, weekly ones included. Sickness from the status has no
+ * start date, so it is shown from today to its last day. Days with nothing are left out. */
+export function workerMonth(
+  w: Pick<Worker, 'id' | 'constraints' | 'status' | 'sickUntil'>,
+  shifts: ShiftRecord[],
+  defs: ShiftDefinition[],
+  month: string,
+  today: string,
+): Map<string, DayEntry[]> {
+  const first = `${month}-01`
+  const days: string[] = []
+  for (let d = first; d.startsWith(month); d = addDays(d, 1)) days.push(d)
+  const out = new Map<string, DayEntry[]>()
+  const put = (day: string, e: DayEntry) => out.set(day, [...(out.get(day) ?? []), e])
+  const sick = sickConstraint(w)
+  for (const day of days) {
+    if (sick && day >= today && day <= sick.to!) put(day, { type: 'away', key: 'sick', constraint: sick, sick: true })
+    for (const c of w.constraints) if (onDay(c, day)) put(day, { type: 'away', key: `c-${c.id}`, constraint: c, sick: c.kind === 'sick' })
+  }
+  for (const s of shifts) {
+    const member = s.crew.find((c) => c.workerId === w.id)
+    if (!member) continue
+    const run = shiftDays(s, defs)
+    for (const day of run) if (day.startsWith(month)) put(day, { type: 'job', key: `job-${s.id}`, shift: s, roleId: member.roleId, endDate: run.at(-1)! })
+  }
+  // On each day: sickness and absences first, then jobs.
+  for (const list of out.values()) list.sort((a, b) => (a.type === b.type ? 0 : a.type === 'away' ? -1 : 1))
+  return new Map([...out].sort(([a], [b]) => a.localeCompare(b)))
+}

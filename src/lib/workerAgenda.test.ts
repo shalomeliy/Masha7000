@@ -56,3 +56,21 @@ describe('sickness ahead', () => {
     expect(workerState(worker, '2026-11-08')).toEqual({ id: 'sick', label: 'במחלה' })
   })
 })
+
+describe('workerMonth', () => {
+  it('puts each job, absence and weekly constraint on its days; a night job on both days; status sickness from today', async () => {
+    const { workerMonth } = await import('./workerAgenda')
+    const worker = w({
+      status: 'sick',
+      sickUntil: '2026-11-08',
+      constraints: [
+        { id: 'vac', when: 'dates', from: '2026-10-30', to: '2026-11-02', kind: 'vacation' },
+        { id: 'study', when: 'weekdays', weekdays: [2], kind: 'study' }, // Tuesdays
+      ],
+    })
+    const m = workerMonth(worker, [shift('n', '2026-11-29', ['w'], 'night'), shift('x', '2026-11-12', ['x'])], defs, '2026-11', TODAY)
+    expect([...m.keys()]).toEqual(['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-07', '2026-11-08', '2026-11-10', '2026-11-17', '2026-11-24', '2026-11-29', '2026-11-30'])
+    expect(m.get('2026-11-07')!.map((e) => e.key)).toEqual(['sick'])
+    expect(m.get('2026-11-30')!.map((e) => e.key)).toEqual(['job-n'])
+  })
+})

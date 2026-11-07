@@ -960,5 +960,12 @@
  "עד {v}": "hasta {v}",
  "מחלה בימים מסוימים": "Enfermedad en días concretos",
  "3 הימים הקרובים": "Próximos 3 días",
- "אין עבודות או היעדרויות ב-3 הימים הקרובים.": "No hay trabajos ni ausencias en los próximos 3 días."
+ "אין עבודות או היעדרויות ב-3 הימים הקרובים.": "No hay trabajos ni ausencias en los próximos 3 días.",
+ "אין עבודות או היעדרויות בחודש הזה.": "No hay trabajos ni ausencias este mes.",
+ "בחודש הזה: {jobs} עבודות, {away} ימים לא זמין": "Este mes: {jobs} trabajos, {away} días no disponible",
+ "הלוח החודשי של {v}": "Calendario mensual de {v}",
+ "המשך מ-{v}": "continúa desde {v}",
+ "לוח חודשי": "Calendario mensual",
+ "מחלה": "Enfermedad",
+ "מקרא": "Leyenda"
 }

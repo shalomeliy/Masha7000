@@ -960,5 +960,12 @@
  "עד {v}": "{v} tarihine kadar",
  "מחלה בימים מסוימים": "Belirli günlerde hasta",
  "3 הימים הקרובים": "Önümüzdeki 3 gün",
- "אין עבודות או היעדרויות ב-3 הימים הקרובים.": "Önümüzdeki 3 gün içinde iş veya devamsızlık yok."
+ "אין עבודות או היעדרויות ב-3 הימים הקרובים.": "Önümüzdeki 3 gün içinde iş veya devamsızlık yok.",
+ "אין עבודות או היעדרויות בחודש הזה.": "Bu ay iş veya devamsızlık yok.",
+ "בחודש הזה: {jobs} עבודות, {away} ימים לא זמין": "Bu ay: {jobs} iş, {away} gün müsait değil",
+ "הלוח החודשי של {v}": "{v} aylık takvimi",
+ "המשך מ-{v}": "{v} tarihinden devam",
+ "לוח חודשי": "Aylık takvim",
+ "מחלה": "Hastalık",
+ "מקרא": "Açıklama"
 }

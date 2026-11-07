@@ -33,6 +33,7 @@ import { endAbsence, STATE_NAMES, STATE_TONE, teamStates, workerState, type Stat
 import { AddButton, EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
 import { useWorkerAgenda, WorkerAgenda } from "./WorkerAgenda";
+import { WorkerMonth } from "./WorkerMonth";
 import { agendaConstraintIds } from "../../lib/workerAgenda";
 import { RequestSheet } from "./RequestSheet";
 import { JoinButton, JoinPending } from "./JoinSection";
@@ -541,6 +542,7 @@ function WorkerForm({
   const specificRoles = roles.items.filter((r) => !isGeneralRole(r));
   // The next 3 days, from the draft: a status or an absence just picked shows before saving.
   const agenda = useWorkerAgenda(draft);
+  const [monthOpen, setMonthOpen] = useState(false);
 
   const set = (field: TextField) => (e: { target: { value: string } }) => {
     const value = e.target.value;
@@ -663,8 +665,10 @@ function WorkerForm({
           items={agenda.items}
           loading={agenda.loading}
           onRemove={(id) => setDraft((d) => ({ ...d, constraints: d.constraints.filter((c) => c.id !== id) }))}
+          onOpen={() => setMonthOpen(true)}
         />
       )}
+      {exists && <WorkerMonth worker={draft} open={monthOpen} onClose={() => setMonthOpen(false)} />}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={tx('ת.ז')}>
