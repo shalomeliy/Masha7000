@@ -36,15 +36,17 @@ export function ConstraintsField({
   value,
   onChange,
   onNotes,
+  hidden = [],
 }: {
   value: Constraint[]
+  hidden?: string[] // shown elsewhere (the personal calendar), so not listed here
   onChange: (v: Constraint[]) => void
   onNotes: (text: string) => void // the notes line of a pasted WhatsApp reply
 }) {
   const today = todayIso()
   const [editing, setEditing] = useState<Constraint | null>(null)
   const [pasting, setPasting] = useState(false)
-  const shown = [...value].sort((a, b) => Number(isOver(a, today)) - Number(isOver(b, today)) || (a.from ?? '').localeCompare(b.from ?? ''))
+  const shown = value.filter((c) => !hidden.includes(c.id) || editing?.id === c.id).sort((a, b) => Number(isOver(a, today)) - Number(isOver(b, today)) || (a.from ?? '').localeCompare(b.from ?? ''))
 
   const save = (c: Constraint) => {
     onChange(value.some((x) => x.id === c.id) ? value.map((x) => (x.id === c.id ? c : x)) : [...value, c])

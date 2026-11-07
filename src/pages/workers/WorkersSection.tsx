@@ -32,7 +32,8 @@ import { DAY_NAMES } from "../../lib/shifts";
 import { endAbsence, STATE_NAMES, STATE_TONE, teamStates, workerState, type StateId } from "../../lib/workerState";
 import { AddButton, EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
-import { WorkerAgenda } from "./WorkerAgenda";
+import { useWorkerAgenda, WorkerAgenda } from "./WorkerAgenda";
+import { agendaConstraintIds } from "../../lib/workerAgenda";
 import { RequestSheet } from "./RequestSheet";
 import { JoinButton, JoinPending } from "./JoinSection";
 import { authMode } from "../../lib/google/auth";
@@ -538,6 +539,8 @@ function WorkerForm({
   const [busy, setBusy] = useState(false);
   const exists = workers.items.some((w) => w.id === worker.id);
   const specificRoles = roles.items.filter((r) => !isGeneralRole(r));
+  // The next 3 days, from the draft: a status or an absence just picked shows before saving.
+  const agenda = useWorkerAgenda(draft);
 
   const set = (field: TextField) => (e: { target: { value: string } }) => {
     const value = e.target.value;
@@ -592,6 +595,8 @@ function WorkerForm({
     <>
       <ConstraintsField
         value={draft.constraints}
+        // Each constraint is shown once: those in the personal calendar are left out of this list.
+        hidden={exists ? agendaConstraintIds(agenda.items) : []}
         onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
         onNotes={(text) =>
           setDraft((d) => ({
@@ -653,9 +658,13 @@ function WorkerForm({
         }
       />
 
-      {/* The worker's own calendar: upcoming jobs and days away. From the draft, so a status or an
-          absence just picked shows here before saving. */}
-      {exists && <WorkerAgenda worker={draft} />}
+      {exists && (
+        <WorkerAgenda
+          items={agenda.items}
+          loading={agenda.loading}
+          onRemove={(id) => setDraft((d) => ({ ...d, constraints: d.constraints.filter((c) => c.id !== id) }))}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label={tx('ת.ז')}>

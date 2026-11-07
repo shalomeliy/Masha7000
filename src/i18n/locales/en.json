@@ -953,14 +953,12 @@
  "יעבור לכאן": "Moves here",
  "להשאיר אותו שם": "Keep him there",
  "נגמר התקציב של Anthropic לחודש הזה, אז העוזר לא יכול לענות. אפשר להוסיף קרדיט ב-console.anthropic.com. פקודות פשוטות עדיין עובדות בחינם.": "Anthropic's budget for this month has run out, so the assistant can't answer. You can add credit at console.anthropic.com. Simple commands still work for free.",
- "{n} עבודות קרובות": "{n} upcoming jobs",
- "אין עבודות או היעדרויות מהיום והלאה.": "No jobs or absences from today on.",
  "היום": "Today",
  "הלוח האישי": "Personal calendar",
- "להציג הכל ({n})": "Show all ({n})",
- "להציג פחות": "Show less",
  "מחר": "Tomorrow",
  "עבודה דחופה": "Urgent job",
  "עד {v}": "until {v}",
- "מחלה בימים מסוימים": "Sick on certain days"
+ "מחלה בימים מסוימים": "Sick on certain days",
+ "3 הימים הקרובים": "Next 3 days",
+ "אין עבודות או היעדרויות ב-3 הימים הקרובים.": "No jobs or absences in the next 3 days."
 }

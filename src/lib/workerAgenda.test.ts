@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { workerAgenda } from './workerAgenda'
+import { normalizeConstraint } from './constraints'
+import { agendaConstraintIds, workerAgenda } from './workerAgenda'
+import { workerState } from './workerState'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 const TODAY = '2026-11-07'
@@ -13,49 +15,43 @@ const shift = (id: string, date: string, crew: string[], def = 'day'): ShiftReco
 })
 
 describe('workerAgenda', () => {
-  it("lists only this worker's jobs from today on, a night job until the next day", () => {
-    const shifts = [shift('past', '2026-11-05', ['w']), shift('other', '2026-11-08', ['x']), shift('n', '2026-11-06', ['w'], 'night'), shift('soon', '2026-11-09', ['w'])]
-    const { dated } = workerAgenda(w(), shifts, defs, TODAY)
-    expect(dated.map((i) => i.key)).toEqual(['job-n', 'job-soon'])
-    expect(dated[0]).toMatchObject({ date: '2026-11-06', endDate: '2026-11-07' })
+  it("lists only this worker's jobs in the next 3 days, a night job from yesterday until today", () => {
+    const shifts = [shift('past', '2026-11-05', ['w']), shift('other', '2026-11-08', ['x']), shift('n', '2026-11-06', ['w'], 'night'), shift('soon', '2026-11-09', ['w']), shift('later', '2026-11-10', ['w'])]
+    const items = workerAgenda(w(), shifts, defs, TODAY)
+    expect(items.map((i) => i.key)).toEqual(['job-n', 'job-soon'])
+    expect(items[0]).toMatchObject({ date: '2026-11-06', endDate: '2026-11-07' })
   })
 
-  it('shows sickness, vacations and picked days in date order; past ones are left out', () => {
+  it('shows sickness, an absence going on today (as today) and a day off, in order; past and later ones are left out', () => {
     const worker = w({
       status: 'sick',
       sickUntil: '2026-11-08',
       constraints: [
         { id: 'old', when: 'dates', from: '2026-11-01', to: '2026-11-02', kind: 'vacation' },
+        { id: 'res', when: 'dates', from: '2026-11-01', to: '2026-11-12', kind: 'reserve' },
+        { id: 'day', when: 'dates', from: '2026-11-09', to: '2026-11-09' },
         { id: 'vac', when: 'dates', from: '2026-11-20', to: '2026-11-25', kind: 'vacation' },
-        { id: 'day', when: 'dates', from: '2026-11-10', to: '2026-11-10' },
+        { id: 'study', when: 'weekdays', weekdays: [0], kind: 'study' },
       ],
     })
-    const { dated } = workerAgenda(worker, [shift('s', '2026-11-10', ['w'])], defs, TODAY)
-    expect(dated.map((i) => i.key)).toEqual(['sick', 'c-day', 'job-s', 'c-vac'])
+    const items = workerAgenda(worker, [shift('s', '2026-11-09', ['w'])], defs, TODAY)
+    expect(items.map((i) => i.key)).toEqual(['sick', 'c-res', 'c-day', 'job-s'])
+    expect(agendaConstraintIds(items)).toEqual(['res', 'day'])
   })
 
-  it('an absence going on today sorts as today; weekly ones are listed apart', () => {
-    const worker = w({
-      constraints: [
-        { id: 'res', when: 'dates', from: '2026-11-01', to: '2026-11-12', kind: 'reserve' },
-        { id: 'study', when: 'weekdays', weekdays: [2], kind: 'study' },
-        { id: 'ended', when: 'weekdays', weekdays: [3], to: '2026-11-01' },
-      ],
-    })
-    const { dated, weekly } = workerAgenda(worker, [], defs, TODAY)
-    expect(dated).toMatchObject([{ key: 'c-res', date: TODAY, endDate: '2026-11-12' }])
-    expect(weekly.map((c) => c.id)).toEqual(['study'])
+  it('a WhatsApp guess stays in the constraints list', () => {
+    const items = workerAgenda(w({ constraints: [{ id: 'g', when: 'dates', from: TODAY, to: TODAY, guess: true }] }), [], defs, TODAY)
+    expect(items).toHaveLength(1)
+    expect(agendaConstraintIds(items)).toEqual([])
   })
 })
 
 describe('sickness ahead', () => {
-  it('a day saved with the note "מחלה" is read as sickness: red in the calendar, the state on that day', async () => {
-    const { normalizeConstraint } = await import('./constraints')
-    const { workerState } = await import('./workerState')
+  it('a day saved with the note "מחלה" is read as sickness: red in the calendar, the state on that day', () => {
     const c = normalizeConstraint({ id: 's', when: 'dates', from: '2026-11-08', to: '2026-11-08', note: 'מחלה' })
     expect(c.kind).toBe('sick')
     const worker = w({ constraints: [c] })
-    expect(workerAgenda(worker, [], defs, TODAY).dated).toMatchObject([{ key: 'c-s', date: '2026-11-08', sick: true }])
+    expect(workerAgenda(worker, [], defs, TODAY)).toMatchObject([{ key: 'c-s', date: '2026-11-08', sick: true }])
     expect(workerState(worker, TODAY).id).toBe('fit')
     expect(workerState(worker, '2026-11-08')).toEqual({ id: 'sick', label: 'במחלה' })
   })
