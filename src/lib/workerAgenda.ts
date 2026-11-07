@@ -40,7 +40,7 @@ export function workerAgenda(
     }
     if (!c.from) continue
     const to = c.to ?? c.from
-    dated.push({ type: 'away', key: `c-${c.id}`, date: c.from < today ? today : c.from, endDate: to, constraint: c })
+    dated.push({ type: 'away', key: `c-${c.id}`, date: c.from < today ? today : c.from, endDate: to, constraint: c, ...(c.kind === 'sick' ? { sick: true as const } : {}) })
   }
   // Same day: an absence first, so the manager sees it before a job that clashes with it.
   dated.sort((a, b) => a.date.localeCompare(b.date) || (a.type === b.type ? a.endDate.localeCompare(b.endDate) : a.type === 'away' ? -1 : 1))

@@ -66,6 +66,7 @@ const ABSENCES: { id: AbsenceKind; name: string }[] = [
   { id: "study", name: tx('לימודים') },
   { id: "reserve", name: tx('מילואים') },
   { id: "course", name: tx('השתלמות או קורס') },
+  { id: "sick", name: tx('מחלה בימים מסוימים') },
 ];
 
 const STATUS_COLOR: Record<WorkerStatus, string> = {

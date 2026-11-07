@@ -23,6 +23,8 @@ export function normalizeConstraint(raw: Partial<Constraint> & { date?: string; 
     weekdays: when === 'weekdays' ? (c.weekdays ?? []) : undefined,
     nightsOnly: when === 'always' ? true : c.nightsOnly || undefined,
     note: c.note ?? (reason?.trim() || undefined),
+    // Sickness ahead ("חולה מחר") is saved by the voice assistant as a day with the note "מחלה".
+    ...(!c.kind && when === 'dates' && c.note?.trim() === 'מחלה' ? { kind: 'sick' as const } : {}),
   }
 }
 
@@ -48,7 +50,7 @@ const dayList = (days: number[]) => {
 
 // The kinds of absence the manager picks from a worker's state (the user's list, 2026-11-06, plus
 // reserve duty and courses).
-export const ABSENCE_NAMES: Record<AbsenceKind, string> = { vacation: tx('בחופש'), study: tx('בלימודים'), reserve: tx('במילואים'), course: tx('בהשתלמות') }
+export const ABSENCE_NAMES: Record<AbsenceKind, string> = { vacation: tx('בחופש'), study: tx('בלימודים'), reserve: tx('במילואים'), course: tx('בהשתלמות'), sick: tx('במחלה') }
 
 export const PART_NAMES: Record<DayPart, string> = { morning: tx('בבוקר'), noon: tx('בצהריים'), evening: tx('בערב') }
 

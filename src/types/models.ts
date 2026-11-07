@@ -17,7 +17,7 @@ export type DayPart = 'morning' | 'noon' | 'evening'
 // weekdays every week, or always. `nightsOnly` narrows it to night jobs starting on those days.
 // The spec's single-date `{ date, reason }` is upgraded on read (`normalizeConstraint`).
 // Why a worker is away for a stretch of days; shown as the worker's state on the card.
-export type AbsenceKind = 'vacation' | 'study' | 'reserve' | 'course'
+export type AbsenceKind = 'vacation' | 'study' | 'reserve' | 'course' | 'sick' // sick: a sickness on given days, e.g. starting tomorrow
 
 export interface Constraint {
   id: string

@@ -47,3 +47,16 @@ describe('workerAgenda', () => {
     expect(weekly.map((c) => c.id)).toEqual(['study'])
   })
 })
+
+describe('sickness ahead', () => {
+  it('a day saved with the note "מחלה" is read as sickness: red in the calendar, the state on that day', async () => {
+    const { normalizeConstraint } = await import('./constraints')
+    const { workerState } = await import('./workerState')
+    const c = normalizeConstraint({ id: 's', when: 'dates', from: '2026-11-08', to: '2026-11-08', note: 'מחלה' })
+    expect(c.kind).toBe('sick')
+    const worker = w({ constraints: [c] })
+    expect(workerAgenda(worker, [], defs, TODAY).dated).toMatchObject([{ key: 'c-s', date: '2026-11-08', sick: true }])
+    expect(workerState(worker, TODAY).id).toBe('fit')
+    expect(workerState(worker, '2026-11-08')).toEqual({ id: 'sick', label: 'במחלה' })
+  })
+})
