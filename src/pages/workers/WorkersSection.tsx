@@ -273,32 +273,33 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
       {tab === "team" && !showInactive && team.length > 0 && (
         <section aria-label={tx("מצב הצוות היום")} className="mb-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
           <h2 className="mb-2 text-sm font-semibold text-slate-200">{tx("מצב הצוות היום")}</h2>
-          <div className="flex items-start gap-2">
-          <div className="flex flex-1 flex-wrap gap-2">
+          {/* One row: compact framed state counts, then "add +" at the end (left in Hebrew).
+              If many states show, the counts scroll sideways instead of wrapping. */}
+          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
             {team.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 aria-pressed={stateFilter === t.id}
                 onClick={() => setStateFilter((f) => (f === t.id ? null : t.id))}
-                className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm ${
+                className={`flex min-h-10 flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border px-1.5 text-xs ${
                   stateFilter === t.id ? "border-sky-500 text-sky-200" : "border-slate-700 text-slate-200"
                 }`}
               >
-                <span aria-hidden className={`size-2.5 rounded-full ${STATE_TONE[t.id].dot}`} />
+                <span aria-hidden className={`size-2 shrink-0 rounded-full ${STATE_TONE[t.id].dot}`} />
                 {`${STATE_NAMES[t.id]} ${t.count}`}
               </button>
             ))}
           </div>
-            {/* Add a worker: a compact "+" in the same row as the states, at its end (the left side in Hebrew). */}
             <button
               type="button"
               onClick={() => edit(blankWorker())}
               aria-label={tx("הוספת עובד")}
-              title={tx("הוספת עובד")}
-              className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white active:bg-sky-700"
+              className="flex min-h-10 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-sky-600 px-2.5 text-sm font-semibold text-white active:bg-sky-700"
             >
-              <Plus size={22} aria-hidden />
+              {tx("הוסף")}
+              <Plus size={16} aria-hidden />
             </button>
           </div>
         </section>
