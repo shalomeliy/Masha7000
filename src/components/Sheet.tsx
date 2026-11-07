@@ -6,7 +6,7 @@ import { DriveError } from './DriveError'
 
 // Bottom sheet on a native <dialog>: focus trap, Escape and the backdrop come from the browser.
 // `locked` keeps it open while a save is in flight, so a failed save can still show its error.
-// The phone's Back and a swipe to the left close it like Cancel.
+// The phone's Back and a swipe to either side close it like Cancel.
 export function Sheet({
   open,
   title,
@@ -26,7 +26,8 @@ export function Sheet({
   useEffect(() => {
     latest.current = { onClose, locked }
   })
-  const drag = useRef<{ x: number; y: number; dx: number; side: boolean | null } | null>(null)
+  // dir: 0 until the finger shows its way, then -1 (left), 1 (right), or null when it is not a sideways swipe.
+  const drag = useRef<{ x: number; y: number; dx: number; dir: -1 | 1 | null | 0 } | null>(null)
 
   useEffect(() => {
     const d = ref.current
@@ -58,7 +59,7 @@ export function Sheet({
   const onTouchStart = (e: TouchEvent<HTMLDialogElement>) => {
     drag.current = null
     if (locked || e.touches.length !== 1 || !swipeable(e.target as Element, ref.current)) return
-    drag.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, side: null }
+    drag.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, dir: 0 }
   }
 
   const onTouchMove = (e: TouchEvent<HTMLDialogElement>) => {
@@ -66,23 +67,23 @@ export function Sheet({
     if (!g) return
     const dx = e.touches[0].clientX - g.x
     const dy = e.touches[0].clientY - g.y
-    if (g.side === null) {
+    if (g.dir === 0) {
       if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return
-      g.side = dx < 0 && Math.abs(dx) > Math.abs(dy) * 1.5
-      if (!g.side) return
+      g.dir = Math.abs(dx) > Math.abs(dy) * 1.5 ? (dx < 0 ? -1 : 1) : null
     }
-    if (!g.side) return
-    g.dx = Math.min(0, dx)
+    if (!g.dir) return
+    // Only the way it started: swiping back past the start puts the sheet back, it does not fling it the other way.
+    g.dx = g.dir < 0 ? Math.min(0, dx) : Math.max(0, dx)
     slide(g.dx, false)
   }
 
   const onTouchEnd = () => {
     const g = drag.current
     drag.current = null
-    if (!g?.side) return
+    if (!g?.dir) return
     const d = ref.current
-    if (d && g.dx < -Math.max(80, d.clientWidth * 0.25) && !latest.current.locked) {
-      slide(-d.clientWidth, true)
+    if (d && Math.abs(g.dx) > Math.max(80, d.clientWidth * 0.25) && !latest.current.locked) {
+      slide(g.dir * d.clientWidth, true)
       setTimeout(() => latest.current.onClose(), 150)
     } else slide(0, true)
   }
