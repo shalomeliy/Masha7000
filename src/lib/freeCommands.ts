@@ -1,5 +1,5 @@
 import type { AppData, Proposal, Screen } from './assistant'
-import { normalizeProposal } from './assistant'
+import { isYes, normalizeProposal } from './assistant'
 import type { Edits } from './assistantEdits'
 import { HINTS, type Hint } from './hint'
 import { solve, type SolverOption } from './solvers'
@@ -206,8 +206,6 @@ export function exampleAction(p: Proposal, asked: string[]): ExampleAction | und
 export function learn(examples: AssistantExample[], d: AppData): Learned {
   const L: Learned = { job: { words: [], required: [] }, sick: { words: [], needsDate: false }, aliases: {} }
   const jobs: ExampleAction[] = []
-  let sickWithDate = 0
-  let sickCount = 0
   for (const ex of examples) {
     const a = ex.action
     if (!a) continue
@@ -228,13 +226,13 @@ export function learn(examples: AssistantExample[], d: AppData): Learned {
     } else {
       const f = find(a.said, d, L.aliases, then)
       if (!f.workerIds.includes(a.workerId)) continue // the name was not said as the list has it
-      sickCount++
-      if (f.date) sickWithDate++
       L.sick.words.push(f.rest.map(bare))
     }
   }
   L.job.required = JOB_FIELDS.filter((k) => jobs.every((a) => a.type === 'job' && (k === 'staffing' ? a.job.staffing.length > 0 : Boolean(a.job[k]))))
-  L.sick.needsDate = sickCount > 0 && sickWithDate === sickCount
+  // Built in, from the first time (the user's request): "<worker> חולה <when>". Learned phrasings add to it.
+  L.sick.words.push(['חולה'])
+  L.sick.needsDate = false
   return L
 }
 
@@ -388,7 +386,8 @@ export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned,
 }
 
 /** "יוסי חולה היום", said the way a learned one was: mark sick, and offer a replacement when he is in a job. */
-function learnedSick(text: string, d: AppData, L: Learned, now: Date): Local {
+/** "<worker> חולה <when>": the change to his card and how it is said, or null when the sentence is more than that. */
+export function sickPlan(text: string, d: AppData, L: Learned, now: Date): { workerId: string; extra: Edits; sickText: string; from: string; until: string } | null {
   const f = find(text, d, L.aliases, now)
   if (f.workerIds.length !== 1 || f.location || f.staffing.length || f.shiftKindId || f.description) return null
   const rest = f.rest.map(bare)
@@ -413,6 +412,14 @@ function learnedSick(text: string, d: AppData, L: Learned, now: Date): Local {
     addConstraints: ahead ? [{ workerId: w.id, from: until, to: until, nightsOnly: false, note: 'מחלה', kind: '' }] : [],
   }
   const sickText = ahead ? `${name} חולה ${dayText(until, now)}` : `${name} חולה עד ${until === today ? 'היום' : dayText(until, now).replace(/^ביום /, 'יום ')}`
+  return { workerId: w.id, extra, sickText, from, until }
+}
+
+function learnedSick(text: string, d: AppData, L: Learned, now: Date): Local {
+  const plan = sickPlan(text, d, L, now)
+  if (!plan) return null
+  const { extra, sickText, from, until } = plan
+  const w = d.workers.find((x) => x.id === plan.workerId)!
   // Jobs he is in, from today to the last sick day.
   const jobs = d.shifts.filter((s) => !s.closure && s.date >= from && s.date <= until && s.crew.some((c) => c.workerId === w.id)).sort((a, b) => a.date.localeCompare(b.date))
   if (jobs.length) {
@@ -430,6 +437,19 @@ function learnedSick(text: string, d: AppData, L: Learned, now: Date): Local {
     }
   }
   return { kind: 'propose', proposal: { ...normalizeProposal({}), ...extra, summary: `${sickText}. הוא לא משובץ לעבודה בימים האלה. לאשר, או שיש עוד תיקון?` } }
+}
+
+/** Which of the offered solutions was picked by voice: "כן", "לעשות את זה", "הראשון", "פתרון 2", "את השלישי". Null if none. */
+export function pickedOption(text: string, count: number): number | null {
+  const t = clean(text).replace(/^(?:כן|טוב|אוקיי|יאללה)\s+/, '').replace(/^(?:את|תעשה את|לעשות את|תבחר את|בוא נעשה את)\s+/, '')
+  if (isYes(t) || /^(?:(?:ת|ל)עשות?|תעשה|תבצע|לבצע)(?: את)? (?:זה|הפתרון הזה|ההמלצה)$/.test(t) || t === 'זה') return 0
+  const ORD: [RegExp, number][] = [
+    [/^(?:(?:ה)?פתרון |(?:ה)?אפשרות )?(?:ה)?(?:ראשון|ראשונה|1|אחד|אחת)$/, 0],
+    [/^(?:(?:ה)?פתרון |(?:ה)?אפשרות )?(?:ה)?(?:שני|שנייה|שניה|2|שתיים)$/, 1],
+    [/^(?:(?:ה)?פתרון |(?:ה)?אפשרות )?(?:ה)?(?:שלישי|שלישית|3|שלוש)$/, 2],
+  ]
+  for (const [re, i] of ORD) if (re.test(t) && i < count) return i
+  return null
 }
 
 /** The first sentence of a conversation: handled here, or null for Claude. */

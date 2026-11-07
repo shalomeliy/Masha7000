@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { continueJob, exampleAction, handleFree, learn, type Local } from './freeCommands'
+import { continueJob, exampleAction, handleFree, learn, pickedOption, sickPlan, type Local } from './freeCommands'
 import { normalizeProposal, proposalErrors, type AppData } from './assistant'
 import type { AssistantExample, ShiftRecord, Worker } from '../types/models'
 
@@ -125,7 +125,6 @@ describe('jobs learned from Claude', () => {
 
   it('learns nothing before Claude did it once', () => {
     expect(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים', data({ assistantExamples: [] }))).toBeNull()
-    expect(run('יוסי חולה היום', data({ assistantExamples: [] }))).toBeNull()
   })
 })
 
@@ -198,5 +197,29 @@ describe('sick tomorrow', () => {
   it('a sickness ahead that Claude saved as an absence is learned too', () => {
     const d = data({ assistantExamples: [ex('אבי אלפסי חולה מחר', { addConstraints: [{ workerId: 'w6', from: '2026-11-07', to: '2026-11-07', note: 'מחלה' }] })] })
     expect(run('דני חולה מחרתיים', d)?.kind).toBe('propose')
+  })
+})
+
+describe('sick from the first time, and picking by voice', () => {
+  it('"<worker> חולה" works with nothing learned yet', () => {
+    const d = data({ assistantExamples: [] })
+    expect(run('אלי פרץ חולה מחר', d)?.kind).toBe('propose')
+  })
+
+  it('the sickness of the first sentence goes with a replacement Claude ranked', () => {
+    const d = data({ assistantExamples: [] })
+    const plan = sickPlan('אלי פרץ חולה מחר', d, learn([], d), NOW)
+    expect(plan?.extra.addConstraints).toEqual([{ workerId: 'w3', from: '2026-11-08', to: '2026-11-08', nightsOnly: false, note: 'מחלה', kind: '' }])
+    expect(sickPlan('אלי פרץ חולה מחר ותבדוק מי פנוי', d, learn([], d), NOW)).toBeNull()
+  })
+
+  it('understands a spoken pick', () => {
+    expect(pickedOption('כן', 3)).toBe(0)
+    expect(pickedOption('תעשה את זה', 3)).toBe(0)
+    expect(pickedOption('הראשון', 3)).toBe(0)
+    expect(pickedOption('פתרון 2', 3)).toBe(1)
+    expect(pickedOption('את השני', 3)).toBe(1)
+    expect(pickedOption('השלישי', 2)).toBeNull()
+    expect(pickedOption('לא, תחפש מישהו אחר', 3)).toBeNull()
   })
 })
