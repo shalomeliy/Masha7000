@@ -7,7 +7,6 @@ import { crewSwaps } from './archive'
 import { fullName, generalRoleId, isActive, MAX_STAFF, newId, upsert, workerHasRole } from './catalog'
 import { constraintError, constraintText } from './constraints'
 import { isRealDate } from './dates'
-import { busyCrew, busyText } from './planner'
 import { applyClosure, blankShift, isNightShift, moveShift, pendingAfterShiftSave } from './shifts'
 import { endAbsence } from './workerState'
 import type { AbsenceKind, Constraint, PendingJob, StaffSlot, Worker, WorkerStatus } from '../types/models'
@@ -63,6 +62,7 @@ export interface EditResult {
   warnings: string[] // Hebrew, said after saving
   report: string[]
   toAssign: string[] // shift ids to fill automatically
+  touched: string[] // shift ids whose crew or date changed: checked for workers in two jobs at once
 }
 
 const has = (list: { id: string }[], id: string) => list.some((x) => x.id === id)
@@ -200,12 +200,11 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     report.push(crew.length ? `ב${where(shift)} שמתי את ${crew.map((m) => d.workers.find((w) => w.id === m.workerId)?.firstName).join(', ')}` : `ב${where(shift)} הורדתי את כל העובדים`)
   }
 
-  // A worker in two jobs at once is refused, as in the calendar; a constraint is only a warning.
+  // A worker in two jobs at once is handled by the caller (applyProposal: the manager is warned and
+  // confirms moving him); being sick is only a warning.
   for (const id of touched) {
     const shift = d.shifts.find((s) => s.id === id)
     if (!shift) continue
-    const busy = busyText(busyCrew(shift, d.workers, d.shifts, d.shiftDefinitions))
-    if (busy) errors.push(busy)
     for (const m of shift.crew) {
       const w = d.workers.find((x) => x.id === m.workerId)
       if (w?.status === 'sick' && w.sickUntil && w.sickUntil >= shift.date) warnings.push(`שים לב, ${w.firstName} רשום חולה עד ${w.sickUntil.slice(8)}.${Number(w.sickUntil.slice(5, 7))}`)
@@ -244,5 +243,5 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     } else errors.push(`אין עבודה עם id "${id}" למחיקה`)
   }
 
-  return { errors, warnings, report, toAssign }
+  return { errors, warnings, report, toAssign, touched: [...touched] }
 }

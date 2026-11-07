@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
+import { AlertTriangle, BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
-import { applyProposal, isYes, MAX_EXAMPLES, normalizeProposal, proposalErrors, snapshot, type AppData, type Proposal, type Screen } from '../lib/assistant'
+import { applyProposal, isYes, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalErrors, snapshot, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
 import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
@@ -60,6 +60,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [rate, setRate] = useState(speechRate)
   const [error, setError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<Proposal | null>(null)
+  const [conflicts, setConflicts] = useState<string[]>([])
   const [advice, setAdvice] = useState<Advice | null>(null)
   const [talking, setTalking] = useState(false) // a conversation is open: it can be closed without saving
   const typedRef = useRef<HTMLInputElement>(null)
@@ -120,8 +121,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         say('לא הצלחתי להבין את הבקשה עד הסוף. נסה להגיד אותה שוב במילים אחרות.')
         reset()
       } else {
-        setProposal(p)
-        say(p.summary)
+        offer(p)
       }
     } else if (call?.name === 'answer') {
       setProposal(null)
@@ -167,6 +167,15 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       say(answer.text || 'לא הבנתי. נסה שוב.')
     }
     setPhase('idle')
+  }
+
+  // A proposal is shown and said; a worker it moves out of another job at the same time is said
+  // first and shown as a warning, so the yes is given knowing it (the user's rule).
+  const offer = (p: Proposal) => {
+    const moves = proposalConflicts(p, data)
+    setConflicts(moves)
+    setProposal(p)
+    say(summaryWithConflicts(p.summary, moves))
   }
 
   const confirm = async (byButton: boolean) => {
@@ -236,8 +245,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       if (!proposalErrors(p, data).length) {
         setLines((l) => [...l, { who: 'me', text: `פתרון ${i + 1}` }])
         asked.current = [...asked.current, `פתרון ${i + 1}: ${o.title}`]
-        setProposal(p)
-        say(p.summary)
+        offer(p)
         return
       }
     }
@@ -315,6 +323,16 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
 
         {/* A proposal is always answered by "אשר" or "תקן"; a correction continues the conversation
             and comes back as a new proposal. Cancel is only a small link under them (user rule). */}
+        {proposal && phase === 'idle' && conflicts.length > 0 && (
+          <div role="alert" className="flex max-w-sm gap-2 rounded-2xl border border-amber-500/60 bg-amber-500/10 p-3 text-sm text-amber-100">
+            <AlertTriangle size={20} aria-hidden className="mt-0.5 shrink-0 text-amber-300" />
+            <ul className="space-y-1">
+              {conflicts.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {proposal && phase === 'idle' && (
           <div className="flex gap-3">
             <button type="button" onClick={() => void confirm(true)} className="flex min-h-12 items-center gap-2 rounded-xl bg-emerald-600 px-6 font-semibold text-white">

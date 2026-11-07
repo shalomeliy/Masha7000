@@ -6,7 +6,7 @@
 import { endsNextDay, fullName, generalRoleId, isActive, MAX_STAFF, nameError, newId, staffingFor, upsert, workerHasRole } from './catalog'
 import { constraintText, isOver } from './constraints'
 import { todayIso } from './dates'
-import { autoAssign } from './planner'
+import { autoAssign, busyCrew, busyText, pullFrom } from './planner'
 import { addDays, dayName, isNightShift, isWaiting, showDate } from './shifts'
 import { toggleKind } from './workKinds'
 import { applyEdits, editCount, type Edits } from './assistantEdits'
@@ -240,7 +240,7 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
   }
   const total = p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length + editCount(p)
   // Edits are tried on a copy: what the screens would refuse (a worker in two jobs, a missing role) goes back.
-  errors.push(...applyEdits(p, { ...d }, new Date().toISOString(), new Set()).errors)
+  errors.push(...applyProposal(p, d).errors)
   if (total === 0) errors.push('אין בהצעה שום שינוי')
   return errors
 }
@@ -266,6 +266,10 @@ export interface Applied {
   data: AppData
   changed: Set<keyof AppData>
   report: string[] // Hebrew, spoken after saving: what was done and what could not be
+  errors: string[] // what the app refuses (sent back to the model): see proposalErrors
+  // Workers the proposal puts in a job while they are in another one at the same time. Applying
+  // moves them (the other job is left with an empty place); the manager hears this before the yes.
+  conflicts: string[]
 }
 
 /** The data after the confirmed proposal; the caller saves each list in `changed`. */
@@ -315,6 +319,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   if (p.workers.length) report.push(p.workers.length === 1 ? `הוספתי את ${p.workers[0].firstName} לעובדים` : `הוספתי ${p.workers.length} עובדים`)
 
   const toAssign = [...p.assignShiftIds]
+  const crewed: string[] = [] // new jobs with workers named by the manager
   let calendar = 0
   let waiting = 0
   for (const j of p.jobs) {
@@ -335,6 +340,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
       changed.add('shifts')
       calendar++
       if (j.autoAssign) toAssign.push(base.id)
+      if (j.crew.length) crewed.push(base.id)
     } else {
       // A waiting job has no field for the job after the night: it goes into the note.
       const note = [j.note.trim(), hasNext ? `אחרי הלינה: ${[next.location, next.jobDescription].filter(Boolean).join(' - ')}` : ''].filter(Boolean).join('. ')
@@ -350,6 +356,30 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   report.push(...edits.report)
   toAssign.push(...edits.toAssign)
 
+  // Nobody in two jobs at the same time, from anywhere. A clash with a job this proposal does not
+  // touch is a move the manager must confirm (said before the yes, done on it); a clash inside the
+  // proposal, or with a closed job, is refused.
+  const errors = [...edits.errors]
+  const conflicts: string[] = []
+  const placed = [...new Set([...crewed, ...edits.touched])]
+  for (const id of placed) {
+    const shift = d.shifts.find((s) => s.id === id)
+    if (!shift) continue
+    const busy = busyCrew(shift, d.workers, d.shifts, d.shiftDefinitions)
+    const refused = busy.filter((b) => placed.includes(b.other.id) || b.other.closure)
+    if (refused.length) errors.push(busyText(refused)!)
+    const moves = busy.filter((b) => !refused.includes(b))
+    if (!moves.length) continue
+    d.shifts = pullFrom(shift, moves.map((b) => b.worker.id), d.shifts, d.shiftDefinitions, {}, at)
+    changed.add('shifts')
+    for (const { worker, other } of moves) {
+      const from = `${other.location || other.jobDescription} (יום ${dayName(other.date)} ${showDate(other.date)})`
+      const into = shift.location || shift.jobDescription
+      conflicts.push(`${worker.firstName} כבר משובץ באותו זמן ב${from}. אם תאשר, אעביר אותו ל${into}, ושם יישאר מקום ריק`)
+      report.push(`העברתי את ${worker.firstName} מ${other.location || other.jobDescription} ל${into}`)
+    }
+  }
+
   for (const id of toAssign) {
     const shift = d.shifts.find((s) => s.id === id)
     if (!shift) continue
@@ -363,7 +393,18 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     if (plan.unfilled.length && names.length) report.push(`ב${where} נשארו ${plan.unfilled.length === 1 ? 'מקום אחד פנוי' : `${plan.unfilled.length} מקומות פנויים`}`)
   }
   report.push(...edits.warnings)
-  return { data: d, changed, report }
+  return { data: d, changed, report, errors, conflicts }
+}
+
+/** The moves of busy workers the manager has to hear before saying yes (empty: none). */
+export const proposalConflicts = (p: Proposal, d: AppData) => applyProposal(p, d).conflicts
+
+/** The spoken proposal: the model's summary, with any move of a busy worker said before the question. */
+export function summaryWithConflicts(summary: string, conflicts: string[]): string {
+  if (!conflicts.length) return summary
+  const ask = 'לאשר, או שיש עוד תיקון?'
+  const body = summary.replace(ask, '').trim().replace(/[.,]$/, '')
+  return `${body}. שים לב: ${conflicts.join('. ')}. לאשר, או שיש עוד תיקון?`
 }
 
 // "כן", "מאשר", "תאשר", "בצע", "סגור" and the like, said alone, after a proposal.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyProposal, normalizeProposal, proposalErrors, type AppData, type Proposal } from './assistant'
+import { applyProposal, normalizeProposal, proposalConflicts, proposalErrors, summaryWithConflicts, type AppData, type Proposal } from './assistant'
 import { NO_EDITS, type EditJob, type Edits } from './assistantEdits'
 import type { Worker } from '../types/models'
 
@@ -46,10 +46,28 @@ describe('editing jobs', () => {
     expect(created.crew).toHaveLength(1) // auto-assigned
   })
 
-  it('refuses moving a worker into a day he already works', () => {
+  it('moving a job onto a day its worker already works: the manager hears it, and the yes moves him', () => {
     const d = data()
     d.shifts[1].crew = [{ workerId: 'w1', roleId: 'climb' }]
-    expect(proposalErrors(p({ editJobs: [edit({ date: '2026-11-10' })] }), d).join()).toContain('דני כהן כבר בעבודה')
+    const proposal = p({ editJobs: [edit({ date: '2026-11-10' })] })
+    expect(proposalErrors(proposal, d)).toEqual([])
+    expect(proposalConflicts(proposal, d)).toEqual(['דני כבר משובץ באותו זמן בערד (יום שלישי 10.11). אם תאשר, אעביר אותו לדימונה, ושם יישאר מקום ריק'])
+    const out = applyProposal(proposal, d, NOW).data
+    expect(out.shifts.find((s) => s.id === 's2')?.crew).toEqual([])
+    expect(out.shifts.find((s) => s.id === 's1')?.crew.map((c) => c.workerId)).toEqual(['w1'])
+  })
+
+  it('the same worker in two jobs of one proposal at the same time is refused', () => {
+    const d = data()
+    d.shifts[1].date = '2026-11-09'
+    const both = p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2', roleId: 'climb' }] }, { shiftId: 's2', crew: [{ workerId: 'w2', roleId: 'climb' }] }] })
+    expect(proposalErrors(both, d).join()).toContain('יוסי כהן כבר בעבודה')
+  })
+
+  it('a closed job is never emptied', () => {
+    const d = data()
+    d.shifts[1] = { ...d.shifts[1], date: '2026-11-09', crew: [{ workerId: 'w2', roleId: 'climb' }], closure: { outcome: 'done', reasonIds: [], closedAt: '' } }
+    expect(proposalErrors(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2', roleId: 'climb' }] }] }), d).join()).toContain('יוסי כהן כבר בעבודה')
   })
 })
 
@@ -61,13 +79,13 @@ describe('setting a crew', () => {
     expect(s1.swaps).toEqual([{ at: NOW.toISOString(), outId: 'w1', inId: 'w3', roleId: 'el' }])
   })
 
-  it('refuses a role the worker lacks, an inactive worker, and a busy one', () => {
+  it('refuses a role the worker lacks and an inactive worker; a busy one is a move to confirm', () => {
     const errs = proposalErrors(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w3', roleId: 'climb' }, { workerId: 'w4', roleId: 'climb' }] }] }), data())
     expect(errs).toEqual(['לאבי כהן אין את התפקיד טפסן', 'עזב כהן לא פעיל'])
     // Yossi is on the Arad night of 10.11; the 9.11 day job is free, but a night on 9.11 would not be.
     const d = data()
     d.shifts[1].date = '2026-11-08'
-    expect(proposalErrors(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2', roleId: 'climb' }] }] }), d).join()).toContain('יוסי כהן כבר בעבודה')
+    expect(proposalConflicts(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2', roleId: 'climb' }] }] }), d)).toHaveLength(1)
   })
 })
 
@@ -118,4 +136,10 @@ describe('normalizeProposal', () => {
     expect(n.jobs).toEqual([])
     expect(n.setCrews).toEqual([])
   })
+})
+
+describe('summaryWithConflicts', () => {
+  it('says the move before the question', () =>
+    expect(summaryWithConflicts('מזיז את דימונה לשלישי. לאשר, או שיש עוד תיקון?', ['דני כבר משובץ בערד'])).toBe('מזיז את דימונה לשלישי. שים לב: דני כבר משובץ בערד. לאשר, או שיש עוד תיקון?'))
+  it('no conflicts: unchanged', () => expect(summaryWithConflicts('x', [])).toBe('x'))
 })

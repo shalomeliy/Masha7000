@@ -345,3 +345,10 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Learning: picking another kind than the top-ranked one adds a learned rule (`preferenceLesson`), saved with the yes, read by the ranker next time; examples and lessons as before. Rules by voice: add / update (forget old + remember new) / forget / read them.
 - New jobs can name workers (`jobs[].crew`), checked for roles; autoAssign fills the rest. Before this the model claimed it had placed named workers on a new job but nothing did it.
 - Measured on Haiku: about 5 s warm for "Dani is sick" (first call after a prompt change about 8 s), about 3 s for "people missing on Tuesday". Browser check (mock Drive): job created with named crew -> "Dani is sick" -> 1 option card -> picked -> instant proposal -> saved with Avi in Dani's place.
+
+## Done: no worker in two jobs at once, from anywhere (2026-11-07)
+
+- User request: make sure nothing can put one worker in two overlapping jobs; when something tries, the manager is warned (on screen or spoken) and confirms the move.
+- Audit of every path that writes a crew: shift editor (busy save refused; pulling a busy worker asks first, `pullFrom`); calendar drag (refused with the reason); auto-assign and week planner (`autoAssign` skips busy, `planShifts` sequential); solvers (via autoAssign, `day` job by job); voice `setCrews` / `editJobs` (already checked). Gap found and fixed: voice new jobs with named crew (`jobs[].crew`) were not checked.
+- Voice now (`applyProposal`): after all changes, every placed or moved job is checked with `busyCrew`. A clash with a job the proposal does not touch is a move: `conflicts` ("דני כבר משובץ באותו זמן ב... אם תאשר, אעביר אותו ל..., ושם יישאר מקום ריק"), said before "לאשר, או שיש עוד תיקון?" (`summaryWithConflicts`) and shown as an amber alert; the yes runs `pullFrom`. A clash inside the proposal or with a closed job is refused (`errors`, sent back to the model). Tests in `assistantEdits.test.ts`.
+- Browser check: new Dimona job naming Yossi while he is in Eilat the same day -> the assistant asked to move him -> after the yes Eilat kept only Avi, Yossi only in Dimona.
