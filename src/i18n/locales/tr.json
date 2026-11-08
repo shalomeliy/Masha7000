@@ -1037,5 +1037,9 @@
  "אימון הגייה": "Telaffuz eğitimi",
  "שומעים מילים ששלי אומר, ומאשרים או מתקנים": "Shaly’nin söylediği kelimeleri dinleyin, onaylayın ya da düzeltin",
  "חזרה למילה הקודמת: {v}": "Önceki kelimeye dön: {v}",
- "כוכב אחד": "1 yıldız"
+ "כוכב אחד": "1 yıldız",
+ "דירוג ממוצע {v} מתוך 5": "Ortalama puan 5 üzerinden {v}",
+ "לחיצה ארוכה: הכוכבים בכל הסמכה": "Uzun basın: her sertifikadaki yıldızlar",
+ "הכוכבים של {name}": "{name} yıldızları",
+ "כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.": "Çalışanın her sertifikada kaç yıldız aldığı. Karttaki yıldız bunların ortalamasıdır."
 }

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowRight, CalendarX, Phone, Plus, Search, UserX, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, CalendarX, Phone, Search, UserX, X } from "lucide-react";
 import {
   Chips,
   Field,
@@ -11,11 +11,9 @@ import {
   countText,
   filterWorkers,
   fullName,
-  certStars,
   isActive,
   isIsraeliId,
   isIsraeliMobile,
-  MAX_STARS,
   newId,
   telHref,
   upsert,
@@ -28,7 +26,7 @@ import type { AbsenceKind, Constraint, Worker, WorkerStatus } from "../../types/
 import { MonthDays } from "../../components/MonthDays";
 import { DAY_NAMES } from "../../lib/shifts";
 import { endAbsence, STATE_NAMES, STATE_TONE, teamStates, workerState, type StateId } from "../../lib/workerState";
-import { AddButton, EditMark, EmptyState } from "./common";
+import { EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
 import { useWorkerAgenda, WorkerAgenda } from "./WorkerAgenda";
 import { WorkerMonth } from "./WorkerMonth";
@@ -37,7 +35,7 @@ import { JoinButton, JoinPending } from "./JoinSection";
 import { authMode } from "../../lib/google/auth";
 import { tx } from '../../i18n'
 import { searchWorkers } from "../../lib/workerSearch";
-import { CertStarsField } from "./CertStars";
+import { AverageStars, CertStarsField, RatingsSheet } from "./CertStars";
 import { keepHeldRatings } from "../../lib/certRatings";
 
 const blankWorker = (): Worker => ({
@@ -85,7 +83,8 @@ const toggle = (list: string[], id: string) =>
 /** The workers screen's tabs: the team list, and one tab for each thing done with the team. */
 export type WorkersTab = "team" | "request" | "join" | "search";
 
-export function WorkersSection({ tab }: { tab: WorkersTab }) {
+/** `addRequest` grows by one each time the title row's "add" is pressed: opens a new worker's form. */
+export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRequest?: number }) {
   const workers = useDriveList("workers");
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
@@ -98,6 +97,10 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
     setOnSaved(() => saved ?? null);
   };
   const review = (w: Worker, saved: () => void) => edit(w, saved);
+  useEffect(() => {
+    if (addRequest > 0) edit(blankWorker());
+  }, [addRequest]);
+  const [rating, setRating] = useState<Worker | null>(null);
   const [certFilter, setCertFilter] = useState<string[]>([]);
   const [requesting, setRequesting] = useState(false);
   const [inactiveView, setShowInactive] = useState(false);
@@ -129,6 +132,7 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
     <>
       <WorkerSheet editing={editing} onClose={() => edit(null)} onSaved={onSaved} />
       <RequestSheet open={requesting} onClose={() => setRequesting(false)} />
+      <RatingsSheet worker={rating} onClose={() => setRating(null)} />
     </>
   );
 
@@ -263,10 +267,8 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
       {tab === "team" && !showInactive && team.length > 0 && (
         <section aria-label={tx("מצב הצוות היום")} className="mb-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
           <h2 className="mb-2 text-sm font-semibold text-slate-200">{tx("מצב הצוות היום")}</h2>
-          {/* One row: compact framed state counts, then "add +" at the end (left in Hebrew).
-              If many states show, the counts scroll sideways instead of wrapping. */}
-          <div className="flex items-center gap-2">
-          <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
+          {/* Compact framed state counts in one row; if many show, they scroll sideways. */}
+          <div className="flex gap-1.5 overflow-x-auto">
             {team.map((t) => (
               <button
                 key={t.id}
@@ -281,16 +283,6 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
                 {`${STATE_NAMES[t.id]} ${t.count}`}
               </button>
             ))}
-          </div>
-            <button
-              type="button"
-              onClick={() => edit(blankWorker())}
-              aria-label={tx("הוספת עובד")}
-              className="flex min-h-10 shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-sky-600 px-2.5 text-sm font-semibold text-white active:bg-sky-700"
-            >
-              {tx("הוסף")}
-              <Plus size={16} aria-hidden />
-            </button>
           </div>
         </section>
       )}
@@ -324,7 +316,7 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
         <ul className="space-y-2">
           {shown.map((w) => (
             <li key={w.id}>
-              <WorkerCard worker={w} onOpen={() => edit(w)} />
+              <WorkerCard worker={w} onOpen={() => edit(w)} onRatings={() => setRating(w)} />
             </li>
           ))}
         </ul>
@@ -338,10 +330,6 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
           <UserX size={16} aria-hidden className="shrink-0" />
           {tx("עובדים לא פעילים ({n})", { n: inactiveCount })}
         </button>
-      )}
-      {/* Without the team-status row (inactive list, no states yet) the add button stays at the bottom. */}
-      {tab === "team" && (showInactive || team.length === 0) && (
-        <AddButton label={tx("הוספת עובד")} onClick={() => edit(blankWorker())} />
       )}
       {sheets}
     </>
@@ -361,13 +349,14 @@ function TabIntro({ title, text }: { title: string; text: string }) {
 function WorkerCard({
   worker: w,
   onOpen,
+  onRatings,
 }: {
   worker: Worker;
   onOpen: () => void;
+  onRatings: () => void;
 }) {
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
-  // Each certification with the manager's stars in it.
   const certList = certs.items.filter((c) => w.certificationIds.includes(c.id));
   const department = departments.items.find(
     (d) => d.id === w.departmentId,
@@ -391,6 +380,8 @@ function WorkerCard({
           <span className="flex items-center gap-2 font-semibold">
             <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
             {fullName(w)}
+            {/* One average star; a long press shows the stars in each certification. */}
+            <AverageStars worker={w} certIds={certList.map((c) => c.id)} onHold={onRatings} />
           </span>
           {w.mobilePhone && (
             <span dir="ltr" className="text-sm text-slate-400">
@@ -409,11 +400,7 @@ function WorkerCard({
               key={c.id}
               className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-200"
             >
-              {c.name}{" "}
-              <span aria-label={certStars(w, c.id) === 1 ? tx('כוכב אחד') : tx('{n} כוכבים', { n: certStars(w, c.id) })} className="text-amber-300">
-                {"★".repeat(certStars(w, c.id))}
-                <span className="text-slate-600">{"★".repeat(MAX_STARS - certStars(w, c.id))}</span>
-              </span>
+              {c.name}
             </span>
           ))}
         </span>

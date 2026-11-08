@@ -1,6 +1,6 @@
 import { tx } from '../i18n'
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
 import { useDriveList } from '../lib/data/useDriveList'
 import { onHint, recentHint, type Hint } from '../lib/hint'
@@ -35,10 +35,30 @@ export function Workers() {
   const lists = [useDriveList('workers'), useDriveList('certifications'), useDriveList('shiftDefinitions')]
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
+  // Each press of the title's "add" opens a new worker's form, on the team tab.
+  const [addRequest, setAddRequest] = useState(0)
+  const add = () => {
+    setTab('team')
+    setAddRequest((n) => n + 1)
+  }
 
   return (
     <section className="space-y-4 px-4 pt-6">
-      <h1 className="text-2xl font-bold">{tx('עובדים')}</h1>
+      {/* The title with a small "add" at its end (left in Hebrew), sized to the title (the user's request). */}
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">{tx('עובדים')}</h1>
+        {!loading && !failed && (
+          <button
+            type="button"
+            onClick={add}
+            aria-label={tx('הוספת עובד')}
+            className="flex min-h-9 shrink-0 items-center gap-1 rounded-lg bg-sky-600 px-2.5 text-sm font-semibold text-white active:bg-sky-700"
+          >
+            {tx('הוסף')}
+            <Plus size={16} aria-hidden />
+          </button>
+        )}
+      </div>
 
       <div role="tablist" aria-label={tx('מה להציג')} className="grid grid-cols-4 rounded-xl bg-slate-900 p-1">
         {TABS.map((t) => (
@@ -64,7 +84,7 @@ export function Workers() {
         </p>
       ) : (
         <div role="tabpanel">
-          <WorkersSection tab={tab} />
+          <WorkersSection tab={tab} addRequest={addRequest} />
         </div>
       )}
     </section>

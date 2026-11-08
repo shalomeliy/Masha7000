@@ -1037,5 +1037,9 @@
  "אימון הגייה": "Latihan pengucapan",
  "שומעים מילים ששלי אומר, ומאשרים או מתקנים": "Dengarkan kata yang diucapkan Shaly, lalu setujui atau perbaiki",
  "חזרה למילה הקודמת: {v}": "Kembali ke kata sebelumnya: {v}",
- "כוכב אחד": "1 bintang"
+ "כוכב אחד": "1 bintang",
+ "דירוג ממוצע {v} מתוך 5": "Peringkat rata-rata {v} dari 5",
+ "לחיצה ארוכה: הכוכבים בכל הסמכה": "Tekan lama: bintang di setiap sertifikasi",
+ "הכוכבים של {name}": "Bintang {name}",
+ "כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.": "Berapa bintang yang didapat pekerja di setiap sertifikasi. Bintang di kartu adalah rata-ratanya."
 }

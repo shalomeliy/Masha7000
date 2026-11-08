@@ -1037,5 +1037,9 @@
  "אימון הגייה": "Entraînement à la prononciation",
  "שומעים מילים ששלי אומר, ומאשרים או מתקנים": "Écoutez les mots de Shaly, puis approuvez ou corrigez",
  "חזרה למילה הקודמת: {v}": "Revenir au mot précédent : {v}",
- "כוכב אחד": "1 étoile"
+ "כוכב אחד": "1 étoile",
+ "דירוג ממוצע {v} מתוך 5": "Note moyenne {v} sur 5",
+ "לחיצה ארוכה: הכוכבים בכל הסמכה": "Appui long : les étoiles dans chaque certification",
+ "הכוכבים של {name}": "Étoiles de {name}",
+ "כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.": "Combien d'étoiles le travailleur reçoit dans chaque certification. L'étoile sur la carte est leur moyenne."
 }

@@ -1037,5 +1037,9 @@
  "אימון הגייה": "Pronunciation training",
  "שומעים מילים ששלי אומר, ומאשרים או מתקנים": "Hear words Shaly says, and approve or fix them",
  "חזרה למילה הקודמת: {v}": "Back to the previous word: {v}",
- "כוכב אחד": "1 star"
+ "כוכב אחד": "1 star",
+ "דירוג ממוצע {v} מתוך 5": "Average rating {v} out of 5",
+ "לחיצה ארוכה: הכוכבים בכל הסמכה": "Long press: the stars in each certification",
+ "הכוכבים של {name}": "{name}'s stars",
+ "כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.": "How many stars the worker gets in each certification. The star on the card is their average."
 }
