@@ -8,7 +8,7 @@ import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
 import { askAssistant, fetchBudget, userTurn, type AssistantAnswer, type Budget, type Turn } from '../lib/assistantApi'
 import { realAssistantOn, setRealAssistant } from '../dev/realAssistant'
-import { continueJob, continueWho, countTurn, exampleAction, handleFree, learn, pickedOption, sickPlan, usage, whyNotFree, type Local, type PendingJob, type PendingWho } from '../lib/freeCommands'
+import { claudePart, continueJob, continueWho, countTurn, exampleAction, handleFree, knownResult, learn, mergeProposals, pickedOption, sickPlan, splitFree, usage, whyNotFree, type Local, type PendingJob, type PendingWho } from '../lib/freeCommands'
 import { saveEntry, type ClaudeLogEntry, type LogOutcome } from '../lib/claudeLog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
@@ -80,6 +80,9 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const pendingJob = useRef<PendingJob | null>(null) // a job being opened here, free, waiting for a missing detail
   const pendingWho = useRef<PendingWho | null>(null) // a name close to two workers, waiting for "which one"
   const fromFree = useRef(false) // the open proposal was made here, not by Claude: nothing to learn from it
+  // A long sentence whose known parts are done here: they join whatever Claude proposes for the rest.
+  const localPart = useRef<{ texts: string[]; proposal: Proposal | null } | null>(null)
+  const claudeProposal = useRef<Proposal | null>(null) // Claude's own part of a joined proposal: what is learned on a yes
   const listening = useRef<Listening | null>(null)
   // This conversation's line in the "what went to Claude" log (src/lib/claudeLog.ts), once it reached Claude.
   const logged = useRef<ClaudeLogEntry | null>(null)
@@ -121,6 +124,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     pendingJob.current = null
     pendingWho.current = null
     fromFree.current = false
+    localPart.current = null
+    claudeProposal.current = null
     logged.current = null
     setProposal(null)
     setAdvice(null)
@@ -146,6 +151,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       logDid(`error: ${(e as Error).message}`)
       setError((e as Error).message)
       setPhase('idle')
+      offerLocalPart() // the parts the app knows are not lost
       return
     }
     // Counted only when Claude answered: a refused call (no credit, no connection) is not charged.
@@ -162,8 +168,11 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       if (problems.length) {
         logEnd('failed')
         setProposal(null)
-        say(tx('לא הצלחתי להבין את הבקשה עד הסוף. נסה להגיד אותה שוב במילים אחרות.'))
-        reset()
+        const sorry = tx('לא הצלחתי להבין את הבקשה עד הסוף. נסה להגיד אותה שוב במילים אחרות.')
+        if (!offerLocalPart(sorry)) {
+          say(sorry)
+          reset()
+        }
       } else {
         offer(p)
       }
@@ -171,6 +180,11 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       setProposal(null)
       const text = String(call.input.text ?? '')
       logDid(`answer: ${text}${call.input.openScreen ? ` [opens ${String(call.input.openScreen)}]` : ''}`, 'answered')
+      // The parts the app did itself still wait for a yes: no screen is opened over them.
+      if (offerLocalPart(text && text !== early ? text : '')) {
+        setPhase('idle')
+        return
+      }
       if (text && text !== early) say(text)
       // A button only a tap may press (WhatsApp, sharing): open its screen and make it blink.
       const hint = call.input.pressButton as Hint | ''
@@ -223,11 +237,27 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
 
   // A proposal is shown and said; a worker it moves out of another job at the same time is said
   // first and shown as a warning, so the yes is given knowing it (the user's rule).
-  const offer = (p: Proposal) => {
+  const offer = (p: Proposal, before = '') => {
+    // Claude's proposal for the rest of a long sentence: the parts done here join it, one read-back.
+    if (localPart.current?.proposal && !fromFree.current) {
+      claudeProposal.current = p
+      p = mergeProposals([localPart.current.proposal, p])
+    }
     const moves = proposalConflicts(p, data)
     setConflicts(moves)
     setProposal(p)
-    say(summaryWithConflicts(p.summary, moves))
+    say(`${before ? `${before} ` : ''}${summaryWithConflicts(p.summary, moves)}`)
+  }
+
+  // When Claude ends without a proposal (an answer, an error), the parts done here are offered alone.
+  const offerLocalPart = (before = ''): boolean => {
+    const p = localPart.current?.proposal
+    localPart.current = null
+    if (!p) return false
+    fromFree.current = true
+    setTalking(true)
+    offer(p, before)
+    return true
   }
 
   const confirm = async (byButton: boolean) => {
@@ -235,7 +265,9 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     setPhase('saving')
     setError(null)
     const { data: next, changed, report } = applyProposal(proposal, data)
-    const action = fromFree.current ? undefined : exampleAction(proposal, asked.current)
+    // From a joined proposal only Claude's part is learned, with what was said for it.
+    const own = claudeProposal.current ?? proposal
+    const action = fromFree.current ? undefined : exampleAction(own, asked.current)
     // The confirmed request is kept as an example of how this manager works (newest last, capped).
     if (asked.current.length && proposal.summary) {
       next.assistantExamples = [
@@ -243,7 +275,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         {
           id: newId(),
           said: asked.current.join(' / ').slice(0, 400),
-          did: proposal.summary.slice(0, 500),
+          did: own.summary.slice(0, 500),
           createdAt: new Date().toISOString(),
           // What Claude did, so the next request said this way is done here, free (freeCommands).
           ...(fromFree.current ? {} : { action }),
@@ -304,6 +336,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       const local = who ? who.local : waitingWho ? null : waitingJob ? continueJob(text, waitingJob, data, learned, now) : asked.current.length === 1 ? handleFree(text, data, learned, now) : null
       pendingWho.current = null
       if (actFree(local)) return
+      // One long sentence with several requests: the known ones here, free; only the rest to Claude.
+      if (!local && !waitingWho && !waitingJob && asked.current.length === 1 && actSplit(text, learned, now)) return
       // Why it was not done free, for the log (the developer teaches the next action from it).
       const why = whyNotFree(asked.current[0], data, learned, now)
       if (local?.kind === 'propose') logStart(`a free proposal failed the checks: ${proposalErrors(local.proposal, data).join('; ')}`, why.understood)
@@ -319,7 +353,46 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     }
     if (!logged.current) logStart(language().code === 'he' ? 'Claude was already in the conversation' : `not Hebrew (${language().code}): the free path runs only in Hebrew`)
     else logUpdate((e) => ({ ...e, said: [...e.said, text] }))
-    void send(userTurn(last.current, text, proposal ? tx('המנהל לא אישר עדיין. התיקון שלו בהודעה הבאה.') : undefined))
+    const notes = [proposal ? tx('המנהל לא אישר עדיין. התיקון שלו בהודעה הבאה.') : '']
+    // A correction of a joined proposal: Claude now does all of it, so nothing done here is lost or done twice.
+    if (localPart.current && proposal) {
+      notes.push(`באותו משפט המנהל ביקש גם: ${localPart.current.texts.map((t) => `"${t}"`).join(', ')}. כלול גם אותם בהצעה החדשה.`)
+      asked.current = [...localPart.current.texts, ...asked.current]
+      localPart.current = null
+      claudeProposal.current = null
+    }
+    void send(userTurn(last.current, text, notes.filter(Boolean).join(' ') || undefined))
+  }
+
+  // A long sentence: the parts the app knows are done here; the rest alone goes to Claude, and is logged.
+  const actSplit = (text: string, learned: ReturnType<typeof learn>, now: Date): boolean => {
+    const split = splitFree(text, data, learned, now)
+    if (!split) return false
+    const { says, proposal: mine } = knownResult(split)
+    if (mine && proposalErrors(mine, data).length) return false
+    const said = says.join(' ')
+    if (!split.unknown.length) {
+      setUsed(countTurn('free'))
+      setError(null)
+      if (!mine) {
+        say(said)
+        reset()
+        return true
+      }
+      fromFree.current = true
+      setTalking(true)
+      offer(mine, said)
+      return true
+    }
+    if (said) say(said)
+    localPart.current = { texts: split.known.map((k) => k.text), proposal: mine }
+    asked.current = [split.unknown.join('. ')]
+    const why = whyNotFree(split.unknown[0], data, learned, now)
+    logStart(`part of a long sentence; done free: ${split.known.map((k) => `"${k.text}"`).join(', ')}. This part: ${why.reason}`, why.understood)
+    setProposal(null)
+    setAdvice(null)
+    void send({ role: 'user', content: claudePart(split, text) })
+    return true
   }
 
   // Does what freeCommands found; false when it is nothing (or not valid), for Claude.

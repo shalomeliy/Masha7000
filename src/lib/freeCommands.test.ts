@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { continueJob, continueWho, exampleAction, handleFree, learn, pickedOption, sickPlan, whyNotFree, type Local } from './freeCommands'
+import { claudePart, continueJob, continueWho, exampleAction, handleFree, knownResult, learn, pickedOption, sickPlan, splitFree, whyNotFree, type Local } from './freeCommands'
 import { normalizeProposal, proposalErrors, type AppData } from './assistant'
 import type { AssistantExample, ShiftRecord, Worker } from '../types/models'
 
@@ -444,5 +444,62 @@ describe('why a sentence went to Claude (the log)', () => {
     // A sanity check: these are done free, so they never reach the log.
     expect(run('יוסי חולה היום')).not.toBeNull()
     expect(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים')).not.toBeNull()
+  })
+})
+
+describe('one long sentence with several requests', () => {
+  const split = (said: string, d = data()) => splitFree(said, d, learn(d.assistantExamples, d), NOW)
+  const kinds = (s: ReturnType<typeof split>) => s && { known: s.known.map((k) => [k.text, k.local.kind]), unknown: s.unknown }
+
+  it('does every known part free and sends nothing when all are known', () => {
+    const s = split('יוסי חולה היום ותפתח עבודה ביום שלישי לילה בערד 17')
+    expect(kinds(s)).toEqual({ known: [['יוסי חולה היום', 'propose'], ['תפתח עבודה ביום שלישי לילה בערד 17', 'propose']], unknown: [] })
+    const { proposal } = knownResult(s!)
+    expect(proposal!.jobs).toHaveLength(1)
+    expect(proposal!.editWorkers[0]).toMatchObject({ workerId: 'w2', status: 'sick' })
+    expect(proposal!.summary.match(/לאשר/g)).toHaveLength(1)
+    expect(proposalErrors(proposal!, data())).toEqual([])
+  })
+
+  it('two sick workers said with "ו" are two requests when each one is known', () => {
+    expect(kinds(split('יוסי חולה היום ודני חולה היום'))).toEqual({ known: [['יוסי חולה היום', 'propose'], ['דני חולה היום', 'propose']], unknown: [] })
+  })
+
+  it('sends only the unknown part to Claude, with the whole sentence as context', () => {
+    const said = 'תפתח עבודה ביום שלישי לילה בערד 17, ותבדוק למה רון לא שובץ בשבוע שעבר'
+    const s = split(said)
+    expect(kinds(s)).toEqual({ known: [['תפתח עבודה ביום שלישי לילה בערד 17', 'propose']], unknown: ['תבדוק למה רון לא שובץ בשבוע שעבר'] })
+    const turn = claudePart(s!, said)
+    expect(turn.startsWith('תבדוק למה רון לא שובץ בשבוע שעבר')).toBe(true)
+    expect(turn).toContain('אל תעשה אותם')
+    expect(turn).toContain(said)
+  })
+
+  it('a question about the day is said, and joins with a job', () => {
+    const d = data({ shifts: [shift('a', '2026-11-08', 'ערד 17', [['w1', 'r1']], ['r1'])] })
+    const s = split('מי עובד מחר וגם תפתח עבודה ביום שלישי בערד 17 לילה', d)
+    expect(kinds(s)).toEqual({ known: [['מי עובד מחר', 'say'], ['תפתח עבודה ביום שלישי בערד 17 לילה', 'propose']], unknown: [] })
+    expect(knownResult(s!).says).toEqual(['מחר יש עבודה אחת. יום בערד 17: דני לוי.'])
+  })
+
+  it('"ותשבץ" stays part of the job, and a job with "ו" in its words is not cut', () => {
+    expect(split('תפתח עבודה מחר לילה בערד 17 ותשבץ לי מישהו')).toBeNull()
+    expect(split('יוסי ודני חולים היום')).toBeNull()
+  })
+
+  it('a correction or a lone detail sends the whole sentence to Claude', () => {
+    expect(split('תפתח עבודה מחר לילה בערד 17, לא, ביום שלישי')).toBeNull()
+    expect(split('תפתח עבודה מחר לילה בערד 17, ביום שלישי')).toBeNull()
+    expect(split('יוסי חולה היום, בערד 17')).toBeNull()
+  })
+
+  it('one request, or nothing known, is not split', () => {
+    expect(split('תפתח עבודה מחר לילה בערד 17')).toBeNull()
+    expect(split('תעביר את רון לעבודה בערד, ותבדוק מי פנוי ביום שלישי')).toBeNull()
+  })
+
+  it('a part the app would ask about is left to Claude', () => {
+    // No kind said: the app would ask "איזו עבודה". In a long sentence that part goes to Claude.
+    expect(kinds(split('יוסי חולה היום ותפתח עבודה בערד 17'))).toEqual({ known: [['יוסי חולה היום', 'propose']], unknown: ['תפתח עבודה בערד 17'] })
   })
 })

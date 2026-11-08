@@ -654,6 +654,144 @@ export function handleFree(text: string, d: AppData, L: Learned, now = new Date(
   return fixed(text, d, now) ?? newWorker(text, d, now) ?? learnedSick(text, d, L, now) ?? learnedJob(text, d, L, now)
 }
 
+// ---- One long sentence with several requests (the user's request, 2026-11-08) ----
+//
+// "יוסי חולה מחר ותפתח עבודה ביום שלישי בערד, ומה עם הסידור של השבוע הבא?": the parts the app knows
+// are done here, free; only the part it does not know goes to Claude (with the whole sentence as
+// context), and is logged so it can become free next time. Everything is read back as one proposal,
+// answered by אשר or תקן. Safety as everywhere here: when the split is not clean, the whole sentence goes
+// to Claude.
+
+// Where one request ends and the next begins: punctuation (not inside "15.11"), and words that join requests.
+const CHUNKS = /[,;!?]+|\.(?!\d)|\s[-–]\s/
+// Two-word joiners first, so "ואחר כך" is not read as "ואחר".
+const JOINERS: [RegExp, number][] = [
+  [/^(?:ו?אחר|ו?אחרי)\s(?:כך|זה)$/, 2],
+  [/^וחוץ\sמזה$/, 2],
+  [/^(?:וגם|ואז|ובנוסף|בנוסף)$/, 1],
+]
+// A verb or a question word with ו in front starts a new request ("ותפתח", "ומה"). Not "ותשבץ": that is part of a job.
+const STARTS = new Set([
+  ...JOB_VERBS,
+  ...WORKER_VERBS,
+  ...['תעביר', 'תזיז', 'תסגור', 'תבטל', 'תמחק', 'תדחה', 'תשנה', 'תבדוק', 'תזכור', 'תגיד', 'תספר', 'תשלח', 'תשתף', 'תראה', 'תבקש', 'תביא', 'מה', 'מי', 'כמה', 'איפה', 'מתי', 'למה', 'איך', 'האם'],
+])
+// A part that starts like this corrects the part before it ("לא, ביום שלישי"): the whole sentence goes to Claude.
+const CORRECTION = /^(?:לא|רגע|סליחה|בעצם|טעיתי|במקום|יותר|אופס|תתקן|תקן|אלא)$/
+
+/** The sentence cut where a new request may begin. Joining words are dropped, "ותפתח" becomes "תפתח". */
+function segments(text: string): string[] {
+  const out: string[] = []
+  for (const chunk of text.split(CHUNKS)) {
+    let cur: string[] = []
+    const ws = chunk.split(/\s+/).filter(Boolean)
+    for (let i = 0; i < ws.length; i++) {
+      const two = `${ws[i]} ${ws[i + 1] ?? ''}`.trim()
+      const joiner = JOINERS.find(([re, n]) => re.test(n === 2 ? two : ws[i]))
+      if (joiner) {
+        if (cur.length) out.push(cur.join(' '))
+        cur = []
+        i += joiner[1] - 1
+        continue
+      }
+      const w = ws[i]
+      if ((cur.length || out.length) && w.length > 2 && w.startsWith('ו') && STARTS.has(w.slice(1)) && !ASSIGN.test(w)) {
+        if (cur.length) out.push(cur.join(' '))
+        cur = [w.slice(1)]
+        continue
+      }
+      cur.push(w)
+    }
+    if (cur.length) out.push(cur.join(' '))
+  }
+  return out
+}
+
+export interface Split {
+  known: { text: string; local: Extract<NonNullable<Local>, { kind: 'propose' | 'say' }> }[]
+  unknown: string[] // in the order said
+}
+
+/** A part the app does by itself, with nothing to ask: a proposal, or a spoken answer. */
+function knownPart(text: string, d: AppData, L: Learned, now: Date): Split['known'][number] | null {
+  const local = handleFree(text, d, L, now)
+  return local && (local.kind === 'propose' || local.kind === 'say') ? { text, local } : null
+}
+
+/**
+ * A sentence handleFree did not do as a whole, cut into the requests in it: which ones the app does
+ * here and which go to Claude. Null when it is one request, when no part is known, or when a part
+ * looks like a correction or a lone detail of another part (then all of it goes to Claude).
+ */
+export function splitFree(text: string, d: AppData, L: Learned, now = new Date()): Split | null {
+  const segs = segments(text) // one segment: only a "ו" with every piece known can split it
+  const known: Split['known'] = []
+  const unknown: string[] = []
+  const addUnknown = (seg: string) => {
+    // "יוסי ודני חולים מחר" is not two requests: a "ו" with a name splits only when every piece is known.
+    const pieces = seg.split(/\s+(?=ו(?!תשבץ|שבץ|תשבצי)[^\s]{2,})/)
+    const parts = pieces.length > 1 ? pieces.map((x, k) => knownPart(k ? x.slice(1) : x, d, L, now)) : []
+    if (parts.length && parts.every(Boolean)) known.push(...(parts as Split['known']))
+    else unknown.push(seg)
+  }
+  for (let i = 0; i < segs.length; ) {
+    let j = segs.length - 1
+    let part: Split['known'][number] | null = null
+    for (; j >= i; j--) {
+      if (i === 0 && j === segs.length - 1) continue // the whole sentence was already tried
+      part = knownPart(segs.slice(i, j + 1).join(' '), d, L, now)
+      if (part) break
+    }
+    if (part) {
+      known.push(part)
+      i = j + 1
+    } else {
+      addUnknown(segs[i])
+      i++
+    }
+  }
+  if (!known.length) return null
+  for (const seg of unknown) {
+    const ws = words(seg)
+    if (CORRECTION.test(ws[0] ?? '')) return null
+    // Only details (a day, a place, a role) and no action: it belongs to a part next to it.
+    const f = find(seg, d, L.aliases, now, L.protect)
+    if (!f.rest.some((w) => !FILLER.has(w) && !FILLER.has(bare(w)))) return null
+  }
+  // Two adjacent unknown parts are one request for Claude.
+  return { known, unknown }
+}
+
+const ASK_END = /\s*(?:לאשר|האם לאשר|מאשר)[^.?!]*\?\s*$/
+/** Several summaries said as one, ending once with the question. */
+export function joinSummaries(summaries: string[]): string {
+  const parts = summaries.map((s) => s.replace(ASK_END, '').trim()).filter(Boolean).map((s) => (/[.!?]$/.test(s) ? s : `${s}.`))
+  return `${parts.join(' ')} לאשר, או שיש עוד תיקון?`
+}
+
+/** Several proposals as one: every list joined, the summaries said as one. */
+export function mergeProposals(ps: Proposal[]): Proposal {
+  const out = normalizeProposal({}) as unknown as Record<string, unknown>
+  for (const p of ps) for (const [k, v] of Object.entries(p)) if (Array.isArray(v)) out[k] = [...((out[k] as unknown[]) ?? []), ...v]
+  out.summary = joinSummaries(ps.map((p) => p.summary))
+  return out as unknown as Proposal
+}
+
+/** What the known parts come to: what to say, and one proposal (or none). */
+export function knownResult(split: Split): { says: string[]; proposal: Proposal | null } {
+  const says = split.known.flatMap((k) => (k.local.kind === 'say' ? [k.local.text] : []))
+  const ps = split.known.flatMap((k) => (k.local.kind === 'propose' ? [k.local.proposal] : []))
+  return { says, proposal: ps.length ? mergeProposals(ps) : null }
+}
+
+/** The turn Claude gets for the unknown parts: only them to do, the whole sentence as context. */
+export function claudePart(split: Split, full: string): string {
+  const done = split.known.map((k) => `"${k.text}"`).join(', ')
+  return `${split.unknown.join('. ')}
+
+(את שאר המשפט האפליקציה כבר עושה בעצמה: ${done}. אל תעשה אותם ואל תכלול אותם בהצעה. כל המשפט, להקשר בלבד: "${full}")`
+}
+
 // ---- Why a sentence went to Claude (the "what went to Claude" log, src/lib/claudeLog.ts) ----
 
 /**
