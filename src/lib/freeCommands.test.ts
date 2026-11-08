@@ -179,6 +179,27 @@ describe('a new job, any phrasing, from the first time', () => {
     expect(job(run('תפתח עבודה מחר בערד 17', one))).toMatchObject({ shiftKindId: 's1' })
   })
 
+  it('"לא יודע" to the kind of a job with no date: saved to לשיבוץ without a kind (the owner, 2026-11-08)', () => {
+    const d = data({ assistantExamples: [] })
+    const L = learn([], d)
+    const a = handleFree('תפתח עבודה בערד 17 החלפת אנטנה', d, L, NOW)
+    expect(a).toMatchObject({ kind: 'ask', question: 'איזו עבודה, יום, לילה?' })
+    if (a?.kind !== 'ask') return
+    for (const said of ['לא יודע', 'אני עוד לא יודע אם יום או לילה, תשאיר פתוח', 'תשאיר את זה פתוח']) {
+      const r = continueJob(said, a.pending, d, L, NOW)
+      expect(job(r)).toMatchObject({ date: '', shiftKindId: '', location: 'ערד 17' })
+      if (r?.kind !== 'propose') continue
+      expect(proposalErrors(r.proposal, d)).toEqual([])
+      expect(r.proposal.summary).toContain('בלי סוג משמרת, בלי תאריך, לרשימת לשיבוץ')
+    }
+    // Something else than "don't know" is not taken as one.
+    expect(continueJob('דני חולה', a.pending, d, L, NOW)).toBeNull()
+    // A job with a date still needs its kind.
+    const dated = handleFree('תפתח עבודה מחר בערד 17', d, L, NOW)
+    if (dated?.kind !== 'ask') throw new Error('expected a question')
+    expect(continueJob('לא יודע', dated.pending, d, L, NOW)).toBeNull()
+  })
+
   it('a place not in the lists, said with ב, is the place (the owner sentence, 2026-11-08)', () => {
     expect(job(none('תכניס לי עבודה בערד עבודה לילה החלפת אנטנה'))).toMatchObject({ date: '', shiftKindId: 's2', location: 'ערד 17', jobDescription: 'החלפת אנטנה' })
     expect(job(none('תכניס עבודה מחר לילה החלפת אנטנה בבאר שבע'))).toMatchObject({ location: 'באר שבע', jobDescription: 'החלפת אנטנה' })

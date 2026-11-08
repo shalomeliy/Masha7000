@@ -212,7 +212,9 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
   p.jobs.forEach((j, i) => {
     const n = `עבודה ${i + 1}`
     if (j.date && !/^\d{4}-\d{2}-\d{2}$/.test(j.date)) errors.push(`${n}: תאריך לא תקין "${j.date}"`)
-    if (!has(d.shiftDefinitions, j.shiftKindId)) errors.push(`${n}: אין תבנית עבודה עם id "${j.shiftKindId}"`)
+    // A job with no date may be left without a kind too ("לא יודע אם יום או לילה"): it waits in לשיבוץ.
+    if (j.shiftKindId && !has(d.shiftDefinitions, j.shiftKindId)) errors.push(`${n}: אין תבנית עבודה עם id "${j.shiftKindId}"`)
+    if (!j.shiftKindId && j.date) errors.push(`${n}: עבודה עם תאריך צריכה תבנית (shiftKindId); בלי תבנית רק עבודה לשיבוץ, בלי תאריך`)
     if (!j.location.trim() && !j.jobDescription.trim()) errors.push(`${n}: חסרים מקום ומהות עבודה`)
     for (const s of j.staffing) {
       if (!has(d.roles, s.roleId)) errors.push(`${n}: אין תפקיד עם id "${s.roleId}"`)
@@ -330,7 +332,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
       location: j.location.trim(),
       jobDescription: j.jobDescription.trim(),
       staffing,
-      shiftDefinitionId: j.shiftKindId,
+      ...(j.shiftKindId ? { shiftDefinitionId: j.shiftKindId } : {}),
       ...(workKindIds.length ? { workKindIds } : {}),
     }
     const kind = d.shiftDefinitions.find((s) => s.id === j.shiftKindId)

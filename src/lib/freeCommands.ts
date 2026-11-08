@@ -334,6 +334,7 @@ const said = (examples: string[][], rest: string[]) => examples.some((ws) => ws.
 export interface PendingJob {
   job: { date: string; shiftKindId: string; location: string; jobDescription: string; staffing: { roleId: string; count: number }[]; autoAssign: boolean }
   missing: JobField[]
+  kindOpen?: boolean // the manager said he does not know the kind yet: it is not asked again
 }
 
 export type Local =
@@ -428,7 +429,7 @@ function jobProposal(job: PendingJob['job'], d: AppData, now: Date): Proposal {
     const r = d.roles.find((x) => x.id === s.roleId)?.name ?? ''
     return s.count === 1 ? r : `${s.count} ${r}`
   })
-  const when = job.date ? `${kind ? `${kind} ` : ''}${dayText(job.date, now)}` : `${kind ? `${kind}, ` : ''}בלי תאריך, לרשימת לשיבוץ`
+  const when = job.date ? `${kind ? `${kind} ` : ''}${dayText(job.date, now)}` : `${kind ? `${kind}, ` : 'בלי סוג משמרת, '}בלי תאריך, לרשימת לשיבוץ`
   const parts = [when, job.location ? `ב${job.location}` : '', job.jobDescription].filter(Boolean)
   const need = staff.length ? ` צריך ${staff.join(' ו')}.` : ''
   const summary = `עבודה חדשה: ${parts.join(', ')}.${need}${job.autoAssign ? ' ואשבץ אנשים.' : ''} לאשר, או שיש עוד תיקון?`
@@ -443,8 +444,9 @@ function jobProposal(job: PendingJob['job'], d: AppData, now: Date): Proposal {
  * What a new job cannot be saved without. Everything else may be left out (the user's request,
  * 2026-11-07): with no date it goes to the לשיבוץ list, with a date to the calendar.
  */
-const missingOf = (job: PendingJob['job']): JobField[] => [
-  ...(job.shiftKindId ? [] : (['shiftKindId'] as const)),
+const missingOf = (job: PendingJob['job'], kindOpen = false): JobField[] => [
+  // A job with no date may wait in לשיבוץ without a kind when the manager does not know it yet.
+  ...(job.shiftKindId || (kindOpen && !job.date) ? [] : (['shiftKindId'] as const)),
   ...(job.location || job.jobDescription ? [] : (['location'] as const)),
   ...(job.autoAssign && !job.date ? (['date'] as const) : []), // people are assigned only to a dated job
 ]
@@ -505,13 +507,28 @@ function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
   return { kind: 'propose', proposal: jobProposal(job, d, now) }
 }
 
+// "לא יודע", "עוד לא ידוע", "תשאיר פתוח", "אין לי מושג": the manager does not know this detail yet.
+const OPEN_WORDS = new Set(
+  'אני עוד עדיין כרגע בינתיים זה את תשאיר השאר תשאירי לא יודע יודעים ידוע פתוח ריק אין לי מושג ככה כך נראה נחליט אחר אחכ מתי אם או משנה בלי סוג תבנית גם תשים שם עבודה משמרת'.split(' '),
+)
+const OPEN_CORE = /(?:לא יודע|לא ידוע|תשאיר|השאר|פתוח|אין לי מושג|לא משנה|נחליט אחר)/
+function isOpenAnswer(text: string): boolean {
+  const t = clean(text)
+  const kinds = (w: string) => /^(?:יום|לילה|לינה)$/.test(w)
+  return OPEN_CORE.test(t) && words(t).every((w) => OPEN_WORDS.has(w) || OPEN_WORDS.has(bare(w)) || kinds(w) || kinds(bare(w)))
+}
+
 /** The answer to a question about a missing detail of a job being opened here. */
 export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned, now: Date): Local {
   const field = p.missing[0]
   const f = find(text, d, L.aliases, now, L.protect)
   const job = { ...p.job }
+  let kindOpen = Boolean(p.kindOpen)
   if (f.workerIds.length || f.unsure.length) return null
-  if (field === 'jobDescription' && !f.description) {
+  if (field === 'shiftKindId' && !job.date && isOpenAnswer(text)) {
+    // "לא יודע", "תשאיר פתוח": saved to לשיבוץ without a kind (the user's request, 2026-11-08).
+    kindOpen = true
+  } else if (field === 'jobDescription' && !f.description) {
     const t = clean(text)
     if (!t || f.date || f.location || f.staffing.length) return null
     job.jobDescription = t
@@ -523,9 +540,9 @@ export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned,
     if (f.description) job.jobDescription = f.description
     if (f.staffing.length) job.staffing = f.staffing
   }
-  const missing = missingOf(job)
+  const missing = missingOf(job, kindOpen)
   if (missing.length && missing[0] === field) return null // the answer did not answer: Claude
-  if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing } }
+  if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing, kindOpen } }
   return { kind: 'propose', proposal: jobProposal(job, d, now) }
 }
 

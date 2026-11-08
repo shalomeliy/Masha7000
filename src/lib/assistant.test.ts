@@ -110,6 +110,17 @@ describe('applyProposal', () => {
     expect(r.report).toEqual(['הוספתי עבודה ליומן', 'הוספתי עבודה לרשימת הממתינות'])
   })
 
+  it('a job with no date may have no kind ("לא יודע אם יום או לילה", the owner, 2026-11-08)', () => {
+    const open = job({ date: '', shiftKindId: '' })
+    expect(proposalErrors(proposal({ jobs: [open] }), data())).toEqual([])
+    const r = applyProposal(proposal({ jobs: [open] }), data(), NOW)
+    expect(r.report).toEqual(['הוספתי עבודה לרשימת הממתינות'])
+    expect(r.data.pendingJobs[0]).toMatchObject({ location: 'אילת אתר 123' })
+    expect(r.data.pendingJobs[0].shiftDefinitionId).toBeUndefined()
+    // On the calendar a job needs its kind.
+    expect(proposalErrors(proposal({ jobs: [job({ shiftKindId: '' })] }), data())).toHaveLength(1)
+  })
+
   it('auto-assigns a new job and an existing one', () => {
     const r = applyProposal(proposal({ jobs: [job({ autoAssign: true })], assignShiftIds: ['s1'] }), data(), NOW)
     const fresh = r.data.shifts.find((s) => s.date === '2026-11-08')!
