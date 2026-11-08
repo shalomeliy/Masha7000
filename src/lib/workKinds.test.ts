@@ -131,14 +131,20 @@ describe('repairKinds', () => {
     expect(repairKinds([byHand, welding], roles)).toBeNull()
   })
 
+  it('also when the climber role has another name, and after the first repair already ran', () => {
+    const renamed = [{ id: 'x', name: 'מנהל במה' }, { id: G, name: 'כללי' }, { id: MGR, name: 'מנהל טיפוס' }]
+    const old: WorkKind = { id: 'k', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: 'x', altRoleIds: [MGR] }, { roleId: 'x', altRoleIds: [MGR] }], fixed: 1 }
+    expect(repairKinds([old], renamed)![0].staffing).toEqual([{ roleId: MGR }, { roleId: G }, { roleId: G }])
+  })
+
   it('a place whose role was deleted needs כללי, not the first role in the list', () => {
-    const kind: WorkKind = { id: 'k', name: 'הרכבה', staffing: [{ roleId: MGR }, { roleId: 'gone', altRoleIds: ['gone2', MGR] }], fixed: 1 }
+    const kind: WorkKind = { id: 'k', name: 'הרכבה', staffing: [{ roleId: MGR }, { roleId: 'gone', altRoleIds: ['gone2', MGR] }], fixed: 2 }
     const next = repairKinds([kind], roles)!
     expect(next[0].staffing).toEqual([{ roleId: MGR }, { roleId: G, altRoleIds: [MGR] }])
   })
 
   it('leaves kinds that need nothing alone', () => {
-    const ok: WorkKind = { id: 'k', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: G }, { roleId: G }], fixed: 1 }
+    const ok: WorkKind = { id: 'k', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: G }, { roleId: G }], fixed: 2 }
     expect(repairKinds([ok, welding], roles)).toBeNull()
   })
 })

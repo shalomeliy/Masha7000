@@ -46,13 +46,15 @@ export const CLIMBER_OLD = 'טפסן'
 export const WELDER_CERT = 'רתך'
 
 /** The repair level a kind made or fixed today has; see `repairKinds`. */
-export const KIND_FIXED = 1
+export const KIND_FIXED = 2
 
 /**
  * Fixes saved kinds so every place shows the role it really needs:
  * - a place whose role no longer exists needs "כללי" (before, the screen showed the first role in the list);
- * - once: "טיפוס" made by the first version (מנהל טיפוס + 2 places "מטפס או מנהל טיפוס") becomes
- *   מנהל טיפוס + 2 "כללי", as the manager asked. A kind changed by hand after that is kept.
+ * - once: "טיפוס" made by the first version (מנהל טיפוס + 2 places "<climber> או מנהל טיפוס") becomes
+ *   מנהל טיפוס + 2 "כללי", as the manager asked. The climber role may have any name (renamed, or an
+ *   older role): such a place is known by also taking the first place's role. A kind changed by hand
+ *   after that is kept.
  * Returns null when nothing changed.
  */
 export function repairKinds(kinds: WorkKind[], roles: Role[]): WorkKind[] | null {
@@ -65,7 +67,8 @@ export function repairKinds(kinds: WorkKind[], roles: Role[]): WorkKind[] | null
     const oldStarter = (k.fixed ?? 0) < KIND_FIXED && same(k.name, 'טיפוס')
     const staffing = k.staffing.map((s, i) => {
       const lost = !exists(s.roleId)
-      const climber = oldStarter && i > 0 && isClimber(s.roleId) && !slotCerts(s).length && !s.alsoRoleIds?.length
+      const likeStarter = isClimber(s.roleId) || !!s.altRoleIds?.includes(k.staffing[0].roleId)
+      const climber = oldStarter && i > 0 && s.roleId !== general && likeStarter && !slotCerts(s).length && !s.alsoRoleIds?.length
       if (!lost && !climber) return s
       return { ...s, roleId: general, altRoleIds: climber ? undefined : s.altRoleIds?.filter(exists) }
     })
