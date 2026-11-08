@@ -429,3 +429,10 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Removed: `repairKinds` (role-era repairs), roles list in Settings, role filter in worker search, role chips on the worker card and the join form, role select per crew member, role labels in reports, archive and agenda.
 - UI: worker form shows, under the certification chips, one row per held certification with 5 tappable stars (`CertStarsField`); the worker card shows the stars next to each certification.
 - Verified in the browser with the Drive mock: no "תפקיד" anywhere, stars saved (`certRatings: { c1: 2, c2: 3 }`), "טיפוס" kind + "שבץ" puts the two 5-star climbers in the "טיפוס" places and the 3-star one in the open place. 572 tests.
+
+## Done: certification "כללי" for everyone, new workers start unrated (2026-11-08)
+
+- User request: a certification "כללי" that every worker holds, 5 stars by default; a new worker's other certifications come with no stars, only the manager rates.
+- "כללי" has the fixed id `general` (`GENERAL_CERT_ID` in `catalog.ts`): added to the certifications list on read (`withGeneralCert`), to every worker on read (`normalizeWorker`), and to a new worker in the form. It cannot be renamed, deleted, or unticked on a worker, and the join form does not offer it. Its stars can be changed like any other.
+- Ratings: 0 = not rated yet; absent = 5 (old certifications and "כללי"). A new worker (join form or "הוסף") gets 0 on each certification ticked; an existing worker gets 0 only on a certification the join form adds.
+- "שבץ": a place that asks for no certification now prefers more stars in "כללי" (`slotStars`).

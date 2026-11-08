@@ -1,5 +1,6 @@
 import { tx } from '../i18n'
 import type { Worker } from '../types/models'
+import { GENERAL_CERT_ID, isGeneralCert } from './catalog'
 
 // The workers' details form: one link the manager sends to the WhatsApp group. Workers fill it
 // without signing in; answers wait on the server until a manager adds them to the workers list.
@@ -68,19 +69,26 @@ const FIELDS = [
 /**
  * The worker the manager will review before saving: a new worker from the answer, or the existing one
  * with the answer's filled fields written over theirs. Certifications are added, never removed;
- * notes are appended.
+ * notes are appended. Every worker holds "כללי". A certification the answer adds has no stars yet (0):
+ * only the manager rates (the user's request, 2026-11-08).
  */
 export function workerFromSubmission(sub: JoinDetails, existing: Worker | undefined, newId: () => string): Worker {
-  const base: Worker = existing ?? { id: newId(), firstName: '', lastName: '', certificationIds: [], constraints: [], status: 'active' }
-  const next: Worker = { ...base, certificationIds: [...new Set([...base.certificationIds, ...sub.certificationIds])] }
+  const base: Worker = existing ?? { id: newId(), firstName: '', lastName: '', certificationIds: [GENERAL_CERT_ID], constraints: [], status: 'active' }
+  const added = sub.certificationIds.filter((id) => id !== GENERAL_CERT_ID && !base.certificationIds.includes(id))
+  const ratings = { ...base.certRatings, ...Object.fromEntries(added.map((id) => [id, 0])) }
+  const next: Worker = {
+    ...base,
+    certificationIds: [...new Set([...(base.certificationIds.includes(GENERAL_CERT_ID) ? [] : [GENERAL_CERT_ID]), ...base.certificationIds, ...added])],
+    ...(Object.keys(ratings).length ? { certRatings: ratings } : {}),
+  }
   for (const f of FIELDS) if (sub[f]?.trim()) next[f] = sub[f]!.trim()
   if (sub.notes?.trim()) next.notes = [base.notes?.trim(), sub.notes.trim()].filter(Boolean).join('\n')
   return next
 }
 
-/** The lists the form offers: the manager's departments and certifications. */
+/** The lists the form offers: the manager's departments and certifications, without "כללי" (everyone holds it). */
 export const formLists = (certifications: Tag[], departments: Tag[]): FormLists => ({
-  certifications: certifications.map(({ id, name }) => ({ id, name })),
+  certifications: certifications.filter((c) => !isGeneralCert(c)).map(({ id, name }) => ({ id, name })),
   departments: departments.map(({ id, name }) => ({ id, name })),
 })
 

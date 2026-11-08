@@ -2,7 +2,7 @@ import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/
 import { ConflictError, readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
 import { readShifts, saveShifts } from './shiftMonths'
-import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withNightPlus } from '../catalog'
+import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withGeneralCert, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
 import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Pronunciation, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
 
@@ -57,7 +57,8 @@ export function useDriveList<K extends ListFile>(key: K) {
       const raw = stored ?? (key === 'departments' ? (STARTER_DEPARTMENTS as T[]) : [])
       const fix = normalizers[key] as ((r: T) => T) | undefined
       const list = fix ? raw.map(fix) : raw
-      // "לינה" always exists; it is written to the file with the next save of its list.
+      // "לינה" and the certification "כללי" always exist; they are written to the file with the next save of their list.
+      if (key === 'certifications') return withGeneralCert(list as Certification[]) as T[]
       if (key === 'shiftDefinitions') return withNightPlus(list as ShiftDefinition[]) as T[]
       return list
     },

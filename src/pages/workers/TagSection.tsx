@@ -1,7 +1,7 @@
 import { tx } from '../../i18n'
 import { useState } from 'react'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
-import { countText, nameError, newId, removeTagReferences, STARTER_CERTIFICATIONS, tagUsage, upsert } from '../../lib/catalog'
+import { countText, isGeneralCert, nameError, newId, removeTagReferences, STARTER_CERTIFICATIONS, tagUsage, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { AddButton, EditMark, EmptyState } from './common'
 
@@ -42,7 +42,7 @@ export function TagSection() {
 
   return (
     <>
-      {tags.items.length === 0 ? (
+      {tags.items.every(isGeneralCert) ? (
         <EmptyState
           text={t.explain}
           addLabel={t.add}
@@ -57,6 +57,17 @@ export function TagSection() {
           <ul className="space-y-2">
             {tags.items.map((tag) => {
               const u = tagUsage(tag.id, workers.items, shifts.items)
+              // "כללי": every worker holds it; it cannot be renamed or deleted.
+              if (isGeneralCert(tag))
+                return (
+                  <li key={tag.id} className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-2">
+                    <span>
+                      <span className="block font-semibold">{tag.name}</span>
+                      <span className="block text-xs text-slate-400">{tx('כל העובדים, קבוע')}</span>
+                    </span>
+                    <span className="shrink-0 text-sm text-slate-400">{countText(workers.items.length, tx('עובד אחד'), tx('עובדים'))}</span>
+                  </li>
+                )
               return (
                 <li key={tag.id}>
                   <button

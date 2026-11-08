@@ -27,12 +27,14 @@ describe('matching an answer to a worker', () => {
 describe('worker from an answer', () => {
   it('builds a new active worker', () => {
     const w = workerFromSubmission(sub({ certificationIds: ['r1'], idNumber: '012345678' }), undefined, () => 'new')
-    expect(w).toMatchObject({ id: 'new', firstName: 'דני', mobilePhone: '052-7654321', certificationIds: ['r1'], status: 'active', constraints: [] })
+    expect(w).toMatchObject({ id: 'new', firstName: 'דני', mobilePhone: '052-7654321', certificationIds: ['general', 'r1'], certRatings: { r1: 0 }, status: 'active', constraints: [] })
   })
   it('writes the answer over an existing worker, keeps what it leaves empty, adds certifications and notes', () => {
     const existing = worker({ address: 'חיפה', homePhone: '04-1234567', certificationIds: ['r1'], notes: 'ותיק', constraints: [{ id: 'c' } as never] })
     const w = workerFromSubmission(sub({ address: 'עכו', certificationIds: ['r2', 'r1'], notes: 'גר רחוק' }), existing, () => 'x')
-    expect(w).toMatchObject({ id: 'w1', firstName: 'דני', address: 'עכו', homePhone: '04-1234567', certificationIds: ['r1', 'r2'], notes: 'ותיק\nגר רחוק' })
+    expect(w).toMatchObject({ id: 'w1', firstName: 'דני', address: 'עכו', homePhone: '04-1234567', certificationIds: ['general', 'r1', 'r2'], notes: 'ותיק\nגר רחוק' })
+    // Only the certification the answer adds is "not rated yet"; what the manager rated stays.
+    expect(w.certRatings).toEqual({ r2: 0 })
     expect(w.constraints).toHaveLength(1)
   })
 })

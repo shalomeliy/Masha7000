@@ -9,6 +9,7 @@ import {
 } from "../../components/Sheet";
 import {
   countText,
+  GENERAL_CERT_ID,
   filterWorkers,
   fullName,
   isActive,
@@ -42,7 +43,7 @@ const blankWorker = (): Worker => ({
   id: newId(),
   firstName: "",
   lastName: "",
-  certificationIds: [],
+  certificationIds: [GENERAL_CERT_ID],
   constraints: [],
   status: "active",
 });
@@ -709,10 +710,14 @@ function WorkerForm({
           <Chips
             options={certs.items}
             selected={draft.certificationIds}
+            // "כללי" stays: every worker holds it. A new worker's certifications start with no stars:
+            // the manager rates them (the user's request, 2026-11-08).
             onToggle={(id) =>
+              id !== GENERAL_CERT_ID &&
               setDraft((d) => ({
                 ...d,
                 certificationIds: toggle(d.certificationIds, id),
+                ...(!exists && !d.certificationIds.includes(id) ? { certRatings: { ...d.certRatings, [id]: 0 } } : {}),
               }))
             }
           />

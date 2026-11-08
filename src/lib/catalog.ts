@@ -1,5 +1,5 @@
 import { tx } from '../i18n'
-import type { Department, ShiftDefinition, StaffSlot, Worker } from '../types/models'
+import type { Certification, Department, ShiftDefinition, StaffSlot, Worker } from '../types/models'
 import { normalizeConstraint } from './constraints'
 
 // Pure rules for the master lists (certifications, workers, shift types). No I/O here.
@@ -79,14 +79,29 @@ export const newId = () => crypto.randomUUID()
 
 const normalize = (name: string) => name.trim().toLocaleLowerCase()
 
-// A worker's star rating in a certification (1-5); a certification not rated yet has the full 5.
+// "כללי": a certification every worker holds (the user's request, 2026-11-08). It is always in the
+// list (added on read), every worker holds it (added on read), and it cannot be renamed or deleted.
+// A place that asks for no certification is filled by the stars in it.
+export const GENERAL_CERT_ID = 'general'
+export const GENERAL_CERT_NAME = 'כללי'
+export const isGeneralCert = (c: Pick<Certification, 'id'>) => c.id === GENERAL_CERT_ID
+
+/** The certifications list with "כללי" first when the file does not hold it yet. Same array when nothing was added. */
+export const withGeneralCert = (certs: Certification[]): Certification[] =>
+  certs.some(isGeneralCert) ? certs : [{ id: GENERAL_CERT_ID, name: GENERAL_CERT_NAME }, ...certs]
+
+// A worker's star rating in a certification: 1-5, or 0 = not rated yet (a new worker's certifications,
+// until the manager rates them). Absent = the full 5: certifications held before ratings existed, and "כללי".
 export const MAX_STARS = 5
 export const certStars = (w: Pick<Worker, 'certRatings'>, certId: string) => {
   const n = w.certRatings?.[certId]
-  return typeof n === 'number' && n >= 1 && n <= MAX_STARS ? Math.round(n) : MAX_STARS
+  return typeof n === 'number' && n >= 0 && n <= MAX_STARS ? Math.round(n) : MAX_STARS
 }
-/** The worker's stars over the certifications a place asks for; 0 for a place that asks for none. */
-export const slotStars = (w: Pick<Worker, 'certRatings'>, slot: StaffSlot) => slotCerts(slot).reduce((sum, id) => sum + certStars(w, id), 0)
+/** The worker's stars over the certifications a place asks for; a place that asks for none counts "כללי". */
+export const slotStars = (w: Pick<Worker, 'certRatings'>, slot: StaffSlot) => {
+  const ids = slotCerts(slot)
+  return (ids.length ? ids : [GENERAL_CERT_ID]).reduce((sum, id) => sum + certStars(w, id), 0)
+}
 
 /** Text for a place that asks for no certification: anyone can fill it. */
 export const anyWorkerText = () => tx('כל עובד')
@@ -200,7 +215,8 @@ export function normalizeWorker(raw: Partial<Worker> & { name?: string; phone?: 
     firstName: w.firstName ?? first,
     lastName: w.lastName ?? rest.join(' '),
     mobilePhone: w.mobilePhone ?? phone,
-    certificationIds: w.certificationIds ?? [],
+    // Every worker holds "כללי".
+    certificationIds: (w.certificationIds ?? []).includes(GENERAL_CERT_ID) ? (w.certificationIds ?? []) : [GENERAL_CERT_ID, ...(w.certificationIds ?? [])],
     constraints: (w.constraints ?? []).map(normalizeConstraint),
     status: w.status ?? 'active',
   }
