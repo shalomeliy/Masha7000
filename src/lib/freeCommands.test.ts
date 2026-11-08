@@ -192,6 +192,12 @@ describe('a new job, any phrasing, from the first time', () => {
     expect(job(none('תפתח עבודה לילה ב556'))).toMatchObject({ location: '556' })
     expect(job(none('תפתח עבודה לילה בבאר שבע 9 החלפת אנטנה'))).toMatchObject({ location: 'באר שבע 9', jobDescription: 'החלפת אנטנה' })
     expect(none('תפתח עבודה לילה החלפת כבלים 12')).toBeNull() // a number tied to no place
+    // The owner's examples (2026-11-08).
+    expect(job(none('תפתח עבודה לילה בנהריה החלפת אנטנה'))).toMatchObject({ location: 'נהריה', jobDescription: 'החלפת אנטנה' })
+    expect(job(none('תפתח עבודה לילה ב 1301 החלפת אנטנה'))).toMatchObject({ location: '1301', jobDescription: 'החלפת אנטנה' })
+    expect(job(none('תפתח עבודה לילה בנהלל 33 החלפת אנטנה'))).toMatchObject({ location: 'נהלל 33', jobDescription: 'החלפת אנטנה' })
+    expect(job(none('תפתח עבודה לילה בקניון הדרים החלפת אנטנה'))).toMatchObject({ location: 'קניון הדרים', jobDescription: 'החלפת אנטנה' })
+    expect(job(none('תפתח עבודה לילה בקניון הדרים'))).toMatchObject({ location: 'קניון הדרים', jobDescription: '' })
   })
 
   it('a place a job was already at is known from then on', () => {

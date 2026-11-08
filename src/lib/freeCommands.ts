@@ -31,8 +31,8 @@ const NEW_WORDS = new Set(['חדשה', 'חדש'])
 const NOT_DESCRIPTION = /^(?:מה|מי|כמה|איפה|מתי|למה|איך|איזה|איזו|אילו|האם|תעביר|העבר|תזיז|הזז|תסגור|סגור|תבטל|בטל|תמחק|מחק|תדחה|דחה|תשנה|שנה|תבדוק|בדוק|תזכור|לא|אל|חולה)$/
 // A description that starts with ב ("בדיקת מצלמות") is not a place.
 const WORK_START = /^(?:בדיק|בני|ביצוע|ביקור|בירור|בטיחות|בקר|ברז|בסיס|בידוד|ביוב|בור)/
-// Towns of two words: "באר שבע", "קרית גת", "מצפה רמון".
-const TOWN_FIRST = /^(?:באר|קרית|קריית|בית|מצפה|ראש|תל|כפר|נווה|גבעת|רמת|מעלה|אור|עין|מגדל|נוף|שדה|פתח|ראשון|נס|גן|יד|מבשרת|זכרון|אבן|קצרין|רמת)$/
+// Places of two words: towns ("באר שבע", "קרית גת") and named sites ("קניון הדרים", "תחנת הכוח").
+const TOWN_FIRST = /^(?:קניון|תחנת|מרכז|אזור|פארק|מתחם|בניין|נמל|כביש|מחלף|צומת|רחוב|שכונת|מפעל|חוות|קיבוץ|מושב|מושבת|באר|קרית|קריית|בית|מצפה|ראש|תל|כפר|נווה|גבעת|רמת|מעלה|אור|עין|מגדל|נוף|שדה|פתח|ראשון|נס|גן|יד|מבשרת|זכרון|אבן|קצרין|רמת)$/
 // "העבודה" is a job that exists, "עבודות" more than one: not one new job.
 const OTHER_JOB = /^(?:ו?ה|של|ו?ב|ו?ל)עבוד(?:ה|ות)$|^ו?עבודות$/
 // Small words that carry no meaning in a command.
@@ -480,7 +480,11 @@ function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
     const pieces: string[][] = []
     for (const r of runs) {
       const first = r[0]
-      if (!location && /^ב-?(?=.{2,})/.test(first) && !WORK_START.test(first)) {
+      if (!location && first === 'ב' && /^\d+$/.test(r[1] ?? '')) {
+        // "ב 1301": a place that is a number, said apart from its ב.
+        location = r[1]
+        if (r.length > 2) pieces.push(r.slice(2))
+      } else if (!location && /^ב-?(?=.{2,})/.test(first) && !WORK_START.test(first)) {
         // The place: the word after ב, a second word of a two-word town, then any numbers after it.
         let n = 1
         if (TOWN_FIRST.test(bare(first)) && r.length > 1 && !/^\d+$/.test(r[1])) n = 2
