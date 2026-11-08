@@ -26,6 +26,7 @@ export const BACKUP_LISTS = [
   'workKinds',
   'departments',
   'constraintWords',
+  'pronunciations',
   'workers',
   'pendingJobs',
   'shifts',
@@ -42,6 +43,7 @@ export const LIST_TITLES: Record<BackupList, string> = {
   workKinds: tx('סוגי עבודה'),
   departments: tx('מחלקות'),
   constraintWords: tx('מילים לקריאת אילוצים'),
+  pronunciations: tx('הגייה של מילים'),
   workers: tx('עובדים'),
   pendingJobs: tx('משימות לשיבוץ'),
   shifts: tx('עבודות'),
@@ -91,8 +93,8 @@ export function parseBackup(text: string): Backup {
   const files = {} as Backup['files']
   for (const k of BACKUP_LISTS) {
     // Backups made before departments existed: the starter list, as the app would read it.
-    // Backups made before work kinds existed: none.
-    const list = raw.files[k] === undefined && k === 'departments' ? STARTER_DEPARTMENTS : raw.files[k] === undefined && k === 'workKinds' ? [] : raw.files[k]
+    // Backups made before work kinds or pronunciations existed: none.
+    const list = raw.files[k] === undefined && k === 'departments' ? STARTER_DEPARTMENTS : raw.files[k] === undefined && (k === 'workKinds' || k === 'pronunciations') ? [] : raw.files[k]
     if (!Array.isArray(list)) throw new BackupError(tx('{NOT_A_BACKUP} חסרה בו הרשימה "{v}".', { NOT_A_BACKUP, v: LIST_TITLES[k] }))
     for (const item of list)
       if (!isObject(item) || typeof item.id !== 'string' || (k === 'shifts' && typeof item.date !== 'string') || !textFieldsOk(item))

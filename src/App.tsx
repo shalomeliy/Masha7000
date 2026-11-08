@@ -6,6 +6,7 @@ import { BottomNav } from './components/BottomNav'
 import type { Tab } from './components/BottomNav'
 import { ensureWeeklyCopy } from './lib/backup'
 import { applyWordSettings } from './lib/constraintWords'
+import { applyPronunciations } from './lib/pronounce'
 import { useDriveList } from './lib/data/useDriveList'
 import { Calendar } from './pages/Calendar'
 import { Settings } from './pages/Settings'
@@ -49,6 +50,7 @@ export default function App() {
   return (
     <div className="mx-auto min-h-full max-w-md pb-24">
       <ConstraintWords />
+      <Pronunciations />
       <WeeklyCopy />
       {shown === 'voice' && voice && <Voice onNavigate={setTab} />}
       {shown === 'calendar' && <Calendar />}
@@ -63,6 +65,12 @@ export default function App() {
 // The manager's words for reading constraints (Settings), put into the reader before any screen uses it.
 function ConstraintWords() {
   applyWordSettings(useDriveList('constraintWords').items)
+  return null
+}
+
+// How the assistant says words the phone's voice gets wrong (Settings), put in before it speaks.
+function Pronunciations() {
+  applyPronunciations(useDriveList('pronunciations').items)
   return null
 }
 

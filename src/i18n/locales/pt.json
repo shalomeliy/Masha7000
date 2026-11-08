@@ -1014,5 +1014,20 @@
  "עובדים שחייבים להיות בעבודה": "Trabalhadores que têm de estar no trabalho",
  "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "Marquei o trabalho para {weekday} {v2} com a equipe. Ainda dá para mudar antes de salvar.",
  "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Atenção: {v} já tem {n} noites nessa semana",
- "חייבים להיות: {v}": "Têm de estar: {v}"
+ "חייבים להיות: {v}": "Têm de estar: {v}",
+ "הגייה של מילים": "Pronúncia de palavras",
+ "איך שלי אומר מילים שהקול טועה בהן": "Como Shaly diz as palavras que a voz pronuncia errado",
+ "איך שלי מבטא מילים, ומה הלך ל-Claude": "Como Shaly pronuncia palavras, e o que foi para o Claude",
+ "כתוב את המילה כמו שהיא נכתבת.": "Escreva a palavra como ela é escrita.",
+ "כתוב איך לומר אותה. אפשר גם באותיות באנגלית.": "Escreva como se diz. Letras em inglês também servem.",
+ "כתוב את ההגייה אחרת מהמילה, אחרת שום דבר לא ישתנה.": "Escreva a pronúncia diferente da palavra, ou nada vai mudar.",
+ "מילים ששלי מבטא לא נכון, ואיך לכתוב אותן כדי שיגיד אותן נכון. בטלפונים רבים ניקוד לא עוזר, אבל כתיבה אחרת כן, לפעמים רק באותיות באנגלית: \"טפסן\" נכתב Tapsan. המילה מתוקנת גם עם ה, ב, ל או ו לפניה.": "Palavras que Shaly pronuncia errado e como escrevê-las para que ele as diga certo. Em muitos celulares os sinais vocálicos não ajudam, mas outra escrita ajuda, às vezes só com letras em inglês: \"טפסן\" se escreve Tapsan. A palavra também é corrigida com ה, ב, ל ou ו antes dela.",
+ "המילה, כמו שהיא נכתבת": "A palavra, como é escrita",
+ "למשל: טפסן": "Por exemplo: טפסן",
+ "איך לומר אותה": "Como se diz",
+ "למשל: Tapsan": "Por exemplo: Tapsan",
+ "שמע": "Ouvir",
+ "מובנה": "Embutida",
+ "שמע איך שלי אומר את {v}": "Ouvir como Shaly diz {v}",
+ "מחיקת {v}": "Excluir {v}"
 }

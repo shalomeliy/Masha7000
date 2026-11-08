@@ -1,5 +1,6 @@
 import { language, tx } from '../i18n'
 import { joinTranscripts } from './dictation'
+import { pronounce } from './pronounce'
 import { rankVoices, shortVoiceName, speakable } from './speakable'
 
 // Speech in and out in the app's language, for the voice assistant. In: the browser's speech recognition,
@@ -163,7 +164,7 @@ export function speak(text: string, onDone?: () => void) {
     return
   }
   speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(speakable(text, language().speech))
+  const u = new SpeechSynthesisUtterance(pronounce(speakable(text, language().speech)))
   u.lang = language().speech
   u.rate = current ?? (current = speechRate())
   const v = currentVoice()

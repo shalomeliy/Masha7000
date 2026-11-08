@@ -162,6 +162,14 @@ export interface PendingJob {
 
 // Something the manager told the voice assistant to remember ("טפסן ומטפס זה אותו דבר",
 // "דני לא נוסע לאילת"). Sent with every turn; the model itself does not learn or change.
+// A word the phone's voice says wrong, and how to write it so it comes out right (Settings, "הגייה").
+// `say` may be in English letters: on some phones only that works ("טפסן" -> "Tapsan").
+export interface Pronunciation {
+  id: string
+  word: string
+  say: string
+}
+
 export interface AssistantNote {
   id: string
   text: string

@@ -26,4 +26,5 @@ export const DRIVE_FILES = {
   settings: 'settings.json',
   assistantNotes: 'assistant_notes.json',
   assistantExamples: 'assistant_examples.json',
+  pronunciations: 'pronunciations.json',
 } as const

@@ -21,6 +21,7 @@ import { ClaudeLogSection } from './settings/ClaudeLogSection'
 import { DepartmentsSection } from './settings/DepartmentsSection'
 import { NameListSection } from './settings/NameListSection'
 import { WordsSection } from './settings/WordsSection'
+import { PronunciationSection } from './settings/PronunciationSection'
 import { ReasonsSection } from './ToSchedule'
 import { ShiftsSection } from './workers/ShiftsSection'
 import { TagSection } from './workers/TagSection'
@@ -87,7 +88,7 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
 
 // Every list the manager can change, in one place. Each one is also where it is used (roles in
 // "עובדים", postpone reasons in "לשיבוץ"); this screen opens the same editors.
-type ListId = 'roles' | 'certifications' | 'shiftDefinitions' | 'workKinds' | 'postponeReasons' | 'places' | 'jobTypes' | 'departments' | 'constraintWords'
+type ListId = 'roles' | 'certifications' | 'shiftDefinitions' | 'workKinds' | 'postponeReasons' | 'places' | 'jobTypes' | 'departments' | 'constraintWords' | 'pronunciations'
 
 const LISTS: { id: ListId; title: string; explain: string }[] = [
   {
@@ -134,6 +135,11 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
     id: 'constraintWords',
     title: tx('מילים לקריאת אילוצים'),
     explain: tx('איך מבינים תשובה מוואטסאפ'),
+  },
+  {
+    id: 'pronunciations',
+    title: tx('הגייה של מילים'),
+    explain: tx('איך שלי אומר מילים שהקול טועה בהן'),
   },
 ]
 
@@ -237,10 +243,10 @@ function groups(isOwner: boolean, server: boolean): Group[] {
     {
       id: 'assistant',
       title: tx('העוזר הקולי'),
-      explain: tx('מה הלך ל-Claude, כדי ללמד את האפליקציה לעשות יותר בחינם'),
+      explain: tx('איך שלי מבטא מילים, ומה הלך ל-Claude'),
       icon: Mic,
       // The assistant is the owner's only (the dev server has no sign-in).
-      items: (isOwner && server) || import.meta.env.DEV ? [panelItem('claudeLog')] : [],
+      items: (isOwner && server) || import.meta.env.DEV ? [listItem('pronunciations'), panelItem('claudeLog')] : [],
     },
     {
       id: 'account',
@@ -288,6 +294,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
     workKinds: useDriveList('workKinds'),
     departments: useDriveList('departments'),
     constraintWords: useDriveList('constraintWords'),
+    pronunciations: useDriveList('pronunciations'),
     workers: useDriveList('workers'),
     shifts: useDriveList('shifts'),
     pendingJobs: useDriveList('pendingJobs'),
@@ -378,6 +385,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
         {current.id === 'workKinds' && <WorkKindsSection />}
         {current.id === 'departments' && <DepartmentsSection />}
         {current.id === 'constraintWords' && <WordsSection />}
+        {current.id === 'pronunciations' && <PronunciationSection />}
       </section>
     )
 

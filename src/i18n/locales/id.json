@@ -1014,5 +1014,20 @@
  "עובדים שחייבים להיות בעבודה": "Pekerja yang wajib ikut pekerjaan",
  "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "Saya menetapkan pekerjaan pada {weekday} {v2} beserta timnya. Masih bisa diubah sebelum disimpan.",
  "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Perhatian: {v} sudah punya {n} malam di minggu itu",
- "חייבים להיות: {v}": "Wajib ikut: {v}"
+ "חייבים להיות: {v}": "Wajib ikut: {v}",
+ "הגייה של מילים": "Pengucapan kata",
+ "איך שלי אומר מילים שהקול טועה בהן": "Cara Shaly mengucapkan kata yang salah diucapkan suara",
+ "איך שלי מבטא מילים, ומה הלך ל-Claude": "Cara Shaly mengucapkan kata, dan apa yang dikirim ke Claude",
+ "כתוב את המילה כמו שהיא נכתבת.": "Tulis kata seperti ejaannya.",
+ "כתוב איך לומר אותה. אפשר גם באותיות באנגלית.": "Tulis cara mengucapkannya. Huruf Latin juga boleh.",
+ "כתוב את ההגייה אחרת מהמילה, אחרת שום דבר לא ישתנה.": "Tulis pengucapan yang berbeda dari katanya, kalau tidak tidak ada yang berubah.",
+ "מילים ששלי מבטא לא נכון, ואיך לכתוב אותן כדי שיגיד אותן נכון. בטלפונים רבים ניקוד לא עוזר, אבל כתיבה אחרת כן, לפעמים רק באותיות באנגלית: \"טפסן\" נכתב Tapsan. המילה מתוקנת גם עם ה, ב, ל או ו לפניה.": "Kata yang salah diucapkan Shaly, dan cara menulisnya agar ia mengucapkannya dengan benar. Di banyak ponsel tanda vokal tidak membantu, tetapi ejaan lain membantu, kadang hanya dengan huruf Latin: \"טפסן\" ditulis Tapsan. Kata juga diperbaiki jika diawali ה, ב, ל, atau ו.",
+ "המילה, כמו שהיא נכתבת": "Kata, seperti ejaannya",
+ "למשל: טפסן": "Misalnya: טפסן",
+ "איך לומר אותה": "Cara mengucapkannya",
+ "למשל: Tapsan": "Misalnya: Tapsan",
+ "שמע": "Dengar",
+ "מובנה": "Bawaan",
+ "שמע איך שלי אומר את {v}": "Dengar cara Shaly mengucapkan {v}",
+ "מחיקת {v}": "Hapus {v}"
 }

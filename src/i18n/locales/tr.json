@@ -1014,5 +1014,20 @@
  "עובדים שחייבים להיות בעבודה": "İşte mutlaka olması gereken çalışanlar",
  "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "İşi ekiple birlikte {weekday} {v2} gününe koydum. Kaydetmeden önce hâlâ değiştirebilirsin.",
  "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Dikkat: {v} o hafta zaten {n} gece çalışıyor",
- "חייבים להיות: {v}": "Mutlaka olmalı: {v}"
+ "חייבים להיות: {v}": "Mutlaka olmalı: {v}",
+ "הגייה של מילים": "Kelime telaffuzu",
+ "איך שלי אומר מילים שהקול טועה בהן": "Shaly sesin yanlış söylediği kelimeleri nasıl söyler",
+ "איך שלי מבטא מילים, ומה הלך ל-Claude": "Shaly kelimeleri nasıl telaffuz eder ve Claude’a ne gitti",
+ "כתוב את המילה כמו שהיא נכתבת.": "Kelimeyi yazıldığı gibi yazın.",
+ "כתוב איך לומר אותה. אפשר גם באותיות באנגלית.": "Nasıl söyleneceğini yazın. Latin harfleri de olur.",
+ "כתוב את ההגייה אחרת מהמילה, אחרת שום דבר לא ישתנה.": "Telaffuzu kelimeden farklı yazın, yoksa hiçbir şey değişmez.",
+ "מילים ששלי מבטא לא נכון, ואיך לכתוב אותן כדי שיגיד אותן נכון. בטלפונים רבים ניקוד לא עוזר, אבל כתיבה אחרת כן, לפעמים רק באותיות באנגלית: \"טפסן\" נכתב Tapsan. המילה מתוקנת גם עם ה, ב, ל או ו לפניה.": "Shaly’nin yanlış söylediği kelimeler ve doğru söylemesi için nasıl yazılacakları. Birçok telefonda hareke işe yaramaz ama farklı yazım yarar, bazen yalnızca Latin harfleriyle: \"טפסן\" Tapsan diye yazılır. Kelime, önünde ה, ב, ל veya ו olsa da düzeltilir.",
+ "המילה, כמו שהיא נכתבת": "Kelime, yazıldığı gibi",
+ "למשל: טפסן": "Örneğin: טפסן",
+ "איך לומר אותה": "Nasıl söylenir",
+ "למשל: Tapsan": "Örneğin: Tapsan",
+ "שמע": "Dinle",
+ "מובנה": "Yerleşik",
+ "שמע איך שלי אומר את {v}": "Shaly’nin {v} kelimesini nasıl söylediğini dinle",
+ "מחיקת {v}": "{v} sil"
 }
