@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, CalendarX, Phone, Search, UserX, X } from "lucide-react";
+import { ArrowRight, Phone, Search, UserX, X } from "lucide-react";
 import {
   Chips,
   Field,
@@ -31,7 +31,7 @@ import { EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
 import { useWorkerAgenda, WorkerAgenda } from "./WorkerAgenda";
 import { WorkerMonth } from "./WorkerMonth";
-import { RequestSheet } from "./RequestSheet";
+import { ConstraintFormPanel } from "./ConstraintFormSection";
 import { JoinButton, JoinPending } from "./JoinSection";
 import { authMode } from "../../lib/google/auth";
 import { tx } from '../../i18n'
@@ -103,7 +103,6 @@ export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRe
   }, [addRequest]);
   const [rating, setRating] = useState<Worker | null>(null);
   const [certFilter, setCertFilter] = useState<string[]>([]);
-  const [requesting, setRequesting] = useState(false);
   const [inactiveView, setShowInactive] = useState(false);
   const [stateFilter, setStateFilter] = useState<StateId | null>(null);
   const today = todayIso();
@@ -132,7 +131,6 @@ export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRe
   const sheets = (
     <>
       <WorkerSheet editing={editing} onClose={() => edit(null)} onSaved={onSaved} />
-      <RequestSheet open={requesting} onClose={() => setRequesting(false)} />
       <RatingsSheet worker={rating} onClose={() => setRating(null)} />
     </>
   );
@@ -142,17 +140,9 @@ export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRe
       <>
         <TabIntro
           title={tx("מי לא יכול לעבוד מתי?")}
-          text={tx("שולחים לקבוצת העובדים בוואטסאפ הודעה מוכנה לשבוע שבוחרים. כל עובד עונה באילו ימים הוא לא יכול, ואת התשובה שלו מדביקים אצלו בכרטיס, אז השיבוץ יודע לא לשים אותו בימים האלה.")}
+          text={tx("שולחים לקבוצת העובדים בוואטסאפ קישור לטופס של השבוע שבוחרים. כל עובד ממלא את הנייד שלו ובאילו ימים הוא לא יכול, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו, אז השיבוץ יודע לא לשים אותו בימים האלה.")}
         />
-        <button
-          type="button"
-          data-hint="requestConstraints"
-          onClick={() => setRequesting(true)}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 font-semibold text-slate-950"
-        >
-          <CalendarX size={20} aria-hidden className="shrink-0" />
-          {tx("בקשת אילוצים בוואטסאפ")}
-        </button>
+        <ConstraintFormPanel />
         {sheets}
       </>
     );

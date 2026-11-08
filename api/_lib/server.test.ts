@@ -8,6 +8,7 @@ import { POST as token } from '../token.js'
 import { POST as owner } from '../owner.js'
 import { POST as logout } from '../logout.js'
 import { GET as joinForm, POST as join } from '../join.js'
+import { GET as consForm, POST as cons } from '../constraints.js'
 import { POST as mfa } from '../mfa.js'
 import { codeAt, currentStep, fromBase32 } from './totp.js'
 
@@ -524,5 +525,55 @@ describe('codes used at the same moment', () => {
     const code = await codeAt(secret, currentStep() + 1)
     const [ra, rb] = await Promise.all([post(mfa, a, { action: 'verify', code }), post(mfa, b, { action: 'verify', code })])
     expect([ra.status, rb.status].sort()).toEqual([200, 400])
+  })
+})
+
+describe('weekly constraints form', () => {
+  const roster = [
+    { id: 'w1', firstName: 'דנה', phone: '050-1234567' },
+    { id: 'w2', firstName: 'יוסי', phone: 'bad' },
+  ]
+  const days = ['', 'חופש', '', '', '', '', '']
+  const manager = async () => {
+    store.set('allowed', new Set(['deputy@example.com']))
+    return managerSession('deputy@example.com')
+  }
+  const openFor = async (s: string, weekStart = '2026-11-15', extra = {}) =>
+    (await (await post(cons, s, { action: 'open', weekStart, roster, ...extra })).json()).code as string
+  const list = async (s: string) => (await post(cons, s, { action: 'list' })).json()
+
+  it('only a signed-in manager opens it, for a Sunday, and opening again keeps the link', async () => {
+    expect((await post(cons, null, { action: 'open', weekStart: '2026-11-15', roster })).status).toBe(401)
+    const s = await manager()
+    expect((await post(cons, s, { action: 'open', weekStart: '2026-11-16', roster })).status).toBe(400)
+    const code = await openFor(s)
+    expect(await openFor(s, '2026-11-22')).toBe(code)
+    expect(await (await consForm(new Request(`${ORIGIN}/api/constraints?c=${code}`))).json()).toEqual({ weekStart: '2026-11-22' })
+    expect(await openFor(s, '2026-11-22', { renew: true })).not.toBe(code)
+    expect((await consForm(new Request(`${ORIGIN}/api/constraints?c=${code}`))).status).toBe(404)
+  })
+
+  it('takes an answer only from a phone on the roster, sealed, and a second one replaces the first', async () => {
+    const s = await manager()
+    const code = await openFor(s)
+    expect((await post(cons, null, { action: 'submit', code, phone: '0501234567', days }, 'https://evil.example')).status).toBe(403)
+    expect((await post(cons, null, { action: 'submit', code, phone: '0529999999', days })).status).toBe(404)
+    expect((await post(cons, null, { action: 'submit', code, phone: '+972-50-123-4567', days: ['x'] })).status).toBe(400)
+    const ok = await post(cons, null, { action: 'submit', code, phone: '+972-50-123-4567', days, notes: 'בצפון' })
+    expect(await ok.json()).toEqual({ ok: true, firstName: 'דנה' })
+    expect([...(store.get('cons:subs') as Set<string>)][0]).not.toContain('חופש')
+    await post(cons, null, { action: 'submit', code, phone: '0501234567', days: ['לא יכול', '', '', '', '', '', ''] })
+    const state = await list(s)
+    expect(state).toMatchObject({ code, weekStart: '2026-11-15', answered: ['w1'] })
+    expect(state.answers).toHaveLength(1)
+    expect(state.answers[0]).toMatchObject({ workerId: 'w1', weekStart: '2026-11-15', days: ['לא יכול', '', '', '', '', '', ''] })
+    expect((await post(cons, null, { action: 'list' })).status).toBe(401)
+    await post(cons, s, { action: 'remove', ids: [state.answers[0].id] })
+    expect((await list(s)).answers).toEqual([])
+    // A new week: nobody has answered it yet.
+    await openFor(s, '2026-11-22')
+    expect((await list(s)).answered).toEqual([])
+    await post(cons, s, { action: 'close' })
+    expect((await post(cons, null, { action: 'submit', code, phone: '0501234567', days })).status).toBe(404)
   })
 })

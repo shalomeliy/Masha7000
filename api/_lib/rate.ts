@@ -20,6 +20,9 @@ export const LIMITS = {
   joinRead: { max: 120, windowSeconds: 600 },
   joinSubmit: { max: 15, windowSeconds: 3600 },
   joinManage: { max: 200, windowSeconds: 600 },
+  consRead: { max: 300, windowSeconds: 600 }, // a whole team on one office Wi-Fi opens it
+  consSubmit: { max: 60, windowSeconds: 3600 },
+  consManage: { max: 300, windowSeconds: 600 },
   assistant: { max: 60, windowSeconds: 600 },
   feedbackIp: { max: 30, windowSeconds: 3600 },
   claudeLog: { max: 300, windowSeconds: 600 },

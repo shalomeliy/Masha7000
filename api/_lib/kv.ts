@@ -3,7 +3,7 @@ import type { Env } from './env.js'
 
 // The server's small store: Upstash over its REST API, or a plain Redis connection (REDIS_URL,
 // Vercel Marketplace "Redis"). Holds only: the owner's sealed refresh token, a sealed cached
-// access token, the allowed emails, the workers' details form and its sealed answers, the sealed
+// access token, the allowed emails, the workers' details form and its sealed answers, the weekly constraints form and its sealed answers, the sealed
 // sign-in sessions, each person's sealed two-step secret, short-lived rate-limit counters, the
 // voice assistant's spending this month (budget.ts), and the sealed log of what went to Claude (claudeLog.ts).
 
@@ -14,6 +14,10 @@ export const KEYS = {
   joinForm: 'join:form',
   joinSubs: 'join:subs',
   joinSent: 'join:sent',
+  /** The weekly constraints form (sealed), the workers' sealed answers, and "<week>|<workerId>" of who answered. */
+  consForm: 'cons:form',
+  consSubs: 'cons:subs',
+  consAnswered: 'cons:answered',
   /** sess:<sid> = one signed-in device; sessions:<email> = that person's sids. */
   session: (sid: string) => `sess:${sid}`,
   sessionsOf: (email: string) => `sessions:${email}`,

@@ -14,6 +14,7 @@ import { useDriveList } from './lib/data/useDriveList'
 import { Calendar } from './pages/Calendar'
 import { Settings } from './pages/Settings'
 import { Workers } from './pages/Workers'
+import { ConstraintAnswersSync } from './pages/workers/ConstraintFormSection'
 import { SignIn } from './pages/SignIn'
 import { ToSchedule } from './pages/ToSchedule'
 import { Voice } from './pages/Voice'
@@ -56,6 +57,8 @@ export default function App() {
       <Pronunciations />
       <NewWords />
       <WeeklyCopy />
+      {/* Workers' answers to the weekly constraints form land in their constraints on any screen. */}
+      <ConstraintAnswersSync />
       {shown === 'voice' && voice && <Voice onNavigate={setTab} />}
       {shown === 'calendar' && <Calendar />}
       {shown === 'toSchedule' && <ToSchedule />}

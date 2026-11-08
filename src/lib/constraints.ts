@@ -238,19 +238,28 @@ export function parseReply(text: string, weekStart: string): ParsedReply {
     // boundary: JS does not count Hebrew letters as word letters.
     const m = line.match(/^(?:יום\s+)?(ראשון|שני|שלישי|רביעי|חמישי|שישי|שבת)(?=[\s:\-–]|$)\s*(?:\d{1,2}\.\d{1,2}(?:\.\d{2,4})?)?\s*[:\-–]?\s*(.*)$/)
     if (!m) continue
-    const answer = m[2].trim()
-    if (NO_CONSTRAINT.test(answer)) continue
-    const date = addDays(start, HEBREW_DAYS.indexOf(m[1]))
-    const { cause: _, ...reading } = readAnswer(answer)
-    const weekly = WEEKLY.test(answer)
-    constraints.push(
-      weekly
-        ? { id: newId(), when: 'weekdays', weekdays: [weekday(date)], from: date, to: untilDate(answer, date), ...reading, note: answer, reply: start }
-        : { id: newId(), when: 'dates', from: date, to: date, ...reading, note: answer, reply: start },
-    )
+    const c = dayConstraint(m[2], addDays(start, HEBREW_DAYS.indexOf(m[1])), start)
+    if (c) constraints.push(c)
   }
   return { weekStart: fromHeader, constraints, notes: notes.filter((n) => n && !NO_CONSTRAINT.test(n)).join('\n') }
 }
+
+/**
+ * One day's answer as a constraint on that date (or that weekday every week, "כל שבוע"), for the
+ * part of the day its words mean; null for "אין אילוץ" or nothing. `week` is the Sunday it answers.
+ */
+export function dayConstraint(raw: string, date: string, week: string): Constraint | null {
+  const answer = raw.trim()
+  if (NO_CONSTRAINT.test(answer)) return null
+  const { cause: _, ...reading } = readAnswer(answer)
+  return WEEKLY.test(answer)
+    ? { id: newId(), when: 'weekdays', weekdays: [weekday(date)], from: date, to: untilDate(answer, date), ...reading, note: answer, reply: week }
+    : { id: newId(), when: 'dates', from: date, to: date, ...reading, note: answer, reply: week }
+}
+
+/** The web form's 7 answers (Sunday first) for the week starting `week`, as constraints. */
+export const answersToConstraints = (days: string[], week: string): Constraint[] =>
+  days.slice(0, 7).flatMap((d, i) => dayConstraint(d ?? '', addDays(week, i), week) ?? [])
 
 // "לימודים, קבוע כל שבוע עד 15.2": the same day every week, until the date when one is written.
 const WEEKLY = /כל שבוע|כל יום (?:ראשון|שני|שלישי|רביעי|חמישי|שישי|שבת)|קבוע|בקביעות|שבועי/

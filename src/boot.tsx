@@ -5,12 +5,15 @@ import './index.css'
 import App from './App.tsx'
 import { joinCodeOf } from './lib/join'
 import { JoinForm } from './pages/JoinForm'
+import { constraintCodeOf } from './lib/constraintForm'
+import { ConstraintForm } from './pages/ConstraintForm'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 })
 
 const joinCode = joinCodeOf(window.location.pathname)
+const constraintCode = constraintCodeOf(window.location.pathname)
 
 // Local testing with a fake Drive (see src/dev/mockDrive.ts). Dropped from the build.
 if (import.meta.env.DEV && localStorage.getItem('dev.mockDrive')) await import('./dev/mockDrive')
@@ -18,14 +21,14 @@ if (import.meta.env.DEV && localStorage.getItem('dev.mockDrive')) await import('
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      {/* A worker opening the details form from WhatsApp sees only the form, never the sign-in. */}
-      {joinCode ? <JoinForm code={joinCode} /> : <App />}
+      {/* A worker opening the details or constraints form from WhatsApp sees only the form, never the sign-in. */}
+      {joinCode ? <JoinForm code={joinCode} /> : constraintCode ? <ConstraintForm code={constraintCode} /> : <App />}
     </QueryClientProvider>
   </StrictMode>,
 )
 
 // Installable app (PWA). Only in the built app: in dev the worker would cache Vite's live modules.
-if (import.meta.env.PROD && !joinCode && 'serviceWorker' in navigator) {
+if (import.meta.env.PROD && !joinCode && !constraintCode && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {})
   })
