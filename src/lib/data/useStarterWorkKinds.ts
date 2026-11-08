@@ -30,14 +30,20 @@ export function useStarterWorkKinds() {
     })()
   }, [ready, roles, certs, kinds])
 
-  const repairable = loaded && !kinds.missing && !kinds.saving && !roles.saving
+  const repairable = loaded && !kinds.missing && !kinds.saving && !roles.saving && !certs.saving
   useEffect(() => {
     if (!repairable || repaired) return
     repaired = true
-    const next = repairKinds(kinds.items, roles.items)
+    const next = repairKinds(kinds.items, roles.items, certs.items)
     if (!next) return
-    kinds.save(next).catch(() => {
-      repaired = false // tried again the next time a screen with kinds opens
-    })
-  }, [repairable, kinds, roles])
+    void (async () => {
+      try {
+        // A new certification first, so a kind never points at a missing one.
+        if (next.certs.length) await certs.save([...certs.items, ...next.certs])
+        await kinds.save(next.kinds)
+      } catch {
+        repaired = false // tried again the next time a screen with kinds opens
+      }
+    })()
+  }, [repairable, kinds, roles, certs])
 }

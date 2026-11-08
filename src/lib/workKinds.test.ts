@@ -98,53 +98,64 @@ describe('autoAssign with work kinds', () => {
 })
 
 describe('starterKinds', () => {
-  it('adds the missing role and certification: טיפוס is מנהל טיפוס + 2 כללי', () => {
+  it('adds the missing role and certifications: טיפוס is מנהל טיפוס + 2 כללי with "טיפוס"', () => {
     const r = starterKinds([{ id: G, name: 'כללי' }], [])
     expect(r.roles.map((x) => x.name)).toEqual(['מנהל טיפוס'])
-    expect(r.certs.map((x) => x.name)).toEqual(['רתך'])
+    expect(r.certs.map((x) => x.name)).toEqual(['טיפוס', 'רתך'])
     expect(r.kinds.map((k) => [k.name, k.staffing.length])).toEqual([
       ['טיפוס', 3],
       ['ריתוך', 1],
     ])
     const mgr = r.roles[0].id
-    expect(r.kinds[0].staffing).toEqual([{ roleId: mgr }, { roleId: G }, { roleId: G }])
+    const climb = r.certs[0].id
+    expect(r.kinds[0].staffing).toEqual([{ roleId: mgr }, { roleId: G, certificationIds: [climb] }, { roleId: G, certificationIds: [climb] }])
   })
 
-  it('uses the existing roles and certification', () => {
-    const r = starterKinds([{ id: G, name: 'כללי' }, { id: 'm', name: 'מנהל טיפוס' }], [{ id: 'c', name: 'רתך' }])
+  it('uses the existing roles and certifications', () => {
+    const r = starterKinds([{ id: G, name: 'כללי' }, { id: 'm', name: 'מנהל טיפוס' }], [{ id: 'c', name: 'רתך' }, { id: 't', name: 'טיפוס' }])
     expect(r.roles).toEqual([])
     expect(r.certs).toEqual([])
-    expect(r.kinds[0].staffing).toEqual([{ roleId: 'm' }, { roleId: G }, { roleId: G }])
+    expect(r.kinds[0].staffing).toEqual([{ roleId: 'm' }, { roleId: G, certificationIds: ['t'] }, { roleId: G, certificationIds: ['t'] }])
     expect(r.kinds[1].staffing[0].certificationIds).toEqual(['c'])
   })
 })
 
 describe('repairKinds', () => {
   const roles = [{ id: 'x', name: 'מנהל במה' }, { id: G, name: 'כללי' }, { id: MGR, name: 'מנהל טיפוס' }, { id: CLIMB, name: 'מטפס' }]
+  const certs = [{ id: 'tc', name: 'טיפוס' }]
+  const want = [{ roleId: MGR }, { roleId: G, certificationIds: ['tc'] }, { roleId: G, certificationIds: ['tc'] }]
 
-  it('turns the first version of טיפוס into מנהל טיפוס + 2 כללי, once', () => {
-    const next = repairKinds([climbing, welding], roles)!
-    expect(next[0].staffing).toEqual([{ roleId: MGR }, { roleId: G }, { roleId: G }])
-    expect(next[1]).toBe(welding)
-    // Changed back by hand afterwards: kept.
-    const byHand = { ...next[0], staffing: climbing.staffing }
-    expect(repairKinds([byHand, welding], roles)).toBeNull()
+  it('turns the first version of טיפוס into מנהל טיפוס + 2 כללי with "טיפוס", once', () => {
+    const r = repairKinds([climbing, welding], roles, certs)!
+    expect(r.kinds[0].staffing).toEqual(want)
+    expect(r.kinds[1]).toBe(welding)
+    expect(r.certs).toEqual([])
+    // Changed by hand afterwards: kept.
+    const byHand = { ...r.kinds[0], staffing: climbing.staffing }
+    expect(repairKinds([byHand, welding], roles, certs)).toBeNull()
   })
 
-  it('also when the climber role has another name, and after the first repair already ran', () => {
-    const renamed = [{ id: 'x', name: 'מנהל במה' }, { id: G, name: 'כללי' }, { id: MGR, name: 'מנהל טיפוס' }]
+  it('also when the climber role has another name, and after an earlier repair', () => {
     const old: WorkKind = { id: 'k', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: 'x', altRoleIds: [MGR] }, { roleId: 'x', altRoleIds: [MGR] }], fixed: 1 }
-    expect(repairKinds([old], renamed)![0].staffing).toEqual([{ roleId: MGR }, { roleId: G }, { roleId: G }])
+    expect(repairKinds([old], roles, certs)!.kinds[0].staffing).toEqual(want)
+    const second: WorkKind = { id: 'k', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: G }, { roleId: G }], fixed: 2 }
+    expect(repairKinds([second], roles, certs)!.kinds[0].staffing).toEqual(want)
+  })
+
+  it('adds the certification "טיפוס" when there is none', () => {
+    const r = repairKinds([climbing], roles, [])!
+    expect(r.certs.map((c) => c.name)).toEqual(['טיפוס'])
+    expect(r.kinds[0].staffing[1].certificationIds).toEqual([r.certs[0].id])
   })
 
   it('a place whose role was deleted needs כללי, not the first role in the list', () => {
-    const kind: WorkKind = { id: 'k', name: 'הרכבה', staffing: [{ roleId: MGR }, { roleId: 'gone', altRoleIds: ['gone2', MGR] }], fixed: 2 }
-    const next = repairKinds([kind], roles)!
-    expect(next[0].staffing).toEqual([{ roleId: MGR }, { roleId: G, altRoleIds: [MGR] }])
+    const kind: WorkKind = { id: 'k', name: 'הרכבה', staffing: [{ roleId: MGR }, { roleId: 'gone', altRoleIds: ['gone2', MGR] }], fixed: 3 }
+    const r = repairKinds([kind], roles, certs)!
+    expect(r.kinds[0].staffing).toEqual([{ roleId: MGR }, { roleId: G, altRoleIds: [MGR] }])
   })
 
   it('leaves kinds that need nothing alone', () => {
-    const ok: WorkKind = { id: 'k', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: G }, { roleId: G }], fixed: 2 }
-    expect(repairKinds([ok, welding], roles)).toBeNull()
+    const ok: WorkKind = { id: 'k', name: 'טיפוס', staffing: want, fixed: 3 }
+    expect(repairKinds([ok, welding], roles, certs)).toBeNull()
   })
 })
