@@ -995,5 +995,8 @@
  "ניקוי היומן": "Clear the log",
  "אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.": "Constraints on dates are in the personal and monthly calendar below.",
  "עריכת המחלה": "Edit the sickness",
- "עריכת האילוץ: {v}": "Edit the constraint: {v}"
+ "עריכת האילוץ: {v}": "Edit the constraint: {v}",
+ "ככה נשמע הקול הזה": "This is how this voice sounds",
+ "קול הדיבור: {v}. לחיצה מחליפה לקול אחר": "Speaking voice: {v}. Tap to switch to another voice",
+ "קול: {v}": "Voice: {v}"
 }

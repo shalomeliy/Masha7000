@@ -1,5 +1,6 @@
 import { language, tx } from '../i18n'
 import { joinTranscripts } from './dictation'
+import { rankVoices, shortVoiceName, speakable } from './speakable'
 
 // Speech in and out in the app's language, for the voice assistant. In: the browser's speech recognition,
 // as in DictationField. Out: the browser's speech synthesis, free and on the phone itself.
@@ -72,10 +73,54 @@ export function listen(onText: (text: string) => void, onEnd: (text: string, err
   return { stop: () => r.stop() }
 }
 
-let voice: SpeechSynthesisVoice | null | undefined
-const hebrewVoice = () => {
-  if (voice === undefined || voice === null) voice = speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith(language().code)) ?? null
-  return voice
+// The voice: the one the manager picked on this phone (assistant screen), else the best-sounding one
+// the phone has for the app's language. Voices may load a moment after the page, so the list is read
+// each time rather than kept.
+const VOICE_KEY = 'assistant.voice'
+
+/** This phone's voices for the app's language, best-sounding first. */
+export function voices(): SpeechSynthesisVoice[] {
+  return canSpeak ? rankVoices(speechSynthesis.getVoices(), language().code) : []
+}
+
+function savedVoice(): string | null {
+  try {
+    return localStorage.getItem(VOICE_KEY)
+  } catch {
+    return null
+  }
+}
+
+let picked: SpeechSynthesisVoice | null = null
+
+export function currentVoice(): SpeechSynthesisVoice | null {
+  const list = voices()
+  const id = picked?.voiceURI ?? savedVoice()
+  return list.find((v) => v.voiceURI === id) ?? list[0] ?? null
+}
+
+/** The next voice in the list (after the last, back to the first), saved for next time. */
+export function nextVoice(): SpeechSynthesisVoice | null {
+  const list = voices()
+  if (!list.length) return null
+  const i = list.findIndex((v) => v.voiceURI === currentVoice()?.voiceURI)
+  const v = list[(i + 1) % list.length]
+  try {
+    localStorage.setItem(VOICE_KEY, v.voiceURI)
+  } catch {
+    // private mode: the voice holds until the page reloads
+  }
+  picked = v
+  return v
+}
+
+export const voiceName = (v: SpeechSynthesisVoice | null) => (v ? shortVoiceName(v) : '')
+
+/** Calls `fn` when the phone's voices finish loading or change; returns a function to stop. */
+export function onVoicesChanged(fn: () => void): () => void {
+  if (!canSpeak) return () => {}
+  speechSynthesis.addEventListener('voiceschanged', fn)
+  return () => speechSynthesis.removeEventListener('voiceschanged', fn)
 }
 
 // How fast replies are read, chosen on the assistant screen and kept on this phone.
@@ -118,11 +163,14 @@ export function speak(text: string, onDone?: () => void) {
     return
   }
   speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(text)
+  const u = new SpeechSynthesisUtterance(speakable(text, language().speech))
   u.lang = language().speech
   u.rate = current ?? (current = speechRate())
-  const v = hebrewVoice()
-  if (v) u.voice = v
+  const v = currentVoice()
+  if (v) {
+    u.voice = v
+    u.lang = v.lang
+  }
   u.onend = () => onDone?.()
   u.onerror = () => onDone?.()
   speechSynthesis.speak(u)

@@ -995,5 +995,8 @@
  "ניקוי היומן": "Kosongkan log",
  "אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.": "Batasan pada tanggal tertentu ada di kalender pribadi dan bulanan di bawah.",
  "עריכת המחלה": "Ubah sakit",
- "עריכת האילוץ: {v}": "Ubah batasan: {v}"
+ "עריכת האילוץ: {v}": "Ubah batasan: {v}",
+ "ככה נשמע הקול הזה": "Beginilah suara ini terdengar",
+ "קול הדיבור: {v}. לחיצה מחליפה לקול אחר": "Suara bicara: {v}. Ketuk untuk beralih ke suara lain",
+ "קול: {v}": "Suara: {v}"
 }

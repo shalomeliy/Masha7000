@@ -1,6 +1,6 @@
 import { language, tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
+import { AlertTriangle, AudioLines, BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
 import { applyProposal, isYes, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalErrors, snapshot, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
@@ -12,7 +12,7 @@ import { claudePart, continueJob, continueWho, countTurn, exampleAction, handleF
 import { saveEntry, type ClaudeLogEntry, type LogOutcome } from '../lib/claudeLog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
-import { canListen, canSpeak, listen, nextRate, rateName, speak, speechRate, stopSpeaking, type Listening } from '../lib/speech'
+import { canListen, canSpeak, currentVoice, listen, nextRate, nextVoice, onVoicesChanged, rateName, speak, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -64,6 +64,13 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [typing, setTyping] = useState(!canListen)
   const [typed, setTyped] = useState('')
   const [rate, setRate] = useState(speechRate)
+  // The phone's voices for the app's language; they may load a moment after the screen opens.
+  const [voiceList, setVoiceList] = useState(voices)
+  const [voice, setVoice] = useState(currentVoice)
+  useEffect(() => onVoicesChanged(() => {
+    setVoiceList(voices())
+    setVoice(currentVoice())
+  }), [])
   const [realDev, setRealDev] = useState(realAssistantOn)
   const [used, setUsed] = useState(usage)
   const [budget, setBudget] = useState<Budget | null>(null)
@@ -643,6 +650,21 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
             >
               <Gauge size={18} aria-hidden />
               {tx('קצב: {v}', { v: rateName(rate) })}
+            </button>
+          )}
+          {canSpeak && voiceList.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                const v = nextVoice()
+                setVoice(v)
+                speak(tx('ככה נשמע הקול הזה'))
+              }}
+              aria-label={tx('קול הדיבור: {v}. לחיצה מחליפה לקול אחר', { v: voiceName(voice) })}
+              className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200"
+            >
+              <AudioLines size={18} aria-hidden />
+              {tx('קול: {v}', { v: voiceName(voice) })}
             </button>
           )}
           {canListen && (

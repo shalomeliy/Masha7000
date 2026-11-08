@@ -995,5 +995,8 @@
  "ניקוי היומן": "Vaciar el registro",
  "אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.": "Las restricciones en fechas están en el calendario personal y mensual de abajo.",
  "עריכת המחלה": "Editar la baja por enfermedad",
- "עריכת האילוץ: {v}": "Editar la restricción: {v}"
+ "עריכת האילוץ: {v}": "Editar la restricción: {v}",
+ "ככה נשמע הקול הזה": "Así suena esta voz",
+ "קול הדיבור: {v}. לחיצה מחליפה לקול אחר": "Voz: {v}. Toca para cambiar a otra voz",
+ "קול: {v}": "Voz: {v}"
 }

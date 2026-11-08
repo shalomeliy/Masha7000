@@ -995,5 +995,8 @@
  "ניקוי היומן": "Vider le journal",
  "אילוצים בתאריכים מופיעים בלוח האישי ובלוח החודשי שלמטה.": "Les contraintes à des dates précises sont dans le calendrier personnel et mensuel ci-dessous.",
  "עריכת המחלה": "Modifier l’arrêt maladie",
- "עריכת האילוץ: {v}": "Modifier la contrainte : {v}"
+ "עריכת האילוץ: {v}": "Modifier la contrainte : {v}",
+ "ככה נשמע הקול הזה": "Voici comment sonne cette voix",
+ "קול הדיבור: {v}. לחיצה מחליפה לקול אחר": "Voix : {v}. Appuyez pour passer à une autre voix",
+ "קול: {v}": "Voix : {v}"
 }
