@@ -106,7 +106,7 @@ export function crewSwaps(before: ShiftRecord['crew'], after: ShiftRecord['crew'
   before.forEach((b, i) => {
     const a = after[i]
     if (a && a.workerId !== b.workerId && !before.some((x) => x.workerId === a.workerId) && !after.some((x) => x.workerId === b.workerId)) {
-      out.push({ at, outId: b.workerId, inId: a.workerId, roleId: a.roleId })
+      out.push({ at, outId: b.workerId, inId: a.workerId })
     }
   })
   return out

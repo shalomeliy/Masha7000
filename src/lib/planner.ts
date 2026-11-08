@@ -1,14 +1,15 @@
 import { tx } from '../i18n'
-import { fullName, isActive, slotCerts, workerHasRole } from './catalog'
+import { fullName, isActive, slotCerts, slotStars } from './catalog'
 import { blockingConstraint, constraintText } from './constraints'
 import { addDays, dayName, isNightShift, showDate, weekOf, weekShiftCount } from './shifts'
 import { canShare } from './workKinds'
 import type { Constraint, CrewMember, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
 // Automatic crew for one shift ("שבץ"). Pure and deterministic: the same data always gives the
-// same crew. Hard rules: one worker per place, a worker fills a place only with its role and
-// certification (places of two different work kinds may share one worker), a worker a constraint blocks or who is already in another shift at the same time is never picked. Soft rules, in
+// same crew. Hard rules: one worker per place, a worker fills a place only with its
+// certifications (places of two different work kinds may share one worker), a worker a constraint blocks or who is already in another shift at the same time is never picked. Soft rules, in
 // this order: under the weekly night limit, fewest shifts this week, fewest nights this week, fewest shifts lately, name.
+// Among the workers who fit a place that asks for certifications, more of the manager's stars in them come first.
 
 /** Night jobs per worker per week (Sunday to Saturday). Beyond it the worker may still be placed, with a warning. */
 export const NIGHT_LIMIT = 2
@@ -17,7 +18,6 @@ export interface PlanContext {
   workers: Worker[]
   records: ShiftRecord[] // every saved shift; the planned shift itself is skipped by id
   defs: ShiftDefinition[]
-  generalId: string
 }
 
 export interface Plan {
@@ -35,19 +35,10 @@ export interface WorkerLoad {
   blocked: Constraint | null // a constraint keeps the worker out of this shift
 }
 
-export const fitsSlot = (w: Worker, slot: StaffSlot, generalId: string) =>
-  (workerHasRole(w, slot.roleId, generalId) || !!slot.altRoleIds?.some((id) => w.roleIds.includes(id))) &&
-  (slot.alsoRoleIds ?? []).every((id) => workerHasRole(w, id, generalId)) &&
-  slotCerts(slot).every((id) => w.certificationIds.includes(id))
+export const fitsSlot = (w: Worker, slot: StaffSlot) => slotCerts(slot).every((id) => w.certificationIds.includes(id))
 
 /** Why a place stays empty when no worker at all holds everything it needs, with what to do about it. */
 export const NO_WORKER = tx('אין עובד שמחזיק את כל הדרישות של המקום הזה. כדאי להוסיף עובד כזה, או לסמן לעובד קיים את מה שחסר לו בלשונית "עובדים".')
-
-/** The role a worker fills a place in: the place's own role when they hold it, else the other role they hold. */
-export const roleInSlot = (w: Worker, slot: StaffSlot, generalId: string) =>
-  workerHasRole(w, slot.roleId, generalId) ? slot.roleId : (slot.altRoleIds?.find((id) => w.roleIds.includes(id)) ?? slot.roleId)
-
-const slotRoles = (slot: StaffSlot) => [slot.roleId, ...(slot.altRoleIds ?? [])]
 
 /** The days a shift runs on: a night job runs into the next afternoon, an urgent one until its end date. */
 function span(r: ShiftRecord, defs: ShiftDefinition[]): [string, string] {
@@ -83,7 +74,7 @@ export function pullFrom(
     const pulled = r.crew.filter((c) => workerIds.includes(c.workerId) && busyWith(c.workerId, shift, [r], defs))
     if (!pulled.length) return r
     const crew = r.crew.flatMap((c) => (!pulled.includes(c) ? [c] : fillIns[c.workerId] ? [{ ...c, workerId: fillIns[c.workerId] }] : []))
-    const swaps = pulled.flatMap((c) => (fillIns[c.workerId] ? [{ at, outId: c.workerId, inId: fillIns[c.workerId], roleId: c.roleId }] : []))
+    const swaps = pulled.flatMap((c) => (fillIns[c.workerId] ? [{ at, outId: c.workerId, inId: fillIns[c.workerId] }] : []))
     return { ...r, crew, ...(swaps.length ? { swaps: [...(r.swaps ?? []), ...swaps] } : {}) }
   })
 }
@@ -148,8 +139,8 @@ export function candidateOrder(shift: ShiftRecord, ctx: PlanContext): { worker: 
 }
 
 /**
- * Fills the shift's places. Workers already in the crew stay (in a place of their role when they
- * fit one); the empty places get the fairest fitting workers. Uses augmenting paths, so a place
+ * Fills the shift's places. Workers already in the crew stay (in a place they fit when there is
+ * one); the empty places get the fitting workers with the most stars, fairest first among equals. Uses augmenting paths, so a place
  * only one worker can fill is never left empty because that worker was used elsewhere.
  * A place of one work kind is filled by a worker already in a place of another kind when one fits
  * (a climber who welds takes the "ריתוך" place too), and among new workers the one who can also
@@ -168,7 +159,7 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
   // Every place a worker fills: their own and the ones of other kinds they also cover.
   const coversOf = (id: string) => [...(slotOf.has(id) ? [slotOf.get(id)!] : []), ...sharedAt.flatMap((x, t) => (x === id ? [t] : []))]
   const canTake = (s: number, id: string, skip = -1) =>
-    fitsSlot(byId.get(id)!, staffing[s], ctx.generalId) && coversOf(id).every((t) => t === skip || canShare(staffing[t], staffing[s]))
+    fitsSlot(byId.get(id)!, staffing[s]) && coversOf(id).every((t) => t === skip || canShare(staffing[t], staffing[s]))
 
   const put = (s: number, w: Worker) => {
     workerAt[s] = w.id
@@ -198,26 +189,22 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
   }
 
   const slots = staffing.map((_, i) => i)
-  // The manager's own picks first: in a place of the role they were given, then in any place they fit.
-  const lockedFor = (sameRole: boolean) => (s: number) =>
-    locked
-      .filter((c) => (!sameRole || slotRoles(staffing[s]).includes(c.roleId)) && fitsSlot(byId.get(c.workerId)!, staffing[s], ctx.generalId))
-      .map((c) => byId.get(c.workerId)!)
-  const lockedPass = (sameRole: boolean) => {
-    for (const s of slots) if (!filled(s)) place(s, lockedFor(sameRole), new Set())
-  }
-  lockedPass(true)
-  lockedPass(false)
+  // The manager's own picks first, each in a place they fit: the places that ask for more first,
+  // so a certified pick is not used up on a place anyone could fill.
+  const lockedFor = (s: number) => locked.filter((c) => fitsSlot(byId.get(c.workerId)!, staffing[s])).map((c) => byId.get(c.workerId)!)
+  for (const s of [...slots].sort((a, b) => slotCerts(staffing[b]).length - slotCerts(staffing[a]).length || a - b))
+    if (!filled(s)) place(s, lockedFor, new Set())
   // Then the rest, hardest places first (fewest fitting workers), so the fairest picks go where they matter least.
-  const fitting = staffing.map((slot) => ordered.filter((w) => fitsSlot(w, slot, ctx.generalId)))
+  const fitting = staffing.map((slot) => ordered.filter((w) => fitsSlot(w, slot)))
   const lockedIds = new Set(locked.map((c) => c.workerId))
   // How many other kinds, still unfilled, this worker could also cover from place `s`.
   const extraKinds = (w: Worker, s: number) =>
-    new Set(slots.filter((t) => t !== s && !filled(t) && canShare(staffing[s], staffing[t]) && fitsSlot(w, staffing[t], ctx.generalId)).map((t) => staffing[t].kindId)).size
+    new Set(slots.filter((t) => t !== s && !filled(t) && canShare(staffing[s], staffing[t]) && fitsSlot(w, staffing[t])).map((t) => staffing[t].kindId)).size
   const pool = (s: number) => {
     const fit = fitting[s].filter((w) => !lockedIds.has(w.id) || slotOf.has(w.id))
     const extra = new Map(fit.map((w) => [w.id, extraKinds(w, s)]))
-    return [...fit].sort((a, b) => extra.get(b.id)! - extra.get(a.id)!)
+    const stars = new Map(fit.map((w) => [w.id, slotStars(w, staffing[s])]))
+    return [...fit].sort((a, b) => extra.get(b.id)! - extra.get(a.id)! || stars.get(b.id)! - stars.get(a.id)!)
   }
   const order = [...slots].sort((a, b) => fitting[a].length - fitting[b].length || a - b)
   fill(order, pool)
@@ -229,9 +216,9 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
   fill(order, pool)
 
   const crew: CrewMember[] = []
-  staffing.forEach((slot, s) => {
+  staffing.forEach((_, s) => {
     const id = workerAt[s]
-    if (id) crew.push({ workerId: id, roleId: roleInSlot(byId.get(id)!, slot, ctx.generalId) })
+    if (id) crew.push({ workerId: id })
   })
   // A pick of the manager's that fits no place stays as it was.
   for (const c of locked) if (!slotOf.has(c.workerId)) crew.push(c)
@@ -241,7 +228,7 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
     crew,
     unfilled: empty,
     why: empty.map((slot) => {
-      const fit = candidates.filter((c) => fitsSlot(c.worker, slot, ctx.generalId) && !placed.has(c.worker.id))
+      const fit = candidates.filter((c) => fitsSlot(c.worker, slot) && !placed.has(c.worker.id))
       const blocked = fit.filter((c) => c.load.blocked)
       const busy = fit.filter((c) => !c.load.blocked && c.load.busy)
       if (blocked.length || busy.length)
@@ -251,7 +238,7 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
         ]
           .filter(Boolean)
           .join(' · ')
-      return fit.length || candidates.some((c) => fitsSlot(c.worker, slot, ctx.generalId))
+      return fit.length || candidates.some((c) => fitsSlot(c.worker, slot))
         ? tx('כל המתאימים כבר בעבודה הזו')
         : NO_WORKER
     }),

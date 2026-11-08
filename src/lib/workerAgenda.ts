@@ -4,11 +4,11 @@
 
 import { constraintText, isOver, onDay, shiftDays, sickConstraint } from './constraints'
 import { addDays } from './shifts'
-import type { Constraint, Role, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
+import type { Constraint, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 import { oneLine } from './taskList'
 
 export type AgendaItem =
-  | { type: 'job'; key: string; date: string; endDate: string; shift: ShiftRecord; roleId: string }
+  | { type: 'job'; key: string; date: string; endDate: string; shift: ShiftRecord }
   | { type: 'away'; key: string; date: string; endDate: string; constraint: Constraint; sick?: true }
 
 /** The user's rule: the card shows only the next 3 days, today included. */
@@ -28,7 +28,7 @@ export function workerAgenda(
     if (!member) continue
     const endDate = shiftDays(s, defs).at(-1)!
     if (endDate < today) continue
-    dated.push({ type: 'job', key: `job-${s.id}`, date: s.date, endDate, shift: s, roleId: member.roleId })
+    dated.push({ type: 'job', key: `job-${s.id}`, date: s.date, endDate, shift: s })
   }
   const sick = sickConstraint(w)
   if (sick && sick.to! >= today) dated.push({ type: 'away', key: 'sick', date: today, endDate: sick.to!, constraint: sick, sick: true })
@@ -57,17 +57,16 @@ export function agendaDays(items: AgendaItem[], today: string, days = AGENDA_DAY
 }
 
 /** What the item says: an absence in words, or the job's place and work. */
-export function agendaText(item: AgendaItem, roles: Role[]): { title: string; detail: string } {
+export function agendaText(item: AgendaItem): { title: string; detail: string } {
   if (item.type === 'away') return { title: constraintText(item.constraint), detail: '' }
   const s = item.shift
-  const role = roles.find((r) => r.id === item.roleId)?.name ?? ''
-  return { title: [s.location, oneLine(s.jobDescription)].filter(Boolean).join(' · '), detail: role }
+  return { title: [s.location, oneLine(s.jobDescription)].filter(Boolean).join(' · '), detail: '' }
 }
 
 // ---- The worker's month: everything on each day, past days too ----
 
 export type DayEntry =
-  | { type: 'job'; key: string; shift: ShiftRecord; roleId: string; endDate: string }
+  | { type: 'job'; key: string; shift: ShiftRecord; endDate: string }
   | { type: 'away'; key: string; constraint: Constraint; sick: boolean }
 
 /** Every day of `month` (YYYY-MM) with what the worker has on it: jobs (a night job on both its
@@ -94,7 +93,7 @@ export function workerMonth(
     const member = s.crew.find((c) => c.workerId === w.id)
     if (!member) continue
     const run = shiftDays(s, defs)
-    for (const day of run) if (day.startsWith(month)) put(day, { type: 'job', key: `job-${s.id}`, shift: s, roleId: member.roleId, endDate: run.at(-1)! })
+    for (const day of run) if (day.startsWith(month)) put(day, { type: 'job', key: `job-${s.id}`, shift: s, endDate: run.at(-1)! })
   }
   // On each day: sickness and absences first, then jobs.
   for (const list of out.values()) list.sort((a, b) => (a.type === b.type ? 0 : a.type === 'away' ? -1 : 1))

@@ -4,21 +4,15 @@ import { fillInsFor, fitsAsIs, moveAdvice, swapOn, swapRecords, troubledCrew } f
 import { pullFrom } from './planner'
 import type { Constraint, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
-const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
+const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredCertificationIds: [] }
 const night: ShiftDefinition = { ...day, id: 'night', name: 'לילה', endsNextDay: true }
-const G = 'general'
-const roles = [
-  { id: G, name: 'כללי' },
-  { id: 'climber', name: 'טפסן' },
-]
-const certifications = [{ id: 'h40', name: "אנטנה עד 40מ'" }]
+const certifications = [{ id: 'h40', name: "אנטנה עד 40מ'" }, { id: 'climber', name: 'טפסן' }]
 
 const worker = (id: string, roleIds: string[] = [], certificationIds: string[] = [], constraints: Constraint[] = []): Worker => ({
   id,
   firstName: id,
   lastName: '',
-  roleIds,
-  certificationIds,
+  certificationIds: [...roleIds, ...certificationIds],
   constraints,
 })
 const off = (from: string, to = from): Constraint => ({ id: `${from}-${to}`, when: 'dates', from, to })
@@ -32,9 +26,9 @@ const shift = (id: string, date: string, over: Partial<ShiftRecord> = {}): Shift
   staffing: [],
   ...over,
 })
-const ctx = (workers: Worker[], records: ShiftRecord[]): GapContext => ({ workers, records, defs: [day, night], roles, certifications, generalId: G })
-const climbers = (n: number): StaffSlot[] => Array.from({ length: n }, () => ({ roleId: 'climber' }))
-const crew = (...ids: string[]) => ids.map((workerId) => ({ workerId, roleId: 'climber' }))
+const ctx = (workers: Worker[], records: ShiftRecord[]): GapContext => ({ workers, records, defs: [day, night], certifications })
+const climbers = (n: number): StaffSlot[] => Array.from({ length: n }, () => ({ certificationIds: ['climber'] }))
+const crew = (...ids: string[]) => ids.map((workerId) => ({ workerId }))
 
 // 2026-10-25 is a Sunday.
 describe('troubledCrew and fitsAsIs', () => {
@@ -56,20 +50,20 @@ describe('troubledCrew and fitsAsIs', () => {
   })
 
   it('a place left empty for want of a certification never fits as is', () => {
-    const s = shift('s', '2026-10-27', { staffing: [{ roleId: 'climber', certificationId: 'h40' }], crew: crew('a') })
+    const s = shift('s', '2026-10-27', { staffing: [{ certificationIds: ['climber', 'h40'] }], crew: crew('a') })
     expect(fitsAsIs(s, '2026-10-28', ctx([worker('a', ['climber'])], [s]))).toBe(false)
   })
 })
 
 describe('swapOn', () => {
   it('swaps a blocked member for a free one of the same role and certification', () => {
-    const staffing: StaffSlot[] = [{ roleId: 'climber', certificationId: 'h40' }, { roleId: 'climber' }]
+    const staffing: StaffSlot[] = [{ certificationIds: ['climber', 'h40'] }, { certificationIds: ['climber'] }]
     const s = shift('s', '2026-10-27', { staffing, crew: crew('a', 'b') })
     const ws = [worker('a', ['climber'], ['h40'], [off('2026-10-27')]), worker('b', ['climber']), worker('c', ['climber']), worker('d', ['climber'], ['h40'])]
     const advice = swapOn(s, '2026-10-27', ctx(ws, [s]))!
     expect(advice.swaps.map((x) => [x.out?.id, x.in.id])).toEqual([['a', 'd']])
     expect(advice.shift.crew.map((c) => c.workerId).sort()).toEqual(['b', 'd'])
-    expect(swapRecords(advice.swaps, 'T')).toEqual([{ at: 'T', outId: 'a', inId: 'd', roleId: 'climber' }])
+    expect(swapRecords(advice.swaps, 'T')).toEqual([{ at: 'T', outId: 'a', inId: 'd' }])
   })
 
   it('fills an empty place too, with no one swapped out', () => {
@@ -161,12 +155,12 @@ describe('pullFrom', () => {
 
 describe('filling the place a pulled worker leaves', () => {
   const s = shift('s', '2026-10-27', { staffing: climbers(1), crew: crew('b') })
-  const other = shift('o', '2026-10-27', { staffing: [{ roleId: 'climber', certificationId: 'h40' }], crew: crew('b') })
+  const other = shift('o', '2026-10-27', { staffing: [{ certificationIds: ['climber', 'h40'] }], crew: crew('b') })
 
   it('pullFrom puts the fill-in in the pulled worker\'s place and keeps it in the history', () => {
     const out = pullFrom(s, ['b'], [s, other], [day, night], { b: 'c' }, 'T')
-    expect(out[1].crew).toEqual([{ workerId: 'c', roleId: 'climber' }])
-    expect(out[1].swaps).toEqual([{ at: 'T', outId: 'b', inId: 'c', roleId: 'climber' }])
+    expect(out[1].crew).toEqual([{ workerId: 'c' }])
+    expect(out[1].swaps).toEqual([{ at: 'T', outId: 'b', inId: 'c' }])
   })
 
   it('fillInsFor offers free workers with the place\'s role and certification only', () => {

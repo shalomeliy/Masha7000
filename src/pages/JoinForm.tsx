@@ -10,7 +10,7 @@ import { markSent, readForm, submitForm, wasSent, type FormLists, type JoinDetai
 // The page a worker opens from the WhatsApp link. No sign-in: it only sends the answer to the
 // manager, who reviews it before it reaches the workers list. Nothing else of the app is reachable here.
 
-const blank = (): JoinDetails => ({ firstName: '', lastName: '', mobilePhone: '', roleIds: [], certificationIds: [] })
+const blank = (): JoinDetails => ({ firstName: '', lastName: '', mobilePhone: '', certificationIds: [] })
 
 type TextKey = 'firstName' | 'lastName' | 'mobilePhone' | 'idNumber' | 'personalNumber' | 'address' | 'homePhone' | 'emergencyPhone1' | 'emergencyPhone2' | 'notes'
 
@@ -153,12 +153,6 @@ export function JoinForm({ code }: { code: string }) {
             selected={draft.departmentId ? [draft.departmentId] : []}
             onToggle={(id) => setDraft((d) => ({ ...d, departmentId: d.departmentId === id ? undefined : id }))}
           />
-        </div>
-      )}
-      {lists.roles.length > 0 && (
-        <div className="space-y-1">
-          <span className="text-sm text-slate-300">{tx('תפקידים שלך (אפשר כמה)')}</span>
-          <Chips options={lists.roles} selected={draft.roleIds} onToggle={(id) => setDraft((d) => ({ ...d, roleIds: toggle(d.roleIds, id) }))} />
         </div>
       )}
       {lists.certifications.length > 0 && (

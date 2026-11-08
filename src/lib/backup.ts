@@ -17,7 +17,6 @@ export const MAX_BACKUP_BYTES = 20 * 1024 * 1024
 
 /** Every list, in restore order. settings.json (calendar id) belongs to the account, not the data. */
 export const BACKUP_LISTS = [
-  'roles',
   'certifications',
   'shiftDefinitions',
   'postponeReasons',
@@ -36,7 +35,6 @@ export const BACKUP_LISTS = [
 export type BackupList = (typeof BACKUP_LISTS)[number]
 
 export const LIST_TITLES: Record<BackupList, string> = {
-  roles: tx('תפקידים'),
   certifications: tx('הסמכות'),
   shiftDefinitions: tx('תבניות עבודה'),
   postponeReasons: tx('סיבות דחייה'),

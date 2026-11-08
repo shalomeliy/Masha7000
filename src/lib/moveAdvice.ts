@@ -25,18 +25,17 @@ export function troubledCrew(shift: ShiftRecord, ctx: GapContext): string[] {
     .map((c) => c.workerId)
 }
 
-const staffingOf = (shift: ShiftRecord, ctx: GapContext) => staffingFor(shift.staffing, ctx.roles, ctx.certifications.map((c) => c.id))
+const staffingOf = (shift: ShiftRecord, ctx: GapContext) => staffingFor(shift.staffing, ctx.certifications.map((c) => c.id))
 
 /** The shift on `date` keeps its crew and has every place filled. */
 export function fitsAsIs(shift: ShiftRecord, date: string, ctx: GapContext): boolean {
   const moved = moveShift(shift, date)
-  return !troubledCrew(moved, ctx).length && !emptyPlaces(moved, staffingOf(shift, ctx), ctx.workers, ctx.generalId).length
+  return !troubledCrew(moved, ctx).length && !emptyPlaces(moved, staffingOf(shift, ctx), ctx.workers).length
 }
 
 export interface Swap {
   out?: Worker // absent: an empty place gets a worker
   in: Worker
-  roleId: string
   from?: ShiftRecord // the other job `in` is taken out of, when they were busy there
 }
 
@@ -60,7 +59,7 @@ export function swapOn(shift: ShiftRecord, date: string, ctx: GapContext, pull =
   const troubled = troubledCrew(moved, ctx)
   // A worker who must be in the job is never swapped out: no advice then.
   if (troubled.some((id) => shift.pinnedIds?.includes(id))) return null
-  if (!troubled.length && !emptyPlaces(moved, staffing, ctx.workers, ctx.generalId).length) return null
+  if (!troubled.length && !emptyPlaces(moved, staffing, ctx.workers).length) return null
   const kept = moved.crew.filter((c) => !troubled.includes(c.workerId))
   // Pulling: the other open jobs at the same time are planned around as if empty.
   const records = pull
@@ -71,18 +70,22 @@ export function swapOn(shift: ShiftRecord, date: string, ctx: GapContext, pull =
   const added = plan.crew.filter((c) => !keptIds.has(c.workerId))
   if (plan.unfilled.length || !added.length || added.length > MAX_SWAPS) return null
   const byId = (id: string) => ctx.workers.find((w) => w.id === id)
-  // Each new worker takes the place of a troubled one of the same role when there is one.
+  // Each new worker takes the place of a troubled one whose place they fit when there is one.
   const out = moved.crew.filter((c) => troubled.includes(c.workerId))
-  const take = (roleId: string) => {
-    const i = out.findIndex((c) => c.roleId === roleId)
+  const placeOf = crewPlaces(moved, staffing, ctx.workers)
+  const take = (w: Worker | undefined) => {
+    const i = out.findIndex((c) => {
+      const at = placeOf.get(c.workerId)
+      return !!w && at !== undefined && fitsSlot(w, staffing[at])
+    })
     return i >= 0 ? out.splice(i, 1)[0] : undefined
   }
-  const sameRole = added.map((c) => take(c.roleId))
+  const sameRole = added.map((c) => take(byId(c.workerId)))
   // Then any troubled one left; a new worker with none fills an empty place.
   const swaps: Swap[] = added.map((c, i) => {
     const o = sameRole[i] ?? out.shift()
     const from = pull ? busyWith(c.workerId, moved, ctx.records, ctx.defs) : undefined
-    return { in: byId(c.workerId)!, roleId: c.roleId, out: o && byId(o.workerId), ...(from ? { from } : {}) }
+    return { in: byId(c.workerId)!, out: o && byId(o.workerId), ...(from ? { from } : {}) }
   })
   const next = { ...moved, crew: plan.crew }
   return {
@@ -125,19 +128,19 @@ const pulling = (a: SwapAdvice | null) => (a?.swaps.some((s) => s.from) ? a : un
 
 /**
  * Who can take `workerId`'s place in `other` once they are pulled out of it, fairest first: active,
- * free at that time, not blocked, with the place's role and certification. `exclude` are workers
+ * free at that time, not blocked, with the place's certifications. `exclude` are workers
  * already spoken for (the crew of the job they move into).
  */
 export function fillInsFor(other: ShiftRecord, workerId: string, ctx: GapContext, exclude: string[]): Worker[] {
   const staffing = staffingOf(other, ctx)
-  const at = crewPlaces(other, staffing, ctx.workers, ctx.generalId).get(workerId)
-  const place = at !== undefined ? staffing[at] : { roleId: other.crew.find((c) => c.workerId === workerId)?.roleId ?? ctx.generalId }
+  const at = crewPlaces(other, staffing, ctx.workers).get(workerId)
+  const place = at !== undefined ? staffing[at] : {}
   const taken = new Set([...exclude, ...other.crew.map((c) => c.workerId)])
   return candidateOrder(other, ctx)
-    .filter((c) => !taken.has(c.worker.id) && !c.load.blocked && !c.load.busy && fitsSlot(c.worker, place, ctx.generalId))
+    .filter((c) => !taken.has(c.worker.id) && !c.load.blocked && !c.load.busy && fitsSlot(c.worker, place))
     .map((c) => c.worker)
 }
 
 /** The swaps as saved in the shift's history, for the archive. Filling an empty place is not a swap. */
 export const swapRecords = (swaps: Swap[], at: string): CrewSwap[] =>
-  swaps.flatMap((s) => (s.out ? [{ at, outId: s.out.id, inId: s.in.id, roleId: s.roleId }] : []))
+  swaps.flatMap((s) => (s.out ? [{ at, outId: s.out.id, inId: s.in.id }] : []))

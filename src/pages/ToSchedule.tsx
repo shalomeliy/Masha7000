@@ -5,10 +5,10 @@ import { DictationField } from '../components/DictationField'
 import { DriveError } from '../components/DriveError'
 import { Field, inputClass, Sheet, SheetActions } from '../components/Sheet'
 import { Suggestions } from '../components/Suggestions'
-import { defaultShiftDef, generalRoleId, nameError, newId, staffingFor, staffingText, tagNames, upsert } from '../lib/catalog'
+import { defaultShiftDef, nameError, newId, staffingFor, staffingText, tagNames, upsert } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
-import { fullNames, ownRole } from '../lib/pinnedDates'
+import { fullNames } from '../lib/pinnedDates'
 import type { GapContext } from '../lib/gaps'
 import { PinnedField } from './calendar/PinnedField'
 import { blankShift, dayName, isWaiting, showDate, STARTER_POSTPONE_REASONS, taskHistory } from '../lib/shifts'
@@ -35,7 +35,6 @@ export function ToSchedule() {
     useDriveList('shifts'),
     useDriveList('shiftDefinitions'),
     useDriveList('workers'),
-    useDriveList('roles'),
     useDriveList('certifications'),
   ]
   const loading = lists.some((l) => l.query.isPending)
@@ -85,7 +84,6 @@ function JobsSection() {
   const workers = useDriveList('workers')
   const reasons = useDriveList('postponeReasons')
   const shifts = useDriveList('shifts')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const defs = useDriveList('shiftDefinitions')
   // Newest first: the job added last is on top.
@@ -131,7 +129,7 @@ function JobsSection() {
                       </span>
                     )}
                     <span className="block text-sm text-slate-400">
-                      {tx('צריך {v}', { v: staffingText(staffingFor(j.staffing, roles.items, certs.items.map((c) => c.id)), roles.items, certs.items) })}</span>
+                      {tx('צריך {v}', { v: staffingText(staffingFor(j.staffing, certs.items.map((c) => c.id)), certs.items) })}</span>
                   </button>
                   <TaskHistory job={j} />
                   <JobCardActions job={j} onSchedule={() => setScheduling(blankShift(todayIso(), j))} />
@@ -240,14 +238,13 @@ function JobForm({ job, onDone, onSchedule }: { job: PendingJob; onDone: () => v
   const jobs = useDriveList('pendingJobs')
   const workers = useDriveList('workers')
   const shifts = useDriveList('shifts')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const defs = useDriveList('shiftDefinitions')
   // A new job starts as "יום", like a new shift in the calendar.
   const [draft, setDraft] = useState(() => ({
     ...job,
     shiftDefinitionId: job.shiftDefinitionId ?? defaultShiftDef(defs.items)?.id,
-    staffing: staffingFor(job.staffing, roles.items, certs.items.map((c) => c.id)),
+    staffing: staffingFor(job.staffing, certs.items.map((c) => c.id)),
   }))
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
@@ -279,14 +276,10 @@ function JobForm({ job, onDone, onSchedule }: { job: PendingJob; onDone: () => v
   }
 
   // Workers the job must have, and the nearest days they are all free: picking one saves the job and opens it as a shift on that day.
-  const general = generalRoleId(roles.items)
-  const ctx: GapContext = { workers: workers.items, records: shifts.items, defs: defs.items, roles: roles.items, certifications: certs.items, generalId: general }
+  const ctx: GapContext = { workers: workers.items, records: shifts.items, defs: defs.items, certifications: certs.items }
   const pinnedShift: ShiftRecord = {
     ...blankShift(todayIso(), draft),
-    crew: (draft.pinnedIds ?? []).flatMap((workerId) => {
-      const w = workers.items.find((x) => x.id === workerId)
-      return w ? [{ workerId, roleId: ownRole(w, roles.items, general) }] : []
-    }),
+    crew: (draft.pinnedIds ?? []).filter((workerId) => workers.items.some((x) => x.id === workerId)).map((workerId) => ({ workerId })),
   }
   const scheduleOn = async (shift: ShiftRecord) => {
     const clean = cleaned()
@@ -313,7 +306,7 @@ function JobForm({ job, onDone, onSchedule }: { job: PendingJob; onDone: () => v
       <Suggestions list="places" value={draft.location} onPick={(location) => setDraft((d) => ({ ...d, location }))} />
       <DictationField label={tx('מהות העבודה')} value={draft.jobDescription} tasks onChange={(v) => setDraft((d) => ({ ...d, jobDescription: v }))} />
       <Suggestions list="jobTypes" value={draft.jobDescription} onPick={(jobDescription) => setDraft((d) => ({ ...d, jobDescription }))} />
-      <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind, generalRoleId(roles.items)) }))} />
+      <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind) }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => setDraft((d) => ({ ...d, staffing }))} />
       {workers.items.length > 0 && (
         <PinnedField draft={pinnedShift} ctx={ctx} onChange={(next) => setDraft((d) => ({ ...d, pinnedIds: next.pinnedIds }))} onPick={(o) => void scheduleOn(o.shift)} />

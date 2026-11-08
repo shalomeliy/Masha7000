@@ -65,7 +65,6 @@ export function WorkerMonth({
 }) {
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
-  const roles = useDriveList('roles')
   const today = todayIso()
   const [month, setMonth] = useState(today.slice(0, 7))
   const days = workerMonth(worker, shifts.items, defs.items, month, today)
@@ -114,13 +113,12 @@ export function WorkerMonth({
     }
     const s = e.shift
     const kind = s.urgent ? tx('עבודה דחופה') : defs.items.find((d) => d.id === s.shiftDefinitionId)?.name
-    const role = roles.items.find((r) => r.id === e.roleId)?.name
     // A night job shows on both its days; the second day says it is the same job going on.
     const more = day !== s.date ? tx('המשך מ-{v}', { v: showDate(s.date) }) : e.endDate !== s.date ? tx('עד {v}', { v: showDate(e.endDate) }) : ''
     return (
       <li key={e.key} className={`border-s-2 ps-2 ${tone.line}`}>
         <span className="block text-slate-100">{[s.location, oneLine(s.jobDescription)].filter(Boolean).join(' · ') || tx('עבודה')}</span>
-        <span className="block text-xs text-slate-400">{[kind, role, more].filter(Boolean).join(' · ')}</span>
+        <span className="block text-xs text-slate-400">{[kind, more].filter(Boolean).join(' · ')}</span>
       </li>
     )
   }

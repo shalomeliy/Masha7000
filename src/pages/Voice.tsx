@@ -39,7 +39,6 @@ const MAX_FIXES = 2
 
 export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const lists = {
-    roles: useDriveList('roles'),
     certifications: useDriveList('certifications'),
     workers: useDriveList('workers'),
     shiftDefinitions: useDriveList('shiftDefinitions'),
@@ -292,7 +291,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     }
     try {
       // Lists first, then workers, then the jobs that may use them.
-      for (const key of ['roles', 'certifications', 'places', 'jobTypes', 'postponeReasons', 'workers', 'shifts', 'pendingJobs', 'assistantNotes', 'assistantExamples'] as const) {
+      for (const key of ['certifications', 'places', 'jobTypes', 'postponeReasons', 'workers', 'shifts', 'pendingJobs', 'assistantNotes', 'assistantExamples'] as const) {
         if (changed.has(key)) await (lists[key].save as (items: unknown[]) => Promise<void>)(next[key])
       }
     } catch {

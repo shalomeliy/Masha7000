@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { archivePlaces, archiveShifts, archiveSummary, crewSwaps, rangeDates, taskLinks } from './archive'
 import type { PendingJob, ShiftRecord, Worker } from '../types/models'
 
-const worker = (id: string, firstName: string): Worker => ({ id, firstName, lastName: 'כהן', roleIds: [], certificationIds: [], constraints: [] })
+const worker = (id: string, firstName: string): Worker => ({ id, firstName, lastName: 'כהן', certificationIds: [], constraints: [] })
 const workers = [worker('a', 'דני'), worker('b', 'יוסי'), worker('c', 'רונית')]
 
 const shift = (id: string, date: string, extra: Partial<ShiftRecord> = {}): ShiftRecord => ({
@@ -10,16 +10,16 @@ const shift = (id: string, date: string, extra: Partial<ShiftRecord> = {}): Shif
   date,
   location: 'חיפה',
   jobDescription: 'התקנת אנטנה',
-  crew: [{ workerId: 'a', roleId: 'general' }],
+  crew: [{ workerId: 'a' }],
   staffing: [],
   ...extra,
 })
 
 const records = [
   shift('1', '2026-05-01'),
-  shift('2', '2026-09-10', { location: 'תל אביב', crew: [{ workerId: 'b', roleId: 'general' }], swaps: [{ at: '2026-09-09T10:00:00Z', outId: 'a', inId: 'b', roleId: 'general' }] }),
+  shift('2', '2026-09-10', { location: 'תל אביב', crew: [{ workerId: 'b' }], swaps: [{ at: '2026-09-09T10:00:00Z', outId: 'a', inId: 'b' }] }),
   shift('3', '2026-10-20', { location: ' חיפה ', jobDescription: 'תיקון מצלמה', closure: { outcome: 'postponed', note: 'גשם חזק', reasonIds: [], closedAt: '' } }),
-  shift('4', '2026-10-20', { urgent: true, startTime: '09:00', crew: [{ workerId: 'c', roleId: 'general' }] }),
+  shift('4', '2026-10-20', { urgent: true, startTime: '09:00', crew: [{ workerId: 'c' }] }),
 ]
 
 describe('archiveShifts', () => {
@@ -70,9 +70,9 @@ describe('archive helpers', () => {
 })
 
 describe('crewSwaps', () => {
-  const crew = (...ids: string[]) => ids.map((workerId) => ({ workerId, roleId: 'r' }))
+  const crew = (...ids: string[]) => ids.map((workerId) => ({ workerId }))
   it('a place whose worker changed is a swap', () => {
-    expect(crewSwaps(crew('a', 'b'), crew('a', 'c'), 'T')).toEqual([{ at: 'T', outId: 'b', inId: 'c', roleId: 'r' }])
+    expect(crewSwaps(crew('a', 'b'), crew('a', 'c'), 'T')).toEqual([{ at: 'T', outId: 'b', inId: 'c' }])
   })
   it('adding, removing or reordering is not a swap', () => {
     expect(crewSwaps(crew('a', 'b'), crew('b'), 'T')).toEqual([])

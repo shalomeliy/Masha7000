@@ -1,5 +1,5 @@
 import { dayNames } from '../i18n'
-import { GENERAL_ROLE_ID, SHIFT_END, endsNextDay, fullName, newId } from './catalog'
+import { SHIFT_END, endsNextDay, newId } from './catalog'
 import { dateError, todayIso } from './dates'
 import type { PendingJob, ShiftClosure, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
@@ -74,8 +74,8 @@ export function blankShift(date: string, from?: PendingJob): ShiftRecord {
     date,
     location: from?.location ?? '',
     jobDescription: from?.jobDescription ?? '',
-    // Workers the waiting job must have come in pinned; their role is set by the job form (ShiftForm).
-    crew: (from?.pinnedIds ?? []).map((workerId) => ({ workerId, roleId: '' })),
+    // Workers the waiting job must have come in pinned.
+    crew: (from?.pinnedIds ?? []).map((workerId) => ({ workerId })),
     ...(from?.pinnedIds?.length ? { pinnedIds: from.pinnedIds } : {}),
     staffing: from?.staffing ?? [],
     shiftDefinitionId: from?.shiftDefinitionId,
@@ -102,11 +102,8 @@ export function moveShift(r: ShiftRecord, date: string): ShiftRecord {
   return { ...r, date, ...(r.endDate ? { endDate: addDays(r.endDate, gap) } : {}) }
 }
 
-/**
- * Error for a shift, or null. `roleIds` are the roles that still exist, so a deleted role does not count.
- * Every worker also holds the general role.
- */
-export function shiftRecordError(r: ShiftRecord, workers: Worker[], roleIds?: string[], generalId = GENERAL_ROLE_ID): string | null {
+/** Error for a shift, or null. */
+export function shiftRecordError(r: ShiftRecord, workers: Worker[]): string | null {
   const d = dateError(r.date, { required: true })
   if (d) return d
   if (!r.urgent && !r.shiftDefinitionId) return 'צריך לבחור תבנית עבודה'
@@ -124,8 +121,6 @@ export function shiftRecordError(r: ShiftRecord, workers: Worker[], roleIds?: st
     seen.add(c.workerId)
     const w = workers.find((x) => x.id === c.workerId)
     if (!w) return 'אחד העובדים בעבודה כבר לא קיים'
-    const held = [generalId, ...(roleIds ? w.roleIds.filter((id) => roleIds.includes(id)) : w.roleIds)]
-    if (!held.includes(c.roleId)) return `צריך לבחור תפקיד ל${fullName(w)}`
   }
   return null
 }

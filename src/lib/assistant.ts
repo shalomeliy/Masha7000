@@ -3,7 +3,7 @@
 // The server (api/_lib/assistant.ts) only proposes; every change is made here, by the same rules
 // the screens use.
 
-import { endsNextDay, fullName, generalRoleId, isActive, MAX_STAFF, nameError, newId, staffingFor, upsert, workerHasRole } from './catalog'
+import { certStars, endsNextDay, fullName, isActive, MAX_STAFF, MAX_STARS, nameError, newId, placeText, staffingFor, upsert } from './catalog'
 import { constraintText, isOver } from './constraints'
 import { todayIso } from './dates'
 import { autoAssign, busyCrew, busyText, pullFrom } from './planner'
@@ -20,7 +20,6 @@ import type {
   PendingJob,
   Place,
   PostponeReason,
-  Role,
   ShiftDefinition,
   ShiftRecord,
   StaffSlot,
@@ -31,7 +30,6 @@ import { tx } from '../i18n'
 import { asTaskList, oneLine } from './taskList'
 
 export interface AppData {
-  roles: Role[]
   certifications: Certification[]
   workers: Worker[]
   shiftDefinitions: ShiftDefinition[]
@@ -46,7 +44,7 @@ export interface AppData {
   assistantExamples: AssistantExample[]
 }
 
-export type ListName = 'places' | 'jobTypes' | 'roles' | 'certifications' | 'postponeReasons'
+export type ListName = 'places' | 'jobTypes' | 'certifications' | 'postponeReasons'
 export type Screen = 'calendar' | 'toSchedule' | 'workers' | 'archive' | 'settings'
 
 export interface ProposedJob {
@@ -54,19 +52,19 @@ export interface ProposedJob {
   shiftKindId: string
   location: string
   jobDescription: string
-  staffing: { roleId: string; count: number; certificationIds: string[] }[]
+  staffing: { count: number; certificationIds: string[] }[]
   workKindIds: string[]
   note: string
   autoAssign: boolean
   nextJob: { location: string; jobDescription: string } // "לינה" only: the job after the night; empty otherwise
-  crew: { workerId: string; roleId: string }[] // workers the manager named for the new job; [] = none named
+  crew: { workerId: string }[] // workers the manager named for the new job; [] = none named
 }
 
 export interface Proposal extends Edits {
   summary: string
   jobs: ProposedJob[]
   assignShiftIds: string[]
-  workers: { firstName: string; lastName: string; mobilePhone: string; roleIds: string[]; certificationIds: string[] }[]
+  workers: { firstName: string; lastName: string; mobilePhone: string; certificationIds: string[] }[]
   listItems: { list: ListName; name: string }[]
   rememberNotes: string[] // things the manager asked the assistant to remember from now on
   lessons: string[] // rules the assistant learned from the manager in this conversation; saved with the yes
@@ -126,7 +124,7 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
   }
   const certIds = d.certifications.map((c) => c.id)
   const staffingNames = (staffing: StaffSlot[]) =>
-    staffingFor(staffing, d.roles, certIds).map((s) => name(s.roleId, d.roles))
+    staffingFor(staffing, certIds).map((s) => placeText(s, d.certifications))
   const pastFrom = addDays(today, -HISTORY_DAYS)
   const past = d.shifts.filter((s) => s.date >= pastFrom && s.date <= today && s.crew.length)
   const where = (s: ShiftRecord) => s.location.trim() || s.jobDescription.trim()
@@ -137,7 +135,6 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
       const date = addDays(today, i)
       return `${date} = ${i === 0 ? 'היום, ' : i === 1 ? 'מחר, ' : ''}יום ${hebrewDayName(date)} ${showDate(date)}`
     }),
-    roles: named(d.roles),
     certifications: named(d.certifications),
     shiftKinds: d.shiftDefinitions.map((s) => ({ id: s.id, name: s.name, night: endsNextDay(s), meaning: kindMeaning(s), ...(s.thenJob ? { hasNextJob: true } : {}) })),
     workKinds: d.workKinds.map((k) => ({ id: k.id, name: k.name, people: staffingNames(k.staffing) })),
@@ -148,8 +145,10 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
       id: w.id,
       name: fullName(w),
       mobile: w.mobilePhone ?? '',
-      roles: w.roleIds.map((id) => name(id, d.roles)).filter(Boolean),
-      certifications: w.certificationIds.map((id) => name(id, d.certifications)).filter(Boolean),
+      // The manager's stars (1-5) in each certification; "טיפוס (3/5)" only when below the full 5.
+      certifications: w.certificationIds
+        .filter((id) => name(id, d.certifications))
+        .map((id) => (certStars(w, id) < MAX_STARS ? `${name(id, d.certifications)} (${certStars(w, id)}/${MAX_STARS})` : name(id, d.certifications))),
       ...(w.departmentId && name(w.departmentId, d.departments) ? { department: name(w.departmentId, d.departments) } : {}),
       ...(w.status === 'sick' ? { sickUntil: w.sickUntil ?? '' } : {}),
       ...(workerState(w, today).id !== 'fit' ? { now: workerState(w, today).label } : {}),
@@ -196,7 +195,7 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
         location: s.location,
         job: s.jobDescription,
         needs: staffingNames(s.staffing),
-        crew: s.crew.map((c) => `${workerName(c.workerId)} (${name(c.roleId, d.roles)})`),
+        crew: s.crew.map((c) => workerName(c.workerId)),
         ...(s.nextJob ? { then: [s.nextJob.location, s.nextJob.jobDescription].filter(Boolean).join(' - ') } : {}),
         ...(s.closure ? { closed: s.closure.outcome } : {}),
       })),
@@ -218,7 +217,6 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
     if (!j.shiftKindId && j.date) errors.push(`${n}: עבודה עם תאריך צריכה תבנית (shiftKindId); בלי תבנית רק עבודה לשיבוץ, בלי תאריך`)
     if (!j.location.trim() && !j.jobDescription.trim()) errors.push(`${n}: חסרים מקום ומהות עבודה`)
     for (const s of j.staffing) {
-      if (!has(d.roles, s.roleId)) errors.push(`${n}: אין תפקיד עם id "${s.roleId}"`)
       if (!(s.count >= 1)) errors.push(`${n}: מספר אנשים לא תקין`)
       for (const c of s.certificationIds) if (!has(d.certifications, c)) errors.push(`${n}: אין הסמכה עם id "${c}"`)
     }
@@ -228,14 +226,12 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
     for (const m of j.crew) {
       const w = d.workers.find((x) => x.id === m.workerId)
       if (!w) errors.push(`${n}: אין עובד עם id "${m.workerId}"`)
-      else if (!has(d.roles, m.roleId) || !workerHasRole(w, m.roleId, generalRoleId(d.roles))) errors.push(`${n}: ל${fullName(w)} אין את התפקיד עם id "${m.roleId}"`)
     }
   })
   for (const id of p.forgetNoteIds) if (!has(d.assistantNotes, id)) errors.push(`אין הערה שמורה עם id "${id}"`)
   for (const id of p.assignShiftIds) if (!has(d.shifts, id)) errors.push(`אין עבודה ביומן עם id "${id}"`)
   p.workers.forEach((w, i) => {
     if (!w.firstName.trim()) errors.push(`עובד ${i + 1}: חסר שם פרטי`)
-    for (const r of w.roleIds) if (!has(d.roles, r)) errors.push(`עובד ${i + 1}: אין תפקיד עם id "${r}"`)
     for (const c of w.certificationIds) if (!has(d.certifications, c)) errors.push(`עובד ${i + 1}: אין הסמכה עם id "${c}"`)
   })
   for (const item of p.listItems) {
@@ -243,7 +239,7 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
     if (e) errors.push(`"${item.name}": ${e}`)
   }
   const total = p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length + editCount(p)
-  // Edits are tried on a copy: what the screens would refuse (a worker in two jobs, a missing role) goes back.
+  // Edits are tried on a copy: what the screens would refuse (a worker in two jobs, a missing certification) goes back.
   errors.push(...applyProposal(p, d).errors)
   if (total === 0) errors.push('אין בהצעה שום שינוי')
   return errors
@@ -251,18 +247,17 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
 
 /** The job's places: one per person, then the places of its work kinds. Never more than MAX_STAFF. */
 export function jobStaffing(j: ProposedJob, d: AppData): { staffing: StaffSlot[]; workKindIds: string[] } {
-  const general = generalRoleId(d.roles)
   let job: { staffing: StaffSlot[]; workKindIds: string[] } = {
     staffing: j.staffing.flatMap((s) =>
-      Array.from({ length: Math.max(1, Math.round(s.count)) }, () => ({ roleId: s.roleId, ...(s.certificationIds.length ? { certificationIds: s.certificationIds } : {}) })),
+      Array.from({ length: Math.max(1, Math.round(s.count)) }, () => (s.certificationIds.length ? { certificationIds: s.certificationIds } : {})),
     ),
     workKindIds: [],
   }
   for (const id of j.workKindIds) {
     const kind = d.workKinds.find((k) => k.id === id)
-    if (kind) job = toggleKind(job, kind, general)
+    if (kind) job = toggleKind(job, kind)
   }
-  if (!job.staffing.length) job.staffing = [{ roleId: general }]
+  if (!job.staffing.length) job.staffing = [{}]
   return { staffing: job.staffing.slice(0, MAX_STAFF), workKindIds: job.workKindIds }
 }
 
@@ -281,7 +276,6 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   const d: AppData = { ...before }
   const changed = new Set<keyof AppData>()
   const report: string[] = []
-  const general = generalRoleId(d.roles)
   const at = now.toISOString()
 
   const remember = p.rememberNotes.map((t) => t.trim()).filter(Boolean)
@@ -313,7 +307,6 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
         firstName: w.firstName.trim(),
         lastName: w.lastName.trim(),
         mobilePhone: w.mobilePhone.replace(/[^\d+]/g, '') || undefined,
-        roleIds: w.roleIds.filter((r) => r !== general),
         certificationIds: w.certificationIds,
         constraints: [],
       },
@@ -388,8 +381,8 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   for (const id of toAssign) {
     const shift = d.shifts.find((s) => s.id === id)
     if (!shift) continue
-    const staffing = staffingFor(shift.staffing, d.roles, d.certifications.map((c) => c.id))
-    const plan = autoAssign(shift, staffing, { workers: d.workers, records: d.shifts, defs: d.shiftDefinitions, generalId: general })
+    const staffing = staffingFor(shift.staffing, d.certifications.map((c) => c.id))
+    const plan = autoAssign(shift, staffing, { workers: d.workers, records: d.shifts, defs: d.shiftDefinitions })
     d.shifts = upsert(d.shifts, { ...shift, crew: plan.crew })
     changed.add('shifts')
     const where = shift.location || oneLine(shift.jobDescription)
@@ -428,8 +421,8 @@ const B = (v: unknown) => v === true
 const SS = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
 const A = <T>(v: unknown, f: (o: Record<string, unknown>) => T): T[] =>
   Array.isArray(v) ? v.filter((o): o is Record<string, unknown> => !!o && typeof o === 'object').map(f) : []
-const lines = (v: unknown) => A(v, (s) => ({ roleId: S(s.roleId), count: Number(s.count) || 1, certificationIds: SS(s.certificationIds) }))
-const LISTS: ListName[] = ['places', 'jobTypes', 'roles', 'certifications', 'postponeReasons']
+const lines = (v: unknown) => A(v, (s) => ({ count: Number(s.count) || 1, certificationIds: SS(s.certificationIds) }))
+const LISTS: ListName[] = ['places', 'jobTypes', 'certifications', 'postponeReasons']
 const OUTCOMES = ['done', 'partial', 'postponed'] as const
 const STATUSES = ['', 'active', 'sick', 'inactive'] as const
 
@@ -449,11 +442,11 @@ export function normalizeProposal(raw: unknown): Proposal {
         note: S(j.note),
         autoAssign: B(j.autoAssign),
         nextJob: { location: S(next.location), jobDescription: S(next.jobDescription) },
-        crew: A(j.crew, (m) => ({ workerId: S(m.workerId), roleId: S(m.roleId) })).filter((m, k, list) => m.workerId && list.findIndex((x) => x.workerId === m.workerId) === k),
+        crew: A(j.crew, (m) => ({ workerId: S(m.workerId) })).filter((m, k, list) => m.workerId && list.findIndex((x) => x.workerId === m.workerId) === k),
       }
     }),
     assignShiftIds: SS(p.assignShiftIds),
-    workers: A(p.workers, (w) => ({ firstName: S(w.firstName), lastName: S(w.lastName), mobilePhone: S(w.mobilePhone), roleIds: SS(w.roleIds), certificationIds: SS(w.certificationIds) })),
+    workers: A(p.workers, (w) => ({ firstName: S(w.firstName), lastName: S(w.lastName), mobilePhone: S(w.mobilePhone), certificationIds: SS(w.certificationIds) })),
     listItems: A(p.listItems, (i) => ({ list: i.list as ListName, name: S(i.name) })).filter((i) => LISTS.includes(i.list)),
     rememberNotes: SS(p.rememberNotes),
     lessons: SS(p.lessons),
@@ -467,14 +460,12 @@ export function normalizeProposal(raw: unknown): Proposal {
       staffing: lines(j.staffing),
       autoAssign: B(j.autoAssign),
     })),
-    setCrews: A(p.setCrews, (c) => ({ shiftId: S(c.shiftId), crew: A(c.crew, (m) => ({ workerId: S(m.workerId), roleId: S(m.roleId) })) })),
+    setCrews: A(p.setCrews, (c) => ({ shiftId: S(c.shiftId), crew: A(c.crew, (m) => ({ workerId: S(m.workerId) })) })),
     closeJobs: A(p.closeJobs, (c) => ({ shiftId: S(c.shiftId), outcome: (OUTCOMES as readonly string[]).includes(S(c.outcome)) ? (c.outcome as (typeof OUTCOMES)[number]) : 'done', note: S(c.note) })),
     deleteJobIds: SS(p.deleteJobIds),
     editWorkers: A(p.editWorkers, (w) => ({
       workerId: S(w.workerId),
       mobilePhone: S(w.mobilePhone),
-      addRoleIds: SS(w.addRoleIds),
-      removeRoleIds: SS(w.removeRoleIds),
       addCertificationIds: SS(w.addCertificationIds),
       removeCertificationIds: SS(w.removeCertificationIds),
       status: (STATUSES as readonly string[]).includes(S(w.status)) ? (S(w.status) as (typeof STATUSES)[number]) : '',

@@ -3,7 +3,7 @@ import { blockingConstraint, constraintText } from './constraints'
 import { endAbsence, teamStates, workerState } from './workerState'
 import type { Worker } from '../types/models'
 
-const w = (over: Partial<Worker> = {}): Worker => ({ id: 'w', firstName: 'דני', lastName: 'לוי', roleIds: [], certificationIds: [], constraints: [], ...over })
+const w = (over: Partial<Worker> = {}): Worker => ({ id: 'w', firstName: 'דני', lastName: 'לוי', certificationIds: [], constraints: [], ...over })
 const TODAY = '2026-11-06'
 
 describe('workerState', () => {
@@ -44,7 +44,7 @@ describe('absences are constraints', () => {
 
   it('block a shift on those days', () => {
     const shift = { id: 's', date: '2026-11-09', shiftDefinitionId: 'day', location: '', jobDescription: '', crew: [], staffing: [] }
-    const defs = [{ id: 'day', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' }]
+    const defs = [{ id: 'day', name: 'יום', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' }]
     expect(blockingConstraint(w({ constraints: [vacation] }), shift, defs)).toBe(vacation)
   })
 })

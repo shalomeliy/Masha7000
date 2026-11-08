@@ -2,14 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { searchWorkers } from './workerSearch'
 import type { Worker } from '../types/models'
 
-const w = (over: Partial<Worker>): Worker => ({ id: 'w', firstName: '', lastName: '', roleIds: [], certificationIds: [], constraints: [], ...over })
+const w = (over: Partial<Worker>): Worker => ({ id: 'w', firstName: '', lastName: '', certificationIds: [], constraints: [], ...over })
 const TODAY = '2026-11-07'
 const lists = {
-  roles: [{ id: 'r1', name: 'מטפס' }],
-  certifications: [{ id: 'c1', name: 'עבודה בגובה' }],
+  certifications: [{ id: 'c1', name: 'עבודה בגובה' }, { id: 'r1', name: 'מטפס' }],
   departments: [{ id: 'd1', name: 'צפון' }],
 }
-const dani = w({ id: 'dani', firstName: 'דני', lastName: 'לוי', mobilePhone: '050-1234567', idNumber: '012345678', roleIds: ['r1'], departmentId: 'd1' })
+const dani = w({ id: 'dani', firstName: 'דני', lastName: 'לוי', mobilePhone: '050-1234567', idNumber: '012345678', certificationIds: ['r1'], departmentId: 'd1' })
 const rina = w({ id: 'rina', firstName: 'רינה', lastName: 'כהן', personalNumber: '7788', certificationIds: ['c1'], status: 'inactive', notes: 'רישיון משאית' })
 const all = [dani, rina]
 const ids = (q: string) => searchWorkers(all, q, lists, TODAY).map((x) => x.id)

@@ -1,11 +1,11 @@
 import { tx } from '../i18n'
-import { fullName, isActive, isGeneralRole, staffingFor } from './catalog'
+import { fullName, isActive, staffingFor } from './catalog'
 import { blockingConstraint, constraintText } from './constraints'
 import type { GapContext } from './gaps'
 import { ADVICE_DAYS } from './moveAdvice'
 import { autoAssign, busyWith, workerLoad } from './planner'
 import { addDays, moveShift } from './shifts'
-import type { CrewMember, Role, ShiftRecord, Worker } from '../types/models'
+import type { CrewMember, ShiftRecord, Worker } from '../types/models'
 
 // Workers who must be in a job (the user's request, 2026-11-08): "יוסי וניר חייבים להיות בעבודה הזו".
 // The app finds the nearest days all of them are free, with enough other workers for the rest of
@@ -26,11 +26,6 @@ export interface DateOption {
 export const pinnedOf = (shift: Pick<ShiftRecord, 'crew' | 'pinnedIds'>): string[] =>
   (shift.pinnedIds ?? []).filter((id) => shift.crew.some((c) => c.workerId === id))
 
-/** The role a worker joins a job in when no place says otherwise: their own, "כללי" only when they have no other. */
-export function ownRole(w: Worker, roles: Role[], generalId: string): string {
-  return w.roleIds.find((id) => roles.some((r) => r.id === id && !isGeneralRole(r))) ?? generalId
-}
-
 /** Why `w` cannot be in `shift` as it is, or null when they are free. */
 export function pinnedBlock(w: Worker | undefined, shift: ShiftRecord, ctx: GapContext): string | null {
   if (!w || !isActive(w)) return tx('לא פעיל')
@@ -42,18 +37,13 @@ export function pinnedBlock(w: Worker | undefined, shift: ShiftRecord, ctx: GapC
 
 /**
  * The nearest days from `from` on, within ADVICE_DAYS, where every pinned worker is free and the
- * rest of the places can be filled. At most `max`. The pinned workers keep the role they have in
- * the job's crew (their own role when they are not in it yet).
+ * rest of the places can be filled. At most `max`.
  */
 export function datesForPinned(shift: ShiftRecord, pinnedIds: string[], from: string, ctx: GapContext, max = MAX_DATE_OPTIONS): DateOption[] {
   const byId = (id: string) => ctx.workers.find((w) => w.id === id)
-  const pinned: CrewMember[] = pinnedIds.flatMap((id) => {
-    const w = byId(id)
-    if (!w) return []
-    return [shift.crew.find((c) => c.workerId === id) ?? { workerId: id, roleId: ownRole(w, ctx.roles, ctx.generalId) }]
-  })
+  const pinned: CrewMember[] = pinnedIds.flatMap((id) => (byId(id) ? [{ workerId: id }] : []))
   if (!pinned.length || pinned.length < pinnedIds.length) return []
-  const staffing = staffingFor(shift.staffing, ctx.roles, ctx.certifications.map((c) => c.id))
+  const staffing = staffingFor(shift.staffing, ctx.certifications.map((c) => c.id))
   const out: DateOption[] = []
   for (let i = 0; i < ADVICE_DAYS && out.length < max; i++) {
     const moved = moveShift({ ...shift, crew: pinned }, addDays(from, i))

@@ -1,8 +1,8 @@
 import { tx } from '../i18n'
-import { GENERAL_ROLE_NAME, endsNextDay, fullName } from './catalog'
+import { endsNextDay, fullName } from './catalog'
 import { dayName, showDate, sortShifts, weekOf } from './shifts'
 import { UNKNOWN_WORKER_COLOR, workerColors } from './workerColor'
-import type { Role, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
+import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 import { oneLine } from './taskList'
 
 // The shifts of one day or one Sunday-to-Saturday week, as WhatsApp text and as the data the
@@ -12,7 +12,6 @@ export interface ReportContext {
   shifts: ShiftRecord[]
   defs: ShiftDefinition[]
   workers: Worker[]
-  roles: Role[]
 }
 
 export type ShiftKind = 'urgent' | 'night' | 'day' | 'other'
@@ -24,7 +23,7 @@ export interface ReportShift {
   until?: string // urgent only: "עד יום רביעי 4.11 16:00"
   job: string
   next?: string // "לינה": the job after the night, "place · work"
-  crew: { name: string; role: string; color: string }[] // color: the worker's own, for the image
+  crew: { name: string; color: string }[] // color: the worker's own, for the image
 }
 
 export interface ReportDay {
@@ -59,7 +58,6 @@ function reportShift(r: ShiftRecord, ctx: ReportContext, colors: Map<string, str
       const w = ctx.workers.find((x) => x.id === c.workerId)
       return {
         name: w ? fullName(w) : tx('עובד שנמחק'),
-        role: ctx.roles.find((x) => x.id === c.roleId)?.name ?? GENERAL_ROLE_NAME,
         color: colors.get(c.workerId) ?? UNKNOWN_WORKER_COLOR,
       }
     }),
@@ -97,7 +95,7 @@ function shiftText(s: ReportShift): string[] {
   if (s.job) lines.push(`🔧 ${s.job}`)
   if (s.next) lines.push(tx('➡️ אחרי הלילה: {next}', { next: s.next }))
   if (s.crew.length === 0) lines.push(tx('⚠️ _עוד לא שובצו עובדים_'))
-  else lines.push(tx('👷 *צוות ({length}):*', { length: s.crew.length }), ...s.crew.map((c) => `   • ${c.name} · _${c.role}_`))
+  else lines.push(tx('👷 *צוות ({length}):*', { length: s.crew.length }), ...s.crew.map((c) => `   • ${c.name}`))
   return lines
 }
 

@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { addMonths, defaultMonth, monthCsv, monthDates, monthLabel, monthReport, monthText } from './monthReport'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
-const worker = (id: string, firstName: string): Worker => ({ id, firstName, lastName: 'כהן', roleIds: [], certificationIds: [], constraints: [] })
+const worker = (id: string, firstName: string): Worker => ({ id, firstName, lastName: 'כהן', certificationIds: [], constraints: [] })
 const workers = [worker('a', 'דני'), worker('b', 'יוסי'), worker('c', 'רונית')]
 
 const defs: ShiftDefinition[] = [
-  { id: 'day', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
-  { id: 'night', name: 'לילה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
+  { id: 'day', name: 'יום', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
+  { id: 'night', name: 'לילה', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
 ]
 
 const shift = (id: string, date: string, crew: string[], extra: Partial<ShiftRecord> = {}): ShiftRecord => ({
@@ -16,7 +16,7 @@ const shift = (id: string, date: string, crew: string[], extra: Partial<ShiftRec
   shiftDefinitionId: 'day',
   location: 'חיפה',
   jobDescription: '',
-  crew: crew.map((workerId) => ({ workerId, roleId: 'general' })),
+  crew: crew.map((workerId) => ({ workerId })),
   staffing: [],
   ...extra,
 })
@@ -59,7 +59,7 @@ describe('monthReport', () => {
   })
 
   it('counts the replacement, not the worker swapped out', () => {
-    const records = [shift('1', '2026-10-06', ['b'], { swaps: [{ at: '2026-10-05T10:00:00Z', outId: 'a', inId: 'b', roleId: 'general' }] })]
+    const records = [shift('1', '2026-10-06', ['b'], { swaps: [{ at: '2026-10-05T10:00:00Z', outId: 'a', inId: 'b' }] })]
     const rep = monthReport('2026-10', records, workers, defs)
     expect([rowOf(rep, 'a').total, rowOf(rep, 'a').swappedOut]).toEqual([0, 1])
     expect([rowOf(rep, 'b').total, rowOf(rep, 'b').swappedOut]).toEqual([1, 0])
@@ -85,7 +85,7 @@ describe('monthReport', () => {
     const records = [
       shift('1', '2026-10-06', ['a', 'b']),
       shift('2', '2026-10-09', ['gone'], { shiftDefinitionId: 'night', urgent: true }),
-      shift('3', '2026-10-10', ['c'], { swaps: [{ at: '', outId: 'b', inId: 'c', roleId: 'general' }] }),
+      shift('3', '2026-10-10', ['c'], { swaps: [{ at: '', outId: 'b', inId: 'c' }] }),
     ]
     const rep = monthReport('2026-10', records, workers, defs)
     expect(rep.rows.find((r) => r.workerId === 'gone')?.name).toBe('עובד שנמחק')

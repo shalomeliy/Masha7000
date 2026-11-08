@@ -4,7 +4,7 @@
 // problems to send back to the model, and once for real after the manager says yes.
 
 import { crewSwaps } from './archive'
-import { fullName, generalRoleId, isActive, MAX_STAFF, newId, upsert, workerHasRole } from './catalog'
+import { fullName, isActive, MAX_STAFF, newId, upsert } from './catalog'
 import { constraintError, constraintText, normalizeConstraint } from './constraints'
 import { isRealDate } from './dates'
 import { applyClosure, blankShift, isNightShift, moveShift, pendingAfterShiftSave } from './shifts'
@@ -15,7 +15,6 @@ import { tx } from '../i18n'
 import { asTaskList, oneLine } from './taskList'
 
 export interface StaffLine {
-  roleId: string
   count: number
   certificationIds: string[]
 }
@@ -32,14 +31,12 @@ export interface EditJob {
 
 export interface Edits {
   editJobs: EditJob[]
-  setCrews: { shiftId: string; crew: { workerId: string; roleId: string }[] }[]
+  setCrews: { shiftId: string; crew: { workerId: string }[] }[]
   closeJobs: { shiftId: string; outcome: 'done' | 'partial' | 'postponed'; note: string }[]
   deleteJobIds: string[]
   editWorkers: {
     workerId: string
     mobilePhone: string // '' = unchanged
-    addRoleIds: string[]
-    removeRoleIds: string[]
     addCertificationIds: string[]
     removeCertificationIds: string[]
     status: '' | 'active' | 'sick' | 'inactive' // '' = unchanged
@@ -56,7 +53,7 @@ export const editCount = (e: Edits) =>
 /** One place per person, like a new job's staffing. */
 export const linesToSlots = (lines: StaffLine[]): StaffSlot[] =>
   lines
-    .flatMap((s) => Array.from({ length: Math.max(1, Math.round(s.count)) }, () => ({ roleId: s.roleId, ...(s.certificationIds.length ? { certificationIds: s.certificationIds } : {}) })))
+    .flatMap((s) => Array.from({ length: Math.max(1, Math.round(s.count)) }, (): StaffSlot => (s.certificationIds.length ? { certificationIds: s.certificationIds } : {})))
     .slice(0, MAX_STAFF)
 
 export interface EditResult {
@@ -75,31 +72,27 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
   const warnings: string[] = []
   const report: string[] = []
   const toAssign: string[] = []
-  const general = generalRoleId(d.roles)
   const touched = new Set<string>()
   const where = (r: { location: string; jobDescription: string }) => r.location || oneLine(r.jobDescription) || 'העבודה'
   const lineErrors = (lines: StaffLine[], n: string) => {
     for (const s of lines) {
-      if (!has(d.roles, s.roleId)) errors.push(`${n}: אין תפקיד עם id "${s.roleId}"`)
       for (const c of s.certificationIds) if (!has(d.certifications, c)) errors.push(`${n}: אין הסמכה עם id "${c}"`)
     }
   }
 
-  // Workers first: a job may need the role just given.
+  // Workers first: a job may need the certification just given.
   for (const w of e.editWorkers) {
     const worker = d.workers.find((x) => x.id === w.workerId)
     if (!worker) {
       errors.push(`אין עובד עם id "${w.workerId}"`)
       continue
     }
-    for (const r of [...w.addRoleIds, ...w.removeRoleIds]) if (!has(d.roles, r)) errors.push(`${worker.firstName}: אין תפקיד עם id "${r}"`)
     for (const c of [...w.addCertificationIds, ...w.removeCertificationIds]) if (!has(d.certifications, c)) errors.push(`${worker.firstName}: אין הסמכה עם id "${c}"`)
     if (w.status === 'sick' && !isRealDate(w.sickUntil)) errors.push(`${worker.firstName}: חולה עד איזה תאריך?`)
     const status: WorkerStatus | undefined = w.status === '' ? worker.status : w.status === 'active' ? undefined : w.status
     const next: Worker = {
       ...worker,
       mobilePhone: w.mobilePhone ? w.mobilePhone.replace(/[^\d+]/g, '') : worker.mobilePhone,
-      roleIds: [...new Set([...worker.roleIds.filter((r) => !w.removeRoleIds.includes(r)), ...w.addRoleIds.filter((r) => r !== general)])],
       certificationIds: [...new Set([...worker.certificationIds.filter((c) => !w.removeCertificationIds.includes(c)), ...w.addCertificationIds])],
       status,
       sickUntil: status === 'sick' ? w.sickUntil || worker.sickUntil : undefined,
@@ -189,8 +182,6 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       const w = d.workers.find((x) => x.id === m.workerId)
       if (!w) errors.push(`אין עובד עם id "${m.workerId}"`)
       else if (!isActive(w)) errors.push(`${fullName(w)} לא פעיל`)
-      else if (!has(d.roles, m.roleId)) errors.push(`אין תפקיד עם id "${m.roleId}"`)
-      else if (!workerHasRole(w, m.roleId, general)) errors.push(`ל${fullName(w)} אין את התפקיד ${d.roles.find((r) => r.id === m.roleId)?.name}`)
       else return true
       return false
     }).every(Boolean)

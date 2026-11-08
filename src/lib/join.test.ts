@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { formLists, joinCodeOf, matchWorker, workerFromSubmission, type JoinDetails } from './join'
 import type { Worker } from '../types/models'
 
-const worker = (over: Partial<Worker>): Worker => ({ id: 'w1', firstName: 'דנה', lastName: 'לוי', roleIds: [], certificationIds: [], constraints: [], ...over })
-const sub = (over: Partial<JoinDetails> = {}): JoinDetails => ({ firstName: 'דני', lastName: 'כהן', mobilePhone: '052-7654321', roleIds: [], certificationIds: [], ...over })
+const worker = (over: Partial<Worker>): Worker => ({ id: 'w1', firstName: 'דנה', lastName: 'לוי', certificationIds: [], constraints: [], ...over })
+const sub = (over: Partial<JoinDetails> = {}): JoinDetails => ({ firstName: 'דני', lastName: 'כהן', mobilePhone: '052-7654321', certificationIds: [], ...over })
 
 describe('join form link', () => {
   it('reads the code only from a /join/<code> address', () => {
@@ -26,19 +26,19 @@ describe('matching an answer to a worker', () => {
 
 describe('worker from an answer', () => {
   it('builds a new active worker', () => {
-    const w = workerFromSubmission(sub({ roleIds: ['r1'], idNumber: '012345678' }), undefined, () => 'new')
-    expect(w).toMatchObject({ id: 'new', firstName: 'דני', mobilePhone: '052-7654321', roleIds: ['r1'], status: 'active', constraints: [] })
+    const w = workerFromSubmission(sub({ certificationIds: ['r1'], idNumber: '012345678' }), undefined, () => 'new')
+    expect(w).toMatchObject({ id: 'new', firstName: 'דני', mobilePhone: '052-7654321', certificationIds: ['r1'], status: 'active', constraints: [] })
   })
-  it('writes the answer over an existing worker, keeps what it leaves empty, adds roles and notes', () => {
-    const existing = worker({ address: 'חיפה', homePhone: '04-1234567', roleIds: ['r1'], notes: 'ותיק', constraints: [{ id: 'c' } as never] })
-    const w = workerFromSubmission(sub({ address: 'עכו', roleIds: ['r2', 'r1'], notes: 'גר רחוק' }), existing, () => 'x')
-    expect(w).toMatchObject({ id: 'w1', firstName: 'דני', address: 'עכו', homePhone: '04-1234567', roleIds: ['r1', 'r2'], notes: 'ותיק\nגר רחוק' })
+  it('writes the answer over an existing worker, keeps what it leaves empty, adds certifications and notes', () => {
+    const existing = worker({ address: 'חיפה', homePhone: '04-1234567', certificationIds: ['r1'], notes: 'ותיק', constraints: [{ id: 'c' } as never] })
+    const w = workerFromSubmission(sub({ address: 'עכו', certificationIds: ['r2', 'r1'], notes: 'גר רחוק' }), existing, () => 'x')
+    expect(w).toMatchObject({ id: 'w1', firstName: 'דני', address: 'עכו', homePhone: '04-1234567', certificationIds: ['r1', 'r2'], notes: 'ותיק\nגר רחוק' })
     expect(w.constraints).toHaveLength(1)
   })
 })
 
 describe('form lists', () => {
-  it('leaves out כללי, which every worker is', () => {
-    expect(formLists([{ id: 'general', name: 'כללי' }, { id: 'r', name: 'חשמלאי' }], [], []).roles).toEqual([{ id: 'r', name: 'חשמלאי' }])
+  it('offers the certifications and departments, names and ids only', () => {
+    expect(formLists([{ id: 'c', name: 'רתך', extra: 1 } as never], [{ id: 'd', name: 'צפון' }])).toEqual({ certifications: [{ id: 'c', name: 'רתך' }], departments: [{ id: 'd', name: 'צפון' }] })
   })
 })

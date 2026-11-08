@@ -6,7 +6,7 @@ import { useDriveList } from '../lib/data/useDriveList'
 import { onHint, recentHint, type Hint } from '../lib/hint'
 import { WorkersSection, type WorkersTab } from './workers/WorkersSection'
 
-// Roles, certifications and shift templates are edited in Settings; this screen is about people:
+// Certifications and shift templates are edited in Settings; this screen is about people:
 // the team list, and one tab per thing the manager does with the team.
 const TABS: { id: WorkersTab; label: string }[] = [
   { id: 'team', label: tx('הצוות') },
@@ -32,7 +32,7 @@ export function Workers() {
     [],
   )
   // The workers' cards and forms read the other lists (names, shifts), so they load together.
-  const lists = [useDriveList('workers'), useDriveList('roles'), useDriveList('certifications'), useDriveList('shiftDefinitions')]
+  const lists = [useDriveList('workers'), useDriveList('certifications'), useDriveList('shiftDefinitions')]
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
 

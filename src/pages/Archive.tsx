@@ -26,7 +26,7 @@ const fullDate = (d: string) => `${showDate(d)}.${d.slice(0, 4)}`
 export function Archive() {
   const shifts = useDriveList('shifts')
   const workers = useDriveList('workers')
-  const lists = [shifts, workers, useDriveList('shiftDefinitions'), useDriveList('roles'), useDriveList('pendingJobs'), useDriveList('postponeReasons')]
+  const lists = [shifts, workers, useDriveList('shiftDefinitions'), useDriveList('pendingJobs'), useDriveList('postponeReasons')]
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
   const today = todayIso()
@@ -172,7 +172,6 @@ function ArchiveCard({ shift: r, today }: { shift: ShiftRecord; today: string })
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
   const workers = useDriveList('workers')
-  const roles = useDriveList('roles')
   const jobs = useDriveList('pendingJobs')
   const reasons = useDriveList('postponeReasons')
   const def = defs.items.find((d) => d.id === r.shiftDefinitionId)
@@ -181,7 +180,6 @@ function ArchiveCard({ shift: r, today }: { shift: ShiftRecord; today: string })
     const w = workers.items.find((x) => x.id === id)
     return w ? fullName(w) : tx('עובד שנמחק')
   }
-  const roleName = (id: string) => roles.items.find((x) => x.id === id)?.name
   const { left, next, prev } = taskLinks(r, shifts.items, jobs.items)
   const reasonText = r.closure ? tagNames(r.closure.reasonIds, reasons.items).join(', ') : ''
 
@@ -203,7 +201,6 @@ function ArchiveCard({ shift: r, today }: { shift: ShiftRecord; today: string })
           {r.crew.map((c) => (
             <li key={c.workerId} className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200">
               {name(c.workerId)}
-              {roleName(c.roleId) && ` · ${roleName(c.roleId)}`}
             </li>
           ))}
         </ul>
@@ -215,7 +212,7 @@ function ArchiveCard({ shift: r, today }: { shift: ShiftRecord; today: string })
         <p key={i} className="flex items-center gap-1.5 text-xs text-slate-400">
           <ArrowLeftRight size={14} aria-hidden className="shrink-0" />
           {name(s.inId)} {tx('במקום')}{' '}{name(s.outId)}
-          {roleName(s.roleId) && ` (${roleName(s.roleId)})`}{tx(', הוחלף ב-')}{fullDate(s.at.slice(0, 10))}
+          {tx(', הוחלף ב-')}{fullDate(s.at.slice(0, 10))}
         </p>
       ))}
 

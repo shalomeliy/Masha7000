@@ -1,12 +1,10 @@
 import { tx } from '../i18n'
-import type { Department, Role, ShiftDefinition, StaffSlot, Worker } from '../types/models'
+import type { Department, ShiftDefinition, StaffSlot, Worker } from '../types/models'
 import { normalizeConstraint } from './constraints'
 
-// Pure rules for the master lists (roles, certifications, workers, shift types). No I/O here.
+// Pure rules for the master lists (certifications, workers, shift types). No I/O here.
 
 export const STANDBY_HEADCOUNT = 3
-
-export const STARTER_ROLES = ['טפסן', 'חשמלאי', 'טכנאי אנטנות', 'טכנאי מצלמות', 'כללי']
 
 export const STARTER_CERTIFICATIONS = [
   'אנטנה עד גובה 20 מטר',
@@ -36,14 +34,13 @@ export const SHIFT_END = '16:00'
 
 // The user's pattern: everyone works days; some also go out to a night job that ends the next afternoon.
 export const STARTER_SHIFTS: Omit<ShiftDefinition, 'id'>[] = [
-  { name: 'יום', startTime: SHIFT_START, endTime: SHIFT_END, requiredHeadcount: 1, requiredRoleIds: [], requiredCertificationIds: [] },
+  { name: 'יום', startTime: SHIFT_START, endTime: SHIFT_END, requiredHeadcount: 1, requiredCertificationIds: [] },
   {
     name: 'לילה',
     startTime: SHIFT_START,
     endTime: SHIFT_END,
     endsNextDay: true,
     requiredHeadcount: 1,
-    requiredRoleIds: [],
     requiredCertificationIds: [],
   },
 ]
@@ -62,7 +59,6 @@ export const NIGHT_PLUS: ShiftDefinition = {
   endsNextDay: true,
   thenJob: true,
   requiredHeadcount: 1,
-  requiredRoleIds: [],
   requiredCertificationIds: [],
 }
 
@@ -83,72 +79,51 @@ export const newId = () => crypto.randomUUID()
 
 const normalize = (name: string) => name.trim().toLocaleLowerCase()
 
-// "כללי" is the role every worker holds without marking it, and the default role a job asks for.
-// It is found by name (older files may hold it under a random id), so it cannot be renamed or deleted.
-export const GENERAL_ROLE_NAME = 'כללי'
-export const GENERAL_ROLE_ID = 'general'
+// A worker's star rating in a certification (1-5); a certification not rated yet has the full 5.
+export const MAX_STARS = 5
+export const certStars = (w: Pick<Worker, 'certRatings'>, certId: string) => {
+  const n = w.certRatings?.[certId]
+  return typeof n === 'number' && n >= 1 && n <= MAX_STARS ? Math.round(n) : MAX_STARS
+}
+/** The worker's stars over the certifications a place asks for; 0 for a place that asks for none. */
+export const slotStars = (w: Pick<Worker, 'certRatings'>, slot: StaffSlot) => slotCerts(slot).reduce((sum, id) => sum + certStars(w, id), 0)
 
-export const isGeneralRole = (r: Pick<Role, 'name'>) => normalize(r.name) === normalize(GENERAL_ROLE_NAME)
-
-/** The roles list, with "כללי" first when the file does not hold it yet. Same array when nothing was added. */
-export const withGeneralRole = (roles: Role[]): Role[] =>
-  roles.some(isGeneralRole) ? roles : [{ id: GENERAL_ROLE_ID, name: GENERAL_ROLE_NAME }, ...roles]
-
-export const generalRoleId = (roles: Role[]) => roles.find(isGeneralRole)?.id ?? GENERAL_ROLE_ID
-
-/** Every worker holds the general role, marked or not. */
-export const workerHasRole = (w: Pick<Worker, 'roleIds'>, roleId: string, generalId: string) => roleId === generalId || w.roleIds.includes(roleId)
+/** Text for a place that asks for no certification: anyone can fill it. */
+export const anyWorkerText = () => tx('כל עובד')
 
 export const MAX_STAFF = 20
 
 /**
- * A job's staffing, ready to show or edit: at least one person; a role that no longer exists
- * falls back to "כללי", a certification that no longer exists is dropped.
+ * A job's staffing, ready to show or edit: at least one person, a certification that no longer
+ * exists dropped, and what older files held for roles left out.
  */
-export function staffingFor(staffing: StaffSlot[] | undefined, roles: Role[], certificationIds: string[]): StaffSlot[] {
-  const general = generalRoleId(roles)
-  const slots = staffing?.length ? staffing : [{ roleId: general }]
+export function staffingFor(staffing: StaffSlot[] | undefined, certificationIds: string[]): StaffSlot[] {
+  const slots: StaffSlot[] = staffing?.length ? staffing : [{}]
   return slots.map((s) => {
-    const roleId = roles.some((r) => r.id === s.roleId) ? s.roleId : general
-    const alt = s.altRoleIds?.filter((id) => id !== s.roleId && roles.some((r) => r.id === id))
-    const also = s.alsoRoleIds?.filter((id) => id !== roleId && id !== general && roles.some((r) => r.id === id))
     const certs = slotCerts(s).filter((id) => certificationIds.includes(id))
-    return {
-      roleId,
-      ...(certs.length ? { certificationIds: certs } : {}),
-      ...(also?.length ? { alsoRoleIds: also } : {}),
-      ...(alt?.length ? { altRoleIds: alt } : {}),
-      ...(s.kindId ? { kindId: s.kindId } : {}),
-    }
+    return { ...(certs.length ? { certificationIds: certs } : {}), ...(s.kindId ? { kindId: s.kindId } : {}) }
   })
 }
 
 /** The certifications the person in a place must all hold; older files kept one in `certificationId`. */
 export const slotCerts = (slot: StaffSlot): string[] => slot.certificationIds ?? (slot.certificationId ? [slot.certificationId] : [])
 
-/** "מטפס או מנהל טיפוס" for a place that more than one role fills; "מטפס + מנהל עבודה" when one person holds both. */
-export function slotRoleNames(slot: StaffSlot, roles: Role[]): string {
-  const name = (id: string) => roles.find((r) => r.id === id)?.name ?? GENERAL_ROLE_NAME
-  return [[slot.roleId, ...(slot.altRoleIds ?? [])].map(name).join(tx(' או ')), ...(slot.alsoRoleIds ?? []).map(name)].join(' + ')
-}
-
-/** "טפסן (חשמלאי מוסמך, רתך)" for one place. */
-export function placeText(slot: StaffSlot, roles: Role[], certs: { id: string; name: string }[]): string {
-  const role = slotRoleNames(slot, roles)
+/** "טיפוס + רתך" for one place; "כל עובד" when it asks for no certification. */
+export function placeText(slot: StaffSlot, certs: { id: string; name: string }[]): string {
   const names = slotCerts(slot).flatMap((id) => certs.find((c) => c.id === id)?.name ?? [])
-  return names.length ? `${role} (${names.join(', ')})` : role
+  return names.length ? names.join(' + ') : anyWorkerText()
 }
 
-/** "2 אנשים: טפסן (חשמלאי מוסמך), כללי" for a job card. */
-export function staffingText(slots: StaffSlot[], roles: Role[], certs: { id: string; name: string }[]): string {
-  const names = slots.map((s) => placeText(s, roles, certs))
+/** "2 אנשים: טיפוס, כל עובד" for a job card. */
+export function staffingText(slots: StaffSlot[], certs: { id: string; name: string }[]): string {
+  const names = slots.map((s) => placeText(s, certs))
   return `${countText(slots.length, tx('אדם אחד'), tx('אנשים'))}: ${names.join(', ')}`
 }
 
-/** Grows or shrinks to `n` people; new people need "כללי" and no certification. */
-export function resizeStaffing(slots: StaffSlot[], n: number, generalId: string): StaffSlot[] {
+/** Grows or shrinks to `n` people; new people need no certification. */
+export function resizeStaffing(slots: StaffSlot[], n: number): StaffSlot[] {
   const size = Math.min(MAX_STAFF, Math.max(1, Math.round(n) || 1))
-  return size <= slots.length ? slots.slice(0, size) : [...slots, ...Array.from({ length: size - slots.length }, () => ({ roleId: generalId }))]
+  return size <= slots.length ? slots.slice(0, size) : [...slots, ...Array.from({ length: size - slots.length }, () => ({}))]
 }
 
 /** Returns an error message for a name, or null when it is valid. `selfId` is skipped when editing. */
@@ -176,27 +151,26 @@ export function upsert<T extends { id: string }>(list: T[], item: T): T[] {
   return list.some((x) => x.id === item.id) ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item]
 }
 
-// Roles and certifications are both "tags": a named list referenced by workers and shift types.
-export type TagKind = 'roles' | 'certifications'
-
-const workerField = { roles: 'roleIds', certifications: 'certificationIds' } as const
-const shiftField = { roles: 'requiredRoleIds', certifications: 'requiredCertificationIds' } as const
-
-export function tagUsage(kind: TagKind, id: string, workers: Worker[], shifts: ShiftDefinition[]) {
+/** How many workers and shift types point at a certification. */
+export function tagUsage(id: string, workers: Worker[], shifts: ShiftDefinition[]) {
   return {
-    workers: workers.filter((w) => w[workerField[kind]].includes(id)).length,
-    shifts: shifts.filter((s) => s[shiftField[kind]].includes(id)).length,
+    workers: workers.filter((w) => w.certificationIds.includes(id)).length,
+    shifts: shifts.filter((s) => s.requiredCertificationIds.includes(id)).length,
   }
 }
 
-/** Every reference to a deleted tag, removed. Lists that did not change are returned as the same array. */
-export function removeTagReferences(kind: TagKind, id: string, workers: Worker[], shifts: ShiftDefinition[]) {
-  const usage = tagUsage(kind, id, workers, shifts)
-  const wf = workerField[kind]
-  const sf = shiftField[kind]
+/** Every reference to a deleted certification, removed. Lists that did not change are returned as the same array. */
+export function removeTagReferences(id: string, workers: Worker[], shifts: ShiftDefinition[]) {
+  const usage = tagUsage(id, workers, shifts)
   return {
-    workers: usage.workers ? workers.map((w) => ({ ...w, [wf]: w[wf].filter((x) => x !== id) })) : workers,
-    shifts: usage.shifts ? shifts.map((s) => ({ ...s, [sf]: s[sf].filter((x) => x !== id) })) : shifts,
+    workers: usage.workers
+      ? workers.map((w) => {
+          if (!w.certificationIds.includes(id)) return w
+          const { [id]: _, ...ratings } = w.certRatings ?? {}
+          return { ...w, certificationIds: w.certificationIds.filter((x) => x !== id), ...(w.certRatings ? { certRatings: ratings } : {}) }
+        })
+      : workers,
+    shifts: usage.shifts ? shifts.map((s) => ({ ...s, requiredCertificationIds: s.requiredCertificationIds.filter((x) => x !== id) })) : shifts,
   }
 }
 
@@ -207,19 +181,18 @@ export function tagNames(ids: string[], tags: { id: string; name: string }[]): s
 
 export const fullName = (w: Pick<Worker, 'firstName' | 'lastName'>) => `${w.firstName} ${w.lastName}`.trim()
 
-/** Workers holding every selected role and every selected certification. Nothing selected = everyone. */
-export function filterWorkers(workers: Worker[], roleIds: string[], certificationIds: string[], generalId = GENERAL_ROLE_ID): Worker[] {
-  return workers.filter(
-    (w) => roleIds.every((id) => workerHasRole(w, id, generalId)) && certificationIds.every((id) => w.certificationIds.includes(id)),
-  )
+/** Workers holding every selected certification. Nothing selected = everyone. */
+export function filterWorkers(workers: Worker[], certificationIds: string[]): Worker[] {
+  return workers.filter((w) => certificationIds.every((id) => w.certificationIds.includes(id)))
 }
 
 /** Fills fields missing from older files (v0.2 workers had a single `name` and no certifications). */
 /** An inactive worker is hidden from the list and never offered for a shift. */
 export const isActive = (w: Pick<Worker, 'status'>) => w.status !== 'inactive'
 
-export function normalizeWorker(raw: Partial<Worker> & { name?: string; phone?: string }): Worker {
-  const { name, phone, ...w } = raw
+export function normalizeWorker(raw: Partial<Worker> & { name?: string; phone?: string; roleIds?: unknown }): Worker {
+  // `roleIds`: roles were removed (2026-11-08); a worker saved before keeps only their certifications.
+  const { name, phone, roleIds: _roles, ...w } = raw
   const [first = '', ...rest] = (name ?? '').trim().split(/\s+/)
   return {
     ...w,
@@ -227,18 +200,17 @@ export function normalizeWorker(raw: Partial<Worker> & { name?: string; phone?: 
     firstName: w.firstName ?? first,
     lastName: w.lastName ?? rest.join(' '),
     mobilePhone: w.mobilePhone ?? phone,
-    roleIds: w.roleIds ?? [],
     certificationIds: w.certificationIds ?? [],
     constraints: (w.constraints ?? []).map(normalizeConstraint),
     status: w.status ?? 'active',
   }
 }
 
-export function normalizeShift(raw: Omit<ShiftDefinition, 'requiredCertificationIds'> & Partial<ShiftDefinition>): ShiftDefinition {
+export function normalizeShift(raw: Omit<ShiftDefinition, 'requiredCertificationIds'> & Partial<ShiftDefinition> & { requiredRoleIds?: unknown }): ShiftDefinition {
+  const { requiredRoleIds: _roles, ...def } = raw
   return {
-    ...raw,
-    endsNextDay: raw.thenJob || endsNextDay(raw),
-    requiredRoleIds: raw.requiredRoleIds ?? [],
+    ...def,
+    endsNextDay: def.thenJob || endsNextDay(def),
     requiredCertificationIds: raw.requiredCertificationIds ?? [],
   }
 }

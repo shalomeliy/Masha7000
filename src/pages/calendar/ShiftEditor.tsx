@@ -5,11 +5,11 @@ import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { Suggestions } from '../../components/Suggestions'
-import { defaultShiftDef, fullName, placeText, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
+import { defaultShiftDef, fullName, placeText, slotCerts, staffingFor, upsert } from '../../lib/catalog'
 import { crewSwaps } from '../../lib/archive'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { crewCover, type GapContext } from '../../lib/gaps'
-import { ownRole, pinnedOf } from '../../lib/pinnedDates'
+import { pinnedOf } from '../../lib/pinnedDates'
 import { autoAssign, busyCrew, busyText, busyWith, candidateOrder, fitsSlot, loadWarning, pullFrom, type PlanContext, type WorkerLoad } from '../../lib/planner'
 import { dayName, isNightShift, pendingAfterShiftSave, showDate, shiftRecordError } from '../../lib/shifts'
 import type { ShiftRecord, Worker } from '../../types/models'
@@ -50,21 +50,14 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const pending = useDriveList('pendingJobs')
   const defs = useDriveList('shiftDefinitions')
   const workers = useDriveList('workers')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
-  const general = generalRoleId(roles.items)
-  // Crew saved before "כללי" existed may have no role; they are "כללי" now.
   const [draft, setDraft] = useState(() => ({
     ...shift,
     // A new planned shift starts as "יום": the manager kept saving without noticing the type.
     shiftDefinitionId: shift.shiftDefinitionId ?? (shift.urgent ? undefined : defaultShiftDef(defs.items)?.id),
-    crew: shift.crew.map((c) => {
-      if (c.roleId) return c
-      // A pinned worker brought from "לשיבוץ" gets his own role.
-      const w = workers.items.find((x) => x.id === c.workerId)
-      return { ...c, roleId: w ? ownRole(w, roles.items, general) : general }
-    }),
-    staffing: staffingFor(shift.staffing, roles.items, certs.items.map((c) => c.id)),
+    // Only the worker: what crews saved while roles existed held besides is left out.
+    crew: shift.crew.map((c) => ({ workerId: c.workerId })),
+    staffing: staffingFor(shift.staffing, certs.items.map((c) => c.id)),
   }))
   const [datesValid, setDatesValid] = useState({ date: true, end: true })
   const [error, setError] = useState<string | null>(null)
@@ -142,7 +135,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         ? tx('יש תאריך לא תקין')
         : clean.closure && !isNightShift(clean, defs.items)
           ? tx('העבודה הזו כבר נסגרה, ולכן היא נשארת עבודת לילה. כדי לשנות, קודם פתח מחדש את הסגירה.')
-          : shiftRecordError(clean, workers.items, roles.items.map((r) => r.id), general) ?? busyError(clean)
+          : shiftRecordError(clean, workers.items) ?? busyError(clean)
     setError(err)
     if (err) return
     // Workers the manager chose to move by pressing "שמירה" again, with the ones pulled one by one.
@@ -160,8 +153,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const remove = () => run(() => shifts.save(shifts.items.filter((s) => s.id !== shift.id)))
 
   const inCrew = new Set(draft.crew.map((c) => c.workerId))
-  const planCtx: PlanContext = { workers: workers.items, records: shifts.items, defs: defs.items, generalId: general }
-  const gapCtx: GapContext = { ...planCtx, roles: roles.items, certifications: certs.items }
+  const planCtx: PlanContext = { workers: workers.items, records: shifts.items, defs: defs.items }
+  const gapCtx: GapContext = { ...planCtx, certifications: certs.items }
   const pinned = pinnedOf(draft)
   // Fairest first: the same order the automatic crew uses.
   const ranked = candidateOrder(draft, planCtx)
@@ -186,7 +179,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     const o = busyWith(id, draft, shifts.items, defs.items)
     return o ? tx('ביום {weekday} {v2}{v3}', { weekday: dayName(o.date), v2: showDate(o.date), v3: o.location ? ` (${o.location})` : '' }) : ''
   }
-  const cover = crewCover(draft, draft.staffing, workers.items, general)
+  const cover = crewCover(draft, draft.staffing, workers.items)
   const covered = new Set([...cover.values()].flat()).size
   const loadOf = (id: string) => ranked.find((c) => c.worker.id === id)?.load
 
@@ -195,23 +188,17 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     const { crew, unfilled, why } = autoAssign(draft, draft.staffing, planCtx)
     set('crew', crew)
     setSwapping(null)
-    const lines = unfilled.map((s, i) => `${placeText(s, roles.items, certs.items)}: ${why[i]}`)
+    const lines = unfilled.map((s, i) => `${placeText(s, certs.items)}: ${why[i]}`)
     setPlanNote(lines.length ? lines : null)
   }
 
-  // Swap keeps the place's role, so only workers holding it are offered.
+  // Swap keeps the place, so only workers holding its certifications are offered.
   const swap = (i: number, id: string) => {
     set('crew', draft.crew.map((x, j) => (j === i ? { ...x, workerId: id } : x)))
     setSwapping(null)
   }
-  const roleOptions = (w: Worker | undefined) => (w ? roles.items.filter((r) => workerHasRole(w, r.id, general)) : [])
-
-  // A new crew member gets their own role; "כללי" only when they have no other.
   const addWorker = (id: string) => {
-    const w = workers.items.find((x) => x.id === id)
-    if (!w) return
-    const options = roleOptions(w)
-    set('crew', [...draft.crew, { workerId: id, roleId: (options.find((r) => !isGeneralRole(r)) ?? options[0])?.id ?? general }])
+    if (workers.items.some((x) => x.id === id)) set('crew', [...draft.crew, { workerId: id }])
   }
 
   return (
@@ -256,7 +243,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           <DictationField label={tx('מהות העבודה הנוספת')} value={nextJob.jobDescription} tasks onChange={(v) => set('nextJob', { ...nextJob, jobDescription: v })} />
         </div>
       )}
-      <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind, general) }))} />
+      <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind) }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => set('staffing', staffing)} />
       {workers.items.length > 0 && <PinnedField draft={draft} ctx={gapCtx} onChange={(next) => (setDraft((d) => ({ ...d, ...next })), setPlanNote(null), setError(null))} />}
 
@@ -268,18 +255,19 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         </span>
         {draft.crew.map((c, i) => {
           const w = workers.items.find((x) => x.id === c.workerId)
-          const options = roleOptions(w)
           const load = loadOf(c.workerId)
           const pulling = pulled.includes(c.workerId) && load?.busy
           const fillIn = workers.items.find((x) => x.id === fillIns[c.workerId])
           const warning = pulling
             ? tx('יעבור לכאן מהעבודה {v} כשתשמור{v2}', { v: otherText(c.workerId), v2: fillIn ? tx(', ושם ייכנס במקומו {v}', { v: fullName(fillIn) }) : tx(', ושם יישאר מקום ריק') })
             : load && loadWarning(load)
-          // The replacement must fit the places this worker fills: their roles and certifications.
+          // The replacement must fit the places this worker fills: their certifications.
           // One who covers places of two kinds is replaced by one who fits both, or else by one who fits their own place.
-          const mine = cover.get(c.workerId)?.map((s) => draft.staffing[s]) ?? [{ roleId: c.roleId }]
-          const fitsAll = (x: Worker) => mine.every((p) => fitsSlot(x, p, general))
-          const fitsOwn = (x: Worker) => fitsSlot(x, mine[0], general)
+          const mine = cover.get(c.workerId)?.map((s) => draft.staffing[s]) ?? [{}]
+          const fitsAll = (x: Worker) => mine.every((p) => fitsSlot(x, p))
+          const fitsOwn = (x: Worker) => fitsSlot(x, mine[0])
+          // The place they fill, when it asks for a certification: "טיפוס".
+          const placeLabel = slotCerts(mine[0]).length ? placeText(mine[0], certs.items) : ''
           const fit = [...available, ...others].some((x) => fitsAll(x.worker)) ? fitsAll : fitsOwn
           const swapOptions = available.filter((x) => fit(x.worker))
           const busyOptions = others.filter((x) => fit(x.worker))
@@ -289,23 +277,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
               <div className="flex items-center gap-2">
               {pinned.includes(c.workerId) && <Lock size={14} className="ms-1 shrink-0 text-emerald-300" aria-label={tx('חייב להיות בעבודה')} />}
               <WorkerDial worker={w} className="min-h-11 min-w-0 flex-1 ps-1" />
-              {options.length ? (
-                <select
-                  aria-label={tx('התפקיד של {v}', { v: w ? fullName(w) : '' })}
-                  value={c.roleId}
-                  onChange={(e) => set('crew', draft.crew.map((x, j) => (j === i ? { ...x, roleId: e.target.value } : x)))}
-                  className="min-h-11 rounded-lg border border-slate-700 bg-slate-900 px-2 text-sm"
-                >
-                  {!options.some((r) => r.id === c.roleId) && <option value="">{tx('בחר תפקיד')}</option>}
-                  {options.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span className="text-xs text-amber-300">{tx('אין לו תפקידים')}</span>
-              )}
+              {placeLabel && <span className="max-w-[40%] shrink-0 truncate text-xs text-slate-400">{placeLabel}</span>}
               <button
                 type="button"
                 aria-label={tx('החלפת {v} בעובד אחר', { v: w ? fullName(w) : tx('העובד') })}
@@ -354,7 +326,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
                     )}
                   </select>
                 ) : (
-                  <p className="mt-2 ps-1 text-xs text-slate-400">{tx('אין עובד פנוי אחר עם התפקיד וההסמכה של המקום הזה')}</p>
+                  <p className="mt-2 ps-1 text-xs text-slate-400">{tx('אין עובד פנוי אחר עם ההסמכות של המקום הזה')}</p>
                 ))}
             </div>
           )

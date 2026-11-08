@@ -2,7 +2,7 @@
 // recognizes the problem and then ranks and words these options (docs/spikes/solver.md). Every
 // option carries the changes that carry it out, so picking one needs no further model call.
 
-import { generalRoleId, isActive, staffingFor } from './catalog'
+import { isActive, staffingFor } from './catalog'
 import { NO_EDITS, type Edits } from './assistantEdits'
 import { autoAssign, type PlanContext } from './planner'
 import { addDays, hebrewDayName, moveShift, showDate } from './shifts'
@@ -40,21 +40,18 @@ export const KIND_TEXT: Record<OptionKind, string> = {
 
 interface Setup {
   d: AppData
-  general: string
   name: (id: string) => string
   slots: (s: ShiftRecord) => StaffSlot[]
   ctx: (excluded: string[], records?: ShiftRecord[]) => PlanContext
 }
 
 function setup(d: AppData): Setup {
-  const general = generalRoleId(d.roles)
   const certIds = d.certifications.map((c) => c.id)
   return {
     d,
-    general,
     name: (id) => d.workers.find((w) => w.id === id)?.firstName ?? '',
-    slots: (s) => staffingFor(s.staffing, d.roles, certIds),
-    ctx: (excluded, records = d.shifts) => ({ workers: d.workers.filter((w) => isActive(w) && !excluded.includes(w.id)), records, defs: d.shiftDefinitions, generalId: general }),
+    slots: (s) => staffingFor(s.staffing, certIds),
+    ctx: (excluded, records = d.shifts) => ({ workers: d.workers.filter((w) => isActive(w) && !excluded.includes(w.id)), records, defs: d.shiftDefinitions }),
   }
 }
 
@@ -73,7 +70,7 @@ function jobOptions(S: Setup, shift: ShiftRecord, out: string[], records = S.d.s
       kind: out.length ? 'replace' : 'fill',
       title: added.length ? `להכניס את ${added.map((c) => S.name(c.workerId)).join(' ו')}` : 'הצוות כבר מלא',
       actions: [`ב${where(shift)}, ${when(shift.date)}: ${names(S, now.crew)}`],
-      why: 'יוצאים בזמן, וכל מי שנכנס מחזיק בתפקיד ובהסמכה ופנוי',
+      why: 'יוצאים בזמן, וכל מי שנכנס מחזיק בהסמכות ופנוי',
       cost: 'אין',
       changes: { ...NO_EDITS, setCrews: [{ shiftId: shift.id, crew: now.crew }] },
     })

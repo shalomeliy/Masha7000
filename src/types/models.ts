@@ -1,11 +1,7 @@
 // Data schemas from docs/input/02-technical-spec.md, section 3.
 
-export interface Role {
-  id: string
-  name: string // e.g. "טפסן", "חשמלאי"
-}
-
-// Not in the spec: a separate list from roles, e.g. "אנטנה עד גובה 20 מטר", "חשמלאי מוסמך".
+// What a worker is qualified for, e.g. "טיפוס", "רתך", "חשמלאי מוסמך". A job's places ask for these.
+// (The spec's separate "roles" list was removed at the manager's request on 2026-11-08.)
 export interface Certification {
   id: string
   name: string
@@ -47,8 +43,10 @@ export interface Worker {
   homePhone?: string
   emergencyPhone1?: string
   emergencyPhone2?: string
-  roleIds: string[] // independent of each other: any combination is allowed
   certificationIds: string[]
+  // The manager's own 1-5 star rating of the worker in each certification they hold; absent = 5.
+  // "שבץ" prefers more stars in the certifications a place asks for.
+  certRatings?: Record<string, number>
   notes?: string
   constraints: Constraint[]
   status?: WorkerStatus // absent = active. Inactive: hidden from the list and never picked for a shift
@@ -63,7 +61,6 @@ export interface ShiftDefinition {
   name: string // "יום", "לילה"
   isStandby?: boolean // standby shift staffed by exactly 3 people
   requiredHeadcount?: number // usually 1 for a regular shift, 3 for standby
-  requiredRoleIds: string[]
   requiredCertificationIds: string[]
   startTime: string // "07:00"
   endTime: string // "16:00"
@@ -71,30 +68,26 @@ export interface ShiftDefinition {
   thenJob?: boolean // "לינה": a night job, then the same crew does another job before returning to base
 }
 
-// One person a job needs: the role they fill and, optionally, a certification they must hold.
-// The automatic planner will read this. The role is never empty: the default is "כללי".
+// One person a job needs, and the certifications they must hold; none = any worker.
+// Files saved while roles existed also hold `roleId`, `alsoRoleIds`, `altRoleIds`: ignored.
 export interface StaffSlot {
-  roleId: string
   certificationId?: string // older files: a single certification; read through slotCerts
   certificationIds?: string[] // the person in this place holds all of them
-  alsoRoleIds?: string[] // roles the same person must also hold, e.g. a "מטפס" who is also "מנהל טיפוס"
-  altRoleIds?: string[] // other roles that also fill this place, e.g. "מנהל טיפוס" in a "מטפס" place
   kindId?: string // the work kind (טיפוס, ריתוך) this place came from; absent = added by hand
 }
 
-// A kind of work with the people it needs, e.g. "טיפוס" = מנהל טיפוס + 2 מטפסים. Picking kinds in
+// A kind of work with the people it needs, e.g. "טיפוס" = 2 people with the certification "טיפוס". Picking kinds in
 // a job fills its staffing. One worker may fill places of different kinds at once (a climber who
 // welds covers a "טיפוס" place and the "ריתוך" place), never two places of the same kind.
 export interface WorkKind {
   id: string
   name: string
   staffing: StaffSlot[] // without `kindId`; it is added when the kind is picked in a job
-  fixed?: number // repairs already made to this saved kind (see `repairKinds`), so each runs once
+  fixed?: number // the repair level of earlier versions (KIND_FIXED); kept as saved
 }
 
 export interface CrewMember {
   workerId: string
-  roleId: string // one of the worker's roles; "" when the worker has none yet
 }
 
 export type ClosureOutcome = 'done' | 'partial' | 'postponed'
@@ -111,7 +104,7 @@ export interface ShiftClosure {
 }
 
 // One real shift on one date. Replaces the spec's ShiftAssignment: the user's shifts carry a
-// place, the nature of the work, and each worker's role in that shift.
+// place, the nature of the work, and who is in it.
 export interface ShiftRecord {
   id: string
   date: string // YYYY-MM-DD, the day it starts
@@ -132,12 +125,11 @@ export interface ShiftRecord {
   pinnedIds?: string[] // crew members who must be in this job ("עובדים קבועים"): "שבץ" and swap advice never take them out
 }
 
-// One crew change in a saved shift: `outId` was replaced by `inId` in the place of role `roleId`.
+// One crew change in a saved shift: `outId` was replaced by `inId`.
 export interface CrewSwap {
   at: string // ISO time the shift was saved with the change
   outId: string
   inId: string
-  roleId: string
 }
 
 // A job that still needs a shift: left over from a partial or postponed night job, or added by hand.
@@ -202,7 +194,7 @@ export interface AssistantExample {
 
 // A confirmed action the app learns from: `said` is what the manager said for it, the rest what it did.
 export type ExampleAction =
-  | { type: 'job'; said: string; job: { date: string; shiftKindId: string; location: string; jobDescription: string; staffing: { roleId: string; count: number }[]; autoAssign: boolean } }
+  | { type: 'job'; said: string; job: { date: string; shiftKindId: string; location: string; jobDescription: string; staffing: { certId?: string; count: number }[]; autoAssign: boolean } }
   | { type: 'sick'; said: string; workerId: string; until: string }
 
 export interface PostponeReason {

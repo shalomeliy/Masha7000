@@ -11,14 +11,12 @@ import {
   countText,
   filterWorkers,
   fullName,
-  GENERAL_ROLE_NAME,
-  generalRoleId,
+  certStars,
   isActive,
-  isGeneralRole,
   isIsraeliId,
   isIsraeliMobile,
+  MAX_STARS,
   newId,
-  tagNames,
   telHref,
   upsert,
 } from "../../lib/catalog";
@@ -39,12 +37,13 @@ import { JoinButton, JoinPending } from "./JoinSection";
 import { authMode } from "../../lib/google/auth";
 import { tx } from '../../i18n'
 import { searchWorkers } from "../../lib/workerSearch";
+import { CertStarsField } from "./CertStars";
+import { keepHeldRatings } from "../../lib/certRatings";
 
 const blankWorker = (): Worker => ({
   id: newId(),
   firstName: "",
   lastName: "",
-  roleIds: [],
   certificationIds: [],
   constraints: [],
   status: "active",
@@ -88,7 +87,6 @@ export type WorkersTab = "team" | "request" | "join" | "search";
 
 export function WorkersSection({ tab }: { tab: WorkersTab }) {
   const workers = useDriveList("workers");
-  const roles = useDriveList("roles");
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
   const [query, setQuery] = useState("");
@@ -100,19 +98,18 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
     setOnSaved(() => saved ?? null);
   };
   const review = (w: Worker, saved: () => void) => edit(w, saved);
-  const [roleFilter, setRoleFilter] = useState<string[]>([]);
   const [certFilter, setCertFilter] = useState<string[]>([]);
   const [requesting, setRequesting] = useState(false);
   const [inactiveView, setShowInactive] = useState(false);
   const [stateFilter, setStateFilter] = useState<StateId | null>(null);
   const today = todayIso();
 
-  // The inactive list and the state filter belong to the team tab; the role filter to the search tab.
+  // The inactive list and the state filter belong to the team tab; the certification filter to the search tab.
   const showInactive = tab === "team" && inactiveView;
   const searching = tab === "search";
   const typed = searching && query.trim() !== "";
-  // While text is typed the role and certification chips are hidden, so they do not filter either.
-  const chipFiltering = searching && !typed && roleFilter.length + certFilter.length > 0;
+  // While text is typed the certification chips are hidden, so they do not filter either.
+  const chipFiltering = searching && !typed && certFilter.length > 0;
   const filtering = typed || chipFiltering;
   const byState = tab === "team" && !showInactive ? stateFilter : null;
   const inactiveCount = workers.items.filter((w) => !isActive(w)).length;
@@ -121,13 +118,11 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
   const listed = typed ? workers.items : workers.items.filter((w) => isActive(w) !== showInactive);
   const team = teamStates(listed, today);
   const found = typed
-    ? searchWorkers(listed, query, { roles: roles.items, certifications: certs.items, departments: departments.items }, today)
+    ? searchWorkers(listed, query, { certifications: certs.items, departments: departments.items }, today)
     : listed;
   const shown = filterWorkers(
     byState ? found.filter((w) => workerState(w, today).id === byState) : found,
-    chipFiltering ? roleFilter : [],
     chipFiltering ? certFilter : [],
-    generalRoleId(roles.items),
   ).sort((a, b) => fullName(a).localeCompare(fullName(b), "he"));
 
   const sheets = (
@@ -163,7 +158,7 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
       <>
         <TabIntro
           title={tx("העובדים ממלאים לבד")}
-          text={tx("שולחים לעובדים בוואטסאפ קישור לטופס קצר. כל עובד ממלא שם, טלפון, תפקידים והסמכות, והתשובות מחכות כאן. בודקים, שומרים, ורק אז העובד נכנס לרשימה.")}
+          text={tx("שולחים לעובדים בוואטסאפ קישור לטופס קצר. כל עובד ממלא שם, טלפון והסמכות, והתשובות מחכות כאן. בודקים, שומרים, ורק אז העובד נכנס לרשימה.")}
         />
         {/* The details form needs the server (the live site). */}
         {authMode() === "server" ? (
@@ -186,7 +181,7 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
       <>
         <JoinPending onReview={review} />
         <EmptyState
-          text={tx("כאן נמצאת רשימת העובדים שלך. לכל עובד מסמנים את התפקידים וההסמכות שלו, ואז אפשר לחפש לפיהם.")}
+          text={tx("כאן נמצאת רשימת העובדים שלך. לכל עובד מסמנים את ההסמכות שלו ונותנים לו כוכבים בכל אחת, ואז אפשר לחפש לפיהן.")}
           addLabel={tx("הוספת עובד")}
           onAdd={() => edit(blankWorker())}
         />
@@ -201,7 +196,7 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
         <div className="mb-3 space-y-3">
           <TabIntro
             title={tx("מי מתאים לעבודה?")}
-            text={tx("כותבים שם, טלפון, ת.ז או כל פרט אחר, או מסמנים תפקידים והסמכות, ורואים רק את העובדים שמתאימים.")}
+            text={tx("כותבים שם, טלפון, ת.ז או כל פרט אחר, או מסמנים הסמכות, ורואים רק את העובדים שמתאימים.")}
           />
           <label className="relative block">
             <span className="sr-only">{tx("חיפוש עובד")}</span>
@@ -225,16 +220,10 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
               </button>
             )}
           </label>
-          {typed ? null : roles.items.length + certs.items.length === 0 ? (
-            <p className="text-sm text-slate-400">{tx("עוד אין תפקידים או הסמכות. מוסיפים אותם בהגדרות.")}</p>
+          {typed ? null : certs.items.length === 0 ? (
+            <p className="text-sm text-slate-400">{tx("עוד אין הסמכות. מוסיפים אותן בהגדרות.")}</p>
           ) : (
             <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-3">
-              {roles.items.length > 0 && (
-                <div className="space-y-1">
-                  <span className="text-sm text-slate-300">{tx("תפקידים")}</span>
-                  <Chips options={roles.items} selected={roleFilter} onToggle={(id) => setRoleFilter((f) => toggle(f, id))} />
-                </div>
-              )}
               {certs.items.length > 0 && (
                 <div className="space-y-1">
                   <span className="text-sm text-slate-300">{tx("הסמכות")}</span>
@@ -245,7 +234,6 @@ export function WorkersSection({ tab }: { tab: WorkersTab }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setRoleFilter([]);
                     setCertFilter([]);
                     setQuery("");
                   }}
@@ -377,16 +365,10 @@ function WorkerCard({
   worker: Worker;
   onOpen: () => void;
 }) {
-  const roles = useDriveList("roles");
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
-  // Every worker is "כללי"; it is shown only when they hold no other role, so the card is never empty.
-  const specific = tagNames(
-    w.roleIds,
-    roles.items.filter((r) => !isGeneralRole(r)),
-  );
-  const roleList = specific.length ? specific : [GENERAL_ROLE_NAME];
-  const certList = tagNames(w.certificationIds, certs.items);
+  // Each certification with the manager's stars in it.
+  const certList = certs.items.filter((c) => w.certificationIds.includes(c.id));
   const department = departments.items.find(
     (d) => d.id === w.departmentId,
   )?.name;
@@ -422,20 +404,16 @@ function WorkerCard({
               {department}
             </span>
           )}
-          {roleList.map((n) => (
+          {certList.map((c) => (
             <span
-              key={n}
-              className="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-200"
-            >
-              {n}
-            </span>
-          ))}
-          {certList.map((n) => (
-            <span
-              key={n}
+              key={c.id}
               className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-200"
             >
-              {n}
+              {c.name}{" "}
+              <span aria-label={certStars(w, c.id) === 1 ? tx('כוכב אחד') : tx('{n} כוכבים', { n: certStars(w, c.id) })} className="text-amber-300">
+                {"★".repeat(certStars(w, c.id))}
+                <span className="text-slate-600">{"★".repeat(MAX_STARS - certStars(w, c.id))}</span>
+              </span>
             </span>
           ))}
         </span>
@@ -522,7 +500,6 @@ function WorkerForm({
   onSaved?: () => void;
 }) {
   const workers = useDriveList("workers");
-  const roles = useDriveList("roles");
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
   // A sickness that has ended opens as active, so the form shows what is true today.
@@ -538,7 +515,6 @@ function WorkerForm({
   const [saveError, setSaveError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
   const exists = workers.items.some((w) => w.id === worker.id);
-  const specificRoles = roles.items.filter((r) => !isGeneralRole(r));
   // The next 3 days, from the draft: a status or an absence just picked shows before saving.
   const agenda = useWorkerAgenda(draft);
   const [monthOpen, setMonthOpen] = useState(false);
@@ -599,7 +575,7 @@ function WorkerForm({
     setError(err);
     if (err) return;
     const clean: Worker = {
-      ...draft,
+      ...keepHeldRatings(draft),
       firstName: draft.firstName.trim(),
       lastName: draft.lastName.trim(),
     };
@@ -741,25 +717,6 @@ function WorkerForm({
       </div>
 
       <div className="space-y-1">
-        <span className="text-sm text-slate-300">{tx('תפקידים')}</span>
-        <p className="text-xs text-slate-400">
-          {tx('כל עובד הוא גם "כללי", בלי לסמן.')}
-        </p>
-        {specificRoles.length ? (
-          <Chips
-            options={specificRoles}
-            selected={draft.roleIds}
-            onToggle={(id) =>
-              setDraft((d) => ({ ...d, roleIds: toggle(d.roleIds, id) }))
-            }
-          />
-        ) : (
-          <p className="text-sm text-amber-300">
-            {tx('עוד אין תפקידים מלבד "כללי". אפשר להוסיף אותם בלשונית "תפקידים".')}
-          </p>
-        )}
-      </div>
-      <div className="space-y-1">
         <span className="text-sm text-slate-300">{tx('הסמכות')}</span>
         {certs.items.length ? (
           <Chips
@@ -777,6 +734,10 @@ function WorkerForm({
             {tx('עוד אין הסמכות. אפשר להוסיף אותן בלשונית "הסמכות".')}
           </p>
         )}
+        {draft.certificationIds.length > 0 && (
+          <p className="text-xs text-slate-400">{tx('כמה כוכבים העובד מקבל בכל הסמכה. "שבץ" מעדיף מי שיש לו יותר כוכבים.')}</p>
+        )}
+        <CertStarsField worker={draft} certs={certs.items} onChange={setDraft} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">

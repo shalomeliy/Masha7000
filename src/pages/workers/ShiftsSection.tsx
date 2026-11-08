@@ -12,7 +12,6 @@ const blankShift = (): ShiftDefinition => ({
   startTime: SHIFT_START,
   endTime: SHIFT_END,
   requiredHeadcount: 1,
-  requiredRoleIds: [],
   requiredCertificationIds: [],
 })
 
@@ -21,7 +20,6 @@ const hoursText = (s: ShiftDefinition) =>
 
 export function ShiftsSection() {
   const shifts = useDriveList('shiftDefinitions')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const [editing, setEditing] = useState<ShiftDefinition | null>(null)
   const [starterError, setStarterError] = useState<unknown>(null)
@@ -39,7 +37,7 @@ export function ShiftsSection() {
     <>
       {shifts.items.length === 0 ? (
         <EmptyState
-          text={tx('תבנית עבודה אומרת אם העבודה נגמרת באותו יום או למחרת, כמה אנשים צריך בה ואילו תפקידים והסמכות חייבים להיות בה.')}
+          text={tx('תבנית עבודה אומרת אם העבודה נגמרת באותו יום או למחרת, כמה אנשים צריך בה ואילו הסמכות חייבות להיות בה.')}
           addLabel={tx('הוספת תבנית עבודה')}
           onAdd={() => setEditing(blankShift())}
           starterLabel={tx('להתחיל עם: יום (עד 16:00), לילה (עד 16:00 למחרת), לינה (לילה ואז עוד עבודה)')}
@@ -51,7 +49,7 @@ export function ShiftsSection() {
         <>
           <ul className="space-y-2">
             {shifts.items.map((s) => {
-              const names = [...tagNames(s.requiredRoleIds, roles.items), ...tagNames(s.requiredCertificationIds, certs.items)]
+              const names = tagNames(s.requiredCertificationIds, certs.items)
               return (
                 <li key={s.id}>
                   <button
@@ -69,7 +67,7 @@ export function ShiftsSection() {
                     </span>
                     <span className="block text-sm text-slate-300">{hoursText(s)}</span>
                     <span className="block text-xs text-slate-400">
-                      {names.length ? tx('נדרש: {v}', { v: names.join(', ') }) : tx('אין תפקיד או הסמכה נדרשים')}
+                      {names.length ? tx('נדרש: {v}', { v: names.join(', ') }) : tx('אין הסמכה נדרשת')}
                     </span>
                   </button>
                 </li>
@@ -94,7 +92,6 @@ export function ShiftsSection() {
 
 function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => void }) {
   const shifts = useDriveList('shiftDefinitions')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const records = useDriveList('shifts')
   const [draft, setDraft] = useState(shift)
@@ -132,8 +129,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
     if (!on && headcount === String(STANDBY_HEADCOUNT)) setHeadcount('1')
   }
 
-  const toggleIn = (field: 'requiredRoleIds' | 'requiredCertificationIds') => (id: string) =>
-    setDraft((d) => ({ ...d, [field]: d[field].includes(id) ? d[field].filter((r) => r !== id) : [...d[field], id] }))
+  const toggleCert = (id: string) =>
+    setDraft((d) => ({ ...d, requiredCertificationIds: d.requiredCertificationIds.includes(id) ? d.requiredCertificationIds.filter((r) => r !== id) : [...d.requiredCertificationIds, id] }))
 
   return (
     <>
@@ -169,17 +166,9 @@ function ShiftForm({ shift, onDone }: { shift: ShiftDefinition; onDone: () => vo
         <input type="number" min={1} inputMode="numeric" value={headcount} onChange={(e) => setHeadcount(e.target.value)} className={inputClass} />
       </Field>
       <div className="space-y-1">
-        <span className="text-sm text-slate-300">{tx('תפקידים שחייבים להיות בעבודה')}</span>
-        {roles.items.length ? (
-          <Chips options={roles.items} selected={draft.requiredRoleIds} onToggle={toggleIn('requiredRoleIds')} />
-        ) : (
-          <p className="text-sm text-amber-300">{tx('עוד אין תפקידים. אפשר להוסיף אותם בלשונית "תפקידים".')}</p>
-        )}
-      </div>
-      <div className="space-y-1">
         <span className="text-sm text-slate-300">{tx('הסמכות שחייבות להיות בעבודה')}</span>
         {certs.items.length ? (
-          <Chips options={certs.items} selected={draft.requiredCertificationIds} onToggle={toggleIn('requiredCertificationIds')} />
+          <Chips options={certs.items} selected={draft.requiredCertificationIds} onToggle={toggleCert} />
         ) : (
           <p className="text-sm text-amber-300">{tx('עוד אין הסמכות. אפשר להוסיף אותן בלשונית "הסמכות".')}</p>
         )}

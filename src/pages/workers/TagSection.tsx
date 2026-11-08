@@ -1,52 +1,35 @@
 import { tx } from '../../i18n'
 import { useState } from 'react'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
-import { countText, isGeneralRole, nameError, newId, removeTagReferences, STARTER_CERTIFICATIONS, STARTER_ROLES, tagUsage, upsert } from '../../lib/catalog'
-import type { TagKind } from '../../lib/catalog'
+import { countText, nameError, newId, removeTagReferences, STARTER_CERTIFICATIONS, tagUsage, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { AddButton, EditMark, EmptyState } from './common'
 
-// Roles and certifications behave the same: a named list that workers hold and shift types require.
-// The one exception is the role "כללי": every worker holds it, and it cannot be renamed or deleted.
+// The certifications list: workers hold them and a job's places ask for them.
 
 interface Tag {
   id: string
   name: string
 }
 
-const TEXT: Record<TagKind, { one: string; linked: string; it: string; add: string; edit: string; fresh: string; field: string; explain: string; starter: string[] }> = {
-  roles: {
-    one: tx('התפקיד'),
-    linked: tx('משויך'),
-    it: tx('אותו'),
-    add: tx('הוספת תפקיד'),
-    edit: tx('עריכת תפקיד'),
-    fresh: tx('תפקיד חדש'),
-    field: tx('שם התפקיד'),
-    explain: tx('תפקיד הוא מה שהעובד יודע לעשות, למשל טפסן או חשמלאי. לכל עובד אפשר לסמן כמה תפקידים שרוצים.'),
-    starter: STARTER_ROLES.filter((name) => !isGeneralRole({ name })), // "כללי" is always there
-  },
-  certifications: {
-    one: tx('ההסמכה'),
-    linked: tx('משויכת'),
-    it: tx('אותה'),
-    add: tx('הוספת הסמכה'),
-    edit: tx('עריכת הסמכה'),
-    fresh: tx('הסמכה חדשה'),
-    field: tx('שם ההסמכה'),
-    explain: tx('הסמכה היא אישור שיש לעובד, למשל עבודה בגובה 40 מטר. לכל עובד אפשר לסמן כמה הסמכות שרוצים.'),
-    starter: STARTER_CERTIFICATIONS,
-  },
+const t = {
+  one: tx('ההסמכה'),
+  linked: tx('משויכת'),
+  it: tx('אותה'),
+  add: tx('הוספת הסמכה'),
+  edit: tx('עריכת הסמכה'),
+  fresh: tx('הסמכה חדשה'),
+  field: tx('שם ההסמכה'),
+  explain: tx('הסמכה היא אישור שיש לעובד, למשל עבודה בגובה 40 מטר. לכל עובד אפשר לסמן כמה הסמכות שרוצים.'),
+  starter: STARTER_CERTIFICATIONS,
 }
 
-export function TagSection({ kind }: { kind: TagKind }) {
-  const tags = useDriveList(kind)
+export function TagSection() {
+  const tags = useDriveList('certifications')
   const workers = useDriveList('workers')
   const shifts = useDriveList('shiftDefinitions')
   const [editing, setEditing] = useState<Tag | null>(null)
   const [starterError, setStarterError] = useState<unknown>(null)
-  const t = TEXT[kind]
-  const isFixed = (tag: Tag) => kind === 'roles' && isGeneralRole(tag)
 
   const addStarter = async () => {
     setStarterError(null)
@@ -59,7 +42,7 @@ export function TagSection({ kind }: { kind: TagKind }) {
 
   return (
     <>
-      {tags.items.every(isFixed) ? (
+      {tags.items.length === 0 ? (
         <EmptyState
           text={t.explain}
           addLabel={t.add}
@@ -73,17 +56,7 @@ export function TagSection({ kind }: { kind: TagKind }) {
         <>
           <ul className="space-y-2">
             {tags.items.map((tag) => {
-              const u = tagUsage(kind, tag.id, workers.items, shifts.items)
-              if (isFixed(tag))
-                return (
-                  <li key={tag.id} className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-2">
-                    <span>
-                      <span className="block font-semibold">{tag.name}</span>
-                      <span className="block text-xs text-slate-400">{tx('כל העובדים, קבוע')}</span>
-                    </span>
-                    <span className="shrink-0 text-sm text-slate-400">{countText(workers.items.length, tx('עובד אחד'), tx('עובדים'))}</span>
-                  </li>
-                )
+              const u = tagUsage(tag.id, workers.items, shifts.items)
               return (
                 <li key={tag.id}>
                   <button
@@ -109,7 +82,7 @@ export function TagSection({ kind }: { kind: TagKind }) {
         onClose={() => setEditing(null)}
         locked={tags.saving || workers.saving || shifts.saving}
       >
-        {editing && <TagForm kind={kind} tag={editing} onDone={() => setEditing(null)} />}
+        {editing && <TagForm tag={editing} onDone={() => setEditing(null)} />}
       </Sheet>
     </>
   )
@@ -118,17 +91,16 @@ export function TagSection({ kind }: { kind: TagKind }) {
 // "לעובד אחד" / "ל-3 עובדים": a number after a Hebrew prefix letter takes a hyphen.
 const toCount = (n: number, one: string, many: string) => (n === 1 ? tx('ל{one}', { one }) : tx('ל-{n} {many}', { n, many }))
 
-function TagForm({ kind, tag, onDone }: { kind: TagKind; tag: Tag; onDone: () => void }) {
-  const tags = useDriveList(kind)
+function TagForm({ tag, onDone }: { tag: Tag; onDone: () => void }) {
+  const tags = useDriveList('certifications')
   const workers = useDriveList('workers')
   const shifts = useDriveList('shiftDefinitions')
   const [name, setName] = useState(tag.name)
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
-  const t = TEXT[kind]
   const exists = tags.items.some((x) => x.id === tag.id)
-  const u = tagUsage(kind, tag.id, workers.items, shifts.items)
+  const u = tagUsage(tag.id, workers.items, shifts.items)
 
   const run = async (work: () => Promise<void>) => {
     setBusy(true)
@@ -152,7 +124,7 @@ function TagForm({ kind, tag, onDone }: { kind: TagKind; tag: Tag; onDone: () =>
   // References go first: if a later write fails, the tag is still listed and the delete can be retried.
   const remove = () =>
     run(async () => {
-      const next = removeTagReferences(kind, tag.id, workers.items, shifts.items)
+      const next = removeTagReferences(tag.id, workers.items, shifts.items)
       if (next.workers !== workers.items) await workers.save(next.workers)
       if (next.shifts !== shifts.items) await shifts.save(next.shifts)
       await tags.save(tags.items.filter((x) => x.id !== tag.id))

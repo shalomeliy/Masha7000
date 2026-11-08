@@ -54,14 +54,13 @@ export function JoinButton() {
 
 function JoinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient()
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const departments = useDriveList('departments')
   const [copied, setCopied] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
-  const lists = formLists(roles.items, certs.items, departments.items)
+  const lists = formLists(certs.items, departments.items)
 
-  // Opening the sheet opens the form (or keeps it open) with today's roles, certifications and departments.
+  // Opening the sheet opens the form (or keeps it open) with today's certifications and departments.
   const link = useQuery({
     queryKey: ['joinLink', JSON.stringify(lists)],
     queryFn: () => openForm(lists),

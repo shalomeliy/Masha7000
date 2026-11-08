@@ -16,19 +16,18 @@ const shift = (over: Partial<ShiftRecord>): ShiftRecord => ({
 
 const ctx: ReportContext = {
   shifts: [
-    shift({ crew: [{ workerId: 'w1', roleId: 'climber' }, { workerId: 'w2', roleId: 'general' }] }),
+    shift({ crew: [{ workerId: 'w1' }, { workerId: 'w2' }] }),
     shift({ id: 's2', date: '2026-11-03', shiftDefinitionId: undefined, location: 'עכו', urgent: true, startTime: '09:30', endDate: '2026-11-04', endTime: '16:00' }),
   ],
-  defs: [{ id: 'night', name: 'לילה', startTime: '07:00', endTime: '16:00', endsNextDay: true, requiredRoleIds: [], requiredCertificationIds: [] }],
+  defs: [{ id: 'night', name: 'לילה', startTime: '07:00', endTime: '16:00', endsNextDay: true, requiredCertificationIds: [] }],
   workers: [
-    { id: 'w1', firstName: 'דני', lastName: 'כהן', roleIds: ['climber'], certificationIds: [], constraints: [] },
-    { id: 'w2', firstName: 'רון', lastName: 'לוי', roleIds: [], certificationIds: [], constraints: [] },
+    { id: 'w1', firstName: 'דני', lastName: 'כהן', certificationIds: ['climber'], constraints: [] },
+    { id: 'w2', firstName: 'רון', lastName: 'לוי', certificationIds: [], constraints: [] },
   ],
-  roles: [{ id: 'climber', name: 'טפסן' }, { id: 'general', name: 'כללי' }],
 }
 
 describe('dayReport', () => {
-  it('lists the date, place, job, workers and their roles', () => {
+  it('lists the date, place, job and workers', () => {
     expect(dayReport('2026-11-01', ctx)).toBe(
       [
         '📋 *סידור עבודות*',
@@ -38,8 +37,8 @@ describe('dayReport', () => {
         '🌙 *לילה*  ·  📍 *חיפה*',
         '🔧 התקנת אנטנה',
         '👷 *צוות (2):*',
-        '   • דני כהן · _טפסן_',
-        '   • רון לוי · _כללי_',
+        '   • דני כהן',
+        '   • רון לוי',
         '',
         '━━━━━━━━━━━━━━',
       ].join('\n'),
@@ -64,7 +63,7 @@ describe('weekReport', () => {
     expect(text.split('\n').slice(0, 2)).toEqual(['📋 *סידור עבודות לשבוע*', '*1.11 עד 7.11.2026*'])
     expect(text).toContain('🗓️ *יום ראשון 1.11*')
     expect(text).toContain('🗓️ *יום שבת 7.11*')
-    expect(text).toContain('   • דני כהן · _טפסן_')
+    expect(text).toContain('   • דני כהן')
     expect(text).toContain('⚡ *דחופה מ-09:30*')
   })
 })
@@ -73,7 +72,7 @@ describe('weekData', () => {
   it('gives the image card seven days with their shifts', () => {
     const data = weekData('2026-11-04', ctx)
     expect(data.days.map((d) => d.shifts.length)).toEqual([1, 0, 1, 0, 0, 0, 0])
-    expect(data.days[0].shifts[0]).toMatchObject({ kind: 'night', location: 'חיפה', crew: [{ name: 'דני כהן', role: 'טפסן' }, { name: 'רון לוי', role: 'כללי' }] })
+    expect(data.days[0].shifts[0]).toMatchObject({ kind: 'night', location: 'חיפה', crew: [{ name: 'דני כהן' }, { name: 'רון לוי' }] })
     expect(data.days[2].shifts[0].kind).toBe('urgent')
   })
 })

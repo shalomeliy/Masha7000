@@ -1,7 +1,6 @@
 import type { AppData, Proposal, Screen } from './assistant'
 import { isYes, normalizeProposal } from './assistant'
 import type { Edits } from './assistantEdits'
-import { generalRoleId } from './catalog'
 import { continueDates, freeDates } from './freeDates'
 import { HINTS, type Hint } from './hint'
 import { closeName, nameDistance, nameLimit } from './nameMatch'
@@ -68,11 +67,14 @@ const singular = (w: string) =>
     .replace(/א$/, 'אי')
     .replace(/[כמנפצ]$/, (c) => FINAL[c])
 
-// Words that name the same role: a role called by one is found by the other.
-const SAME_ROLE = [['מטפס', 'טפסן']]
-/** True when the word is one word of a longer role name: "מטפס" in "מנהל צוות מטפסים". */
-const partOfLonger = (word: string, roleId: string, d: AppData) => {
-  const rw = words(d.roles.find((r) => r.id === roleId)?.name ?? '')
+// Words that name the same certification: one called by any of them is found by the others
+// ("2 מטפסים" asks for the certification "טיפוס").
+const SAME_CERT = [['מטפס', 'טפסן', 'טיפוס']]
+// A place that asks for no certification, said as it was when "כללי" was a role: "2 כללי".
+const ANY_WORKER = /^(?:כללי|כלליים)$/
+/** True when the word is one word of a longer certification name: "מטפס" in "מנהל צוות מטפסים". */
+const partOfLonger = (word: string, certId: string, d: AppData) => {
+  const rw = words(d.certifications.find((c) => c.id === certId)?.name ?? '')
   return rw.length > 1 && rw.some((w) => singular(w) === word)
 }
 
@@ -88,8 +90,8 @@ interface Found {
   date?: string
   shiftKindId?: string
   location?: string
-  // `certId`: the place asks for a certification ("רתך", "2 טכנאי מצלמות" when that is a certification); its role is then "כללי".
-  staffing: { roleId: string; count: number; certId?: string }[]
+  // `certId`: the certification the places ask for ("רתך", "2 טכנאי מצלמות"); none = any worker ("2 כללי").
+  staffing: { count: number; certId?: string }[]
   workerIds: string[]
   // A name said that is about equally close to more than one worker: the app asks which one.
   unsure: { at: number; n: number; ids: string[] }[]
@@ -218,42 +220,42 @@ export function find(said: string, d: AppData, aliases: Record<string, string>, 
   }
   // "עד" before a date: part of it.
   for (let i = 0; i < ws.length; i++) if (!used[i] && ws[i] === 'עד' && used[i + 1]) take(i)
-  // Roles with a count: "שני מטפסים", "טכנאי מצלמות אחד", "חשמלאי".
-  // The longest names first: "מנהל צוות מטפסים" is read whole before any shorter role in it.
-  // Roles and certifications are said alone or in the plural ("רתך", "רתכים", "שני טכנאי מצלמות"): the lists' own
-  // names are matched word by word, singular or plural. A role wins over a certification of the same name.
-  const general = generalRoleId(d.roles)
-  const names: { id: string; name: string; cert: boolean }[] = [
-    ...d.roles.map((r) => ({ id: r.id, name: r.name, cert: false })),
-    ...d.certifications.map((c) => ({ id: c.id, name: c.name, cert: true })),
-  ].sort((a, b) => words(b.name).length - words(a.name).length)
-  const roleAt = (i: number): [string, number, string?] | null => {
+  // Certifications with a count: "שני מטפסים", "טכנאי מצלמות אחד", "חשמלאי".
+  // The longest names first: "מנהל צוות מטפסים" is read whole before any shorter one in it.
+  // Said alone or in the plural ("רתך", "רתכים", "שני טכנאי מצלמות"): the list's own names are
+  // matched word by word, singular or plural.
+  const names = d.certifications.map((c) => ({ id: c.id, name: c.name })).sort((a, b) => words(b.name).length - words(a.name).length)
+  // [certification id, or '' for a place anyone fills; how many words it took]
+  const certAt = (i: number): [string, number] | null => {
     for (const r of names) {
       const rw = words(r.name)
-      if (rw.length && rw.every((w, k) => !used[i + k] && (singular(bare(ws[i + k] ?? '')) === singular(w) || bare(ws[i + k] ?? '') === w))) return r.cert ? [general, rw.length, r.id] : [r.id, rw.length]
+      if (rw.length && rw.every((w, k) => !used[i + k] && (singular(bare(ws[i + k] ?? '')) === singular(w) || bare(ws[i + k] ?? '') === w))) return [r.id, rw.length]
     }
     const one = singular(bare(ws[i] ?? ''))
-    // "מטפסים" when the role is called "טפסן" (or the other way round).
-    const same = SAME_ROLE.find((g) => g.includes(one))
-    const synonym = same && d.roles.find((r) => words(r.name).length === 1 && same.includes(singular(r.name)))
+    // "2 כללי": places with no certification, only after a number.
+    const before = (ws[i - 1] ?? '').replace(/^ו(?=.)/, '')
+    if (ANY_WORKER.test(bare(ws[i] ?? '')) && (NUMBERS[before] || /^\d{1,2}$/.test(before))) return ['', 1]
+    // "מטפסים" when the certification is called "טיפוס" or "טפסן".
+    const same = SAME_CERT.find((g) => g.includes(one))
+    const synonym = same && d.certifications.find((c) => words(c.name).length === 1 && same.includes(singular(c.name)))
     if (synonym) return [synonym.id, 1]
-    // A learned word never stands for a longer role it is only part of ("מטפסים" is not "מנהל צוות מטפסים").
+    // A learned word never stands for a longer name it is only part of ("מטפסים" is not "מנהל צוות מטפסים").
     const alias = aliases[one]
-    return alias && !partOfLonger(one, alias, d) ? [alias, 1] : null
+    return alias && d.certifications.some((c) => c.id === alias) && !partOfLonger(one, alias, d) ? [alias, 1] : null
   }
-  const addRole = (i: number, r: [string, number, string?]) => {
+  const addCert = (i: number, r: [string, number]) => {
     let count = 1
     const before = (ws[i - 1] ?? '').replace(/^ו(?=.)/, '') // "ושני מטפסים"
     const after = ws[i + r[1]] ?? ''
     if (i > 0 && !used[i - 1] && (NUMBERS[before] || /^\d{1,2}$/.test(before))) (count = NUMBERS[before] ?? Number(before)), take(i - 1)
     else if (NUMBERS[after] && !used[i + r[1]]) (count = NUMBERS[after]), take(i + r[1])
-    out.staffing.push(r[2] ? { roleId: r[0], count, certId: r[2] } : { roleId: r[0], count })
+    out.staffing.push(r[0] ? { count, certId: r[0] } : { count })
     take(i, r[1])
   }
   for (let i = 0; i < ws.length; i++) {
     if (used[i]) continue
-    const r = roleAt(i)
-    if (r) addRole(i, r)
+    const r = certAt(i)
+    if (r) addCert(i, r)
   }
   // A known job type as the description.
   for (const j of d.jobTypes) {
@@ -264,12 +266,12 @@ export function find(said: string, d: AppData, aliases: Record<string, string>, 
   }
   // Names not said exactly: the closest worker, when one is close enough (typos, speech recognition, English).
   for (let i = 0; i < ws.length; i++) workerAt(i, false)
-  // A one-word role or certification heard a little wrong ("רתח" for "רתך"): only sound-alike letters differ.
+  // A one-word certification heard a little wrong ("רתח" for "רתך"): only sound-alike letters differ.
   for (let i = 0; i < ws.length; i++) {
     const w = bare(ws[i])
     if (used[i] || w.length < 3 || FILLER.has(ws[i]) || COMMON.has(ws[i]) || COMMON.has(w) || protect.has(w) || JOB_VERBS.has(ws[i]) || /\d/.test(w)) continue
     const hits = names.filter((r) => words(r.name).length === 1 && nameDistance(singular(w), singular(r.name)) <= 0.5)
-    if (hits.length === 1) addRole(i, hits[0].cert ? [general, 1, hits[0].id] : [hits[0].id, 1])
+    if (hits.length === 1) addCert(i, [hits[0].id, 1])
   }
   ws.forEach((w, i) => {
     if (!used[i] && !FILLER.has(w)) {
@@ -285,7 +287,7 @@ export function find(said: string, d: AppData, aliases: Record<string, string>, 
 export interface Learned {
   job: { words: string[][] } // action words of each learned example (the built-in verbs come on top: JOB_VERBS)
   sick: { words: string[][]; needsDate: boolean }
-  aliases: Record<string, string> // a word of the manager's -> roleId
+  aliases: Record<string, string> // a word of the manager's -> certification id
   protect: Set<string> // learned action words: never read as a worker's name
 }
 
@@ -302,7 +304,7 @@ export function exampleAction(p: Proposal, asked: string[]): ExampleAction | und
     return {
       type: 'job',
       said: asked.join(' / ').slice(0, 400),
-      job: { date: j.date, shiftKindId: j.shiftKindId, location: j.location, jobDescription: j.jobDescription, staffing: j.staffing.map((s) => ({ roleId: s.roleId, count: s.count })), autoAssign: j.autoAssign },
+      job: { date: j.date, shiftKindId: j.shiftKindId, location: j.location, jobDescription: j.jobDescription, staffing: j.staffing.map((s) => ({ count: s.count, ...(s.certificationIds[0] ? { certId: s.certificationIds[0] } : {}) })), autoAssign: j.autoAssign },
     }
   }
   const sick = p.editWorkers.filter((w) => w.status === 'sick')
@@ -328,12 +330,13 @@ export function learn(examples: AssistantExample[], d: AppData): Learned {
     const then = new Date(ex.createdAt)
     if (a.type === 'job') {
       let f = find(a.said, d, L.aliases, then)
-      // A role Claude understood that the lists do not name: the word after its count is its name.
+      // A certification Claude understood by a word the list does not hold: the word after its count is its name.
+      // Examples saved while roles existed have no `certId` and teach nothing here.
       const ws = words(a.said)
       for (const s of a.job.staffing) {
-        if (f.staffing.some((x) => x.roleId === s.roleId)) continue
+        if (!s.certId || f.staffing.some((x) => x.certId === s.certId)) continue
         const i = ws.findIndex((w, k) => NUMBERS[ws[k - 1] ?? ''] === s.count && f.rest.includes(w))
-        if (i >= 0 && !partOfLonger(singular(bare(ws[i])), s.roleId, d)) L.aliases[singular(bare(ws[i]))] = s.roleId
+        if (i >= 0 && !partOfLonger(singular(bare(ws[i])), s.certId, d)) L.aliases[singular(bare(ws[i]))] = s.certId
       }
       f = find(a.said, d, L.aliases, then)
       // The action's own values are slots, never part of the template, also when the lists did not explain them.
@@ -366,7 +369,7 @@ const said = (examples: string[][], rest: string[]) => examples.some((ws) => ws.
 // ---- Handling a sentence ----
 
 export interface PendingJob {
-  job: { date: string; shiftKindId: string; location: string; jobDescription: string; staffing: { roleId: string; count: number; certificationIds?: string[] }[]; autoAssign: boolean }
+  job: { date: string; shiftKindId: string; location: string; jobDescription: string; staffing: { count: number; certificationIds?: string[] }[]; autoAssign: boolean }
   missing: JobField[]
   kindOpen?: boolean // the manager said he does not know the kind yet: it is not asked again
   pinned?: string[] // "מתי יוסי וניר פנויים" (src/lib/freeDates.ts): the answer leads to the days they are free
@@ -455,14 +458,14 @@ export const QUESTIONS: Record<JobField, (d: AppData) => string> = {
   shiftKindId: (d) => `איזו עבודה, ${d.shiftDefinitions.map((s) => s.name).join(', ')}?`,
   location: () => 'איפה?',
   jobDescription: () => 'מה עושים שם?',
-  staffing: () => 'כמה אנשים צריך, ובאיזה תפקיד?',
+  staffing: () => 'כמה אנשים צריך, ועם איזו הסמכה?',
 }
 
 function jobProposal(job: PendingJob['job'], d: AppData, now: Date): Proposal {
   const kind = d.shiftDefinitions.find((s) => s.id === job.shiftKindId)?.name ?? ''
   const staff = job.staffing.map((s) => {
-    const cert = s.certificationIds?.length ? d.certifications.find((c) => c.id === s.certificationIds![0])?.name : ''
-    const r = cert || (d.roles.find((x) => x.id === s.roleId)?.name ?? '')
+    const cert = s.certificationIds?.length ? (d.certifications.find((c) => c.id === s.certificationIds![0])?.name ?? '') : ''
+    const r = cert || (s.count === 1 ? 'עובד אחד' : 'עובדים')
     return s.count === 1 ? r : `${s.count} ${r}`
   })
   const when = job.date ? `${kind ? `${kind} ` : ''}${dayText(job.date, now)}` : `${kind ? `${kind}, ` : 'בלי סוג משמרת, '}בלי תאריך, לרשימת לשיבוץ`
@@ -537,7 +540,7 @@ function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
   }
   // With one kind of job only, that is the kind.
   const kind = f.shiftKindId ?? (d.shiftDefinitions.length === 1 ? d.shiftDefinitions[0].id : '')
-  const job = { date: f.date ?? '', shiftKindId: kind, location, jobDescription: description, staffing: f.staffing.map((x) => ({ roleId: x.roleId, count: x.count, ...(x.certId ? { certificationIds: [x.certId] } : {}) })), autoAssign: rest.some((w) => ASSIGN.test(w)) }
+  const job = { date: f.date ?? '', shiftKindId: kind, location, jobDescription: description, staffing: f.staffing.map((x) => ({ count: x.count, ...(x.certId ? { certificationIds: [x.certId] } : {}) })), autoAssign: rest.some((w) => ASSIGN.test(w)) }
   const missing = missingOf(job)
   if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing } }
   return { kind: 'propose', proposal: jobProposal(job, d, now) }
@@ -574,7 +577,7 @@ export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned,
     if (f.shiftKindId) job.shiftKindId = f.shiftKindId
     if (f.location) job.location = f.location
     if (f.description) job.jobDescription = f.description
-    if (f.staffing.length) job.staffing = f.staffing.map((x) => ({ roleId: x.roleId, count: x.count, ...(x.certId ? { certificationIds: [x.certId] } : {}) }))
+    if (f.staffing.length) job.staffing = f.staffing.map((x) => ({ count: x.count, ...(x.certId ? { certificationIds: [x.certId] } : {}) }))
   }
   const missing = missingOf(job, kindOpen)
   if (missing.length && missing[0] === field) return null // the answer did not answer: Claude
@@ -606,7 +609,7 @@ export function sickPlan(text: string, d: AppData, L: Learned, now: Date): { wor
     setCrews: [],
     closeJobs: [],
     deleteJobIds: [],
-    editWorkers: ahead ? [] : [{ workerId: w.id, mobilePhone: '', addRoleIds: [], removeRoleIds: [], addCertificationIds: [], removeCertificationIds: [], status: 'sick', sickUntil: until }],
+    editWorkers: ahead ? [] : [{ workerId: w.id, mobilePhone: '', addCertificationIds: [], removeCertificationIds: [], status: 'sick', sickUntil: until }],
     addConstraints: ahead ? [{ workerId: w.id, from: until, to: until, nightsOnly: false, note: 'מחלה', kind: '' }] : [],
   }
   const sickText = ahead ? `${name} חולה ${dayText(until, now)}` : `${name} חולה עד ${until === today ? 'היום' : dayText(until, now).replace(/^ביום /, 'יום ')}`
@@ -716,14 +719,14 @@ const WORKER_WORDS = /^(?:ו?עובד|ו?עובדת|חדש|חדשה|בשם|שם|
 const PHONE = /(?:\+972|0)(?:[\s-]?\d){8,9}(?!\d)/g
 
 /** The new worker the sentence asks for, or null when it is anything more than that. */
-function newWorkerPlan(text: string, d: AppData, now: Date): { firstName: string; lastName: string; mobilePhone: string; roleIds: string[]; certificationIds: string[] } | null {
+function newWorkerPlan(text: string, d: AppData, now: Date): { firstName: string; lastName: string; mobilePhone: string; certificationIds: string[] } | null {
   const phones = text.match(PHONE) ?? []
   if (phones.length > 1) return null // two workers, or two numbers: Claude
   const rest = text.replace(PHONE, ' ')
   const ws = words(rest)
   if (!ws.some((w) => WORKER_VERBS.has(w)) || !ws.some((w) => /^ו?עובד(?:ת)?$/.test(w))) return null
   if (ws.some((w) => /^(?:ו?ה?עובדים|ו?ה?עובדות|העובד|העובדת|לעובד|לעובדת)$/.test(w))) return null // several, or one that exists
-  // Roles only: no worker names, places or job types are read here (the name is new).
+  // Certifications only: no worker names, places or job types are read here (the name is new).
   const f = find(rest, { ...d, workers: [], places: [], jobTypes: [] }, {}, now)
   if (f.date || f.shiftKindId || f.description || f.staffing.some((s) => s.count !== 1)) return null
   const at = f.restAt.filter((_, k) => !WORKER_VERBS.has(f.rest[k]) && !WORKER_WORDS.test(f.rest[k]) && !COMMON.has(f.rest[k]))
@@ -731,7 +734,7 @@ function newWorkerPlan(text: string, d: AppData, now: Date): { firstName: string
   if (!at.length || at.length > 3 || at.some((x, k) => k > 0 && x !== at[k - 1] + 1)) return null
   const name = at.map((x) => ws[x])
   if (name.some((w) => isValue(w) || NOT_DESCRIPTION.test(w) || w.length < 2)) return null
-  return { firstName: name[0], lastName: name.slice(1).join(' '), mobilePhone: (phones[0] ?? '').replace(/[^\d+]/g, ''), roleIds: [...new Set(f.staffing.filter((s) => !s.certId).map((s) => s.roleId))], certificationIds: [...new Set(f.staffing.flatMap((s) => s.certId ?? []))] }
+  return { firstName: name[0], lastName: name.slice(1).join(' '), mobilePhone: (phones[0] ?? '').replace(/[^\d+]/g, ''), certificationIds: [...new Set(f.staffing.flatMap((s) => s.certId ?? []))] }
 }
 
 function newWorker(text: string, d: AppData, now: Date): Local {
@@ -740,11 +743,9 @@ function newWorker(text: string, d: AppData, now: Date): Local {
   const full = `${w.firstName} ${w.lastName}`.trim()
   if (d.workers.some((x) => x.status !== 'inactive' && `${x.firstName} ${x.lastName}`.trim() === full)) return { kind: 'say', text: `כבר יש ברשימה עובד בשם ${full}. אם זה עובד אחר, אפשר לומר שוב עם שם משפחה אחר או להוסיף אותו במסך העובדים.` }
   const phone = w.mobilePhone ? `, טלפון ${w.mobilePhone}` : ', בלי טלפון'
-  const roles = w.roleIds.map((id) => d.roles.find((r) => r.id === id)?.name).filter(Boolean)
-  const role = roles.length ? `, ${roles.join(' ו')}` : ''
   const certs = w.certificationIds.map((id) => d.certifications.find((c) => c.id === id)?.name).filter(Boolean)
   const cert = certs.length ? `, הסמכה ${certs.join(' ו')}` : ''
-  return { kind: 'propose', proposal: { ...normalizeProposal({}), summary: `עובד חדש: ${full}${phone}${role}${cert}. לאשר, או שיש עוד תיקון?`, workers: [{ ...w }] } }
+  return { kind: 'propose', proposal: { ...normalizeProposal({}), summary: `עובד חדש: ${full}${phone}${cert}. לאשר, או שיש עוד תיקון?`, workers: [{ ...w }] } }
 }
 
 /** The first sentence of a conversation: handled here, or null for Claude. */
@@ -852,7 +853,7 @@ export function splitFree(text: string, d: AppData, L: Learned, now = new Date()
   for (const seg of unknown) {
     const ws = words(seg)
     if (CORRECTION.test(ws[0] ?? '')) return null
-    // Only details (a day, a place, a role) and no action: it belongs to a part next to it.
+    // Only details (a day, a place, a certification) and no action: it belongs to a part next to it.
     const f = find(seg, d, L.aliases, now, L.protect)
     if (!f.rest.some((w) => !FILLER.has(w) && !FILLER.has(bare(w)))) return null
   }
@@ -907,7 +908,7 @@ export function whyNotFree(text: string, d: AppData, L: Learned, now = new Date(
     f.date ? `date: ${f.date}` : '',
     f.location ? `place: ${f.location}` : '',
     f.shiftKindId ? `kind: ${d.shiftDefinitions.find((s) => s.id === f.shiftKindId)?.name ?? f.shiftKindId}` : '',
-    f.staffing.length ? `roles: ${f.staffing.map((s) => `${s.count} ${d.roles.find((r) => r.id === s.roleId)?.name ?? s.roleId}`).join(', ')}` : '',
+    f.staffing.length ? `certifications: ${f.staffing.map((s) => `${s.count} ${s.certId ? (d.certifications.find((c) => c.id === s.certId)?.name ?? s.certId) : 'any worker'}`).join(', ')}` : '',
     f.description ? `job type: ${f.description}` : '',
     f.rest.length ? `not understood: ${q(f.rest)}` : '',
   ]
@@ -919,11 +920,11 @@ export function whyNotFree(text: string, d: AppData, L: Learned, now = new Date(
   if (tw.some((w) => WORKER_VERBS.has(w)) && tw.some((w) => /^(?:ו?ה?|ל)עובד(?:ת|ים|ות)?$/.test(w))) {
     if ((text.match(PHONE) ?? []).length > 1) return out('new worker: more than one phone number (several workers?)')
     if (tw.some((w) => /^(?:ו?ה?עובדים|ו?ה?עובדות|העובד|העובדת|לעובד|לעובדת)$/.test(w))) return out('new worker: speaks of several workers or of one that exists')
-    return out('new worker: the name is not one to three words in a row, or there is a date, kind, job type or a count of a role')
+    return out('new worker: the name is not one to three words in a row, or there is a date, kind, job type or a count of a certification')
   }
   if (said(L.sick.words, rest)) {
     if (f.workerIds.length > 1 || f.unsure.length > 1) return out('sick: more than one worker named')
-    if (f.location || f.staffing.length || f.shiftKindId || f.description) return out('sick: the sentence also has a place, role, job kind or job type')
+    if (f.location || f.staffing.length || f.shiftKindId || f.description) return out('sick: the sentence also has a place, certification, job kind or job type')
     const more = extra(new Set(L.sick.words.flat()))
     if (more.length) return out(`sick: words not learned for sickness: ${q(more)}`)
     if (f.date && f.date < plus(now, 0)) return out('sick: the date is in the past')
@@ -936,7 +937,7 @@ export function whyNotFree(text: string, d: AppData, L: Learned, now = new Date(
     const more = f.rest.filter((w, k) => !isJobWord(w, rest[k], L))
     if (f.description && more.length) return out(`job: words besides the known job type: ${q(more)}`)
     if (more.some((w) => NOT_DESCRIPTION.test(w) || NOT_DESCRIPTION.test(bare(w)))) return out(`job: a question or another action in it: ${q(more)}`)
-    if (more.some((w) => /^\d+$/.test(w))) return out(`job: a number not tied to a known role or place: ${q(more)}`)
+    if (more.some((w) => /^\d+$/.test(w))) return out(`job: a number not tied to a known certification or place: ${q(more)}`)
     return out(`job: unknown words not standing together: ${q(more)}`)
   }
   const learnedAs = `job (built-in verbs + ${L.job.words.length} examples), sick (${L.sick.words.length} phrasings)`

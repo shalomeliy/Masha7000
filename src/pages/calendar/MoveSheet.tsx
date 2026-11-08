@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Check, Lightbulb } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { Sheet, SheetActions } from '../../components/Sheet'
-import { fullName, generalRoleId, upsert } from '../../lib/catalog'
+import { fullName, upsert } from '../../lib/catalog'
 import { blockedCrew, constraintText } from '../../lib/constraints'
 import { shiftGaps, type GapContext } from '../../lib/gaps'
 import { ADVICE_DAYS, fitsAsIs, MAX_SWAPS, moveAdvice, swapOn, swapRecords, type MoveAdvice, type SwapAdvice } from '../../lib/moveAdvice'
@@ -11,7 +11,7 @@ import { busyCrew, busyText, pullFrom } from '../../lib/planner'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { todayIso } from '../../lib/dates'
 import { addDays, dayName, isNightShift, moveShift, showDate, weekOf } from '../../lib/shifts'
-import type { Role, ShiftRecord, Worker } from '../../types/models'
+import type { ShiftRecord, Worker } from '../../types/models'
 import { PullConfirm } from './PullConfirm'
 
 // Move a whole shift, workers and all, to another day. The phone-friendly way; on a computer the
@@ -30,7 +30,6 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
   const workers = useDriveList('workers')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const [date, setDate] = useState(shift.date)
   const [valid, setValid] = useState(true)
@@ -50,11 +49,9 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
       workers: workers.items,
       records: shifts.items,
       defs: defs.items,
-      roles: roles.items,
       certifications: certs.items,
-      generalId: generalRoleId(roles.items),
     }),
-    [workers.items, shifts.items, defs.items, roles.items, certs.items],
+    [workers.items, shifts.items, defs.items, certs.items],
   )
   // Days the job fits on with the same crew are marked; a job with problems also gets advice.
   const fitDays = new Set(days.filter((d) => d !== shift.date && fitsAsIs(shift, d, gapCtx)))
@@ -122,14 +119,14 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
             <p className="font-semibold">
               {tx('ביום {weekday} {v2} העבודה לא מסתדרת עם אותם עובדים.', { weekday: dayName(date), v2: showDate(date) })}</p>
             {dayFix ? (
-              <SwapChoice swap={dayFix} title={tx('כדי שתסתדר ביום הזה')} roles={roles.items} workers={workers.items} busy={busy} onSwap={saveSwap} />
+              <SwapChoice swap={dayFix} title={tx('כדי שתסתדר ביום הזה')} workers={workers.items} busy={busy} onSwap={saveSwap} />
             ) : (
               <p>{tx('גם עם החלפה של עד {MAX_SWAPS} עובדים אי אפשר להשלים אותה ביום הזה.', { MAX_SWAPS })}</p>
             )}
           </div>
         )
       ) : (
-        advice && <AdviceBox advice={advice} roles={roles.items} workers={workers.items} busy={busy} onPick={pick} onSwap={saveSwap} />
+        advice && <AdviceBox advice={advice} workers={workers.items} busy={busy} onPick={pick} onSwap={saveSwap} />
       )}
       <div className="flex flex-wrap gap-2">
         {days.map((d) => (
@@ -179,14 +176,12 @@ function MoveForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void })
 // earliest day it fits with the same crew.
 function AdviceBox({
   advice,
-  roles,
   workers,
   busy,
   onPick,
   onSwap,
 }: {
   advice: MoveAdvice
-  roles: Role[]
   workers: Worker[]
   busy: boolean
   onPick: (date: string) => void
@@ -200,8 +195,8 @@ function AdviceBox({
         <Lightbulb size={16} aria-hidden />
         {tx('המלצה להעברה')}
       </p>
-      {pull && <SwapChoice swap={pull} title={tx('הכי מוקדם, אם מעבירים עובד מעבודה אחרת')} roles={roles} workers={workers} busy={busy} onSwap={onSwap} />}
-      {swap && <SwapChoice swap={swap} title={pull ? tx('בלי לגעת בעבודות אחרות') : tx('הכי מוקדם')} roles={roles} workers={workers} busy={busy} onSwap={onSwap} />}
+      {pull && <SwapChoice swap={pull} title={tx('הכי מוקדם, אם מעבירים עובד מעבודה אחרת')} workers={workers} busy={busy} onSwap={onSwap} />}
+      {swap && <SwapChoice swap={swap} title={pull ? tx('בלי לגעת בעבודות אחרות') : tx('הכי מוקדם')} workers={workers} busy={busy} onSwap={onSwap} />}
       {fitDate ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p>
@@ -226,7 +221,6 @@ function AdviceBox({
 function SwapChoice(props: {
   swap: SwapAdvice
   title: string
-  roles: Role[]
   workers: Worker[]
   busy: boolean
   onSwap: (swap: SwapAdvice, fillIns?: Record<string, string>) => void
@@ -252,20 +246,17 @@ function SwapChoice(props: {
 function SwapOption({
   swap,
   title,
-  roles,
   workers,
   busy,
   onSwap,
 }: {
   swap: SwapAdvice
   title: string
-  roles: Role[]
   workers: Worker[]
   busy: boolean
   onSwap: () => void
 }) {
   const when = (d: string) => tx('יום {weekday} {v2}', { weekday: dayName(d), v2: showDate(d) })
-  const role = (id: string) => roles.find((r) => r.id === id)?.name
   const overNights = workers.filter((w) => swap.nightIds.includes(w.id))
   const many = swap.swaps.length > 1
   return (
@@ -285,7 +276,6 @@ function SwapOption({
                 {tx('למקום הריק נכנס')}{' '}<strong>{fullName(s.in)}</strong>
               </>
             )}
-            {role(s.roleId) && <span className="text-sky-300"> ({role(s.roleId)})</span>}
             {s.from && (
               <span className="block text-xs text-orange-300">
                 {tx('עובר מהעבודה ביום {weekday} {v2}{v3}', { weekday: dayName(s.from.date), v2: showDate(s.from.date), v3: s.from.location && ` (${s.from.location})` })}</span>

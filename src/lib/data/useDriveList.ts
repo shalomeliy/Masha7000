@@ -2,9 +2,9 @@ import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/
 import { ConflictError, readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
 import { readShifts, saveShifts } from './shiftMonths'
-import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withGeneralRole, withNightPlus } from '../catalog'
+import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
-import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Pronunciation, Role, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
+import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Pronunciation, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
 
 // One Drive appData JSON file = one list (shifts: one file per month). A missing file is an empty list.
 // Saves write the whole list, optimistically, and roll back if Drive refuses.
@@ -12,7 +12,6 @@ import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certificat
 // could land out of order, or both create the file when it does not exist yet.
 
 type ListOf = {
-  roles: Role
   certifications: Certification
   workers: Worker
   shiftDefinitions: ShiftDefinition
@@ -58,8 +57,7 @@ export function useDriveList<K extends ListFile>(key: K) {
       const raw = stored ?? (key === 'departments' ? (STARTER_DEPARTMENTS as T[]) : [])
       const fix = normalizers[key] as ((r: T) => T) | undefined
       const list = fix ? raw.map(fix) : raw
-      // "כללי" and "לינה" always exist; they are written to the file with the next save of their list.
-      if (key === 'roles') return withGeneralRole(list as Role[]) as T[]
+      // "לינה" always exists; it is written to the file with the next save of its list.
       if (key === 'shiftDefinitions') return withNightPlus(list as ShiftDefinition[]) as T[]
       return list
     },

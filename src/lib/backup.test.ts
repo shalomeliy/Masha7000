@@ -16,7 +16,7 @@ import {
 import type { CopyInfo } from './backup'
 
 const data = {
-  workers: [{ id: 'w1', firstName: 'דני', lastName: 'כהן', mobilePhone: '050', roleIds: [], certificationIds: [], constraints: [], status: 'active' }],
+  workers: [{ id: 'w1', firstName: 'דני', lastName: 'כהן', mobilePhone: '050', certificationIds: [], constraints: [], status: 'active' }],
   shifts: [
     { id: 's1', date: '2026-10-20', location: 'חיפה', jobDescription: '', crew: [], staffing: [] },
     { id: 's2', date: '2026-10-21', location: '', jobDescription: '', crew: [], staffing: [] },
@@ -33,7 +33,6 @@ describe('backup file', () => {
     expect(back.createdAt).toBe(now.toISOString())
     expect(back.files.workers).toEqual(data.workers)
     expect(back.files.shifts).toEqual(data.shifts)
-    expect(back.files.roles).toEqual(data.roles)
     for (const k of BACKUP_LISTS) expect(Array.isArray(back.files[k])).toBe(true)
   })
 
@@ -49,7 +48,7 @@ describe('backup file', () => {
   it('fills fields an older backup lacks, as the app does on read', () => {
     const b = makeBackup({ workers: [{ id: 'w1', name: 'דני כהן לוי' }], shifts: [{ id: 's1', date: '2026-01-01' }] }, now)
     const back = parseBackup(JSON.stringify(b))
-    expect(back.files.workers[0]).toMatchObject({ firstName: 'דני', lastName: 'כהן לוי', roleIds: [], constraints: [] })
+    expect(back.files.workers[0]).toMatchObject({ firstName: 'דני', lastName: 'כהן לוי', constraints: [] })
     expect(back.files.shifts[0]).toMatchObject({ crew: [], staffing: [], location: '' })
   })
 
@@ -68,7 +67,7 @@ describe('backup file', () => {
     expect(() => parseBackup(JSON.stringify({ ...b, files }))).toThrow(/מקומות/)
     expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, workers: [{ firstName: 'x' }] } }))).toThrow(/עובדים/)
     expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, shifts: [{ id: 'x' }] } }))).toThrow(/עבודות/)
-    expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, roles: ['x'] } }))).toThrow(/תפקידים/)
+    expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, certifications: ['x'] } }))).toThrow(/הסמכות/)
     // A name that is not text would break the screen that shows it.
     expect(() => parseBackup(JSON.stringify({ ...b, files: { ...b.files, workers: [{ id: 'w', firstName: {} }] } }))).toThrow(/עובדים/)
   })

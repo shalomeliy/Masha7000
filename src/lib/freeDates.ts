@@ -1,11 +1,11 @@
 import type { AppData, Proposal } from './assistant'
 import { normalizeProposal } from './assistant'
 import { NO_EDITS } from './assistantEdits'
-import { generalRoleId } from './catalog'
 import { bare, dayText, find, missingOf, NOT_DESCRIPTION, plus, QUESTIONS, words, WORK_START, type Learned, type Local, type PendingJob } from './freeCommands'
-import { datesForPinned, ownRole } from './pinnedDates'
+import { datesForPinned } from './pinnedDates'
 import { NIGHT_LIMIT } from './planner'
 import type { SolverOption } from './solvers'
+import type { StaffSlot } from '../types/models'
 
 // "תמצא לי מתי יוסי וניר פנויים לעבודת לילה בערד" (the user's request, 2026-11-08): done here, free, like the
 // other built-in voice commands (src/lib/freeCommands.ts). The app finds the nearest days all the named
@@ -39,10 +39,11 @@ export function datesPlan(text: string, d: AppData, L: Learned, now: Date): { jo
     if (location || !inRow || !/^ב-?(?=.{2,})/.test(first) || WORK_START.test(first) || NOT_DESCRIPTION.test(bare(first)) || tail.some((w) => !/^\d+$/.test(w))) return null
     location = [first.replace(/^ב-?/, ''), ...tail].join(' ')
   }
-  const general = generalRoleId(d.roles)
-  // A place for each worker who must be there, in their own role, then the other people said ("ועוד חשמלאי").
-  const own = f.workerIds.map((id) => ownRole(d.workers.find((w) => w.id === id)!, d.roles, general))
-  const staffing = [...own.map((roleId) => ({ roleId, count: 1 })), ...f.staffing]
+  // A place for each worker who must be there, then the other people said ("ועוד חשמלאי").
+  const staffing = [
+    ...f.workerIds.map(() => ({ count: 1 })),
+    ...f.staffing.map((x) => ({ count: x.count, ...(x.certId ? { certificationIds: [x.certId] } : {}) })),
+  ]
   const kind = f.shiftKindId ?? (d.shiftDefinitions.length === 1 ? d.shiftDefinitions[0].id : '')
   return { job: { date: f.date ?? '', shiftKindId: kind, location, jobDescription: f.description ?? '', staffing, autoAssign: true }, pinned: f.workerIds }
 }
@@ -67,13 +68,12 @@ const orList = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -
 
 /** The nearest days the pinned workers are free for this job, each a ready proposal, said with the question which. */
 export function pinnedDays(job: PendingJob['job'], pinned: string[], d: AppData, now: Date): Local {
-  const general = generalRoleId(d.roles)
   const today = plus(now, 0)
   // "מתי יוסי פנוי אחרי 15.11": from that day on.
   const from = job.date && job.date > today ? job.date : today
-  const staffing = job.staffing.flatMap((s) => Array.from({ length: Math.max(1, s.count) }, () => ({ roleId: s.roleId })))
+  const staffing = job.staffing.flatMap((s) => Array.from({ length: Math.max(1, s.count) }, (): StaffSlot => (s.certificationIds?.length ? { certificationIds: s.certificationIds } : {})))
   const draft = { id: 'free-dates', date: from, shiftDefinitionId: job.shiftKindId || undefined, location: job.location, jobDescription: job.jobDescription, crew: [], staffing }
-  const ctx = { workers: d.workers, records: d.shifts, defs: d.shiftDefinitions, roles: d.roles, certifications: d.certifications, generalId: general }
+  const ctx = { workers: d.workers, records: d.shifts, defs: d.shiftDefinitions, certifications: d.certifications }
   const options = datesForPinned(draft, pinned, from, ctx)
   // Full names: two workers may share a first name (the user, 2026-11-08).
   const first = (id: string) => {
@@ -98,7 +98,7 @@ export function pinnedDays(job: PendingJob['job'], pinned: string[], d: AppData,
         {
           ...job,
           date: o.date,
-          staffing: job.staffing.map((s) => ({ ...s, certificationIds: [] })),
+          staffing: job.staffing.map((s) => ({ ...s, certificationIds: s.certificationIds ?? [] })),
           workKindIds: [],
           note: '',
           nextJob: { location: '', jobDescription: '' },

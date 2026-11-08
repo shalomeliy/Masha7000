@@ -1,5 +1,5 @@
 import type { Worker } from '../types/models'
-import { fullName, GENERAL_ROLE_NAME, isGeneralRole, tagNames } from './catalog'
+import { fullName, tagNames } from './catalog'
 import { workerState } from './workerState'
 
 interface Tag {
@@ -8,7 +8,6 @@ interface Tag {
 }
 
 export interface SearchLists {
-  roles: Tag[]
   certifications: Tag[]
   departments: Tag[]
 }
@@ -25,7 +24,6 @@ const dateForms = (iso?: string) => {
 
 /** Every word of a worker's card and form, in one string to search. */
 function haystack(w: Worker, lists: SearchLists, today: string) {
-  const specific = tagNames(w.roleIds, lists.roles.filter((r) => !isGeneralRole(r)))
   const numbers = [w.mobilePhone, w.homePhone, w.emergencyPhone1, w.emergencyPhone2, w.idNumber, w.personalNumber]
   const text = [
     fullName(w),
@@ -35,8 +33,6 @@ function haystack(w: Worker, lists: SearchLists, today: string) {
     w.notes,
     ...dateForms(w.birthDate),
     lists.departments.find((d) => d.id === w.departmentId)?.name,
-    GENERAL_ROLE_NAME,
-    ...specific,
     ...tagNames(w.certificationIds, lists.certifications),
     workerState(w, today).label,
   ]
@@ -45,7 +41,7 @@ function haystack(w: Worker, lists: SearchLists, today: string) {
 
 /**
  * Workers matching a free-text search: every word typed must appear somewhere in the worker's
- * details (name, phones, ID, personal number, department, roles, certifications, state, notes...).
+ * details (name, phones, ID, personal number, department, certifications, state, notes...).
  * A number also matches a phone typed with or without dashes. Empty text = everyone.
  */
 export function searchWorkers(workers: Worker[], query: string, lists: SearchLists, today: string): Worker[] {

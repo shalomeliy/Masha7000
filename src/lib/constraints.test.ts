@@ -226,11 +226,11 @@ describe('a later reply ends an earlier weekly constraint', () => {
 })
 
 describe('blockedCrew', () => {
-  const w = (id: string, constraints: Constraint[] = []): Worker => ({ id, firstName: id, lastName: '', roleIds: [], certificationIds: [], constraints })
+  const w = (id: string, constraints: Constraint[] = []): Worker => ({ id, firstName: id, lastName: '', certificationIds: [], constraints })
   const workers = [w('free'), w('away', [c({ from: '2026-11-03', to: '2026-11-03', note: 'חתונה' })])]
   const crew = [
-    { workerId: 'free', roleId: 'general' },
-    { workerId: 'away', roleId: 'general' },
+    { workerId: 'free' },
+    { workerId: 'away' },
   ]
 
   it('finds the crew member a constraint blocks after the shift moves to that day', () => {

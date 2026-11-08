@@ -3,12 +3,12 @@ import { csvFileName } from './monthReport'
 import { addDays, defaultWeek, weekDates, weekLabel, weekOf, weekReport, weekText } from './weekReport'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
-const worker = (id: string, firstName: string): Worker => ({ id, firstName, lastName: 'כהן', roleIds: [], certificationIds: [], constraints: [] })
+const worker = (id: string, firstName: string): Worker => ({ id, firstName, lastName: 'כהן', certificationIds: [], constraints: [] })
 const workers = [worker('a', 'דני'), worker('b', 'יוסי')]
 
 const defs: ShiftDefinition[] = [
-  { id: 'day', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
-  { id: 'night', name: 'לילה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
+  { id: 'day', name: 'יום', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
+  { id: 'night', name: 'לילה', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
 ]
 
 const shift = (id: string, date: string, crew: string[], extra: Partial<ShiftRecord> = {}): ShiftRecord => ({
@@ -17,7 +17,7 @@ const shift = (id: string, date: string, crew: string[], extra: Partial<ShiftRec
   shiftDefinitionId: 'day',
   location: 'חיפה',
   jobDescription: '',
-  crew: crew.map((workerId) => ({ workerId, roleId: 'general' })),
+  crew: crew.map((workerId) => ({ workerId })),
   staffing: [],
   ...extra,
 })
@@ -46,7 +46,7 @@ describe('weekReport', () => {
     shift('1', '2026-10-24', ['a']), // Saturday of the week before
     shift('2', '2026-10-25', ['a']), // Sunday
     shift('3', '2026-10-30', ['a', 'b'], { shiftDefinitionId: 'night' }), // Friday
-    shift('4', '2026-10-31', ['b'], { urgent: true, swaps: [{ at: '', outId: 'a', inId: 'b', roleId: 'general' }] }), // Saturday
+    shift('4', '2026-10-31', ['b'], { urgent: true, swaps: [{ at: '', outId: 'a', inId: 'b' }] }), // Saturday
     shift('5', '2026-11-01', ['a']), // next Sunday
   ]
 

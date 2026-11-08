@@ -1,7 +1,7 @@
 import { tx } from '../../i18n'
 import { useState } from 'react'
 import { Sheet, SheetActions } from '../../components/Sheet'
-import { fullName, generalRoleId, staffingFor, upsert } from '../../lib/catalog'
+import { fullName, staffingFor, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { placeText } from '../../lib/gaps'
 import { planShifts } from '../../lib/planner'
@@ -25,18 +25,16 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
   const saved = useDriveList('shifts')
   const workers = useDriveList('workers')
   const defs = useDriveList('shiftDefinitions')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const [busy, setBusy] = useState(false)
   const [saveError, setSaveError] = useState<unknown>(null)
   const certIds = certs.items.map((c) => c.id)
   // Planned once when the sheet opens, so the preview is exactly what "שמור הכול" saves.
   const [items] = useState(() =>
-    planShifts(shifts, (r) => staffingFor(r.staffing, roles.items, certIds), {
+    planShifts(shifts, (r) => staffingFor(r.staffing, certIds), {
       workers: workers.items,
       records: saved.items,
       defs: defs.items,
-      generalId: generalRoleId(roles.items),
     }),
   )
   const changed = items.filter((i) => i.added.length > 0)
@@ -44,7 +42,6 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
     const w = workers.items.find((x) => x.id === id)
     return w ? fullName(w) : tx('עובד שנמחק')
   }
-  const roleName = (id: string) => roles.items.find((r) => r.id === id)?.name ?? ''
 
   const save = async () => {
     if (!changed.length) return onDone()
@@ -77,12 +74,11 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
             {added.map((c) => (
               <p key={c.workerId} className="text-emerald-300">
                 + {name(c.workerId)}
-                {roleName(c.roleId) && ` · ${roleName(c.roleId)}`}
               </p>
             ))}
             {unfilled.map((s, i) => (
               <p key={i} className="text-red-300">
-                <span className="font-semibold">{tx('עדיין חסר: {v}', { v: placeText(s, roles.items, certs.items) })}</span> · {why[i]}
+                <span className="font-semibold">{tx('עדיין חסר: {v}', { v: placeText(s, certs.items) })}</span> · {why[i]}
               </p>
             ))}
           </li>

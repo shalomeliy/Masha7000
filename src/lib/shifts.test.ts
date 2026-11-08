@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { addDays, applyClosure, dayGap, moveShift, blankShift, closureError, isNightShift, isWaiting, pendingAfterShiftSave, taskHistory, shiftRecordError, sortShifts, urgentShift, weekOf, weekShiftCount } from './shifts'
 import type { ShiftClosure, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
-const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
+const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredCertificationIds: [] }
 const night: ShiftDefinition = { ...day, id: 'night', name: 'לילה', endsNextDay: true }
 const defs = [day, night]
 
-const worker = (id: string, roleIds: string[] = ['climber']): Worker => ({ id, firstName: id, lastName: '', roleIds, certificationIds: [], constraints: [] })
+const worker = (id: string, roleIds: string[] = ['climber']): Worker => ({ id, firstName: id, lastName: '', certificationIds: roleIds, constraints: [] })
 const shift = (over: Partial<ShiftRecord> = {}): ShiftRecord => ({
   id: 's1',
   date: '2026-10-28',
@@ -52,10 +52,10 @@ describe('shiftRecordError', () => {
   it('rejects an impossible date', () => {
     expect(shiftRecordError(shift({ date: '2026-02-30' }), workers)).toBe('התאריך הזה לא קיים ביומן')
   })
-  it('checks the crew: no worker twice, and a role the worker holds', () => {
-    expect(shiftRecordError(shift({ crew: [{ workerId: 'a', roleId: 'climber' }, { workerId: 'a', roleId: 'climber' }] }), workers)).toBe('אותו עובד מופיע פעמיים בעבודה')
-    expect(shiftRecordError(shift({ crew: [{ workerId: 'a', roleId: 'electrician' }] }), workers)).toBe('צריך לבחור תפקיד לa')
-    expect(shiftRecordError(shift({ crew: [{ workerId: 'b', roleId: 'general' }] }), workers)).toBeNull() // a worker with no roles is "כללי"
+  it('checks the crew: no worker twice, and no worker that was deleted', () => {
+    expect(shiftRecordError(shift({ crew: [{ workerId: 'a' }, { workerId: 'a' }] }), workers)).toBe('אותו עובד מופיע פעמיים בעבודה')
+    expect(shiftRecordError(shift({ crew: [{ workerId: 'a' }] }), workers)).toBeNull()
+    expect(shiftRecordError(shift({ crew: [{ workerId: 'gone' }] }), workers)).toBe('אחד העובדים בעבודה כבר לא קיים')
   })
   it('an urgent shift must end after it starts', () => {
     const u = urgentShift(new Date(2026, 9, 28, 22, 0), defs)
@@ -68,9 +68,9 @@ describe('shiftRecordError', () => {
 
 describe('weekShiftCount', () => {
   const records = [
-    shift({ id: '1', date: '2026-10-25', crew: [{ workerId: 'a', roleId: 'climber' }] }),
-    shift({ id: '2', date: '2026-10-31', urgent: true, crew: [{ workerId: 'a', roleId: 'climber' }] }), // Saturday, urgent
-    shift({ id: '3', date: '2026-11-01', crew: [{ workerId: 'a', roleId: 'climber' }] }), // next week
+    shift({ id: '1', date: '2026-10-25', crew: [{ workerId: 'a' }] }),
+    shift({ id: '2', date: '2026-10-31', urgent: true, crew: [{ workerId: 'a' }] }), // Saturday, urgent
+    shift({ id: '3', date: '2026-11-01', crew: [{ workerId: 'a' }] }), // next week
   ]
   it('counts every shift of the worker from Sunday to Saturday, urgent ones included', () => {
     expect(weekShiftCount('a', '2026-10-28', records)).toBe(2)
@@ -160,12 +160,6 @@ describe('waiting jobs across both files', () => {
     expect(applyClosure([shift()], pending, 's1', closeAt('done')).pending).toBe(pending)
   })
 
-  it('names the worker whose role is missing, and ignores deleted roles', () => {
-    const w = worker('דני', ['gone'])
-    expect(shiftRecordError(shift({ crew: [{ workerId: 'דני', roleId: 'gone' }] }), [w], ['climber'])).toBe('צריך לבחור תפקיד לדני')
-    expect(shiftRecordError(shift({ crew: [{ workerId: 'דני', roleId: 'general' }] }), [w], ['climber'])).toBeNull()
-    expect(shiftRecordError(shift({ crew: [{ workerId: 'דני', roleId: 'x' }] }), [worker('דני')], ['climber'])).toBe('צריך לבחור תפקיד לדני')
-  })
 })
 
 describe('follow-up tasks and their history', () => {
@@ -207,7 +201,7 @@ describe('follow-up tasks and their history', () => {
 })
 
 describe('staffing', () => {
-  const need = [{ roleId: 'climber', certificationId: 'h40' }, { roleId: 'general' }]
+  const need = [{ certificationIds: ['climber', 'h40'] }, {}]
 
   it('a waiting job carries its staffing into the shift it is scheduled to', () => {
     const job = { id: 'j', location: 'חיפה', jobDescription: 'x', staffing: need, reasonIds: [], createdAt: '' }
@@ -219,16 +213,11 @@ describe('staffing', () => {
     expect(pending[0].staffing).toEqual(need)
   })
 
-  it('every worker can fill the general role, even with no role marked', () => {
-    const w = worker('a', [])
-    expect(shiftRecordError(shift({ crew: [{ workerId: 'a', roleId: 'general' }] }), [w], ['general', 'climber'], 'general')).toBeNull()
-    expect(shiftRecordError(shift({ crew: [{ workerId: 'a', roleId: 'climber' }] }), [w], ['general', 'climber'], 'general')).not.toBeNull()
-  })
 })
 
 describe('moving a shift to another day', () => {
   it('keeps the crew, place and type, and changes only the date', () => {
-    const r = shift({ crew: [{ workerId: 'a', roleId: 'climber' }] })
+    const r = shift({ crew: [{ workerId: 'a' }] })
     const moved = moveShift(r, '2026-11-02')
     expect(moved).toEqual({ ...r, date: '2026-11-02' })
   })

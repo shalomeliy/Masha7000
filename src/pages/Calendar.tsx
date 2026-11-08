@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { CalendarArrowUp, Check, ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Wand2, Zap } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
-import { fullName, generalRoleId, tagNames, upsert } from '../lib/catalog'
+import { fullName, tagNames, upsert } from '../lib/catalog'
 import { blockedCrew, constraintText } from '../lib/constraints'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
@@ -27,11 +27,10 @@ const SHORT_DAYS = dayNames('short')
 export function Calendar() {
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
-  // The cards and sheets read these too (names, roles, reasons), so everything loads together.
+  // The cards and sheets read these too (names, certifications, reasons), so everything loads together.
   const workers = useDriveList('workers')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
-  const lists = [shifts, defs, workers, roles, certs, useDriveList('pendingJobs'), useDriveList('postponeReasons')]
+  const lists = [shifts, defs, workers, certs, useDriveList('pendingJobs'), useDriveList('postponeReasons')]
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
   const today = todayIso()
@@ -49,15 +48,13 @@ export function Calendar() {
   const [planning, setPlanning] = useState<ShiftRecord[] | null>(null)
   const week = weekOf(weekStart)
   const records = sortShifts(shifts.items)
-  const ctx = { shifts: shifts.items, defs: defs.items, workers: workers.items, roles: roles.items }
+  const ctx = { shifts: shifts.items, defs: defs.items, workers: workers.items }
   // What each shift of the week still needs (docs/specs/week-gaps.md). Computed, never saved.
   const gapCtx = {
     workers: workers.items,
     records: shifts.items,
     defs: defs.items,
-    roles: roles.items,
     certifications: certs.items,
-    generalId: generalRoleId(roles.items),
   }
   const weekShifts = records.filter((r) => r.date >= week.start && r.date <= week.end)
   const gaps = new Map(weekShifts.map((r) => [r.id, shiftGaps(r, gapCtx)]))
@@ -291,7 +288,6 @@ function ShiftCard({
 }) {
   const defs = useDriveList('shiftDefinitions')
   const workers = useDriveList('workers')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const reasons = useDriveList('postponeReasons')
   const def = defs.items.find((d) => d.id === r.shiftDefinitionId)
@@ -343,7 +339,7 @@ function ShiftCard({
           <span className="block space-y-0.5 text-xs text-red-300">
             {gaps.missing.map((m, i) => (
               <span key={i} className="block">
-                <span className="font-semibold">{tx('חסר: {v}', { v: placeText(m.slot, roles.items, certs.items) })}</span>
+                <span className="font-semibold">{tx('חסר: {v}', { v: placeText(m.slot, certs.items) })}</span>
                 {m.why && <span className="text-red-300/80"> · {m.why}</span>}
               </span>
             ))}
@@ -377,12 +373,10 @@ function ShiftCard({
       {r.crew.length > 0 && (
         <div className="-mt-2 flex flex-wrap gap-1.5 px-4 pb-4">
           {r.crew.map((c) => {
-            const role = roles.items.find((x) => x.id === c.roleId)
             return (
               <WorkerDial
                 key={c.workerId}
                 worker={workers.items.find((x) => x.id === c.workerId)}
-                suffix={role && ` · ${role.name}`}
                 className={`min-h-9 rounded-full px-3 py-1.5 text-xs ${
                   blockedIds.has(c.workerId) ? 'border-2 border-orange-500 bg-orange-500/10 text-orange-200' : 'bg-slate-800 text-slate-200'
                 }`}

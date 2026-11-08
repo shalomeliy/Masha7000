@@ -8,23 +8,20 @@ const files = new Map<string, { id: string; name: string; body: string; version:
 const persist = () => sessionStorage.setItem('dev.mockDrive.files', JSON.stringify([...files]))
 
 const seed: Record<string, unknown> = {
-  'roles_definition.json': [
-    { id: 'general', name: 'כללי' },
-    { id: 'r1', name: 'טפסן' },
-    { id: 'r2', name: 'חשמלאי' },
-    { id: 'r3', name: 'טכנאי אנטנות' },
-    { id: 'r4', name: 'טכנאי מצלמות' },
+  'certifications.json': [
+    { id: 'c1', name: 'אנטנה בגובה 40 מטר' },
+    { id: 'c2', name: 'טיפוס' },
+    { id: 'c3', name: 'חשמלאי מוסמך' },
   ],
-  'certifications.json': [{ id: 'c1', name: 'אנטנה בגובה 40 מטר' }],
   'workers.json': [
-    { id: 'w1', firstName: 'דני', lastName: 'לוי', mobilePhone: '0501111111', roleIds: ['r1'], certificationIds: ['c1'], constraints: [] },
-    { id: 'w2', firstName: 'יוסי', lastName: 'כהן', mobilePhone: '0502222222', roleIds: ['r1'], certificationIds: [], constraints: [] },
-    { id: 'w3', firstName: 'רון', lastName: 'מזרחי', mobilePhone: '0503333333', roleIds: ['r4'], certificationIds: [], constraints: [] },
-    { id: 'w4', firstName: 'אבי', lastName: 'פרץ', mobilePhone: '0504444444', roleIds: ['r2', 'r1'], certificationIds: [], constraints: [] },
+    { id: 'w1', firstName: 'דני', lastName: 'לוי', mobilePhone: '0501111111', certificationIds: ['c1', 'c2'], certRatings: { c2: 3 }, constraints: [] },
+    { id: 'w2', firstName: 'יוסי', lastName: 'כהן', mobilePhone: '0502222222', certificationIds: ['c2'], constraints: [] },
+    { id: 'w3', firstName: 'רון', lastName: 'מזרחי', mobilePhone: '0503333333', certificationIds: [], constraints: [] },
+    { id: 'w4', firstName: 'אבי', lastName: 'פרץ', mobilePhone: '0504444444', certificationIds: ['c2', 'c3'], constraints: [] },
   ],
   'shift_definitions.json': [
-    { id: 's1', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
-    { id: 's2', name: 'לילה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
+    { id: 's1', name: 'יום', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
+    { id: 's2', name: 'לילה', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
   ],
   'places.json': [{ id: 'p1', name: 'אילת אתר 123' }],
 }

@@ -1,6 +1,5 @@
 import { tx } from '../i18n'
 import type { Worker } from '../types/models'
-import { isGeneralRole } from './catalog'
 
 // The workers' details form: one link the manager sends to the WhatsApp group. Workers fill it
 // without signing in; answers wait on the server until a manager adds them to the workers list.
@@ -10,7 +9,6 @@ export interface Tag {
   name: string
 }
 export interface FormLists {
-  roles: Tag[]
   certifications: Tag[]
   departments: Tag[]
 }
@@ -28,7 +26,6 @@ export interface JoinDetails {
   emergencyPhone1?: string
   emergencyPhone2?: string
   departmentId?: string
-  roleIds: string[]
   certificationIds: string[]
   notes?: string
 }
@@ -70,20 +67,19 @@ const FIELDS = [
 
 /**
  * The worker the manager will review before saving: a new worker from the answer, or the existing one
- * with the answer's filled fields written over theirs. Roles and certifications are added, never removed;
+ * with the answer's filled fields written over theirs. Certifications are added, never removed;
  * notes are appended.
  */
 export function workerFromSubmission(sub: JoinDetails, existing: Worker | undefined, newId: () => string): Worker {
-  const base: Worker = existing ?? { id: newId(), firstName: '', lastName: '', roleIds: [], certificationIds: [], constraints: [], status: 'active' }
-  const next: Worker = { ...base, roleIds: [...new Set([...base.roleIds, ...sub.roleIds])], certificationIds: [...new Set([...base.certificationIds, ...sub.certificationIds])] }
+  const base: Worker = existing ?? { id: newId(), firstName: '', lastName: '', certificationIds: [], constraints: [], status: 'active' }
+  const next: Worker = { ...base, certificationIds: [...new Set([...base.certificationIds, ...sub.certificationIds])] }
   for (const f of FIELDS) if (sub[f]?.trim()) next[f] = sub[f]!.trim()
   if (sub.notes?.trim()) next.notes = [base.notes?.trim(), sub.notes.trim()].filter(Boolean).join('\n')
   return next
 }
 
-/** The lists the form offers: the manager's departments, roles other than "כללי" (everyone is), certifications. */
-export const formLists = (roles: Tag[], certifications: Tag[], departments: Tag[]): FormLists => ({
-  roles: roles.filter((r) => !isGeneralRole(r)).map(({ id, name }) => ({ id, name })),
+/** The lists the form offers: the manager's departments and certifications. */
+export const formLists = (certifications: Tag[], departments: Tag[]): FormLists => ({
   certifications: certifications.map(({ id, name }) => ({ id, name })),
   departments: departments.map(({ id, name }) => ({ id, name })),
 })

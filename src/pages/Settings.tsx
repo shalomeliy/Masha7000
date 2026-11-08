@@ -86,16 +86,11 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
   }
 }
 
-// Every list the manager can change, in one place. Each one is also where it is used (roles in
+// Every list the manager can change, in one place. Each one is also where it is used (certifications in
 // "עובדים", postpone reasons in "לשיבוץ"); this screen opens the same editors.
-type ListId = 'roles' | 'certifications' | 'shiftDefinitions' | 'workKinds' | 'postponeReasons' | 'places' | 'jobTypes' | 'departments' | 'constraintWords' | 'pronunciations'
+type ListId = 'certifications' | 'shiftDefinitions' | 'workKinds' | 'postponeReasons' | 'places' | 'jobTypes' | 'departments' | 'constraintWords' | 'pronunciations'
 
 const LISTS: { id: ListId; title: string; explain: string }[] = [
-  {
-    id: 'roles',
-    title: tx('תפקידים'),
-    explain: tx('טפסן, חשמלאי... מה כל עובד יודע לעשות'),
-  },
   {
     id: 'certifications',
     title: tx('הסמכות'),
@@ -192,7 +187,7 @@ function groups(isOwner: boolean, server: boolean): Group[] {
       title: tx('עובדים'),
       explain: tx('מה שמתארים לכל עובד במסך העובדים'),
       icon: Users,
-      items: [listItem('roles'), listItem('certifications'), listItem('departments'), listItem('constraintWords')],
+      items: [listItem('certifications'), listItem('departments'), listItem('constraintWords')],
     },
     {
       id: 'archive',
@@ -285,7 +280,6 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
   useBackTo(open !== null, () => setOpen(null))
   // The editors read each other's lists (names, usage counts), so they load together.
   const lists = {
-    roles: useDriveList('roles'),
     certifications: useDriveList('certifications'),
     shiftDefinitions: useDriveList('shiftDefinitions'),
     postponeReasons: useDriveList('postponeReasons'),
@@ -376,8 +370,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
       <section className="space-y-4 px-4 pt-6">
         {back}
         <h1 className="text-2xl font-bold">{current.title}</h1>
-        {current.id === 'roles' && <TagSection kind="roles" />}
-        {current.id === 'certifications' && <TagSection kind="certifications" />}
+        {current.id === 'certifications' && <TagSection />}
         {current.id === 'shiftDefinitions' && <ShiftsSection />}
         {current.id === 'postponeReasons' && <ReasonsSection />}
         {current.id === 'places' && <NameListSection kind="places" />}

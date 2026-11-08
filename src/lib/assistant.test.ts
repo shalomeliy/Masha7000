@@ -3,26 +3,20 @@ import { applyProposal, isYes, relevantExamples, jobStaffing, proposalErrors, sn
 import { NO_EDITS } from './assistantEdits'
 import type { Worker } from '../types/models'
 
-const G = 'general'
-const worker = (id: string, firstName: string, roleIds: string[]): Worker => ({ id, firstName, lastName: 'כהן', roleIds, certificationIds: [], constraints: [] })
+const worker = (id: string, firstName: string, roleIds: string[]): Worker => ({ id, firstName, lastName: 'כהן', certificationIds: roleIds, constraints: [] })
 
 const data = (): AppData => ({
-  roles: [
-    { id: G, name: 'כללי' },
-    { id: 'climb', name: 'טפסן' },
-    { id: 'cam', name: 'טכנאי מצלמות' },
-  ],
-  certifications: [{ id: 'h40', name: 'אנטנה בגובה 40 מטר' }],
+  certifications: [{ id: 'climb', name: 'טפסן' }, { id: 'cam', name: 'טכנאי מצלמות' }, { id: 'h40', name: 'אנטנה בגובה 40 מטר' }],
   workers: [worker('w1', 'דני', ['climb']), worker('w2', 'יוסי', ['climb']), worker('w3', 'רון', ['cam'])],
   shiftDefinitions: [
-    { id: 'day', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
-    { id: 'night', name: 'לילה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
+    { id: 'day', name: 'יום', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
+    { id: 'night', name: 'לילה', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
   ],
-  shifts: [{ id: 's1', date: '2026-11-09', shiftDefinitionId: 'day', location: 'באר שבע', jobDescription: 'תחזוקה', crew: [], staffing: [{ roleId: 'cam' }] }],
+  shifts: [{ id: 's1', date: '2026-11-09', shiftDefinitionId: 'day', location: 'באר שבע', jobDescription: 'תחזוקה', crew: [], staffing: [{ certificationIds: ['cam'] }] }],
   pendingJobs: [],
   places: [{ id: 'p1', name: 'אילת אתר 123' }],
   jobTypes: [],
-  workKinds: [{ id: 'k1', name: 'טיפוס', staffing: [{ roleId: 'climb' }, { roleId: 'climb' }] }],
+  workKinds: [{ id: 'k1', name: 'טיפוס', staffing: [{ certificationIds: ['climb'] }, { certificationIds: ['climb'] }] }],
   postponeReasons: [],
   assistantNotes: [{ id: 'n1', text: 'מטפס זה טפסן', createdAt: '2026-11-01T10:00:00Z' }],
   departments: [],
@@ -35,8 +29,8 @@ const job = (over: Partial<ProposedJob> = {}): ProposedJob => ({
   location: 'אילת אתר 123',
   jobDescription: 'החלפת מצלמה',
   staffing: [
-    { roleId: 'climb', count: 2, certificationIds: [] },
-    { roleId: 'cam', count: 1, certificationIds: [] },
+    { count: 2, certificationIds: ['climb'] },
+    { count: 1, certificationIds: ['cam'] },
   ],
   workKindIds: [],
   note: '',
@@ -52,12 +46,12 @@ const NOW = new Date('2026-11-06T20:00:00')
 describe('snapshot', () => {
   it('gives names, active workers and near shifts with crew names', () => {
     const d = data()
-    d.shifts[0].crew = [{ workerId: 'w3', roleId: 'cam' }]
+    d.shifts[0].crew = [{ workerId: 'w3' }]
     d.workers.push({ ...worker('w4', 'עזב', []), status: 'inactive' })
     const s = snapshot(d, NOW)
     expect(s.today).toBe('2026-11-06 (יום שישי)')
     expect(s.workers.map((w) => w.name)).toEqual(['דני כהן', 'יוסי כהן', 'רון כהן'])
-    expect(s.shifts[0]).toMatchObject({ id: 's1', kind: 'יום', crew: ['רון כהן (טכנאי מצלמות)'], needs: ['טכנאי מצלמות'] })
+    expect(s.shifts[0]).toMatchObject({ id: 's1', kind: 'יום', crew: ['רון כהן'], needs: ['טכנאי מצלמות'] })
   })
 
   it('leaves out shifts far in the past', () => {
@@ -72,7 +66,7 @@ describe('proposalErrors', () => {
 
   it('finds invented ids, bad dates and empty proposals', () => {
     const errors = proposalErrors(
-      proposal({ jobs: [job({ date: '8.11', shiftKindId: 'x', staffing: [{ roleId: 'nope', count: 1, certificationIds: [] }] })], assignShiftIds: ['gone'] }),
+      proposal({ jobs: [job({ date: '8.11', shiftKindId: 'x', staffing: [{ count: 1, certificationIds: ['nope'] }] })], assignShiftIds: ['gone'] }),
       data(),
     )
     expect(errors).toHaveLength(4)
@@ -86,18 +80,18 @@ describe('proposalErrors', () => {
 })
 
 describe('jobStaffing', () => {
-  it('one place per person', () => expect(jobStaffing(job(), data()).staffing).toEqual([{ roleId: 'climb' }, { roleId: 'climb' }, { roleId: 'cam' }]))
+  it('one place per person', () => expect(jobStaffing(job(), data()).staffing).toEqual([{ certificationIds: ['climb'] }, { certificationIds: ['climb'] }, { certificationIds: ['cam'] }]))
 
   it('work kinds add their own places, marked with the kind', () => {
     const r = jobStaffing(job({ staffing: [], workKindIds: ['k1'] }), data())
     expect(r.workKindIds).toEqual(['k1'])
     expect(r.staffing).toEqual([
-      { roleId: 'climb', kindId: 'k1' },
-      { roleId: 'climb', kindId: 'k1' },
+      { certificationIds: ['climb'], kindId: 'k1' },
+      { certificationIds: ['climb'], kindId: 'k1' },
     ])
   })
 
-  it('nobody named: one general place', () => expect(jobStaffing(job({ staffing: [] }), data()).staffing).toEqual([{ roleId: G }]))
+  it('nobody named: one general place', () => expect(jobStaffing(job({ staffing: [] }), data()).staffing).toEqual([{}]))
 })
 
 describe('applyProposal', () => {
@@ -133,20 +127,20 @@ describe('applyProposal', () => {
     // רון went to באר שבע first; the night job runs into that day, so his place stays empty.
     expect(fresh.crew.map((c) => c.workerId).sort()).toEqual(['w1', 'w2'])
     expect(r.report).toContain('באילת אתר 123 נשארו מקום אחד פנוי')
-    expect(r.data.shifts.find((s) => s.id === 's1')!.crew).toEqual([{ workerId: 'w3', roleId: 'cam' }])
+    expect(r.data.shifts.find((s) => s.id === 's1')!.crew).toEqual([{ workerId: 'w3' }])
     expect(r.report).toContain('בבאר שבע שיבצתי את רון')
   })
 
   it('adds workers and list items', () => {
     const r = applyProposal(
       proposal({
-        workers: [{ firstName: 'משה', lastName: 'לוי', mobilePhone: '050-123 4567', roleIds: [G, 'cam'], certificationIds: [] }],
+        workers: [{ firstName: 'משה', lastName: 'לוי', mobilePhone: '050-123 4567', certificationIds: ['cam'] }],
         listItems: [{ list: 'places', name: ' דימונה אתר 556 ' }],
       }),
       data(),
       NOW,
     )
-    expect(r.data.workers.at(-1)).toMatchObject({ firstName: 'משה', mobilePhone: '0501234567', roleIds: ['cam'], constraints: [] })
+    expect(r.data.workers.at(-1)).toMatchObject({ firstName: 'משה', mobilePhone: '0501234567', certificationIds: ['cam'], constraints: [] })
     expect(r.data.places.map((p) => p.name)).toEqual(['אילת אתר 123', 'דימונה אתר 556'])
     expect([...r.changed].sort()).toEqual(['places', 'workers'])
   })
@@ -159,7 +153,7 @@ describe('applyProposal', () => {
 })
 
 describe('version 2 context', () => {
-  const lina = { id: 'night-plus', name: 'לינה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true, thenJob: true }
+  const lina = { id: 'night-plus', name: 'לינה', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true, thenJob: true }
 
   it('lists the coming days by name, so "ראשון הקרוב" is looked up', () => {
     const s = snapshot(data(), NOW)
@@ -180,9 +174,9 @@ describe('version 2 context', () => {
   it('counts the last weeks: jobs, nights, places and partners; and what to remember', () => {
     const d = data()
     d.shifts = [
-      { id: 'a', date: '2026-11-01', shiftDefinitionId: 'night', location: 'אילת', jobDescription: 'החלפה', crew: [{ workerId: 'w1', roleId: 'climb' }, { workerId: 'w2', roleId: 'climb' }], staffing: [] },
-      { id: 'b', date: '2026-11-03', shiftDefinitionId: 'day', location: 'אילת', jobDescription: 'תחזוקה', crew: [{ workerId: 'w1', roleId: 'climb' }], staffing: [] },
-      { id: 'c', date: '2026-08-01', shiftDefinitionId: 'day', location: 'רחוק', jobDescription: '', crew: [{ workerId: 'w1', roleId: 'climb' }], staffing: [] },
+      { id: 'a', date: '2026-11-01', shiftDefinitionId: 'night', location: 'אילת', jobDescription: 'החלפה', crew: [{ workerId: 'w1' }, { workerId: 'w2' }], staffing: [] },
+      { id: 'b', date: '2026-11-03', shiftDefinitionId: 'day', location: 'אילת', jobDescription: 'תחזוקה', crew: [{ workerId: 'w1' }], staffing: [] },
+      { id: 'c', date: '2026-08-01', shiftDefinitionId: 'day', location: 'רחוק', jobDescription: '', crew: [{ workerId: 'w1' }], staffing: [] },
     ]
     const s = snapshot(d, NOW)
     expect(s.history.workers.find((w) => w.name === 'דני כהן')).toEqual({ name: 'דני כהן', jobs: 2, nights: 1, last: '2026-11-03', places: ['אילת (2)'], with: ['יוסי כהן'] })
@@ -246,10 +240,10 @@ describe('learning from the manager', () => {
 })
 
 describe('a new job with named workers', () => {
-  it('puts them in; a role the worker lacks is refused', () => {
+  it('puts them in; a worker who does not exist is refused', () => {
     const d = data()
-    const named = job({ crew: [{ workerId: 'w1', roleId: 'climb' }] })
-    expect(applyProposal(proposal({ jobs: [named] }), d, NOW).data.shifts.at(-1)?.crew).toEqual([{ workerId: 'w1', roleId: 'climb' }])
-    expect(proposalErrors(proposal({ jobs: [job({ crew: [{ workerId: 'w3', roleId: 'climb' }] })] }), d)).toHaveLength(1)
+    const named = job({ crew: [{ workerId: 'w1' }] })
+    expect(applyProposal(proposal({ jobs: [named] }), d, NOW).data.shifts.at(-1)?.crew).toEqual([{ workerId: 'w1' }])
+    expect(proposalErrors(proposal({ jobs: [job({ crew: [{ workerId: 'nobody' }] })] }), d)).toHaveLength(1)
   })
 })

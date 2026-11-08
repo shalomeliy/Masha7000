@@ -22,7 +22,6 @@ export interface Tag {
   name: string
 }
 export interface FormLists {
-  roles: Tag[]
   certifications: Tag[]
   departments: Tag[]
 }
@@ -49,7 +48,7 @@ const TEXT_FIELDS = {
 } as const
 type TextField = keyof typeof TEXT_FIELDS
 
-export type Submission = { id: string; at: number; roleIds: string[]; certificationIds: string[]; departmentId?: string } & {
+export type Submission = { id: string; at: number; certificationIds: string[]; departmentId?: string } & {
   [K in TextField]?: string
 } & { firstName: string; lastName: string; mobilePhone: string }
 
@@ -64,7 +63,7 @@ const cleanTags = (raw: unknown): Tag[] =>
 
 const cleanLists = (raw: unknown): FormLists => {
   const r = (raw ?? {}) as Partial<Record<keyof FormLists, unknown>>
-  return { roles: cleanTags(r.roles), certifications: cleanTags(r.certifications), departments: cleanTags(r.departments) }
+  return { certifications: cleanTags(r.certifications), departments: cleanTags(r.departments) }
 }
 
 /** The answer as it will be stored: known fields only, cut to length, choices only from the form's lists. */
@@ -82,7 +81,6 @@ export function cleanDetails(raw: unknown, lists: FormLists): { details: Omit<Su
   if (out.birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(String(out.birthDate))) delete out.birthDate
   const pick = (v: unknown, from: Tag[]) =>
     [...new Set((Array.isArray(v) ? v : []).filter((x): x is string => typeof x === 'string'))].filter((x) => from.some((t) => t.id === x))
-  out.roleIds = pick(r.roleIds, lists.roles)
   out.certificationIds = pick(r.certificationIds, lists.certifications)
   const dep = pick([r.departmentId], lists.departments)[0]
   if (dep) out.departmentId = dep

@@ -291,11 +291,10 @@ describe('owner controls', () => {
 
 describe('workers details form', () => {
   const lists = {
-    roles: [{ id: 'r1', name: 'חשמלאי' }],
     certifications: [{ id: 'c1', name: 'עבודה בגובה' }],
     departments: [{ id: 'd1', name: 'צפון' }],
   }
-  const details = { firstName: ' דנה ', lastName: 'לוי', mobilePhone: '050-1234567', idNumber: '012345678', roleIds: ['r1', 'nope'], departmentId: 'd1', extra: 'x' }
+  const details = { firstName: ' דנה ', lastName: 'לוי', mobilePhone: '050-1234567', idNumber: '012345678', certificationIds: ['nope'], departmentId: 'd1', extra: 'x' }
   const manager = async () => {
     store.set('allowed', new Set(['deputy@example.com']))
     return managerSession('deputy@example.com')
@@ -332,7 +331,7 @@ describe('workers details form', () => {
 
     const { submissions } = await (await post(join, s, { action: 'list' })).json()
     expect(submissions).toHaveLength(1)
-    expect(submissions[0]).toMatchObject({ firstName: 'דנה', lastName: 'לוי', roleIds: ['r1'], departmentId: 'd1', certificationIds: [] })
+    expect(submissions[0]).toMatchObject({ firstName: 'דנה', lastName: 'לוי', departmentId: 'd1', certificationIds: [] })
     expect(submissions[0].extra).toBeUndefined()
     expect((await post(join, null, { action: 'list' })).status).toBe(401)
 
@@ -497,7 +496,7 @@ describe('sessions and two-step sign-in', () => {
 
   it('limits the public workers form per address', async () => {
     const s = await managerSession('deputy@example.com')
-    const lists = { roles: [], certifications: [], departments: [] }
+    const lists = { certifications: [], departments: [] }
     const { code } = await (await post(join, s, { action: 'open', lists })).json()
     const tries: number[] = []
     for (let i = 0; i < 16; i++) {

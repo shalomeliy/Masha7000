@@ -32,13 +32,12 @@ export function WorkerAgenda({
   onOpen: () => void // the worker's month
 }) {
   const defs = useDriveList('shiftDefinitions')
-  const roles = useDriveList('roles')
   const today = todayIso()
   const when = (date: string) => (date === today ? tx('היום') : date === addDays(today, 1) ? tx('מחר') : SHORT_DAYS[weekday(date)])
 
   // One thing on a day: a job (sky), sickness (red) or another absence (amber).
   const entry = (item: AgendaItem) => {
-    const { title, detail } = agendaText(item, roles.items)
+    const { title, detail } = agendaText(item)
     const job = item.type === 'job'
     const sick = item.type === 'away' && item.sick
     const kind = job ? (item.shift.urgent ? tx('עבודה דחופה') : defs.items.find((d) => d.id === item.shift.shiftDefinitionId)?.name) : undefined
@@ -92,7 +91,7 @@ export function WorkerAgenda({
         <ul className="min-w-0 flex-1 space-y-2">{day.items.map(entry)}</ul>
       ) : day.going.length ? (
         <p className="min-w-0 flex-1 border-s-2 border-slate-700 ps-3 pt-1 text-sm text-slate-400">
-          {tx('המשך: {v}', { v: day.going.map((i) => (i.type === 'job' ? agendaText(i, roles.items).title || tx('עבודה') : agendaText(i, roles.items).title)).join(', ') })}
+          {tx('המשך: {v}', { v: day.going.map((i) => (i.type === 'job' ? agendaText(i).title || tx('עבודה') : agendaText(i).title)).join(', ') })}
         </p>
       ) : (
         <p className="min-w-0 flex-1 border-s-2 border-slate-700 ps-3 pt-1 text-sm text-slate-500">{tx('פנוי')}</p>

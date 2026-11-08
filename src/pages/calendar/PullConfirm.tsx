@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { inputClass } from '../../components/Sheet'
-import { fullName, generalRoleId } from '../../lib/catalog'
+import { fullName } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { fillInsFor } from '../../lib/moveAdvice'
 import { busyText } from '../../lib/planner'
@@ -25,16 +25,13 @@ export function PullConfirm({
   const workers = useDriveList('workers')
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
-  const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const [step, setStep] = useState<'sure' | 'fill'>('sure')
   const ctx = {
     workers: workers.items,
     records: shifts.items,
     defs: defs.items,
-    roles: roles.items,
     certifications: certs.items,
-    generalId: generalRoleId(roles.items),
   }
   const busy = [...exclude, ...pulls.map((p) => p.worker.id)]
   const options = pulls.map((p) => fillInsFor(p.other, p.worker.id, ctx, busy))
@@ -85,7 +82,7 @@ export function PullConfirm({
               <option value="">{tx('להשאיר את המקום ריק')}</option>
             </select>
           ) : (
-            <span className="block text-orange-200">{tx('אין עובד פנוי עם התפקיד וההסמכה של המקום הזה. המקום שם יישאר ריק.')}</span>
+            <span className="block text-orange-200">{tx('אין עובד פנוי עם ההסמכות של המקום הזה. המקום שם יישאר ריק.')}</span>
           )}
         </label>
       ))}

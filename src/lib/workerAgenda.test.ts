@@ -5,13 +5,13 @@ import { workerState } from './workerState'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 const TODAY = '2026-11-07'
-const w = (over: Partial<Worker> = {}): Worker => ({ id: 'w', firstName: 'דני', lastName: 'לוי', roleIds: [], certificationIds: [], constraints: [], ...over })
+const w = (over: Partial<Worker> = {}): Worker => ({ id: 'w', firstName: 'דני', lastName: 'לוי', certificationIds: [], constraints: [], ...over })
 const defs: ShiftDefinition[] = [
-  { id: 'day', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
-  { id: 'night', name: 'לילה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
+  { id: 'day', name: 'יום', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
+  { id: 'night', name: 'לילה', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
 ]
 const shift = (id: string, date: string, crew: string[], def = 'day'): ShiftRecord => ({
-  id, date, shiftDefinitionId: def, location: 'אילת', jobDescription: 'אנטנה', crew: crew.map((workerId) => ({ workerId, roleId: 'r' })), staffing: [],
+  id, date, shiftDefinitionId: def, location: 'אילת', jobDescription: 'אנטנה', crew: crew.map((workerId) => ({ workerId })), staffing: [],
 })
 
 describe('workerAgenda', () => {

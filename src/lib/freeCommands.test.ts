@@ -4,24 +4,23 @@ import { normalizeProposal, proposalErrors, type AppData } from './assistant'
 import type { AssistantExample, ShiftRecord, Worker } from '../types/models'
 
 const NOW = new Date('2026-11-07T10:00:00') // Saturday: ראשון = 11-08, שני = 11-09, שלישי = 11-10
-const w = (id: string, firstName: string, lastName: string, roleIds: string[]): Worker => ({ id, firstName, lastName, roleIds, certificationIds: [], constraints: [] })
+const w = (id: string, firstName: string, lastName: string, roleIds: string[]): Worker => ({ id, firstName, lastName, certificationIds: roleIds, constraints: [] })
 const shift = (id: string, date: string, location: string, crew: [string, string][], slots: string[]): ShiftRecord => ({
   id,
   date,
   shiftDefinitionId: 's1',
   location,
   jobDescription: 'תחזוקה',
-  crew: crew.map(([workerId, roleId]) => ({ workerId, roleId })),
-  staffing: slots.map((roleId) => ({ roleId })),
+  crew: crew.map(([workerId]) => ({ workerId })),
+  staffing: slots.map((id) => (id === 'general' ? {} : { certificationIds: [id] })),
 })
 
 const base: AppData = {
-  roles: [{ id: 'r1', name: 'טפסן' }, { id: 'r2', name: 'חשמלאי' }, { id: 'r4', name: 'טכנאי מצלמות' }],
-  certifications: [],
+  certifications: [{ id: 'r1', name: 'טפסן' }, { id: 'r2', name: 'חשמלאי' }, { id: 'r4', name: 'טכנאי מצלמות' }],
   workers: [w('w1', 'דני', 'לוי', ['r1']), w('w2', 'יוסי', 'כהן', ['r1']), w('w3', 'אלי', 'פרץ', ['r1']), w('w4', 'רון', 'מזרחי', ['r1']), w('w5', 'משה', "תורג'מן", ['r1']), w('w6', 'אבי', 'אלפסי', ['r1'])],
   shiftDefinitions: [
-    { id: 's1', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
-    { id: 's2', name: 'לילה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
+    { id: 's1', name: 'יום', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
+    { id: 's2', name: 'לילה', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
   ],
   shifts: [],
   pendingJobs: [],
@@ -44,10 +43,10 @@ const ex = (said: string, p: Parameters<typeof normalizeProposal>[0], asked = [s
 })
 const JOB_EXAMPLES = [
   ex('תפתח עבודה מחר לילה באילת אתר 123 החלפת אנטנה שני מטפסים', {
-    jobs: [{ date: '2026-11-07', shiftKindId: 's2', location: 'אילת אתר 123', jobDescription: 'החלפת אנטנה', staffing: [{ roleId: 'r1', count: 2 }] }],
+    jobs: [{ date: '2026-11-07', shiftKindId: 's2', location: 'אילת אתר 123', jobDescription: 'החלפת אנטנה', staffing: [{ certificationIds: ['r1'], count: 2 }] }],
   }),
   ex('תפתח עבודה מחר עבודת יום בדימונה 556 תחזוקת מצלמות טכנאי מצלמות אחד ותשבץ לי מישהו', {
-    jobs: [{ date: '2026-11-07', shiftKindId: 's1', location: 'דימונה 556', jobDescription: 'תחזוקת מצלמות', staffing: [{ roleId: 'r4', count: 1 }], autoAssign: true }],
+    jobs: [{ date: '2026-11-07', shiftKindId: 's1', location: 'דימונה 556', jobDescription: 'תחזוקת מצלמות', staffing: [{ certificationIds: ['r4'], count: 1 }], autoAssign: true }],
   }),
 ]
 const SICK_EXAMPLE = ex('אלי חולה היום', { editWorkers: [{ workerId: 'w3', status: 'sick', sickUntil: '2026-11-06' }] })
@@ -75,7 +74,7 @@ describe('fixed commands', () => {
 describe('jobs learned from Claude', () => {
   it('learns a role word from what Claude did', () => {
     const d = data({ assistantExamples: [ex('תפתח עבודה מחר לילה באילת אתר 123 החלפת אנטנה שני רתכים', {
-      jobs: [{ date: '2026-11-07', shiftKindId: 's2', location: 'אילת אתר 123', jobDescription: 'החלפת אנטנה', staffing: [{ roleId: 'r1', count: 2 }] }],
+      jobs: [{ date: '2026-11-07', shiftKindId: 's2', location: 'אילת אתר 123', jobDescription: 'החלפת אנטנה', staffing: [{ certificationIds: ['r1'], count: 2 }] }],
     })] })
     expect(learn(d.assistantExamples, d).aliases['רתך']).toBe('r1')
   })
@@ -84,25 +83,25 @@ describe('jobs learned from Claude', () => {
     const roles = [{ id: 'r1', name: 'טפסן' }, { id: 'r5', name: 'מנהל צוות מטפסים' }, { id: 'r2', name: 'חשמלאי' }]
     // Claude once took "מטפסים" as the manager and it was confirmed: that is not learned.
     const wrong = ex('תפתח עבודה מחר לילה באילת אתר 123 החלפת אנטנה שני מטפסים', {
-      jobs: [{ date: '2026-11-07', shiftKindId: 's2', location: 'אילת אתר 123', jobDescription: 'החלפת אנטנה', staffing: [{ roleId: 'r5', count: 2 }] }],
+      jobs: [{ date: '2026-11-07', shiftKindId: 's2', location: 'אילת אתר 123', jobDescription: 'החלפת אנטנה', staffing: [{ certificationIds: ['r5'], count: 2 }] }],
     })
-    const d = data({ roles, assistantExamples: [wrong, ...JOB_EXAMPLES] })
+    const d = data({ certifications: roles, assistantExamples: [wrong, ...JOB_EXAMPLES] })
     expect(learn(d.assistantExamples, d).aliases['מטפס']).toBeUndefined()
-    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה 2 מטפסים', d))).toMatchObject({ staffing: [{ roleId: 'r1', count: 2 }] })
+    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה 2 מטפסים', d))).toMatchObject({ staffing: [{ certificationIds: ['r1'], count: 2 }] })
     // The manager is found only by his whole name.
-    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה מנהל צוות מטפסים ושני מטפסים', d))).toMatchObject({ staffing: [{ roleId: 'r5', count: 1 }, { roleId: 'r1', count: 2 }] })
+    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה מנהל צוות מטפסים ושני מטפסים', d))).toMatchObject({ staffing: [{ certificationIds: ['r5'], count: 1 }, { certificationIds: ['r1'], count: 2 }] })
     // With a role called "מטפס" itself, singular and plural.
-    const d2 = data({ roles: [{ id: 'r5', name: 'מנהל צוות מטפסים' }, { id: 'r6', name: 'מטפס' }] })
-    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה שלושה מטפסים', d2))).toMatchObject({ staffing: [{ roleId: 'r6', count: 3 }] })
-    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה מטפס אחד', d2))).toMatchObject({ staffing: [{ roleId: 'r6', count: 1 }] })
+    const d2 = data({ certifications: [{ id: 'r5', name: 'מנהל צוות מטפסים' }, { id: 'r6', name: 'מטפס' }] })
+    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה שלושה מטפסים', d2))).toMatchObject({ staffing: [{ certificationIds: ['r6'], count: 3 }] })
+    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה מטפס אחד', d2))).toMatchObject({ staffing: [{ certificationIds: ['r6'], count: 1 }] })
   })
 
   it('opens a new job said the way a learned one was, with other details', () => {
     expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה שלושה מטפסים'))).toMatchObject({
-      date: '2026-11-10', shiftKindId: 's2', location: 'ערד 17', jobDescription: 'החלפת אנטנה', staffing: [{ roleId: 'r1', count: 3 }], autoAssign: false,
+      date: '2026-11-10', shiftKindId: 's2', location: 'ערד 17', jobDescription: 'החלפת אנטנה', staffing: [{ certificationIds: ['r1'], count: 3 }], autoAssign: false,
     })
     expect(job(run('תפתח עבודה בשני יום בדימונה 556 החלפת כבלים שני חשמלאים וטפסן ותשבץ'))).toMatchObject({
-      date: '2026-11-09', shiftKindId: 's1', location: 'דימונה 556', jobDescription: 'החלפת כבלים', staffing: [{ roleId: 'r2', count: 2 }, { roleId: 'r1', count: 1 }], autoAssign: true,
+      date: '2026-11-09', shiftKindId: 's1', location: 'דימונה 556', jobDescription: 'החלפת כבלים', staffing: [{ certificationIds: ['r2'], count: 2 }, { certificationIds: ['r1'], count: 1 }], autoAssign: true,
     })
   })
 
@@ -145,7 +144,7 @@ describe('jobs learned from Claude', () => {
   it('a role word it never saw goes to Claude before Claude taught it', () => {
     // "רתכים" is not a role in the lists; before Claude taught it, it is not understood.
     expect(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני רתכים', data({ assistantExamples: [] }))).toBeNull()
-    expect(job(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני טפסנים', data({ assistantExamples: [] })))).toMatchObject({ staffing: [{ roleId: 'r1', count: 2 }] })
+    expect(job(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני טפסנים', data({ assistantExamples: [] })))).toMatchObject({ staffing: [{ certificationIds: ['r1'], count: 2 }] })
   })
 })
 
@@ -169,7 +168,7 @@ describe('a new job, any phrasing, from the first time', () => {
   it('with no date the job goes to the לשיבוץ list, and the proposal is valid', () => {
     const d = data({ assistantExamples: [] })
     const r = none('תכניס לי עבודה לילה בערד 17 החלפת אנטנה שני טפסנים')
-    expect(job(r)).toMatchObject({ date: '', location: 'ערד 17', staffing: [{ roleId: 'r1', count: 2 }] })
+    expect(job(r)).toMatchObject({ date: '', location: 'ערד 17', staffing: [{ certificationIds: ['r1'], count: 2 }] })
     if (r?.kind !== 'propose') return
     expect(proposalErrors(r.proposal, d)).toEqual([])
     expect(r.proposal.summary).toBe('עבודה חדשה: לילה, בלי תאריך, לרשימת לשיבוץ, בערד 17, החלפת אנטנה. צריך 2 טפסן. לאשר, או שיש עוד תיקון?')
@@ -418,13 +417,13 @@ describe('learned patterns keep values as slots', () => {
     const d = data({
       assistantExamples: [
         ex('תפתח עבודה ב-15.11 לילה בבאר שבע 9 החלפת אנטנה שני מטפסים', {
-          jobs: [{ date: '2026-11-15', shiftKindId: 's2', location: 'באר שבע 9', jobDescription: 'החלפת אנטנה', staffing: [{ roleId: 'r1', count: 2 }] }],
+          jobs: [{ date: '2026-11-15', shiftKindId: 's2', location: 'באר שבע 9', jobDescription: 'החלפת אנטנה', staffing: [{ certificationIds: ['r1'], count: 2 }] }],
         }),
       ],
     })
     expect(learn(d.assistantExamples, d).job.words).toEqual([['תפתח', 'עבודה']])
     const r = job(run('תפתח עבודה ב-20.11 יום בערד 17 תחזוקת מצלמות 3 מטפסים', d))
-    expect(r).toMatchObject({ date: '2026-11-20', shiftKindId: 's1', location: 'ערד 17', jobDescription: 'תחזוקת מצלמות', staffing: [{ roleId: 'r1', count: 3 }] })
+    expect(r).toMatchObject({ date: '2026-11-20', shiftKindId: 's1', location: 'ערד 17', jobDescription: 'תחזוקת מצלמות', staffing: [{ certificationIds: ['r1'], count: 3 }] })
   })
 
   it('a misspelled name in the example is a slot too', () => {
@@ -448,11 +447,11 @@ describe('a new worker, from the first time', () => {
 
   it('adds a worker said in many ways, with a phone and a role', () => {
     for (const [s, want] of [
-      ['תוסיף עובד חדש משה גולן 050-1234567', { firstName: 'משה', lastName: 'גולן', mobilePhone: '0501234567', roleIds: [] }],
+      ['תוסיף עובד חדש משה גולן 050-1234567', { firstName: 'משה', lastName: 'גולן', mobilePhone: '0501234567' }],
       ['תוסיף לי עובד בשם שמעון ביטון טלפון 0521234567', { firstName: 'שמעון', lastName: 'ביטון', mobilePhone: '0521234567' }],
-      ['תכניס עובד חדש אורי דהן 054 123 4567 הוא חשמלאי', { firstName: 'אורי', lastName: 'דהן', mobilePhone: '0541234567', roleIds: ['r2'] }],
+      ['תכניס עובד חדש אורי דהן 054 123 4567 הוא חשמלאי', { firstName: 'אורי', lastName: 'דהן', mobilePhone: '0541234567', certificationIds: ['r2'] }],
       ['תרשום עובדת חדשה מירב שושן הטלפון שלה 0531112222', { firstName: 'מירב', lastName: 'שושן', mobilePhone: '0531112222' }],
-      ['תוסיף עובד טפסן קובי אזולאי 0507654321', { firstName: 'קובי', lastName: 'אזולאי', roleIds: ['r1'] }],
+      ['תוסיף עובד טפסן קובי אזולאי 0507654321', { firstName: 'קובי', lastName: 'אזולאי', certificationIds: ['r1'] }],
       ['תוסיף עובד חדש רפאל', { firstName: 'רפאל', lastName: '', mobilePhone: '' }],
       ['הוסף עובד חדש בן חיים אלמוג נייד +972501234567', { firstName: 'בן', lastName: 'חיים אלמוג', mobilePhone: '+972501234567' }],
     ] as const)
@@ -463,7 +462,7 @@ describe('a new worker, from the first time', () => {
     const r = none('תכניס עובד חדש אורי דהן 054-1234567 חשמלאי')
     if (r?.kind !== 'propose') throw new Error(JSON.stringify(r))
     expect(proposalErrors(r.proposal, data())).toEqual([])
-    expect(r.proposal.summary).toBe('עובד חדש: אורי דהן, טלפון 0541234567, חשמלאי. לאשר, או שיש עוד תיקון?')
+    expect(r.proposal.summary).toBe('עובד חדש: אורי דהן, טלפון 0541234567, הסמכה חשמלאי. לאשר, או שיש עוד תיקון?')
   })
 
   it('a name already in the list is said back, free', () => {
@@ -570,34 +569,41 @@ describe('one long sentence with several requests', () => {
   })
 })
 
-describe('certifications and plural roles (the user, 2026-11-08)', () => {
+describe('certifications in the plural (the user, 2026-11-08)', () => {
   const certs = [{ id: 'c1', name: 'רתך' }, { id: 'c2', name: 'טיפוס' }, { id: 'c3', name: 'חשמלאי מוסמך' }, { id: 'c4', name: 'עבודה בגובה' }]
-  const d = () => data({ certifications: certs, roles: [...base.roles, { id: 'general', name: 'כללי' }] })
-  const staff = (said: string) => job(run(said, d()))?.staffing.map((s) => [s.roleId, s.count, ...(s.certificationIds ?? [])])
+  const d = () => data({ certifications: [...base.certifications, ...certs] })
+  const staff = (said: string) => job(run(said, d()))?.staffing.map((s) => [s.count, ...(s.certificationIds ?? [])])
 
   it('a certification, singular or plural, is a place with the general role and that certification', () => {
-    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה רתך')).toEqual([['general', 1, 'c1']])
-    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני רתכים')).toEqual([['general', 2, 'c1']])
-    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה 3 חשמלאים מוסמכים')).toEqual([['general', 3, 'c3']])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה רתך')).toEqual([[1, 'c1']])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני רתכים')).toEqual([[2, 'c1']])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה 3 חשמלאים מוסמכים')).toEqual([[3, 'c3']])
   })
-  it('a role, singular or plural, with a count', () => {
-    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני טכנאי מצלמות')).toEqual([['r4', 2]])
-    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה טכנאי מצלמות אחד')).toEqual([['r4', 1]])
-    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה 2 חשמלאים')).toEqual([['r2', 2]])
+  it('a certification of several words, singular or plural, with a count', () => {
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני טכנאי מצלמות')).toEqual([[2, 'r4']])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה טכנאי מצלמות אחד')).toEqual([[1, 'r4']])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה 2 חשמלאים')).toEqual([[2, 'r2']])
   })
-  it('a role and a certification in one sentence', () => {
-    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים ורתך')).toEqual([['r1', 2], ['general', 1, 'c1']])
+  it('two certifications in one sentence', () => {
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים ורתך')).toEqual([[2, 'r1'], [1, 'c1']])
   })
   it('a word heard a little wrong ("רתח") is the certification', () => {
-    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים ותוסיף גם רתח')).toEqual([['r1', 2], ['general', 1, 'c1']])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים ותוסיף גם רתח')).toEqual([[2, 'r1'], [1, 'c1']])
   })
   it('a new worker with a certification', () => {
     const r = run('תוסיף עובד חדש חגי מלכה טלפון 0535765663 הסמכה רתך', d())
     expect(r).toMatchObject({ kind: 'propose' })
     if (r?.kind === 'propose') {
-      expect(r.proposal.workers[0]).toMatchObject({ firstName: 'חגי', lastName: 'מלכה', roleIds: [], certificationIds: ['c1'] })
+      expect(r.proposal.workers[0]).toMatchObject({ firstName: 'חגי', lastName: 'מלכה', certificationIds: ['c1'] })
       expect(r.proposal.summary).toContain('הסמכה רתך')
     }
+  })
+  it('"מטפסים" asks for the certification "טיפוס"; "2 כללי" are places anyone fills', () => {
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים')).toEqual([[2, 'r1']]) // the list's own "טפסן"
+    const onlyClimb = () => data({ certifications: [{ id: 'c2', name: 'טיפוס' }, { id: 'c1', name: 'רתך' }] })
+    const staffIn = (said: string) => job(run(said, onlyClimb()))?.staffing.map((s) => [s.count, ...(s.certificationIds ?? [])])
+    expect(staffIn('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים ורתך')).toEqual([[2, 'c2'], [1, 'c1']])
+    expect(staffIn('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה 2 כללי ורתך')).toEqual([[2], [1, 'c1']])
   })
   it('does not turn ordinary words or worker names into a certification', () => {
     expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה')).toEqual([])

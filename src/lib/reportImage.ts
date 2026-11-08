@@ -2,7 +2,7 @@ import { tx } from '../i18n'
 import type { Report, ReportShift, ShiftKind } from './report'
 
 // Draws a report as a PNG card for WhatsApp: a dark header like the app, one white card per shift
-// with a color strip for its kind, and every worker, in their own color, with their role. Canvas only, no libraries.
+// with a color strip for its kind, and every worker, in their own color, in their own color. Canvas only, no libraries.
 // Laid out twice: once to measure the height, once to draw.
 
 const W = 1080
@@ -120,9 +120,8 @@ function shiftCard(c: Ctx, draw: boolean, s: ReportShift, top: number): number {
       text(c, d, tx('צוות ({length})', { length: s.crew.length }), inR, yy + 16, font(600, 28), '#64748b')
       yy += 46
       for (const m of s.crew) {
-        // Name on the right in the worker's own color, role label on the left, like a row in a table.
+        // Name on the right in the worker's own color.
         text(c, d, m.name, inR, yy + 26, font(700, 38), m.color)
-        pill(c, d, m.role, inL, yy, 28, '#f1f5f9', '#334155', 'left')
         yy += 66
       }
     }

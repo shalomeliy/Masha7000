@@ -4,19 +4,18 @@ import { continueJob, handleFree, learn, pickedOption, type Local } from './free
 import type { Worker } from '../types/models'
 
 const NOW = new Date('2026-11-08T10:00:00') // Sunday
-const w = (id: string, firstName: string, roleIds: string[], constraints: Worker['constraints'] = []): Worker => ({ id, firstName, lastName: 'כהן', roleIds, certificationIds: [], constraints })
+const w = (id: string, firstName: string, roleIds: string[], constraints: Worker['constraints'] = []): Worker => ({ id, firstName, lastName: 'כהן', certificationIds: roleIds, constraints })
 
 const data = (over: Partial<AppData> = {}): AppData => ({
-  roles: [{ id: 'r1', name: 'טפסן' }, { id: 'r2', name: 'חשמלאי' }],
-  certifications: [],
+  certifications: [{ id: 'r1', name: 'טפסן' }, { id: 'r2', name: 'חשמלאי' }],
   workers: [
     w('w1', 'יוסי', ['r1'], [{ id: 'c1', when: 'dates', from: '2026-11-08', to: '2026-11-09' }]),
     w('w2', 'ניר', ['r1']),
     w('w3', 'דני', ['r2']),
   ],
   shiftDefinitions: [
-    { id: 's1', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
-    { id: 's2', name: 'לילה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
+    { id: 's1', name: 'יום', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
+    { id: 's2', name: 'לילה', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
   ],
   shifts: [],
   pendingJobs: [],

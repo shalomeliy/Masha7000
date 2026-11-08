@@ -6,10 +6,10 @@ import {
   NIGHT_PLUS_ID,
   withNightPlus,
   filterWorkers,
-  generalRoleId,
+  certStars,
+  slotStars,
   resizeStaffing,
   staffingFor,
-  withGeneralRole,
   fullName,
   nameError,
   normalizeShift,
@@ -24,41 +24,34 @@ import {
   isIsraeliMobile,
   upsert,
 } from './catalog'
-import type { Role, ShiftDefinition, Worker } from '../types/models'
+import type { ShiftDefinition, Worker } from '../types/models'
 
-const roles: Role[] = [
-  { id: 'r1', name: 'טפסן' },
-  { id: 'r2', name: 'חשמלאי' },
+const certs = [
+  { id: 'c1', name: 'טיפוס' },
+  { id: 'c2', name: 'רתך' },
 ]
-const worker = (id: string, roleIds: string[], certificationIds: string[] = []): Worker => ({
-  id,
-  firstName: id,
-  lastName: '',
-  roleIds,
-  certificationIds,
-  constraints: [],
-})
-const workers: Worker[] = [worker('w1', ['r1', 'r2'], ['c1']), worker('w2', ['r2'], ['c1', 'c2'])]
+const worker = (id: string, certificationIds: string[]): Worker => ({ id, firstName: id, lastName: '', certificationIds, constraints: [] })
+const workers: Worker[] = [worker('w1', ['c1']), worker('w2', ['c1', 'c2'])]
 const shifts: ShiftDefinition[] = [
-  { id: 's1', name: 'יום', startTime: '07:00', endTime: '16:00', requiredHeadcount: 1, requiredRoleIds: ['r1'], requiredCertificationIds: [] },
+  { id: 's1', name: 'יום', startTime: '07:00', endTime: '16:00', requiredHeadcount: 1, requiredCertificationIds: ['c1'] },
 ]
 
 describe('nameError', () => {
   it('rejects empty and whitespace-only names', () => {
-    expect(nameError('', roles)).toBeTruthy()
-    expect(nameError('   ', roles)).toBeTruthy()
+    expect(nameError('', certs)).toBeTruthy()
+    expect(nameError('   ', certs)).toBeTruthy()
   })
   it('rejects a duplicate, ignoring case and surrounding spaces', () => {
-    expect(nameError(' טפסן ', roles)).toBe('השם הזה כבר קיים')
+    expect(nameError(' טיפוס ', certs)).toBe('השם הזה כבר קיים')
     expect(nameError('Abc', [{ id: 'x', name: 'abc' }])).toBe('השם הזה כבר קיים')
   })
   it('allows keeping the same name when editing that item', () => {
-    expect(nameError('טפסן', roles, 'r1')).toBeNull()
+    expect(nameError('טיפוס', certs, 'c1')).toBeNull()
   })
 })
 
 describe('shiftError', () => {
-  const base = { name: 'ערב', startTime: '15:00', endTime: '23:00', requiredHeadcount: 1, requiredRoleIds: [], requiredCertificationIds: [] }
+  const base = { name: 'ערב', startTime: '15:00', endTime: '23:00', requiredHeadcount: 1, requiredCertificationIds: [] }
   it('accepts a valid shift and every starter shift', () => {
     expect(shiftError(base, shifts)).toBeNull()
     for (const s of STARTER_SHIFTS) expect(shiftError(s, [])).toBeNull()
@@ -92,54 +85,75 @@ describe('endsNextDay', () => {
 
 describe('upsert', () => {
   it('replaces in place or appends', () => {
-    expect(upsert(roles, { id: 'r1', name: 'x' }).map((r) => r.name)).toEqual(['x', 'חשמלאי'])
-    expect(upsert(roles, { id: 'r3', name: 'y' })).toHaveLength(3)
+    expect(upsert(certs, { id: 'c1', name: 'x' }).map((r) => r.name)).toEqual(['x', 'רתך'])
+    expect(upsert(certs, { id: 'c3', name: 'y' })).toHaveLength(3)
   })
 })
 
-describe('tags (roles and certifications)', () => {
-  it('counts usage per kind', () => {
-    expect(tagUsage('roles', 'r1', workers, shifts)).toEqual({ workers: 1, shifts: 1 })
-    expect(tagUsage('certifications', 'c1', workers, shifts)).toEqual({ workers: 2, shifts: 0 })
+describe('certifications list', () => {
+  it('counts usage', () => {
+    expect(tagUsage('c1', workers, shifts)).toEqual({ workers: 2, shifts: 1 })
+    expect(tagUsage('c2', workers, shifts)).toEqual({ workers: 1, shifts: 0 })
   })
-  it('removes every reference of the deleted tag only', () => {
-    const next = removeTagReferences('roles', 'r1', workers, shifts)
-    expect(next.workers[0].roleIds).toEqual(['r2'])
-    expect(next.workers[0].certificationIds).toEqual(['c1'])
-    expect(next.shifts[0].requiredRoleIds).toEqual([])
+  it('removes every reference of the deleted certification only, its stars too', () => {
+    const rated = [{ ...workers[1], certRatings: { c1: 2, c2: 4 } }]
+    const next = removeTagReferences('c1', rated, shifts)
+    expect(next.workers[0].certificationIds).toEqual(['c2'])
+    expect(next.workers[0].certRatings).toEqual({ c2: 4 })
+    expect(next.shifts[0].requiredCertificationIds).toEqual([])
   })
   it('returns untouched lists as the same array so they are not re-saved', () => {
-    const next = removeTagReferences('certifications', 'c2', workers, shifts)
+    const next = removeTagReferences('c2', workers, shifts)
     expect(next.shifts).toBe(shifts)
-    expect(next.workers).not.toBe(workers)
+    expect(next.workers[0]).toBe(workers[0])
   })
-  it('ignores ids of deleted tags when showing names', () => {
-    expect(tagNames(['r2', 'gone'], roles)).toEqual(['חשמלאי'])
+  it('ignores ids of deleted certifications when showing names', () => {
+    expect(tagNames(['c2', 'gone'], certs)).toEqual(['רתך'])
   })
 })
 
 describe('filterWorkers', () => {
   it('returns everyone when nothing is selected', () => {
-    expect(filterWorkers(workers, [], [])).toHaveLength(2)
+    expect(filterWorkers(workers, [])).toHaveLength(2)
   })
-  it('needs every selected role and certification', () => {
-    expect(filterWorkers(workers, ['r2'], []).map((w) => w.id)).toEqual(['w1', 'w2'])
-    expect(filterWorkers(workers, ['r2'], ['c2']).map((w) => w.id)).toEqual(['w2'])
-    expect(filterWorkers(workers, ['r1'], ['c2'])).toEqual([])
-    expect(filterWorkers(workers, [], ['c1']).map((w) => w.id)).toEqual(['w1', 'w2'])
+  it('needs every selected certification', () => {
+    expect(filterWorkers(workers, ['c1']).map((w) => w.id)).toEqual(['w1', 'w2'])
+    expect(filterWorkers(workers, ['c1', 'c2']).map((w) => w.id)).toEqual(['w2'])
+    expect(filterWorkers(workers, ['gone'])).toEqual([])
+  })
+})
+
+describe('stars (the user, 2026-11-08)', () => {
+  it('a certification not rated has the full 5; a bad value counts as 5', () => {
+    expect(certStars(workers[0], 'c1')).toBe(5)
+    expect(certStars({ certRatings: { c1: 2 } }, 'c1')).toBe(2)
+    expect(certStars({ certRatings: { c1: 9 } }, 'c1')).toBe(5)
+    expect(certStars({ certRatings: { c1: 0 } }, 'c1')).toBe(5)
+  })
+  it('a place counts the stars of every certification it asks for; none asks for nothing', () => {
+    const w = { certRatings: { c1: 2 } }
+    expect(slotStars(w, { certificationIds: ['c1', 'c2'] })).toBe(7)
+    expect(slotStars(w, {})).toBe(0)
   })
 })
 
 describe('normalize older files', () => {
   it('splits a single name and keeps the phone as mobile', () => {
-    const w = normalizeWorker({ id: 'w', name: 'דנה בת כהן', phone: '050', roleIds: ['r1'], constraints: [] } as never)
-    expect(w).toMatchObject({ firstName: 'דנה', lastName: 'בת כהן', mobilePhone: '050', roleIds: ['r1'], certificationIds: [] })
+    const w = normalizeWorker({ id: 'w', name: 'דנה בת כהן', phone: '050', constraints: [] } as never)
+    expect(w).toMatchObject({ firstName: 'דנה', lastName: 'בת כהן', mobilePhone: '050', certificationIds: [] })
     expect('name' in w).toBe(false)
     expect(fullName(w)).toBe('דנה בת כהן')
   })
   it('leaves a current worker unchanged', () => {
     const w: Worker = { ...workers[1], mobilePhone: '050', status: 'sick', sickUntil: '2026-11-05' }
     expect(normalizeWorker(w)).toEqual(w)
+  })
+  it('a worker saved while certs existed keeps only the certifications', () => {
+    const w = normalizeWorker({ ...workers[1], roleIds: ['r1'] } as never)
+    expect('roleIds' in w).toBe(false)
+    expect(w.certificationIds).toEqual(['c1', 'c2'])
+    const def = normalizeShift({ ...shifts[0], requiredRoleIds: ['r1'] } as never)
+    expect('requiredRoleIds' in def).toBe(false)
   })
   it('a worker saved before statuses is active', () => {
     expect(normalizeWorker(workers[1]).status).toBe('active')
@@ -180,53 +194,32 @@ describe('isIsraeliMobile', () => {
   })
 })
 
-describe('general role', () => {
-  it('is added when the roles file has none, and found by name when it has one', () => {
-    const roles = [{ id: 'r1', name: 'טפסן' }]
-    expect(withGeneralRole(roles)[0]).toEqual({ id: 'general', name: 'כללי' })
-    const old = [{ id: 'uuid-1', name: 'כללי' }, ...roles]
-    expect(withGeneralRole(old)).toBe(old)
-    expect(generalRoleId(old)).toBe('uuid-1')
-  })
-
-  it('every worker holds it, so filtering by it keeps everyone', () => {
-    const ws = [normalizeWorker({ id: 'a', firstName: 'א', roleIds: [] }), normalizeWorker({ id: 'b', firstName: 'ב', roleIds: ['r1'] })]
-    expect(filterWorkers(ws, ['general'], [], 'general')).toHaveLength(2)
-    expect(filterWorkers(ws, ['general', 'r1'], [], 'general').map((w) => w.id)).toEqual(['b'])
-  })
-})
-
 describe('staffing', () => {
-  const roles = [{ id: 'general', name: 'כללי' }, { id: 'r1', name: 'טפסן' }]
-
-  it('defaults to one person in the general role, with no certification', () => {
-    expect(staffingFor(undefined, roles, [])).toEqual([{ roleId: 'general', certificationId: undefined }])
-    expect(staffingFor([], roles, [])).toHaveLength(1)
+  it('defaults to one person who needs no certification', () => {
+    expect(staffingFor(undefined, [])).toEqual([{}])
+    expect(staffingFor([], [])).toHaveLength(1)
   })
 
-  it('a deleted role falls back to general and a deleted certification is dropped', () => {
-    expect(staffingFor([{ roleId: 'gone', certificationId: 'c-gone' }, { roleId: 'r1', certificationId: 'c1' }], roles, ['c1'])).toEqual([
-      { roleId: 'general' },
-      { roleId: 'r1', certificationIds: ['c1'] },
-    ])
+  it('drops a deleted certification and what older files held for certs', () => {
+    const old = { roleId: 'r1', alsoRoleIds: ['r2'], altRoleIds: ['r3'], certificationIds: ['gone', 'c1'], kindId: 'k' }
+    expect(staffingFor([{ certificationIds: ['gone'] }, old as never], ['c1'])).toEqual([{}, { certificationIds: ['c1'], kindId: 'k' }])
   })
 
-  it('a place may need several certifications and more roles of the same person', () => {
-    const slot = { roleId: 'r1', certificationIds: ['c1', 'c-gone'], alsoRoleIds: ['r2', 'r1', 'gone'] }
-    expect(staffingFor([slot], [...roles, { id: 'r2', name: 'מנהל' }], ['c1'])).toEqual([{ roleId: 'r1', certificationIds: ['c1'], alsoRoleIds: ['r2'] }])
+  it('reads the single certification older files kept', () => {
+    expect(staffingFor([{ certificationId: 'c1' }], ['c1'])).toEqual([{ certificationIds: ['c1'] }])
   })
 
-  it('grows with general slots, shrinks from the end, and stays between 1 and 20', () => {
-    const one = [{ roleId: 'r1' }]
-    expect(resizeStaffing(one, 3, 'general')).toEqual([{ roleId: 'r1' }, { roleId: 'general' }, { roleId: 'general' }])
-    expect(resizeStaffing(resizeStaffing(one, 3, 'general'), 1, 'general')).toEqual(one)
-    expect(resizeStaffing(one, 0, 'general')).toHaveLength(1)
-    expect(resizeStaffing(one, 99, 'general')).toHaveLength(20)
+  it('grows with places that need nothing, shrinks from the end, and stays between 1 and 20', () => {
+    const one = [{ certificationIds: ['c1'] }]
+    expect(resizeStaffing(one, 3)).toEqual([{ certificationIds: ['c1'] }, {}, {}])
+    expect(resizeStaffing(resizeStaffing(one, 3), 1)).toEqual(one)
+    expect(resizeStaffing(one, 0)).toHaveLength(1)
+    expect(resizeStaffing(one, 99)).toHaveLength(20)
   })
 })
 
 describe('לינה', () => {
-  const day = { id: 'd', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
+  const day = { id: 'd', name: 'יום', startTime: '07:00', endTime: '16:00', requiredCertificationIds: [] }
   const night = { ...day, id: 'n', name: 'לילה', endsNextDay: true }
 
   it('is added last to a list saved before it existed, and counts as a night', () => {

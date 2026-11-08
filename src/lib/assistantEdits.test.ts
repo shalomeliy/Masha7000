@@ -3,22 +3,20 @@ import { applyProposal, normalizeProposal, proposalConflicts, proposalErrors, su
 import { NO_EDITS, type EditJob, type Edits } from './assistantEdits'
 import type { Worker } from '../types/models'
 
-const G = 'general'
-const worker = (id: string, firstName: string, roleIds: string[], extra: Partial<Worker> = {}): Worker => ({ id, firstName, lastName: 'כהן', roleIds, certificationIds: [], constraints: [], ...extra })
+const worker = (id: string, firstName: string, roleIds: string[], extra: Partial<Worker> = {}): Worker => ({ id, firstName, lastName: 'כהן', constraints: [], ...extra, certificationIds: [...roleIds, ...(extra.certificationIds ?? [])] })
 
 const data = (): AppData => ({
-  roles: [{ id: G, name: 'כללי' }, { id: 'climb', name: 'טפסן' }, { id: 'el', name: 'חשמלאי' }],
-  certifications: [{ id: 'h40', name: 'גובה 40' }],
+  certifications: [{ id: 'climb', name: 'טפסן' }, { id: 'el', name: 'חשמלאי' }, { id: 'h40', name: 'גובה 40' }],
   workers: [worker('w1', 'דני', ['climb']), worker('w2', 'יוסי', ['climb']), worker('w3', 'אבי', ['el']), worker('w4', 'עזב', ['climb'], { status: 'inactive' })],
   shiftDefinitions: [
-    { id: 'day', name: 'יום', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
-    { id: 'night', name: 'לילה', requiredRoleIds: [], requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
+    { id: 'day', name: 'יום', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00' },
+    { id: 'night', name: 'לילה', requiredCertificationIds: [], startTime: '07:00', endTime: '16:00', endsNextDay: true },
   ],
   shifts: [
-    { id: 's1', date: '2026-11-09', shiftDefinitionId: 'day', location: 'דימונה', jobDescription: 'חשמל', crew: [{ workerId: 'w1', roleId: 'climb' }], staffing: [{ roleId: 'climb' }] },
-    { id: 's2', date: '2026-11-10', shiftDefinitionId: 'night', location: 'ערד', jobDescription: 'אנטנה', crew: [{ workerId: 'w2', roleId: 'climb' }], staffing: [{ roleId: 'climb' }] },
+    { id: 's1', date: '2026-11-09', shiftDefinitionId: 'day', location: 'דימונה', jobDescription: 'חשמל', crew: [{ workerId: 'w1' }], staffing: [{ certificationIds: ['climb'] }] },
+    { id: 's2', date: '2026-11-10', shiftDefinitionId: 'night', location: 'ערד', jobDescription: 'אנטנה', crew: [{ workerId: 'w2' }], staffing: [{ certificationIds: ['climb'] }] },
   ],
-  pendingJobs: [{ id: 'p1', location: 'אילת', jobDescription: 'מצלמה', staffing: [{ roleId: 'climb' }], reasonIds: [], createdAt: '2026-11-01T00:00:00Z' }],
+  pendingJobs: [{ id: 'p1', location: 'אילת', jobDescription: 'מצלמה', staffing: [{ certificationIds: ['climb'] }], reasonIds: [], createdAt: '2026-11-01T00:00:00Z' }],
   places: [],
   jobTypes: [],
   workKinds: [],
@@ -48,7 +46,7 @@ describe('editing jobs', () => {
 
   it('moving a job onto a day its worker already works: the manager hears it, and the yes moves him', () => {
     const d = data()
-    d.shifts[1].crew = [{ workerId: 'w1', roleId: 'climb' }]
+    d.shifts[1].crew = [{ workerId: 'w1' }]
     const proposal = p({ editJobs: [edit({ date: '2026-11-10' })] })
     expect(proposalErrors(proposal, d)).toEqual([])
     expect(proposalConflicts(proposal, d)).toEqual(['דני כבר משובץ באותו זמן בערד (יום שלישי 10.11). אם תאשר, אעביר אותו לדימונה, ושם יישאר מקום ריק'])
@@ -60,32 +58,32 @@ describe('editing jobs', () => {
   it('the same worker in two jobs of one proposal at the same time is refused', () => {
     const d = data()
     d.shifts[1].date = '2026-11-09'
-    const both = p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2', roleId: 'climb' }] }, { shiftId: 's2', crew: [{ workerId: 'w2', roleId: 'climb' }] }] })
+    const both = p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2' }] }, { shiftId: 's2', crew: [{ workerId: 'w2' }] }] })
     expect(proposalErrors(both, d).join()).toContain('יוסי כהן כבר בעבודה')
   })
 
   it('a closed job is never emptied', () => {
     const d = data()
-    d.shifts[1] = { ...d.shifts[1], date: '2026-11-09', crew: [{ workerId: 'w2', roleId: 'climb' }], closure: { outcome: 'done', reasonIds: [], closedAt: '' } }
-    expect(proposalErrors(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2', roleId: 'climb' }] }] }), d).join()).toContain('יוסי כהן כבר בעבודה')
+    d.shifts[1] = { ...d.shifts[1], date: '2026-11-09', crew: [{ workerId: 'w2' }], closure: { outcome: 'done', reasonIds: [], closedAt: '' } }
+    expect(proposalErrors(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2' }] }] }), d).join()).toContain('יוסי כהן כבר בעבודה')
   })
 })
 
 describe('setting a crew', () => {
   it('puts the named workers in, and keeps the replaced one in the history', () => {
-    const out = applyProposal(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w3', roleId: 'el' }] }] }), data(), NOW).data
+    const out = applyProposal(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w3' }] }] }), data(), NOW).data
     const s1 = out.shifts.find((s) => s.id === 's1')!
-    expect(s1.crew).toEqual([{ workerId: 'w3', roleId: 'el' }])
-    expect(s1.swaps).toEqual([{ at: NOW.toISOString(), outId: 'w1', inId: 'w3', roleId: 'el' }])
+    expect(s1.crew).toEqual([{ workerId: 'w3' }])
+    expect(s1.swaps).toEqual([{ at: NOW.toISOString(), outId: 'w1', inId: 'w3' }])
   })
 
-  it('refuses a role the worker lacks and an inactive worker; a busy one is a move to confirm', () => {
-    const errs = proposalErrors(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w3', roleId: 'climb' }, { workerId: 'w4', roleId: 'climb' }] }] }), data())
-    expect(errs).toEqual(['לאבי כהן אין את התפקיד טפסן', 'עזב כהן לא פעיל'])
+  it('refuses an inactive worker; a busy one is a move to confirm', () => {
+    const errs = proposalErrors(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w3' }, { workerId: 'w4' }] }] }), data())
+    expect(errs).toEqual(['עזב כהן לא פעיל'])
     // Yossi is on the Arad night of 10.11; the 9.11 day job is free, but a night on 9.11 would not be.
     const d = data()
     d.shifts[1].date = '2026-11-08'
-    expect(proposalConflicts(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2', roleId: 'climb' }] }] }), d)).toHaveLength(1)
+    expect(proposalConflicts(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2' }] }] }), d)).toHaveLength(1)
   })
 })
 
@@ -107,11 +105,11 @@ describe('closing and deleting', () => {
 })
 
 describe('workers', () => {
-  const ew = { workerId: 'w1', mobilePhone: '', addRoleIds: [], removeRoleIds: [], addCertificationIds: [], removeCertificationIds: [], status: '' as const, sickUntil: '' }
+  const ew = { workerId: 'w1', mobilePhone: '', addCertificationIds: [], removeCertificationIds: [], status: '' as const, sickUntil: '' }
 
-  it('adds a role and a certification, sets sick', () => {
-    const out = applyProposal(p({ editWorkers: [{ ...ew, addRoleIds: ['el'], addCertificationIds: ['h40'], status: 'sick', sickUntil: '2026-11-12' }] }), data(), NOW).data
-    expect(out.workers[0]).toMatchObject({ roleIds: ['climb', 'el'], certificationIds: ['h40'], status: 'sick', sickUntil: '2026-11-12' })
+  it('adds a certification, sets sick', () => {
+    const out = applyProposal(p({ editWorkers: [{ ...ew, addCertificationIds: ['h40'], status: 'sick', sickUntil: '2026-11-12' }] }), data(), NOW).data
+    expect(out.workers[0]).toMatchObject({ certificationIds: ['climb', 'h40'], status: 'sick', sickUntil: '2026-11-12' })
   })
 
   it('sick needs a date; back to active clears it', () => {

@@ -7,7 +7,7 @@ import { todayIso } from '../../lib/dates'
 import type { GapContext } from '../../lib/gaps'
 import { ADVICE_DAYS } from '../../lib/moveAdvice'
 import { NIGHT_LIMIT } from '../../lib/planner'
-import { datesForPinned, fullNames, ownRole, pinnedOf, type DateOption } from '../../lib/pinnedDates'
+import { datesForPinned, fullNames, pinnedOf, type DateOption } from '../../lib/pinnedDates'
 import { dayName, showDate } from '../../lib/shifts'
 import type { ShiftRecord } from '../../types/models'
 
@@ -37,9 +37,8 @@ export function PinnedField({
   }
 
   const add = (id: string) => {
-    const w = ctx.workers.find((x) => x.id === id)
-    if (!w) return
-    const crew = draft.crew.some((c) => c.workerId === id) ? draft.crew : [...draft.crew, { workerId: id, roleId: ownRole(w, ctx.roles, ctx.generalId) }]
+    if (!ctx.workers.some((x) => x.id === id)) return
+    const crew = draft.crew.some((c) => c.workerId === id) ? draft.crew : [...draft.crew, { workerId: id }]
     onChange({ crew, pinnedIds: [...pinned, id] })
     setOptions(null)
     setPicked(null)

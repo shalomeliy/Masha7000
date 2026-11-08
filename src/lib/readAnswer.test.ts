@@ -42,7 +42,7 @@ describe('readAnswer', () => {
   })
 })
 
-const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
+const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredCertificationIds: [] }
 const night: ShiftDefinition = { ...day, id: 'night', name: 'לילה', endsNextDay: true }
 const shift = (date: string, over: Partial<ShiftRecord> = {}): ShiftRecord => ({
   id: 's',

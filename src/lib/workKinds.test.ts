@@ -1,25 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { emptyPlaces } from './gaps'
 import { autoAssign, type PlanContext } from './planner'
-import { repairKinds, starterKinds, toggleKind } from './workKinds'
+import { starterKinds, toggleKind } from './workKinds'
 import type { ShiftDefinition, ShiftRecord, StaffSlot, Worker, WorkKind } from '../types/models'
 
-const G = 'general'
 const MGR = 'mgr'
 const CLIMB = 'climb'
 const WELD = 'weld'
 
-const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredRoleIds: [], requiredCertificationIds: [] }
+const day: ShiftDefinition = { id: 'day', name: 'יום', startTime: '07:00', endTime: '16:00', requiredCertificationIds: [] }
 const worker = (id: string, roleIds: string[] = [], certificationIds: string[] = []): Worker => ({
   id,
   firstName: id,
   lastName: '',
-  roleIds,
-  certificationIds,
+  certificationIds: [...roleIds, ...certificationIds],
   constraints: [],
 })
-const climbing: WorkKind = { id: 'k-climb', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: CLIMB, altRoleIds: [MGR] }, { roleId: CLIMB, altRoleIds: [MGR] }] }
-const welding: WorkKind = { id: 'k-weld', name: 'ריתוך', staffing: [{ roleId: G, certificationId: WELD }] }
+const climbing: WorkKind = { id: 'k-climb', name: 'טיפוס', staffing: [{ certificationIds: [MGR] }, { certificationIds: [CLIMB] }, { certificationIds: [CLIMB] }] }
+const welding: WorkKind = { id: 'k-weld', name: 'ריתוך', staffing: [{ certificationId: WELD }] }
 const job = (staffing: StaffSlot[], crew: ShiftRecord['crew'] = []): ShiftRecord => ({
   id: 'j',
   date: '2026-11-03',
@@ -29,12 +27,12 @@ const job = (staffing: StaffSlot[], crew: ShiftRecord['crew'] = []): ShiftRecord
   crew,
   staffing,
 })
-const ctx = (workers: Worker[]): PlanContext => ({ workers, records: [], defs: [day], generalId: G })
-const both = () => toggleKind(toggleKind({ staffing: [{ roleId: G }] }, climbing, G), welding, G)
+const ctx = (workers: Worker[]): PlanContext => ({ workers, records: [], defs: [day] })
+const both = () => toggleKind(toggleKind({ staffing: [{}] }, climbing), welding)
 
 describe('toggleKind', () => {
   it('replaces the default single place with the kind places, and combines kinds', () => {
-    const one = toggleKind({ staffing: [{ roleId: G }] }, climbing, G)
+    const one = toggleKind({ staffing: [{}] }, climbing)
     expect(one.workKindIds).toEqual(['k-climb'])
     expect(one.staffing).toHaveLength(3)
     expect(one.staffing.every((s) => s.kindId === 'k-climb')).toBe(true)
@@ -42,24 +40,24 @@ describe('toggleKind', () => {
   })
 
   it('keeps places added by hand and removes only the kind places', () => {
-    const start = { staffing: [{ roleId: CLIMB }, { roleId: G }] }
-    const on = toggleKind(start, welding, G)
+    const start = { staffing: [{ certificationIds: [CLIMB] }, {}] }
+    const on = toggleKind(start, welding)
     expect(on.staffing).toHaveLength(3)
-    const off = toggleKind(on, welding, G)
+    const off = toggleKind(on, welding)
     expect(off.staffing).toEqual(start.staffing)
     expect(off.workKindIds).toEqual([])
   })
 
   it('replaces several bare "כללי" places too, so a second tap never piles places up', () => {
-    const three = { staffing: [{ roleId: G }, { roleId: G }, { roleId: G }] }
-    const on = toggleKind(toggleKind(three, welding, G), climbing, G)
+    const three = { staffing: [{}, {}, {}] }
+    const on = toggleKind(toggleKind(three, welding), climbing)
     expect(on.staffing).toHaveLength(4)
     expect(on.staffing.every((s) => s.kindId)).toBe(true)
-    expect(toggleKind(toggleKind(on, welding, G), climbing, G).staffing).toEqual([{ roleId: G }])
+    expect(toggleKind(toggleKind(on, welding), climbing).staffing).toEqual([{}])
   })
 
   it('leaves one "כללי" place when the last kind goes', () => {
-    expect(toggleKind(toggleKind({ staffing: [{ roleId: G }] }, welding, G), welding, G).staffing).toEqual([{ roleId: G }])
+    expect(toggleKind(toggleKind({ staffing: [{}] }, welding), welding).staffing).toEqual([{}])
   })
 })
 
@@ -72,15 +70,14 @@ describe('autoAssign with work kinds', () => {
     expect(plan.crew.map((c) => c.workerId).sort()).toEqual(['a-mgr', 'b-climb', 'd-climbweld'])
   })
 
-  it('a manager fills a climber place, and two places of one kind never share a worker', () => {
-    const { staffing } = toggleKind({ staffing: [{ roleId: G }] }, climbing, G)
-    const plan = autoAssign(job(staffing), staffing, ctx([worker('m1', [MGR]), worker('m2', [MGR]), worker('m3', [MGR], [WELD])]))
+  it('two places of one kind never share a worker', () => {
+    const { staffing } = toggleKind({ staffing: [{}] }, climbing)
+    const plan = autoAssign(job(staffing), staffing, ctx([worker('m1', [MGR, CLIMB]), worker('m2', [MGR, CLIMB]), worker('m3', [MGR, CLIMB], [WELD])]))
     expect(plan.unfilled).toEqual([])
     expect(plan.crew).toHaveLength(3)
-    expect(plan.crew.filter((c) => c.roleId === MGR)).toHaveLength(3)
   })
 
-  it('a welder with no climbing role is added as a fourth person', () => {
+  it('a welder with no climbing certification is added as a fourth person', () => {
     const { staffing } = both()
     const workers = [worker('a', [MGR]), worker('b', [CLIMB]), worker('c', [CLIMB]), worker('w', [], [WELD])]
     const plan = autoAssign(job(staffing), staffing, ctx(workers))
@@ -91,71 +88,35 @@ describe('autoAssign with work kinds', () => {
   it('a hand-picked climber who welds also counts for the welding place', () => {
     const { staffing } = both()
     const workers = [worker('a', [MGR]), worker('b', [CLIMB]), worker('d', [CLIMB], [WELD])]
-    const crew = [{ workerId: 'a', roleId: MGR }, { workerId: 'b', roleId: CLIMB }, { workerId: 'd', roleId: CLIMB }]
-    expect(emptyPlaces(job(staffing, crew), staffing, workers, G)).toEqual([])
+    const crew = [{ workerId: 'a' }, { workerId: 'b' }, { workerId: 'd' }]
+    expect(emptyPlaces(job(staffing, crew), staffing, workers)).toEqual([])
     expect(autoAssign(job(staffing, crew), staffing, ctx(workers)).crew).toHaveLength(3)
   })
 })
 
 describe('starterKinds', () => {
-  it('adds the missing role and certifications: טיפוס is מנהל טיפוס + 2 כללי with "טיפוס"', () => {
-    const r = starterKinds([{ id: G, name: 'כללי' }], [])
-    expect(r.roles.map((x) => x.name)).toEqual(['מנהל טיפוס'])
+  it('adds the missing certifications: טיפוס is 3 people, 2 of them with "טיפוס"', () => {
+    const r = starterKinds([])
     expect(r.certs.map((x) => x.name)).toEqual(['טיפוס', 'רתך'])
     expect(r.kinds.map((k) => [k.name, k.staffing.length])).toEqual([
       ['טיפוס', 3],
       ['ריתוך', 1],
     ])
-    const mgr = r.roles[0].id
     const climb = r.certs[0].id
-    expect(r.kinds[0].staffing).toEqual([{ roleId: mgr }, { roleId: G, certificationIds: [climb] }, { roleId: G, certificationIds: [climb] }])
+    expect(r.kinds[0].staffing).toEqual([{}, { certificationIds: [climb] }, { certificationIds: [climb] }])
   })
 
-  it('uses the existing roles and certifications', () => {
-    const r = starterKinds([{ id: G, name: 'כללי' }, { id: 'm', name: 'מנהל טיפוס' }], [{ id: 'c', name: 'רתך' }, { id: 't', name: 'טיפוס' }])
-    expect(r.roles).toEqual([])
+  it('uses the existing certifications', () => {
+    const r = starterKinds([{ id: 'c', name: 'רתך' }, { id: 't', name: 'טיפוס' }])
     expect(r.certs).toEqual([])
-    expect(r.kinds[0].staffing).toEqual([{ roleId: 'm' }, { roleId: G, certificationIds: ['t'] }, { roleId: G, certificationIds: ['t'] }])
+    expect(r.kinds[0].staffing).toEqual([{}, { certificationIds: ['t'] }, { certificationIds: ['t'] }])
     expect(r.kinds[1].staffing[0].certificationIds).toEqual(['c'])
   })
 })
 
-describe('repairKinds', () => {
-  const roles = [{ id: 'x', name: 'מנהל במה' }, { id: G, name: 'כללי' }, { id: MGR, name: 'מנהל טיפוס' }, { id: CLIMB, name: 'מטפס' }]
-  const certs = [{ id: 'tc', name: 'טיפוס' }]
-  const want = [{ roleId: MGR }, { roleId: G, certificationIds: ['tc'] }, { roleId: G, certificationIds: ['tc'] }]
-
-  it('turns the first version of טיפוס into מנהל טיפוס + 2 כללי with "טיפוס", once', () => {
-    const r = repairKinds([climbing, welding], roles, certs)!
-    expect(r.kinds[0].staffing).toEqual(want)
-    expect(r.kinds[1]).toBe(welding)
-    expect(r.certs).toEqual([])
-    // Changed by hand afterwards: kept.
-    const byHand = { ...r.kinds[0], staffing: climbing.staffing }
-    expect(repairKinds([byHand, welding], roles, certs)).toBeNull()
-  })
-
-  it('also when the climber role has another name, and after an earlier repair', () => {
-    const old: WorkKind = { id: 'k', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: 'x', altRoleIds: [MGR] }, { roleId: 'x', altRoleIds: [MGR] }], fixed: 1 }
-    expect(repairKinds([old], roles, certs)!.kinds[0].staffing).toEqual(want)
-    const second: WorkKind = { id: 'k', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: G }, { roleId: G }], fixed: 2 }
-    expect(repairKinds([second], roles, certs)!.kinds[0].staffing).toEqual(want)
-  })
-
-  it('adds the certification "טיפוס" when there is none', () => {
-    const r = repairKinds([climbing], roles, [])!
-    expect(r.certs.map((c) => c.name)).toEqual(['טיפוס'])
-    expect(r.kinds[0].staffing[1].certificationIds).toEqual([r.certs[0].id])
-  })
-
-  it('a place whose role was deleted needs כללי, not the first role in the list', () => {
-    const kind: WorkKind = { id: 'k', name: 'הרכבה', staffing: [{ roleId: MGR }, { roleId: 'gone', altRoleIds: ['gone2', MGR] }], fixed: 3 }
-    const r = repairKinds([kind], roles, certs)!
-    expect(r.kinds[0].staffing).toEqual([{ roleId: MGR }, { roleId: G, altRoleIds: [MGR] }])
-  })
-
-  it('leaves kinds that need nothing alone', () => {
-    const ok: WorkKind = { id: 'k', name: 'טיפוס', staffing: want, fixed: 3 }
-    expect(repairKinds([ok, welding], roles, certs)).toBeNull()
+describe('a kind saved while roles existed', () => {
+  it('its places keep only their certifications in a job', () => {
+    const old = { id: 'k', name: 'טיפוס', staffing: [{ roleId: 'mgr' }, { roleId: 'g', certificationIds: [CLIMB], altRoleIds: ['x'] }] } as never as WorkKind
+    expect(toggleKind({ staffing: [{}] }, old).staffing).toEqual([{ kindId: 'k' }, { certificationIds: [CLIMB], kindId: 'k' }])
   })
 })
