@@ -1013,5 +1013,6 @@
  "מצא יום שכולם פנויים": "Herkesin boş olduğu bir gün bul",
  "עובדים שחייבים להיות בעבודה": "İşte mutlaka olması gereken çalışanlar",
  "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "İşi ekiple birlikte {weekday} {v2} gününe koydum. Kaydetmeden önce hâlâ değiştirebilirsin.",
- "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Dikkat: {v} o hafta zaten {n} gece çalışıyor"
+ "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Dikkat: {v} o hafta zaten {n} gece çalışıyor",
+ "חייבים להיות: {v}": "Mutlaka olmalı: {v}"
 }

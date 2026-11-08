@@ -1013,5 +1013,6 @@
  "מצא יום שכולם פנויים": "Cari hari saat semua kosong",
  "עובדים שחייבים להיות בעבודה": "Pekerja yang wajib ikut pekerjaan",
  "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "Saya menetapkan pekerjaan pada {weekday} {v2} beserta timnya. Masih bisa diubah sebelum disimpan.",
- "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Perhatian: {v} sudah punya {n} malam di minggu itu"
+ "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Perhatian: {v} sudah punya {n} malam di minggu itu",
+ "חייבים להיות: {v}": "Wajib ikut: {v}"
 }

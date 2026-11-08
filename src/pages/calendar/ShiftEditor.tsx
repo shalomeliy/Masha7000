@@ -9,7 +9,7 @@ import { defaultShiftDef, fullName, placeText, generalRoleId, isGeneralRole, sta
 import { crewSwaps } from '../../lib/archive'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { crewCover, type GapContext } from '../../lib/gaps'
-import { pinnedOf } from '../../lib/pinnedDates'
+import { ownRole, pinnedOf } from '../../lib/pinnedDates'
 import { autoAssign, busyCrew, busyText, busyWith, candidateOrder, fitsSlot, loadWarning, pullFrom, type PlanContext, type WorkerLoad } from '../../lib/planner'
 import { dayName, isNightShift, pendingAfterShiftSave, showDate, shiftRecordError } from '../../lib/shifts'
 import type { ShiftRecord, Worker } from '../../types/models'
@@ -57,7 +57,12 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     ...shift,
     // A new planned shift starts as "יום": the manager kept saving without noticing the type.
     shiftDefinitionId: shift.shiftDefinitionId ?? (shift.urgent ? undefined : defaultShiftDef(defs.items)?.id),
-    crew: shift.crew.map((c) => (c.roleId ? c : { ...c, roleId: general })),
+    crew: shift.crew.map((c) => {
+      if (c.roleId) return c
+      // A pinned worker brought from "לשיבוץ" gets his own role.
+      const w = workers.items.find((x) => x.id === c.workerId)
+      return { ...c, roleId: w ? ownRole(w, roles.items, general) : general }
+    }),
     staffing: staffingFor(shift.staffing, roles.items, certs.items.map((c) => c.id)),
   }))
   const [datesValid, setDatesValid] = useState({ date: true, end: true })

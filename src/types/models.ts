@@ -157,6 +157,7 @@ export interface PendingJob {
   // Set when the job is put into a shift. The job is kept, so cancelling that shift brings it back
   // and re-closing the original night job does not list it as waiting again.
   scheduledShiftId?: string
+  pinnedIds?: string[] // workers the job must have ("עובדים שחייבים להיות"); carried into the shift it is scheduled to
 }
 
 // Something the manager told the voice assistant to remember ("טפסן ומטפס זה אותו דבר",

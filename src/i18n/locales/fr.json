@@ -1013,5 +1013,6 @@
  "מצא יום שכולם פנויים": "Trouver un jour où tous sont libres",
  "עובדים שחייבים להיות בעבודה": "Employés qui doivent être sur le travail",
  "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "J'ai fixé le travail au {weekday} {v2} avec l'équipe. Vous pouvez encore modifier avant d'enregistrer.",
- "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Attention : {v} a déjà {n} nuits cette semaine-là"
+ "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Attention : {v} a déjà {n} nuits cette semaine-là",
+ "חייבים להיות: {v}": "Doivent être là : {v}"
 }

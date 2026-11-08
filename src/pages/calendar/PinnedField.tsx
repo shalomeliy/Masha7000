@@ -15,7 +15,18 @@ import type { ShiftRecord } from '../../types/models'
 // the nearest days all of them are free (HANDOFF.md, "pinned workers"). "שבץ" fills the other places
 // around them and never takes them out.
 
-export function PinnedField({ draft, onChange, ctx }: { draft: ShiftRecord; onChange: (next: Pick<ShiftRecord, 'crew' | 'pinnedIds'> & { date?: string }) => void; ctx: GapContext }) {
+// `onPick`: what picking a day does instead of setting it in this form (a waiting job opens the new shift with it).
+export function PinnedField({
+  draft,
+  onChange,
+  ctx,
+  onPick,
+}: {
+  draft: ShiftRecord
+  onChange: (next: Pick<ShiftRecord, 'crew' | 'pinnedIds'> & { date?: string }) => void
+  ctx: GapContext
+  onPick?: (o: DateOption) => void
+}) {
   const pinned = pinnedOf(draft)
   const [options, setOptions] = useState<DateOption[] | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
@@ -44,6 +55,7 @@ export function PinnedField({ draft, onChange, ctx }: { draft: ShiftRecord; onCh
     setPicked(null)
   }
   const pick = (o: DateOption) => {
+    if (onPick) return onPick(o)
     onChange({ date: o.date, crew: o.shift.crew, pinnedIds: pinned })
     setPicked(o.date)
     setOptions(null)

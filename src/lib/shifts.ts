@@ -74,7 +74,9 @@ export function blankShift(date: string, from?: PendingJob): ShiftRecord {
     date,
     location: from?.location ?? '',
     jobDescription: from?.jobDescription ?? '',
-    crew: [],
+    // Workers the waiting job must have come in pinned; their role is set by the job form (ShiftForm).
+    crew: (from?.pinnedIds ?? []).map((workerId) => ({ workerId, roleId: '' })),
+    ...(from?.pinnedIds?.length ? { pinnedIds: from.pinnedIds } : {}),
     staffing: from?.staffing ?? [],
     shiftDefinitionId: from?.shiftDefinitionId,
     workKindIds: from?.workKindIds,

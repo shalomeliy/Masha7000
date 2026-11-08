@@ -8,6 +8,9 @@ import { Suggestions } from '../components/Suggestions'
 import { defaultShiftDef, generalRoleId, nameError, newId, staffingFor, staffingText, tagNames, upsert } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
+import { ownRole } from '../lib/pinnedDates'
+import type { GapContext } from '../lib/gaps'
+import { PinnedField } from './calendar/PinnedField'
 import { blankShift, dayName, isWaiting, showDate, STARTER_POSTPONE_REASONS, taskHistory } from '../lib/shifts'
 import type { PendingJob, PostponeReason, ShiftRecord } from '../types/models'
 import { OUTCOMES } from './calendar/outcomes'
@@ -78,6 +81,7 @@ const blankJob = (): PendingJob => ({ id: newId(), location: '', jobDescription:
 
 function JobsSection() {
   const jobs = useDriveList('pendingJobs')
+  const workers = useDriveList('workers')
   const reasons = useDriveList('postponeReasons')
   const shifts = useDriveList('shifts')
   const roles = useDriveList('roles')
@@ -120,6 +124,11 @@ function JobsSection() {
                     {j.location && <span className="block font-semibold">{j.location}</span>}
                     {j.jobDescription && <span className="block text-sm text-slate-300">{j.jobDescription}</span>}
                     {why && <span className="block text-sm text-slate-400">{why}</span>}
+                    {!!j.pinnedIds?.length && (
+                      <span className="block text-sm text-emerald-300">
+                        {tx('חייבים להיות: {v}', { v: j.pinnedIds.map((id) => workers.items.find((w) => w.id === id)?.firstName).filter(Boolean).join(', ') })}
+                      </span>
+                    )}
                     <span className="block text-sm text-slate-400">
                       {tx('צריך {v}', { v: staffingText(staffingFor(j.staffing, roles.items, certs.items.map((c) => c.id)), roles.items, certs.items) })}</span>
                   </button>
@@ -133,7 +142,7 @@ function JobsSection() {
       )}
 
       <Sheet open={editing !== null} title={editing && jobs.items.some((j) => j.id === editing.id) ? tx('עריכת עבודה') : tx('עבודה חדשה')} onClose={() => setEditing(null)} locked={jobs.saving}>
-        {editing && <JobForm job={editing} onDone={() => setEditing(null)} />}
+        {editing && <JobForm job={editing} onDone={() => setEditing(null)} onSchedule={setScheduling} />}
       </Sheet>
       <ShiftSheet editing={scheduling} onClose={() => setScheduling(null)} />
     </>
@@ -226,8 +235,10 @@ function TaskHistory({ job }: { job: PendingJob }) {
   )
 }
 
-function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
+function JobForm({ job, onDone, onSchedule }: { job: PendingJob; onDone: () => void; onSchedule: (shift: ShiftRecord) => void }) {
   const jobs = useDriveList('pendingJobs')
+  const workers = useDriveList('workers')
+  const shifts = useDriveList('shifts')
   const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
   const defs = useDriveList('shiftDefinitions')
@@ -255,11 +266,41 @@ function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
     }
   }
 
-  const save = () => {
-    const clean = { ...draft, location: draft.location.trim(), jobDescription: draft.jobDescription.trim(), note: draft.note?.trim() || undefined }
+  const cleaned = () => {
+    const clean = { ...draft, location: draft.location.trim(), jobDescription: draft.jobDescription.trim(), note: draft.note?.trim() || undefined, pinnedIds: draft.pinnedIds?.length ? draft.pinnedIds : undefined }
     const err = clean.location || clean.jobDescription ? null : tx('צריך למלא מיקום או מהות עבודה')
     setError(err)
-    if (!err) write(upsert(jobs.items, clean))
+    return err ? null : clean
+  }
+  const save = () => {
+    const clean = cleaned()
+    if (clean) write(upsert(jobs.items, clean))
+  }
+
+  // Workers the job must have, and the nearest days they are all free: picking one saves the job and opens it as a shift on that day.
+  const general = generalRoleId(roles.items)
+  const ctx: GapContext = { workers: workers.items, records: shifts.items, defs: defs.items, roles: roles.items, certifications: certs.items, generalId: general }
+  const pinnedShift: ShiftRecord = {
+    ...blankShift(todayIso(), draft),
+    crew: (draft.pinnedIds ?? []).flatMap((workerId) => {
+      const w = workers.items.find((x) => x.id === workerId)
+      return w ? [{ workerId, roleId: ownRole(w, roles.items, general) }] : []
+    }),
+  }
+  const scheduleOn = async (shift: ShiftRecord) => {
+    const clean = cleaned()
+    if (!clean) return
+    setBusy(true)
+    setSaveError(null)
+    try {
+      await jobs.save(upsert(jobs.items, clean))
+      onDone()
+      onSchedule(shift)
+    } catch (e) {
+      setSaveError(e)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -273,6 +314,9 @@ function JobForm({ job, onDone }: { job: PendingJob; onDone: () => void }) {
       <Suggestions list="jobTypes" value={draft.jobDescription} onPick={(jobDescription) => setDraft((d) => ({ ...d, jobDescription }))} />
       <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind, generalRoleId(roles.items)) }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => setDraft((d) => ({ ...d, staffing }))} />
+      {workers.items.length > 0 && (
+        <PinnedField draft={pinnedShift} ctx={ctx} onChange={(next) => setDraft((d) => ({ ...d, pinnedIds: next.pinnedIds }))} onPick={(o) => void scheduleOn(o.shift)} />
+      )}
       <DictationField label={tx('הערות')} value={draft.note ?? ''} onChange={(v) => setDraft((d) => ({ ...d, note: v }))} />
       <SheetActions
         onSave={save}
