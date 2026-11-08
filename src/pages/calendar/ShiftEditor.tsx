@@ -1,6 +1,6 @@
 import { tx } from '../../i18n'
 import { useState } from 'react'
-import { ArrowLeftRight, Sparkles, X } from 'lucide-react'
+import { ArrowLeftRight, Lock, Sparkles, X } from 'lucide-react'
 import { DateField } from '../../components/DateField'
 import { DictationField } from '../../components/DictationField'
 import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
@@ -8,11 +8,13 @@ import { Suggestions } from '../../components/Suggestions'
 import { defaultShiftDef, fullName, placeText, generalRoleId, isGeneralRole, staffingFor, upsert, workerHasRole } from '../../lib/catalog'
 import { crewSwaps } from '../../lib/archive'
 import { useDriveList } from '../../lib/data/useDriveList'
-import { crewCover } from '../../lib/gaps'
+import { crewCover, type GapContext } from '../../lib/gaps'
+import { pinnedOf } from '../../lib/pinnedDates'
 import { autoAssign, busyCrew, busyText, busyWith, candidateOrder, fitsSlot, loadWarning, pullFrom, type PlanContext, type WorkerLoad } from '../../lib/planner'
 import { dayName, isNightShift, pendingAfterShiftSave, showDate, shiftRecordError } from '../../lib/shifts'
 import type { ShiftRecord, Worker } from '../../types/models'
 import { WorkerDial } from '../workers/common'
+import { PinnedField } from './PinnedField'
 import { PullConfirm } from './PullConfirm'
 import { ShiftDefField } from './ShiftDefField'
 import { StaffingField } from './StaffingField'
@@ -126,6 +128,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       // Only "לינה" carries the job after the night; switching type away drops it.
       nextJob: thenJob && (next.location || next.jobDescription) ? next : undefined,
       ...(swaps.length ? { swaps: [...(draft.swaps ?? []), ...swaps] } : {}),
+      // Only workers still in the crew stay pinned.
+      pinnedIds: pinnedOf(draft).length ? pinnedOf(draft) : undefined,
     }
     const err =
       !datesValid.date || !datesValid.end
@@ -151,6 +155,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
 
   const inCrew = new Set(draft.crew.map((c) => c.workerId))
   const planCtx: PlanContext = { workers: workers.items, records: shifts.items, defs: defs.items, generalId: general }
+  const gapCtx: GapContext = { ...planCtx, roles: roles.items, certifications: certs.items }
+  const pinned = pinnedOf(draft)
   // Fairest first: the same order the automatic crew uses.
   const ranked = candidateOrder(draft, planCtx)
   // Workers already in another shift at the same time are not offered at all.
@@ -246,6 +252,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       )}
       <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind, general) }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => set('staffing', staffing)} />
+      {workers.items.length > 0 && <PinnedField draft={draft} ctx={gapCtx} onChange={(next) => (setDraft((d) => ({ ...d, ...next })), setPlanNote(null), setError(null))} />}
 
       <div className="space-y-2">
         <span className="text-sm text-slate-300">
@@ -274,6 +281,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
             // A constraint keeps this worker out on the shift's day: outlined in orange, swap is right there.
             <div key={c.workerId} className={`rounded-xl bg-slate-950 p-2 ${load?.blocked ? 'border-2 border-orange-500' : 'border border-slate-800'}`}>
               <div className="flex items-center gap-2">
+              {pinned.includes(c.workerId) && <Lock size={14} className="ms-1 shrink-0 text-emerald-300" aria-label={tx('חייב להיות בעבודה')} />}
               <WorkerDial worker={w} className="min-h-11 min-w-0 flex-1 ps-1" />
               {options.length ? (
                 <select

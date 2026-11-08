@@ -339,7 +339,8 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     const next = { location: j.nextJob.location.trim(), jobDescription: j.nextJob.jobDescription.trim() }
     const hasNext = Boolean(kind?.thenJob && (next.location || next.jobDescription))
     if (j.date) {
-      d.shifts = [...d.shifts, { ...base, date: j.date, crew: j.crew, ...(hasNext ? { nextJob: next } : {}) }]
+      // Workers the manager named must be in the job: "שבץ" fills the rest around them.
+      d.shifts = [...d.shifts, { ...base, date: j.date, crew: j.crew, ...(j.crew.length ? { pinnedIds: j.crew.map((c) => c.workerId) } : {}), ...(hasNext ? { nextJob: next } : {}) }]
       changed.add('shifts')
       calendar++
       if (j.autoAssign) toAssign.push(base.id)

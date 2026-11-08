@@ -998,5 +998,20 @@
  "עריכת האילוץ: {v}": "Kısıtı düzenle: {v}",
  "ככה נשמע הקול הזה": "Bu ses böyle duyuluyor",
  "קול הדיבור: {v}. לחיצה מחליפה לקול אחר": "Konuşma sesi: {v}. Başka bir sese geçmek için dokunun",
- "קול: {v}": "Ses: {v}"
+ "קול: {v}": "Ses: {v}",
+ "+ עובד שחייב להיות": "+ Mutlaka olması gereken çalışan",
+ "{v} לא חייב להיות בעבודה": "{v} bu işte olmak zorunda değil",
+ "אין צורך בעוד עובדים": "Başka çalışana gerek yok",
+ "אפשר לבחור עובדים שהעבודה לא יוצאת בלעדיהם, והמערכת תמצא את הימים הקרובים שכולם פנויים בהם.": "İşin onlarsız çıkamayacağı çalışanları seçebilirsin; uygulama hepsinin boş olduğu en yakın günleri bulur.",
+ "הוספת עובד שחייב להיות בעבודה": "İşte mutlaka olması gereken çalışanı ekle",
+ "היום הקרוב שמתאים:": "Uygun en yakın gün:",
+ "הימים הקרובים שמתאימים, בחר אחד:": "Uygun en yakın günler, birini seç:",
+ "חייב להיות בעבודה": "İşte mutlaka olmalı",
+ "ייכנסו גם: {v}": "Ayrıca katılacak: {v}",
+ "לא מצאתי ב-{days} הימים הקרובים יום שכולם פנויים בו ויש מספיק עובדים לשאר המקומות.": "Önümüzdeki {days} günde hepsinin boş olduğu ve diğer yerler için yeterli çalışan bulunan bir gün bulamadım.",
+ "מצא יום שהוא פנוי": "Boş olduğu bir gün bul",
+ "מצא יום שכולם פנויים": "Herkesin boş olduğu bir gün bul",
+ "עובדים שחייבים להיות בעבודה": "İşte mutlaka olması gereken çalışanlar",
+ "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "İşi ekiple birlikte {weekday} {v2} gününe koydum. Kaydetmeden önce hâlâ değiştirebilirsin.",
+ "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Dikkat: {v} o hafta zaten {n} gece çalışıyor"
 }

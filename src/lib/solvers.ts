@@ -6,7 +6,7 @@ import { generalRoleId, isActive, staffingFor } from './catalog'
 import { NO_EDITS, type Edits } from './assistantEdits'
 import { autoAssign, type PlanContext } from './planner'
 import { addDays, hebrewDayName, moveShift, showDate } from './shifts'
-import type { AppData } from './assistant'
+import type { AppData, Proposal } from './assistant'
 import type { ShiftRecord, StaffSlot } from '../types/models'
 
 export type OptionKind = 'replace' | 'fill' | 'move' | 'short'
@@ -18,6 +18,7 @@ export interface SolverOption {
   why: string
   cost: string
   changes: Edits
+  proposal?: Proposal // a new job to offer as it is, when the option is one (the free days of pinned workers)
 }
 
 export type Problem =

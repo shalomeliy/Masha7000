@@ -58,6 +58,8 @@ export function swapOn(shift: ShiftRecord, date: string, ctx: GapContext, pull =
   const moved = moveShift(shift, date)
   const staffing = staffingOf(shift, ctx)
   const troubled = troubledCrew(moved, ctx)
+  // A worker who must be in the job is never swapped out: no advice then.
+  if (troubled.some((id) => shift.pinnedIds?.includes(id))) return null
   if (!troubled.length && !emptyPlaces(moved, staffing, ctx.workers, ctx.generalId).length) return null
   const kept = moved.crew.filter((c) => !troubled.includes(c.workerId))
   // Pulling: the other open jobs at the same time are planned around as if empty.

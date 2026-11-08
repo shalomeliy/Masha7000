@@ -23,7 +23,7 @@ type Phase = 'idle' | 'listening' | 'thinking' | 'saving'
 // The assistant's answer to a hard problem: up to 5 ranked solutions.
 interface Advice {
   spoken: string
-  options: { title: string; actions: string[]; why: string; cost: string; kind?: OptionKind; changes?: Edits }[]
+  options: { title: string; actions: string[]; why: string; cost: string; kind?: OptionKind; changes?: Edits; proposal?: Proposal }[]
   problem?: Problem['kind'] // set when the app's planner computed the options (solve)
   extra?: Edits // made here without Claude (freeCommands): changes that go with any picked option (the worker marked sick)
   extraText?: string // and how they are said
@@ -436,7 +436,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       fromFree.current = true
       setTalking(true)
       setProposal(null)
-      setAdvice({ spoken: local.spoken, options: local.options, problem: 'missing', extra: local.extra, extraText: local.extraText })
+      setAdvice({ spoken: local.spoken, options: local.options, problem: local.options.some((o) => o.proposal) ? undefined : 'missing', extra: local.extra, extraText: local.extraText })
       say(local.spoken)
     }
     return true
@@ -447,6 +447,13 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     if (!advice) return
     const o = advice.options[i]
     setAdvice(null)
+    // A ready new job (the free days of workers who must be in it): offered as it is.
+    if (o.proposal && !proposalErrors(o.proposal, data).length) {
+      setLines((l) => [...l, { who: 'me', text: tx('פתרון {v}', { v: i + 1 }) }])
+      asked.current = [...asked.current, tx('פתרון {v}: {title}', { v: i + 1, title: o.title })]
+      offer(o.proposal)
+      return
+    }
     if (o.changes && advice.problem) {
       // The planner's option carries its own changes: a proposal at once, no model call. Picking
       // another kind than the recommended one is a preference worth remembering.

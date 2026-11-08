@@ -1,6 +1,7 @@
 import type { AppData, Proposal, Screen } from './assistant'
 import { isYes, normalizeProposal } from './assistant'
 import type { Edits } from './assistantEdits'
+import { continueDates, freeDates } from './freeDates'
 import { HINTS, type Hint } from './hint'
 import { closeName, nameDistance, nameLimit } from './nameMatch'
 import { solve, type SolverOption } from './solvers'
@@ -28,9 +29,9 @@ const JOB_VERBS = new Set(
 )
 const NEW_WORDS = new Set(['חדשה', 'חדש'])
 // Words that never start a job's description: questions and other actions (they go to Claude).
-const NOT_DESCRIPTION = /^(?:מה|מי|כמה|איפה|מתי|למה|איך|איזה|איזו|אילו|האם|תעביר|העבר|תזיז|הזז|תסגור|סגור|תבטל|בטל|תמחק|מחק|תדחה|דחה|תשנה|שנה|תבדוק|בדוק|תזכור|לא|אל|חולה)$/
+export const NOT_DESCRIPTION = /^(?:מה|מי|כמה|איפה|מתי|למה|איך|איזה|איזו|אילו|האם|תעביר|העבר|תזיז|הזז|תסגור|סגור|תבטל|בטל|תמחק|מחק|תדחה|דחה|תשנה|שנה|תבדוק|בדוק|תזכור|לא|אל|חולה)$/
 // A description that starts with ב ("בדיקת מצלמות") is not a place.
-const WORK_START = /^(?:בדיק|בני|ביצוע|ביקור|בירור|בטיחות|בקר|ברז|בסיס|בידוד|ביוב|בור)/
+export const WORK_START = /^(?:בדיק|בני|ביצוע|ביקור|בירור|בטיחות|בקר|ברז|בסיס|בידוד|ביוב|בור)/
 // Places of two words: towns ("באר שבע", "קרית גת") and named sites ("קניון הדרים", "תחנת הכוח").
 const TOWN_FIRST = /^(?:קניון|תחנת|מרכז|אזור|פארק|מתחם|בניין|נמל|כביש|מחלף|צומת|רחוב|שכונת|מפעל|חוות|קיבוץ|מושב|מושבת|באר|קרית|קריית|בית|מצפה|ראש|תל|כפר|נווה|גבעת|רמת|מעלה|אור|עין|מגדל|נוף|שדה|פתח|ראשון|נס|גן|יד|מבשרת|זכרון|אבן|קצרין|רמת)$/
 // "העבודה" is a job that exists, "עבודות" more than one: not one new job.
@@ -48,16 +49,16 @@ const COMMON = new Set([
 const ASSIGN = /^(?:ו?תשבץ|ו?שבץ|ו?תשבצי|מישהו|אנשים)$/
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const plus = (now: Date, n: number) => iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n))
+export const plus = (now: Date, n: number) => iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() + n))
 
-const words = (s: string) =>
+export const words = (s: string) =>
   s
     .replace(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/g, (_, a, b, c) => `${a}-${b}${c ? `-${c}` : ''}`) // "15.11" stays one word
     .replace(/[?!.,״"׳:;/]/g, ' ')
     .split(/\s+/)
     .filter(Boolean)
 /** A word without one leading ב/ל/ה/ו: "באילת" -> "אילת". */
-const bare = (w: string) => w.replace(/^(?:ו?[בלה]|ו)(?=.{2,})/, '')
+export const bare = (w: string) => w.replace(/^(?:ו?[בלה]|ו)(?=.{2,})/, '')
 const FINAL: Record<string, string> = { כ: 'ך', מ: 'ם', נ: 'ן', פ: 'ף', צ: 'ץ' }
 // חשמלאים -> חשמלאי, טפסנים -> טפסן
 const singular = (w: string) =>
@@ -96,7 +97,7 @@ interface Found {
 }
 
 /** Everything in the sentence that the app's own lists explain. */
-function find(said: string, d: AppData, aliases: Record<string, string>, now: Date, protect: Set<string> = new Set()): Found {
+export function find(said: string, d: AppData, aliases: Record<string, string>, now: Date, protect: Set<string> = new Set()): Found {
   const ws = words(said)
   const used = new Array<boolean>(ws.length).fill(false)
   const out: Found = { staffing: [], workerIds: [], unsure: [], rest: [], restAt: [] }
@@ -351,6 +352,7 @@ export interface PendingJob {
   job: { date: string; shiftKindId: string; location: string; jobDescription: string; staffing: { roleId: string; count: number }[]; autoAssign: boolean }
   missing: JobField[]
   kindOpen?: boolean // the manager said he does not know the kind yet: it is not asked again
+  pinned?: string[] // "מתי יוסי וניר פנויים" (src/lib/freeDates.ts): the answer leads to the days they are free
 }
 
 export type Local =
@@ -431,7 +433,7 @@ export function whoWorks(date: string, d: AppData, now: Date): string {
   return `${when} ${day.length === 1 ? 'יש עבודה אחת' : `יש ${day.length} עבודות`}. ${parts.join('. ')}.`
 }
 
-const QUESTIONS: Record<JobField, (d: AppData) => string> = {
+export const QUESTIONS: Record<JobField, (d: AppData) => string> = {
   date: () => 'באיזה יום?',
   shiftKindId: (d) => `איזו עבודה, ${d.shiftDefinitions.map((s) => s.name).join(', ')}?`,
   location: () => 'איפה?',
@@ -460,7 +462,7 @@ function jobProposal(job: PendingJob['job'], d: AppData, now: Date): Proposal {
  * What a new job cannot be saved without. Everything else may be left out (the user's request,
  * 2026-11-07): with no date it goes to the לשיבוץ list, with a date to the calendar.
  */
-const missingOf = (job: PendingJob['job'], kindOpen = false): JobField[] => [
+export const missingOf = (job: PendingJob['job'], kindOpen = false): JobField[] => [
   // A job with no date may wait in לשיבוץ without a kind when the manager does not know it yet.
   ...(job.shiftKindId || (kindOpen && !job.date) ? [] : (['shiftKindId'] as const)),
   ...(job.location || job.jobDescription ? [] : (['location'] as const)),
@@ -558,6 +560,7 @@ export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned,
   }
   const missing = missingOf(job, kindOpen)
   if (missing.length && missing[0] === field) return null // the answer did not answer: Claude
+  if (p.pinned) return continueDates(job, missing, p.pinned, d, now)
   if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing, kindOpen } }
   return { kind: 'propose', proposal: jobProposal(job, d, now) }
 }
@@ -726,7 +729,7 @@ function newWorker(text: string, d: AppData, now: Date): Local {
 
 /** The first sentence of a conversation: handled here, or null for Claude. */
 export function handleFree(text: string, d: AppData, L: Learned, now = new Date()): Local {
-  return fixed(text, d, now) ?? newWorker(text, d, now) ?? learnedSick(text, d, L, now) ?? learnedJob(text, d, L, now)
+  return fixed(text, d, now) ?? newWorker(text, d, now) ?? freeDates(text, d, L, now) ?? learnedSick(text, d, L, now) ?? learnedJob(text, d, L, now)
 }
 
 // ---- One long sentence with several requests (the user's request, 2026-11-08) ----

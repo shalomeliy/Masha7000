@@ -129,6 +129,7 @@ export interface ShiftRecord {
   closure?: ShiftClosure
   nextJob?: { location: string; jobDescription: string } // "לינה" only: the job after the night
   swaps?: CrewSwap[] // workers replaced after the shift was first saved, oldest first; for the archive
+  pinnedIds?: string[] // crew members who must be in this job ("עובדים קבועים"): "שבץ" and swap advice never take them out
 }
 
 // One crew change in a saved shift: `outId` was replaced by `inId` in the place of role `roleId`.

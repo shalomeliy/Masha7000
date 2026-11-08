@@ -998,5 +998,20 @@
  "עריכת האילוץ: {v}": "Editar a restrição: {v}",
  "ככה נשמע הקול הזה": "É assim que esta voz soa",
  "קול הדיבור: {v}. לחיצה מחליפה לקול אחר": "Voz: {v}. Toque para mudar para outra voz",
- "קול: {v}": "Voz: {v}"
+ "קול: {v}": "Voz: {v}",
+ "+ עובד שחייב להיות": "+ Trabalhador que tem de estar",
+ "{v} לא חייב להיות בעבודה": "{v} não precisa estar no trabalho",
+ "אין צורך בעוד עובדים": "Não são necessários mais trabalhadores",
+ "אפשר לבחור עובדים שהעבודה לא יוצאת בלעדיהם, והמערכת תמצא את הימים הקרובים שכולם פנויים בהם.": "Você pode escolher trabalhadores sem os quais o trabalho não sai, e o app encontrará os dias mais próximos em que todos estão livres.",
+ "הוספת עובד שחייב להיות בעבודה": "Adicionar um trabalhador que tem de estar no trabalho",
+ "היום הקרוב שמתאים:": "O dia mais próximo que serve:",
+ "הימים הקרובים שמתאימים, בחר אחד:": "Os dias mais próximos que servem, escolha um:",
+ "חייב להיות בעבודה": "Tem de estar no trabalho",
+ "ייכנסו גם: {v}": "Também entram: {v}",
+ "לא מצאתי ב-{days} הימים הקרובים יום שכולם פנויים בו ויש מספיק עובדים לשאר המקומות.": "Nos próximos {days} dias não encontrei um dia em que todos estejam livres e haja trabalhadores suficientes para as outras vagas.",
+ "מצא יום שהוא פנוי": "Encontrar um dia em que ele esteja livre",
+ "מצא יום שכולם פנויים": "Encontrar um dia em que todos estejam livres",
+ "עובדים שחייבים להיות בעבודה": "Trabalhadores que têm de estar no trabalho",
+ "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "Marquei o trabalho para {weekday} {v2} com a equipe. Ainda dá para mudar antes de salvar.",
+ "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Atenção: {v} já tem {n} noites nessa semana"
 }

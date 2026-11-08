@@ -998,5 +998,20 @@
  "עריכת האילוץ: {v}": "Edit the constraint: {v}",
  "ככה נשמע הקול הזה": "This is how this voice sounds",
  "קול הדיבור: {v}. לחיצה מחליפה לקול אחר": "Speaking voice: {v}. Tap to switch to another voice",
- "קול: {v}": "Voice: {v}"
+ "קול: {v}": "Voice: {v}",
+ "+ עובד שחייב להיות": "+ Worker who must be there",
+ "{v} לא חייב להיות בעבודה": "{v} doesn't have to be in the job",
+ "אין צורך בעוד עובדים": "No more workers needed",
+ "אפשר לבחור עובדים שהעבודה לא יוצאת בלעדיהם, והמערכת תמצא את הימים הקרובים שכולם פנויים בהם.": "You can pick workers the job can't go without, and the app will find the nearest days they are all free.",
+ "הוספת עובד שחייב להיות בעבודה": "Add a worker who must be in the job",
+ "היום הקרוב שמתאים:": "The nearest day that fits:",
+ "הימים הקרובים שמתאימים, בחר אחד:": "The nearest days that fit, pick one:",
+ "חייב להיות בעבודה": "Must be in the job",
+ "ייכנסו גם: {v}": "Also joining: {v}",
+ "לא מצאתי ב-{days} הימים הקרובים יום שכולם פנויים בו ויש מספיק עובדים לשאר המקומות.": "In the next {days} days I found no day when they are all free and there are enough workers for the other places.",
+ "מצא יום שהוא פנוי": "Find a day he is free",
+ "מצא יום שכולם פנויים": "Find a day they are all free",
+ "עובדים שחייבים להיות בעבודה": "Workers who must be in the job",
+ "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "I set the job for {weekday} {v2} with the crew. You can still change it before saving.",
+ "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Note: {v} already has {n} nights that week"
 }

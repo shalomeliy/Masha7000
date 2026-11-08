@@ -998,5 +998,20 @@
  "עריכת האילוץ: {v}": "Ubah batasan: {v}",
  "ככה נשמע הקול הזה": "Beginilah suara ini terdengar",
  "קול הדיבור: {v}. לחיצה מחליפה לקול אחר": "Suara bicara: {v}. Ketuk untuk beralih ke suara lain",
- "קול: {v}": "Suara: {v}"
+ "קול: {v}": "Suara: {v}",
+ "+ עובד שחייב להיות": "+ Pekerja yang wajib ikut",
+ "{v} לא חייב להיות בעבודה": "{v} tidak wajib ikut pekerjaan ini",
+ "אין צורך בעוד עובדים": "Tidak perlu pekerja lagi",
+ "אפשר לבחור עובדים שהעבודה לא יוצאת בלעדיהם, והמערכת תמצא את הימים הקרובים שכולם פנויים בהם.": "Anda bisa memilih pekerja yang wajib ada agar pekerjaan bisa berangkat, dan aplikasi akan mencari hari terdekat saat mereka semua kosong.",
+ "הוספת עובד שחייב להיות בעבודה": "Tambah pekerja yang wajib ikut pekerjaan",
+ "היום הקרוב שמתאים:": "Hari terdekat yang cocok:",
+ "הימים הקרובים שמתאימים, בחר אחד:": "Hari-hari terdekat yang cocok, pilih satu:",
+ "חייב להיות בעבודה": "Wajib ikut pekerjaan",
+ "ייכנסו גם: {v}": "Ikut juga: {v}",
+ "לא מצאתי ב-{days} הימים הקרובים יום שכולם פנויים בו ויש מספיק עובדים לשאר המקומות.": "Dalam {days} hari ke depan saya tidak menemukan hari ketika semua kosong dan ada cukup pekerja untuk posisi lainnya.",
+ "מצא יום שהוא פנוי": "Cari hari saat dia kosong",
+ "מצא יום שכולם פנויים": "Cari hari saat semua kosong",
+ "עובדים שחייבים להיות בעבודה": "Pekerja yang wajib ikut pekerjaan",
+ "קבעתי את העבודה ליום {weekday} {v2} עם הצוות. אפשר עוד לשנות לפני השמירה.": "Saya menetapkan pekerjaan pada {weekday} {v2} beserta timnya. Masih bisa diubah sebelum disimpan.",
+ "שים לב: {v} כבר עם {n} לילות באותו שבוע": "Perhatian: {v} sudah punya {n} malam di minggu itu"
 }
