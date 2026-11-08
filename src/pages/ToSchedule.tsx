@@ -8,7 +8,7 @@ import { Suggestions } from '../components/Suggestions'
 import { defaultShiftDef, generalRoleId, nameError, newId, staffingFor, staffingText, tagNames, upsert } from '../lib/catalog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
-import { ownRole } from '../lib/pinnedDates'
+import { fullNames, ownRole } from '../lib/pinnedDates'
 import type { GapContext } from '../lib/gaps'
 import { PinnedField } from './calendar/PinnedField'
 import { blankShift, dayName, isWaiting, showDate, STARTER_POSTPONE_REASONS, taskHistory } from '../lib/shifts'
@@ -127,7 +127,7 @@ function JobsSection() {
                     {why && <span className="block text-sm text-slate-400">{why}</span>}
                     {!!j.pinnedIds?.length && (
                       <span className="block text-sm text-emerald-300">
-                        {tx('חייבים להיות: {v}', { v: j.pinnedIds.map((id) => workers.items.find((w) => w.id === id)?.firstName).filter(Boolean).join(', ') })}
+                        {tx('חייבים להיות: {v}', { v: fullNames(j.pinnedIds, workers.items).join(', ') })}
                       </span>
                     )}
                     <span className="block text-sm text-slate-400">

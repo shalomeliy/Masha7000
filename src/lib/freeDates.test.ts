@@ -36,7 +36,7 @@ describe('"מתי יוסי וניר פנויים" by voice, free', () => {
   it('says the nearest days both are free, each a ready job', () => {
     const r = advise(run('תמצא לי מתי יוסי וניר פנויים לעבודת לילה בערד'))
     expect(r?.options.map((o) => o.title)).toEqual(['ביום שלישי 10.11', 'ביום רביעי 11.11', 'ביום חמישי 12.11'])
-    expect(r?.spoken).toBe('יוסי וניר פנויים ביום שלישי 10.11, ביום רביעי 11.11 או ביום חמישי 12.11. איזה יום לקבוע, הראשון, השני או השלישי?')
+    expect(r?.spoken).toBe('יוסי כהן וניר כהן פנויים ביום שלישי 10.11, ביום רביעי 11.11 או ביום חמישי 12.11. איזה יום לקבוע, הראשון, השני או השלישי?')
     const p = r!.options[0].proposal!
     expect(p.jobs[0]).toMatchObject({ date: '2026-11-10', shiftKindId: 's2', location: 'ערד 17', autoAssign: true })
     expect(p.jobs[0].crew.map((c) => c.workerId)).toEqual(['w1', 'w2'])
@@ -49,7 +49,7 @@ describe('"מתי יוסי וניר פנויים" by voice, free', () => {
 
   it('fills the extra people said with others', () => {
     const r = advise(run('מתי יוסי וניר פנויים ביחד לעבודת יום בערד ועוד חשמלאי'))
-    expect(r?.options[0].actions[0]).toBe('ייכנסו גם: דני')
+    expect(r?.options[0].actions[0]).toBe('ייכנסו גם: דני כהן')
     const saved = applyProposal(r!.options[0].proposal!, data()).data.shifts[0]
     expect(saved.crew.map((c) => c.workerId).sort()).toEqual(['w1', 'w2', 'w3'])
   })

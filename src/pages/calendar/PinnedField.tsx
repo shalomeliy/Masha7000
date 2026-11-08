@@ -7,7 +7,7 @@ import { todayIso } from '../../lib/dates'
 import type { GapContext } from '../../lib/gaps'
 import { ADVICE_DAYS } from '../../lib/moveAdvice'
 import { NIGHT_LIMIT } from '../../lib/planner'
-import { datesForPinned, firstNames, ownRole, pinnedOf, type DateOption } from '../../lib/pinnedDates'
+import { datesForPinned, fullNames, ownRole, pinnedOf, type DateOption } from '../../lib/pinnedDates'
 import { dayName, showDate } from '../../lib/shifts'
 import type { ShiftRecord } from '../../types/models'
 
@@ -108,8 +108,8 @@ export function PinnedField({
         <div role="status" className="space-y-2">
           <p className="text-sm text-slate-200">{options.length === 1 ? tx('היום הקרוב שמתאים:') : tx('הימים הקרובים שמתאימים, בחר אחד:')}</p>
           {options.map((o) => {
-            const added = firstNames(o.addedIds, ctx.workers)
-            const nights = firstNames(o.nightIds, ctx.workers)
+            const added = fullNames(o.addedIds, ctx.workers)
+            const nights = fullNames(o.nightIds, ctx.workers)
             return (
               <button key={o.date} type="button" onClick={() => pick(o)} className="block w-full space-y-0.5 rounded-xl border border-slate-600 bg-slate-950 p-3 text-start text-sm">
                 <span className="block font-medium text-slate-100">{tx('יום {weekday} {v2}', { weekday: dayName(o.date), v2: showDate(o.date) })}</span>

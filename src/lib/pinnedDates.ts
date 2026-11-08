@@ -74,6 +74,6 @@ export function datesForPinned(shift: ShiftRecord, pinnedIds: string[], from: st
   return out
 }
 
-/** "דני, משה" for workers, by id. */
-export const firstNames = (ids: string[], workers: Worker[]) =>
-  ids.map((id) => workers.find((w) => w.id === id)).filter((w): w is Worker => Boolean(w)).map((w) => w.firstName || fullName(w))
+/** "דני לוי, משה כהן" for workers, by id: full names, so two of one first name are told apart (the user, 2026-11-08). */
+export const fullNames = (ids: string[], workers: Worker[]) =>
+  ids.map((id) => workers.find((w) => w.id === id)).filter((w): w is Worker => Boolean(w)).map(fullName)
