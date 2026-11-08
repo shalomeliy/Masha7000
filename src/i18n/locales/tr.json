@@ -1043,5 +1043,11 @@
  "כתבתי כאן איך אני חושב שאומרים אותה באנגלית. תקן את מה שלא נכון ולחץ \"שמע את התיקון\".": "Buraya nasıl söylendiğini düşündüğümü Latin harfleriyle yazdım. Yanlış olanı düzeltin ve \"Düzeltmeyi dinle\"ye dokunun.",
  "כתוב איך אומרים אותה, באנגלית או בעברית אחרת, ולחץ \"שמע את התיקון\".": "Nasıl söylendiğini Latin harfleriyle ya da başka bir İbranice yazımla yazın ve \"Düzeltmeyi dinle\"ye dokunun.",
  "עוד לא דורג": "Henüz puanlanmadı",
- "הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.": "Karttaki yıldız ortalamadır. Yıldızları değiştirmek için çalışanı düzenlemeye açın."
+ "הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.": "Karttaki yıldız ortalamadır. Yıldızları değiştirmek için çalışanı düzenlemeye açın.",
+ "הקרא לי ברצף": "Art arda oku",
+ "שלי מקריא מילה אחרי מילה. אם שמעת טעות, לוחצים \"תיקון\". מילה שעברה בלי לחיצה נחשבת נכונה.": "Shaly kelimeleri art arda okur. Bir hata duyarsanız \"Düzelt\"e dokunun. Dokunmadan geçen kelime doğru sayılır.",
+ "מילה אחת בכל פעם": "Her seferinde bir kelime",
+ "תיקון": "Düzelt",
+ "עצור": "Durdur",
+ "המשך בלי לתקן": "Düzeltmeden devam et"
 }

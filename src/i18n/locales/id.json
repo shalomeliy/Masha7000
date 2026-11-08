@@ -1043,5 +1043,11 @@
  "כתבתי כאן איך אני חושב שאומרים אותה באנגלית. תקן את מה שלא נכון ולחץ \"שמע את התיקון\".": "Saya menulis di sini cara mengucapkannya menurut saya, dengan huruf Latin. Perbaiki yang salah lalu ketuk \"Dengar perbaikan\".",
  "כתוב איך אומרים אותה, באנגלית או בעברית אחרת, ולחץ \"שמע את התיקון\".": "Tulis cara mengucapkannya, dengan huruf Latin atau ejaan Ibrani lain, lalu ketuk \"Dengar perbaikan\".",
  "עוד לא דורג": "Belum dinilai",
- "הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.": "Bintang di kartu adalah rata-ratanya. Untuk mengubah bintang, buka pekerja untuk diedit."
+ "הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.": "Bintang di kartu adalah rata-ratanya. Untuk mengubah bintang, buka pekerja untuk diedit.",
+ "הקרא לי ברצף": "Bacakan berurutan",
+ "שלי מקריא מילה אחרי מילה. אם שמעת טעות, לוחצים \"תיקון\". מילה שעברה בלי לחיצה נחשבת נכונה.": "Shaly membacakan kata demi kata. Jika mendengar kesalahan, ketuk \"Perbaiki\". Kata yang lewat tanpa diketuk dianggap benar.",
+ "מילה אחת בכל פעם": "Satu kata setiap kali",
+ "תיקון": "Perbaiki",
+ "עצור": "Berhenti",
+ "המשך בלי לתקן": "Lanjut tanpa memperbaiki"
 }

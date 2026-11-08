@@ -1043,5 +1043,11 @@
  "כתבתי כאן איך אני חושב שאומרים אותה באנגלית. תקן את מה שלא נכון ולחץ \"שמע את התיקון\".": "Escribí aquí cómo creo que se dice, con letras en inglés. Corrige lo que esté mal y toca \"Escuchar la corrección\".",
  "כתוב איך אומרים אותה, באנגלית או בעברית אחרת, ולחץ \"שמע את התיקון\".": "Escribe cómo se dice, con letras en inglés o con otra escritura en hebreo, y toca \"Escuchar la corrección\".",
  "עוד לא דורג": "Aún sin valorar",
- "הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.": "La estrella de la tarjeta es el promedio. Para cambiar las estrellas, abre el trabajador para editarlo."
+ "הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.": "La estrella de la tarjeta es el promedio. Para cambiar las estrellas, abre el trabajador para editarlo.",
+ "הקרא לי ברצף": "Léemelas seguidas",
+ "שלי מקריא מילה אחרי מילה. אם שמעת טעות, לוחצים \"תיקון\". מילה שעברה בלי לחיצה נחשבת נכונה.": "Shaly lee una palabra tras otra. Si oyes un error, toca \"Corregir\". Una palabra que pasa sin tocar cuenta como correcta.",
+ "מילה אחת בכל פעם": "Una palabra a la vez",
+ "תיקון": "Corregir",
+ "עצור": "Parar",
+ "המשך בלי לתקן": "Seguir sin corregir"
 }

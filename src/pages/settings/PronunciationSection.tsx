@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Check, PencilLine, SkipForward, Undo2, Volume2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Check, Pause, PencilLine, Play, SkipForward, Undo2, Volume2, X } from 'lucide-react'
 import { DriveError } from '../../components/DriveError'
 import { inputClass } from '../../components/Sheet'
 import { newId } from '../../lib/catalog'
@@ -12,6 +12,9 @@ import { tx } from '../../i18n'
 // right. A word that sounds right stays as it is; a word he fixes is said his way from then on. The
 // first round is the starting list (src/lib/pronunciationSeed.ts); after it, every word Shaly says that
 // was not heard yet waits here (src/App.tsx, NewWords).
+
+// How long after a word ends the manager has to tap "תיקון" before the next word is said.
+const PAUSE_MS = 1500
 
 const ERRORS: Record<string, string> = {
   say: tx('כתוב איך לומר אותה. אפשר גם באותיות באנגלית.'),
@@ -160,15 +163,47 @@ function Trainer({
   const [fixing, setFixing] = useState(false)
   const [say, setSay] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // Reading in a row: each word is said, and if the manager does not tap "תיקון" within a moment it
+  // counts as sounding right and the next one is said. Tapping "תיקון" stops the row on that word.
+  const [auto, setAuto] = useState(false)
   const word = queue.find((w) => !skipped.includes(w)) ?? queue[0]
+  const live = useRef({ auto, fixing, word })
+  useEffect(() => {
+    live.current = { auto, fixing, word }
+  })
+  const wasAuto = useRef(auto)
 
   // Each new word is said once as it appears (sound needs the first tap, so only after "start").
   useEffect(() => {
-    if (started && word) speak(word)
     setFixing(false)
     setSay('')
     setError(null)
-  }, [started, word])
+    const paused = wasAuto.current && !auto
+    wasAuto.current = auto
+    if (!started || !word || paused) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    speak(word, () => {
+      if (!live.current.auto || live.current.word !== word) return
+      timer = setTimeout(() => {
+        const l = live.current
+        if (l.auto && !l.fixing && l.word === word) void onApprove(word)
+      }, PAUSE_MS)
+    })
+    return () => clearTimeout(timer)
+    // onApprove changes with every save; the word is what starts a new turn
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [started, word, auto])
+
+  const openFix = () => {
+    setSay(suggest[word] ?? '')
+    setFixing(true)
+  }
+  // Back to reading in a row after a fix, or without fixing (the word waits for later).
+  const goOn = () => {
+    setFixing(false)
+    if (!auto) return
+    setSkipped((s) => [...s, word])
+  }
 
   if (!word)
     return (
@@ -190,8 +225,19 @@ function Trainer({
     return (
       <section className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
         {progress}
-        <button type="button" onClick={() => setStarted(true)} className="min-h-12 w-full rounded-xl bg-sky-600 px-4 font-semibold text-white">
-          {tx('התחל אימון')}
+        <button
+          type="button"
+          onClick={() => {
+            setAuto(true)
+            setStarted(true)
+          }}
+          className="min-h-12 w-full rounded-xl bg-sky-600 px-4 font-semibold text-white"
+        >
+          {tx('הקרא לי ברצף')}
+        </button>
+        <p className="text-xs text-slate-500">{tx('שלי מקריא מילה אחרי מילה. אם שמעת טעות, לוחצים "תיקון". מילה שעברה בלי לחיצה נחשבת נכונה.')}</p>
+        <button type="button" onClick={() => setStarted(true)} className="min-h-11 w-full rounded-xl border border-slate-700 px-4 text-slate-200">
+          {tx('מילה אחת בכל פעם')}
         </button>
       </section>
     )
@@ -200,28 +246,38 @@ function Trainer({
     const err = pronunciationError(word, say)
     setError(err && (ERRORS[err] ?? null))
     if (err) return
-    await onFix(word, say.trim())
+    if (await onFix(word, say.trim())) setFixing(false)
   }
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-4">
       {progress}
       <p className="py-2 text-center text-4xl font-bold">{word}</p>
-      <button type="button" onClick={() => speak(word)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 text-slate-200">
-        <Volume2 size={18} aria-hidden />
-        {tx('שמע שוב')}
-      </button>
+      {(!auto || fixing) && (
+        <button type="button" onClick={() => speak(word)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 text-slate-200">
+          <Volume2 size={18} aria-hidden />
+          {tx('שמע שוב')}
+        </button>
+      )}
 
-      {!fixing ? (
+      {!fixing && auto ? (
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={openFix} className="flex min-h-16 items-center justify-center gap-2 rounded-xl bg-amber-500 text-lg font-bold text-slate-950">
+            <PencilLine size={20} aria-hidden />
+            {tx('תיקון')}
+          </button>
+          <button type="button" onClick={() => setAuto(false)} className="flex min-h-16 items-center justify-center gap-2 rounded-xl border border-slate-700 text-slate-200">
+            <Pause size={20} aria-hidden />
+            {tx('עצור')}
+          </button>
+        </div>
+      ) : !fixing ? (
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => void onApprove(word)} disabled={busy} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 font-semibold text-white disabled:opacity-50">
             <Check size={18} aria-hidden />
             {tx('נשמע נכון')}
           </button>
-          <button type="button" onClick={() => {
-              setSay(suggest[word] ?? '')
-              setFixing(true)
-            }} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-500 font-semibold text-amber-200">
+          <button type="button" onClick={openFix} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-500 font-semibold text-amber-200">
             <PencilLine size={18} aria-hidden />
             {tx('לא נכון, לתקן')}
           </button>
@@ -245,12 +301,18 @@ function Trainer({
               {tx('שמור תיקון')}
             </button>
           </div>
-          <button type="button" onClick={() => setFixing(false)} className="min-h-11 w-full text-sm text-slate-400">
-            {tx('ביטול')}
+          <button type="button" onClick={goOn} className="min-h-11 w-full rounded-xl border border-slate-700 text-slate-200">
+            {auto ? tx('המשך בלי לתקן') : tx('ביטול')}
           </button>
         </div>
       )}
 
+      {!auto && !fixing && (
+        <button type="button" onClick={() => setAuto(true)} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-sky-700 text-sky-200">
+          <Play size={16} aria-hidden />
+          {tx('הקרא לי ברצף')}
+        </button>
+      )}
       {lastWord && (
         <button type="button" onClick={onUndo} disabled={busy} className="flex min-h-11 w-full items-center justify-center gap-2 text-sm text-sky-300 disabled:opacity-40">
           <Undo2 size={16} aria-hidden />

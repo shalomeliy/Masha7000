@@ -85,7 +85,9 @@ function NewWords() {
   const fixed = useDriveList('pronunciations')
   const fresh = useDriveList('newWords')
   const latest = useRef({ approved: approved.items, fixed: fixed.items, fresh: fresh.items, save: fresh.save, loaded: approved.query.isSuccess && fixed.query.isSuccess && fresh.query.isSuccess })
+  useEffect(() => {
   latest.current = { approved: approved.items, fixed: fixed.items, fresh: fresh.items, save: fresh.save, loaded: approved.query.isSuccess && fixed.query.isSuccess && fresh.query.isSuccess }
+  })
   useEffect(
     () =>
       onSpoken((text) => {

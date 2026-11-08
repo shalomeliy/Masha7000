@@ -1043,5 +1043,11 @@
  "כתבתי כאן איך אני חושב שאומרים אותה באנגלית. תקן את מה שלא נכון ולחץ \"שמע את התיקון\".": "I wrote here how I think it is said, in English letters. Fix what is wrong and tap \"Hear the fix\".",
  "כתוב איך אומרים אותה, באנגלית או בעברית אחרת, ולחץ \"שמע את התיקון\".": "Write how it is said, in English letters or a different Hebrew spelling, and tap \"Hear the fix\".",
  "עוד לא דורג": "Not rated yet",
- "הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.": "The star on the card is the average. To change the stars, open the worker for editing."
+ "הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.": "The star on the card is the average. To change the stars, open the worker for editing.",
+ "הקרא לי ברצף": "Read them to me in a row",
+ "שלי מקריא מילה אחרי מילה. אם שמעת טעות, לוחצים \"תיקון\". מילה שעברה בלי לחיצה נחשבת נכונה.": "Shaly reads one word after another. If you hear a mistake, tap \"Fix\". A word that passes without a tap counts as right.",
+ "מילה אחת בכל פעם": "One word at a time",
+ "תיקון": "Fix",
+ "עצור": "Stop",
+ "המשך בלי לתקן": "Go on without fixing"
 }
