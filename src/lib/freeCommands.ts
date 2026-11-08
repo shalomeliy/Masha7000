@@ -29,6 +29,10 @@ const JOB_VERBS = new Set(
 const NEW_WORDS = new Set(['חדשה', 'חדש'])
 // Words that never start a job's description: questions and other actions (they go to Claude).
 const NOT_DESCRIPTION = /^(?:מה|מי|כמה|איפה|מתי|למה|איך|איזה|איזו|אילו|האם|תעביר|העבר|תזיז|הזז|תסגור|סגור|תבטל|בטל|תמחק|מחק|תדחה|דחה|תשנה|שנה|תבדוק|בדוק|תזכור|לא|אל|חולה)$/
+// A description that starts with ב ("בדיקת מצלמות") is not a place.
+const WORK_START = /^(?:בדיק|בני|ביצוע|ביקור|בירור|בטיחות|בקר|ברז|בסיס|בידוד|ביוב|בור)/
+// Towns of two words: "באר שבע", "קרית גת", "מצפה רמון".
+const TOWN_FIRST = /^(?:באר|קרית|קריית|בית|מצפה|ראש|תל|כפר|נווה|גבעת|רמת|מעלה|אור|עין|מגדל|נוף|שדה|פתח|ראשון|נס|גן|יד|מבשרת|זכרון|אבן|קצרין|רמת)$/
 // "העבודה" is a job that exists, "עבודות" more than one: not one new job.
 const OTHER_JOB = /^(?:ו?ה|של|ו?ב|ו?ל)עבוד(?:ה|ות)$|^ו?עבודות$/
 // Small words that carry no meaning in a command.
@@ -100,6 +104,21 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
       if (pw.every((w, k) => (k === 0 ? bare(ws[i]) === w || ws[i] === w : ws[i + k] === w))) {
         if (!out.location || p.name.length > out.location.length) out.location = p.name
         take(i, pw.length)
+      }
+    }
+  }
+  // A place said by its first word only ("בערד" for "ערד 17"), when exactly one place starts with it.
+  if (!out.location) {
+    for (let i = 0; i < ws.length; i++) {
+      if (used[i]) continue
+      const hits = d.places.filter((p) => {
+        const first = words(p.name)[0]
+        return words(p.name).length > 1 && /^(?:ו?[בל])/.test(ws[i]) && bare(ws[i]) === first
+      })
+      if (hits.length === 1) {
+        out.location = hits[0].name
+        take(i)
+        break
       }
     }
   }
@@ -446,18 +465,37 @@ function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
   const rest = f.rest.map(bare)
   const unknownAt = f.restAt.filter((_, k) => !isJobWord(f.rest[k], rest[k], L))
   let description = f.description ?? ''
+  let location = f.location ?? ''
   if (unknownAt.length) {
-    // Unexplained words are the description only when there is no known one, and they stand together.
-    if (description || unknownAt.some((at, k) => k > 0 && at !== unknownAt[k - 1] + 1)) return null
+    // Unexplained words in runs: at most a place not in the lists ("בערד", said with ב) and a description.
     const ws = words(text)
-    const run = unknownAt.map((at) => ws[at])
-    // A question, another action or a bare number is not a description: Claude.
-    if (run.some((w) => NOT_DESCRIPTION.test(w) || NOT_DESCRIPTION.test(bare(w)) || /^\d+$/.test(w))) return null
-    description = run.join(' ')
+    const runs: string[][] = []
+    unknownAt.forEach((at, k) => (k > 0 && at === unknownAt[k - 1] + 1 ? runs[runs.length - 1].push(ws[at]) : runs.push([ws[at]])))
+    // A question, another action or a bare number is neither: Claude.
+    if (runs.flat().some((w) => NOT_DESCRIPTION.test(w) || NOT_DESCRIPTION.test(bare(w)) || /^\d+$/.test(w))) return null
+    const isPlace = (r: string[]) => /^ב(?=.{2,})/.test(r[0]) && !location
+    const asPlace = (r: string[]) => [r[0].slice(1), ...r.slice(1)].join(' ')
+    if (runs.length > 2) return null
+    if (runs.length === 2) {
+      // One said with ב is the place, the other the description.
+      const places = runs.filter(isPlace)
+      if (places.length !== 1 || description) return null
+      location = asPlace(places[0])
+      description = runs.find((r) => r !== places[0])!.join(' ')
+    } else if (description || (runs[0].length === 1 && isPlace(runs[0]))) {
+      // Next to a known description, or one word with ב: a place.
+      if (!isPlace(runs[0])) return null
+      location = asPlace(runs[0])
+    } else if (isPlace(runs[0]) && !WORK_START.test(runs[0][0])) {
+      // "בירוחם החלפת כבלים": the place, then what is done there ("בבאר שבע ..." keeps both words of the town).
+      const n = TOWN_FIRST.test(bare(runs[0][0])) && runs[0].length > 1 ? 2 : 1
+      location = asPlace(runs[0].slice(0, n))
+      description = runs[0].slice(n).join(' ')
+    } else description = runs[0].join(' ')
   }
   // With one kind of job only, that is the kind.
   const kind = f.shiftKindId ?? (d.shiftDefinitions.length === 1 ? d.shiftDefinitions[0].id : '')
-  const job = { date: f.date ?? '', shiftKindId: kind, location: f.location ?? '', jobDescription: description, staffing: f.staffing, autoAssign: rest.some((w) => ASSIGN.test(w)) }
+  const job = { date: f.date ?? '', shiftKindId: kind, location, jobDescription: description, staffing: f.staffing, autoAssign: rest.some((w) => ASSIGN.test(w)) }
   const missing = missingOf(job)
   if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing } }
   return { kind: 'propose', proposal: jobProposal(job, d, now) }

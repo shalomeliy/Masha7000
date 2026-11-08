@@ -116,7 +116,6 @@ describe('jobs learned from Claude', () => {
       'תסגור את העבודה באילת אתר 123, הסתיימה',
       'תמחק את העבודה של מחר בערד 17',
       'תפתח עבודה מחר לילה באילת אתר 123 החלפת אנטנה עם דני ויוסי',
-      'תפתח עבודה מחר לילה בבאר שבע החלפת אנטנה שני מטפסים', // a place not in the lists
       'כמה מטפסים יש לי מחר',
       'מי עובד מחר באילת',
     ])
@@ -180,6 +179,16 @@ describe('a new job, any phrasing, from the first time', () => {
     expect(job(run('תפתח עבודה מחר בערד 17', one))).toMatchObject({ shiftKindId: 's1' })
   })
 
+  it('a place not in the lists, said with ב, is the place (the owner sentence, 2026-11-08)', () => {
+    expect(job(none('תכניס לי עבודה בערד עבודה לילה החלפת אנטנה'))).toMatchObject({ date: '', shiftKindId: 's2', location: 'ערד 17', jobDescription: 'החלפת אנטנה' })
+    expect(job(none('תכניס עבודה מחר לילה החלפת אנטנה בבאר שבע'))).toMatchObject({ location: 'באר שבע', jobDescription: 'החלפת אנטנה' })
+    expect(job(none('תפתח עבודה לילה בירוחם החלפת כבלים'))).toMatchObject({ location: 'ירוחם', jobDescription: 'החלפת כבלים' })
+    expect(job(none('תפתח עבודה לילה בירוחם'))).toMatchObject({ location: 'ירוחם', jobDescription: '' })
+    expect(job(none('תפתח עבודה לילה בבאר שבע החלפת כבלים'))).toMatchObject({ location: 'באר שבע', jobDescription: 'החלפת כבלים' })
+    expect(job(none('תפתח עבודה לילה בדיקת מצלמות'))).toMatchObject({ location: '', jobDescription: 'בדיקת מצלמות' })
+    expect(none('תפתח עבודה לילה בירוחם בדימונה החלפת כבלים')).toBeNull() // two places
+  })
+
   it('anything else about jobs still goes to Claude', () => {
     for (const s of [
       'תפתח את העבודה של מחר', // a job that exists
@@ -191,7 +200,6 @@ describe('a new job, any phrasing, from the first time', () => {
       'תוסיף עבודה מחר בערד 17 לילה 3',
       'מה העבודה מחר בערד 17',
       'עבודה מחר בערד 17', // no verb: maybe a question
-      'תכניס עבודה מחר לילה החלפת אנטנה בבאר שבע', // a place not in the lists, with a known description
     ])
       expect([s, none(s)]).toEqual([s, null])
   })
