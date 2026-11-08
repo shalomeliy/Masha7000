@@ -66,6 +66,14 @@ const singular = (w: string) =>
     .replace(/א$/, 'אי')
     .replace(/[כמנפצ]$/, (c) => FINAL[c])
 
+// Words that name the same role: a role called by one is found by the other.
+const SAME_ROLE = [['מטפס', 'טפסן']]
+/** True when the word is one word of a longer role name: "מטפס" in "מנהל צוות מטפסים". */
+const partOfLonger = (word: string, roleId: string, d: AppData) => {
+  const rw = words(d.roles.find((r) => r.id === roleId)?.name ?? '')
+  return rw.length > 1 && rw.some((w) => singular(w) === word)
+}
+
 /** "היום", "מחר", "ביום שלישי 10.11": how a date is said back. */
 export function dayText(date: string, now: Date): string {
   if (date === plus(now, 0)) return 'היום'
@@ -208,20 +216,28 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
   // "עד" before a date: part of it.
   for (let i = 0; i < ws.length; i++) if (!used[i] && ws[i] === 'עד' && used[i + 1]) take(i)
   // Roles with a count: "שני מטפסים", "טכנאי מצלמות אחד", "חשמלאי".
+  // The longest names first: "מנהל צוות מטפסים" is read whole before any shorter role in it.
+  const byLength = [...d.roles].sort((a, b) => words(b.name).length - words(a.name).length)
   const roleAt = (i: number): [string, number] | null => {
-    for (const r of d.roles) {
+    for (const r of byLength) {
       const rw = words(r.name)
       if (rw.every((w, k) => !used[i + k] && (singular(bare(ws[i + k] ?? '')) === singular(w) || bare(ws[i + k] ?? '') === w))) return [r.id, rw.length]
     }
-    const alias = aliases[singular(bare(ws[i] ?? ''))]
-    return alias ? [alias, 1] : null
+    const one = singular(bare(ws[i] ?? ''))
+    // "מטפסים" when the role is called "טפסן" (or the other way round).
+    const same = SAME_ROLE.find((g) => g.includes(one))
+    const synonym = same && d.roles.find((r) => words(r.name).length === 1 && same.includes(singular(r.name)))
+    if (synonym) return [synonym.id, 1]
+    // A learned word never stands for a longer role it is only part of ("מטפסים" is not "מנהל צוות מטפסים").
+    const alias = aliases[one]
+    return alias && !partOfLonger(one, alias, d) ? [alias, 1] : null
   }
   for (let i = 0; i < ws.length; i++) {
     if (used[i]) continue
     const r = roleAt(i)
     if (!r) continue
     let count = 1
-    const before = ws[i - 1] ?? ''
+    const before = (ws[i - 1] ?? '').replace(/^ו(?=.)/, '') // "ושני מטפסים"
     const after = ws[i + r[1]] ?? ''
     if (i > 0 && !used[i - 1] && (NUMBERS[before] || /^\d{1,2}$/.test(before))) (count = NUMBERS[before] ?? Number(before)), take(i - 1)
     else if (NUMBERS[after] && !used[i + r[1]]) (count = NUMBERS[after]), take(i + r[1])
@@ -299,7 +315,7 @@ export function learn(examples: AssistantExample[], d: AppData): Learned {
       for (const s of a.job.staffing) {
         if (f.staffing.some((x) => x.roleId === s.roleId)) continue
         const i = ws.findIndex((w, k) => NUMBERS[ws[k - 1] ?? ''] === s.count && f.rest.includes(w))
-        if (i >= 0) L.aliases[singular(bare(ws[i]))] = s.roleId
+        if (i >= 0 && !partOfLonger(singular(bare(ws[i])), s.roleId, d)) L.aliases[singular(bare(ws[i]))] = s.roleId
       }
       f = find(a.said, d, L.aliases, then)
       // The action's own values are slots, never part of the template, also when the lists did not explain them.

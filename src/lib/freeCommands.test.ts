@@ -73,8 +73,28 @@ describe('fixed commands', () => {
 })
 
 describe('jobs learned from Claude', () => {
-  it('learns the alias "מטפס" from what Claude did', () => {
-    expect(learn(data().assistantExamples, data()).aliases['מטפס']).toBe('r1')
+  it('learns a role word from what Claude did', () => {
+    const d = data({ assistantExamples: [ex('תפתח עבודה מחר לילה באילת אתר 123 החלפת אנטנה שני רתכים', {
+      jobs: [{ date: '2026-11-07', shiftKindId: 's2', location: 'אילת אתר 123', jobDescription: 'החלפת אנטנה', staffing: [{ roleId: 'r1', count: 2 }] }],
+    })] })
+    expect(learn(d.assistantExamples, d).aliases['רתך']).toBe('r1')
+  })
+
+  it('"מטפסים" is the climber role, never a longer role that has the word in it', () => {
+    const roles = [{ id: 'r1', name: 'טפסן' }, { id: 'r5', name: 'מנהל צוות מטפסים' }, { id: 'r2', name: 'חשמלאי' }]
+    // Claude once took "מטפסים" as the manager and it was confirmed: that is not learned.
+    const wrong = ex('תפתח עבודה מחר לילה באילת אתר 123 החלפת אנטנה שני מטפסים', {
+      jobs: [{ date: '2026-11-07', shiftKindId: 's2', location: 'אילת אתר 123', jobDescription: 'החלפת אנטנה', staffing: [{ roleId: 'r5', count: 2 }] }],
+    })
+    const d = data({ roles, assistantExamples: [wrong, ...JOB_EXAMPLES] })
+    expect(learn(d.assistantExamples, d).aliases['מטפס']).toBeUndefined()
+    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה 2 מטפסים', d))).toMatchObject({ staffing: [{ roleId: 'r1', count: 2 }] })
+    // The manager is found only by his whole name.
+    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה מנהל צוות מטפסים ושני מטפסים', d))).toMatchObject({ staffing: [{ roleId: 'r5', count: 1 }, { roleId: 'r1', count: 2 }] })
+    // With a role called "מטפס" itself, singular and plural.
+    const d2 = data({ roles: [{ id: 'r5', name: 'מנהל צוות מטפסים' }, { id: 'r6', name: 'מטפס' }] })
+    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה שלושה מטפסים', d2))).toMatchObject({ staffing: [{ roleId: 'r6', count: 3 }] })
+    expect(job(run('תפתח עבודה ביום שלישי לילה בערד 17 החלפת אנטנה מטפס אחד', d2))).toMatchObject({ staffing: [{ roleId: 'r6', count: 1 }] })
   })
 
   it('opens a new job said the way a learned one was, with other details', () => {
@@ -123,8 +143,8 @@ describe('jobs learned from Claude', () => {
   })
 
   it('a role word it never saw goes to Claude before Claude taught it', () => {
-    // "מטפסים" is learned from Claude (alias of טפסן); before that it is not understood.
-    expect(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים', data({ assistantExamples: [] }))).toBeNull()
+    // "רתכים" is not a role in the lists; before Claude taught it, it is not understood.
+    expect(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני רתכים', data({ assistantExamples: [] }))).toBeNull()
     expect(job(run('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני טפסנים', data({ assistantExamples: [] })))).toMatchObject({ staffing: [{ roleId: 'r1', count: 2 }] })
   })
 })
