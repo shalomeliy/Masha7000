@@ -1041,5 +1041,7 @@
  "דירוג ממוצע {v} מתוך 5": "Average rating {v} out of 5",
  "לחיצה ארוכה: הכוכבים בכל הסמכה": "Long press: the stars in each certification",
  "הכוכבים של {name}": "{name}'s stars",
- "כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.": "How many stars the worker gets in each certification. The star on the card is their average."
+ "כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.": "How many stars the worker gets in each certification. The star on the card is their average.",
+ "כתבתי כאן איך אני חושב שאומרים אותה באנגלית. תקן את מה שלא נכון ולחץ \"שמע את התיקון\".": "I wrote here how I think it is said, in English letters. Fix what is wrong and tap \"Hear the fix\".",
+ "כתוב איך אומרים אותה, באנגלית או בעברית אחרת, ולחץ \"שמע את התיקון\".": "Write how it is said, in English letters or a different Hebrew spelling, and tap \"Hear the fix\"."
 }

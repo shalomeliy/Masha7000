@@ -23,11 +23,15 @@ export function PronunciationSection() {
   const approved = useDriveList('approvedWords')
   const fresh = useDriveList('newWords')
   const [seed, setSeed] = useState<readonly string[] | null>(null)
+  const [suggest, setSuggest] = useState<Readonly<Record<string, string>>>({})
   const [saveError, setSaveError] = useState<unknown>(null)
   const [last, setLast] = useState<string | null>(null) // the word just approved or fixed, to take back
 
   useEffect(() => {
-    void import('../../lib/pronunciationSeed').then((m) => setSeed(m.SEED_WORDS))
+    void import('../../lib/pronunciationSeed').then((m) => {
+      setSeed(m.SEED_WORDS)
+      setSuggest(m.SUGGESTED_SAY)
+    })
   }, [])
 
   const done = useMemo(
@@ -83,6 +87,7 @@ export function PronunciationSection() {
         <p className="text-slate-400">{tx('טוען…')}</p>
       ) : (
         <Trainer
+          suggest={suggest}
           queue={queue}
           newCount={newCount}
           heardCount={done.size}
@@ -130,6 +135,7 @@ export function PronunciationSection() {
 }
 
 function Trainer({
+  suggest,
   queue,
   newCount,
   heardCount,
@@ -139,6 +145,7 @@ function Trainer({
   lastWord,
   onUndo,
 }: {
+  suggest: Readonly<Record<string, string>>
   queue: string[]
   newCount: number
   heardCount: number
@@ -211,7 +218,10 @@ function Trainer({
             <Check size={18} aria-hidden />
             {tx('נשמע נכון')}
           </button>
-          <button type="button" onClick={() => setFixing(true)} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-500 font-semibold text-amber-200">
+          <button type="button" onClick={() => {
+              setSay(suggest[word] ?? '')
+              setFixing(true)
+            }} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-500 font-semibold text-amber-200">
             <PencilLine size={18} aria-hidden />
             {tx('לא נכון, לתקן')}
           </button>
@@ -220,7 +230,10 @@ function Trainer({
         <div className="space-y-2">
           <label className="block space-y-1">
             <span className="text-sm text-slate-300">{tx('איך לומר אותה')}</span>
-            <input id="train-say" value={say} onChange={(e) => setSay(e.target.value)} placeholder={tx('למשל: Tapsan')} className={inputClass} autoComplete="off" autoFocus />
+            <span className="block text-xs text-slate-500">
+              {suggest[word] ? tx('כתבתי כאן איך אני חושב שאומרים אותה באנגלית. תקן את מה שלא נכון ולחץ "שמע את התיקון".') : tx('כתוב איך אומרים אותה, באנגלית או בעברית אחרת, ולחץ "שמע את התיקון".')}
+            </span>
+            <input id="train-say" value={say} onChange={(e) => setSay(e.target.value)} placeholder={tx('למשל: Tapsan')} className={inputClass} autoComplete="off" autoFocus dir="auto" />
           </label>
           {error && <p className="text-sm text-red-300">{error}</p>}
           <div className="grid grid-cols-2 gap-2">

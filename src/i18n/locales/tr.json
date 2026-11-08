@@ -1041,5 +1041,7 @@
  "דירוג ממוצע {v} מתוך 5": "Ortalama puan 5 üzerinden {v}",
  "לחיצה ארוכה: הכוכבים בכל הסמכה": "Uzun basın: her sertifikadaki yıldızlar",
  "הכוכבים של {name}": "{name} yıldızları",
- "כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.": "Çalışanın her sertifikada kaç yıldız aldığı. Karttaki yıldız bunların ortalamasıdır."
+ "כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.": "Çalışanın her sertifikada kaç yıldız aldığı. Karttaki yıldız bunların ortalamasıdır.",
+ "כתבתי כאן איך אני חושב שאומרים אותה באנגלית. תקן את מה שלא נכון ולחץ \"שמע את התיקון\".": "Buraya nasıl söylendiğini düşündüğümü Latin harfleriyle yazdım. Yanlış olanı düzeltin ve \"Düzeltmeyi dinle\"ye dokunun.",
+ "כתוב איך אומרים אותה, באנגלית או בעברית אחרת, ולחץ \"שמע את התיקון\".": "Nasıl söylendiğini Latin harfleriyle ya da başka bir İbranice yazımla yazın ve \"Düzeltmeyi dinle\"ye dokunun."
 }
