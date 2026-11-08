@@ -12,6 +12,7 @@ Reply to the user in Hebrew (masculine form), short and direct, no emojis.
 - Source specs from the user: `docs/input/01-product-ux-spec.md`, `docs/input/02-technical-spec.md`.
 - Performance budget: Google "Good" Core Web Vitals: LCP up to 2.5s, INP up to 200ms, CLS up to 0.1.
 - Product direction: `docs/PRODUCT-DIRECTION.md`. Do not invent beyond it; ask the user.
+- Standing goal: `docs/GOAL.md`. The voice assistant keeps learning actions until it runs almost free, calling Claude only for what is new or unclear. Read it before any voice-assistant work and measure changes against its targets.
 - Git: remote `https://github.com/shalomeliy/Masha7000`, branch `master`. Standing rule from the user: at the end of every version, commit and push to that repo.
 
 ## Never spend the API key locally
