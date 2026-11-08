@@ -89,6 +89,7 @@ export interface WorkKind {
   id: string
   name: string
   staffing: StaffSlot[] // without `kindId`; it is added when the kind is picked in a job
+  fixed?: number // repairs already made to this saved kind (see `repairKinds`), so each runs once
 }
 
 export interface CrewMember {

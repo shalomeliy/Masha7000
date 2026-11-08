@@ -45,10 +45,46 @@ export const CLIMBER = 'מטפס'
 export const CLIMBER_OLD = 'טפסן'
 export const WELDER_CERT = 'רתך'
 
+/** The repair level a kind made or fixed today has; see `repairKinds`. */
+export const KIND_FIXED = 1
+
 /**
- * The first kinds, "טיפוס" (מנהל טיפוס + 2 places a "מטפס" or "מנהל טיפוס" fills) and "ריתוך"
- * (one person with "רתך"), with the roles and certification they need that are missing.
- * An existing "טפסן" is used as the climber when there is no "מטפס".
+ * Fixes saved kinds so every place shows the role it really needs:
+ * - a place whose role no longer exists needs "כללי" (before, the screen showed the first role in the list);
+ * - once: "טיפוס" made by the first version (מנהל טיפוס + 2 places "מטפס או מנהל טיפוס") becomes
+ *   מנהל טיפוס + 2 "כללי", as the manager asked. A kind changed by hand after that is kept.
+ * Returns null when nothing changed.
+ */
+export function repairKinds(kinds: WorkKind[], roles: Role[]): WorkKind[] | null {
+  const general = generalRoleId(roles)
+  const exists = (id: string) => roles.some((r) => r.id === id)
+  const nameOf = (id: string) => roles.find((r) => r.id === id)?.name ?? ''
+  const isClimber = (id: string) => same(nameOf(id), CLIMBER) || same(nameOf(id), CLIMBER_OLD)
+  let changed = false
+  const next = kinds.map((k) => {
+    const oldStarter = (k.fixed ?? 0) < KIND_FIXED && same(k.name, 'טיפוס')
+    const staffing = k.staffing.map((s, i) => {
+      const lost = !exists(s.roleId)
+      const climber = oldStarter && i > 0 && isClimber(s.roleId) && !slotCerts(s).length && !s.alsoRoleIds?.length
+      if (!lost && !climber) return s
+      return { ...s, roleId: general, altRoleIds: climber ? undefined : s.altRoleIds?.filter(exists) }
+    })
+    const touched = staffing.some((s, i) => s !== k.staffing[i])
+    if (!touched && !oldStarter) return k
+    changed = true
+    return { ...k, staffing: staffing.map(dropEmpty), fixed: KIND_FIXED }
+  })
+  return changed ? next : null
+}
+
+const dropEmpty = (s: StaffSlot): StaffSlot => {
+  const { altRoleIds, ...rest } = s
+  return altRoleIds?.length ? s : rest
+}
+
+/**
+ * The first kinds, "טיפוס" (מנהל טיפוס + 2 "כללי") and "ריתוך" (one person with "רתך"), with the
+ * roles and certification they need that are missing.
  */
 export function starterKinds(roles: Role[], certs: Certification[]): { roles: Role[]; certs: Certification[]; kinds: WorkKind[] } {
   const newRoles: Role[] = []
@@ -61,19 +97,18 @@ export function starterKinds(roles: Role[], certs: Certification[]): { roles: Ro
     return r.id
   }
   const manager = role(CLIMB_MANAGER)
-  const climber = roles.some((r) => same(r.name, CLIMBER)) ? role(CLIMBER) : role(CLIMBER, CLIMBER_OLD)
+  const general = generalRoleId(roles)
   let welder = certs.find((c) => same(c.name, WELDER_CERT))?.id
   if (!welder) {
     welder = newId()
     newCerts.push({ id: welder, name: WELDER_CERT })
   }
-  const climberPlace: StaffSlot = { roleId: climber, altRoleIds: [manager] }
   return {
     roles: newRoles,
     certs: newCerts,
     kinds: [
-      { id: newId(), name: 'טיפוס', staffing: [{ roleId: manager }, climberPlace, { ...climberPlace }] },
-      { id: newId(), name: 'ריתוך', staffing: [{ roleId: generalRoleId(roles), certificationIds: [welder] }] },
+      { id: newId(), name: 'טיפוס', staffing: [{ roleId: manager }, { roleId: general }, { roleId: general }], fixed: KIND_FIXED },
+      { id: newId(), name: 'ריתוך', staffing: [{ roleId: general, certificationIds: [welder] }], fixed: KIND_FIXED },
     ],
   }
 }

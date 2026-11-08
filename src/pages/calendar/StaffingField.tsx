@@ -17,6 +17,7 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
   const kinds = useDriveList('workKinds')
   const certs = useDriveList('certifications')
   const general = generalRoleId(roles.items)
+  const known = (id: string) => roles.items.some((r) => r.id === id)
   const resize = (n: number) => onChange(resizeStaffing(value, n, general))
   const setSlot = (i: number, patch: Partial<StaffSlot>) => onChange(value.map((s, j) => (j === i ? { ...s, ...patch } : s)))
   const certNames = (s: StaffSlot) => slotCerts(s).flatMap((id) => certs.items.find((c) => c.id === id)?.name ?? [])
@@ -66,7 +67,8 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
             <span className="w-5 shrink-0 text-center text-sm text-slate-400">{i + 1}</span>
             <select
               aria-label={tx('תפקיד לאדם {v}', { v: i + 1 })}
-              value={s.roleId}
+              // A role missing from the list is shown as "כללי", never as whichever role happens to be first.
+              value={known(s.roleId) ? s.roleId : general}
               // A new role here replaces the place's other roles too, except in the kind editor that shows them.
               onChange={(e) => setSlot(i, { roleId: e.target.value, alsoRoleIds: toggleOff(s.alsoRoleIds, e.target.value), altRoleIds: alt ? s.altRoleIds?.filter((id) => id !== e.target.value) : undefined })}
               className={selectClass}
@@ -107,7 +109,7 @@ export function StaffingField({ value, onChange, alt }: { value: StaffSlot[]; on
             {alt ? (
               <select
                 aria-label={tx('תפקיד נוסף שמתאים לאדם {v}', { v: i + 1 })}
-                value={s.altRoleIds?.[0] ?? ''}
+                value={s.altRoleIds?.find((id) => known(id) && id !== s.roleId && id !== general) ?? ''}
                 onChange={(e) => setSlot(i, { altRoleIds: e.target.value ? [e.target.value] : undefined })}
                 className={`${selectClass} text-slate-300`}
               >

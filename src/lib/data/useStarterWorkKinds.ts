@@ -1,16 +1,19 @@
 import { useEffect } from 'react'
-import { starterKinds } from '../workKinds'
+import { repairKinds, starterKinds } from '../workKinds'
 import { useDriveList } from './useDriveList'
 
 // The first time the app is used with work kinds (no file yet), "טיפוס" and "ריתוך" are written,
 // with the roles and certification they need that are missing. Once: deleting them later is kept.
+// Kinds already saved are repaired once per load (see `repairKinds`), so older files fix themselves.
 let started = false
+let repaired = false
 
 export function useStarterWorkKinds() {
   const kinds = useDriveList('workKinds')
   const roles = useDriveList('roles')
   const certs = useDriveList('certifications')
-  const ready = kinds.missing && roles.query.isSuccess && certs.query.isSuccess
+  const loaded = kinds.query.isSuccess && roles.query.isSuccess && certs.query.isSuccess
+  const ready = kinds.missing && loaded
   useEffect(() => {
     if (!ready || started) return
     started = true
@@ -26,4 +29,15 @@ export function useStarterWorkKinds() {
       }
     })()
   }, [ready, roles, certs, kinds])
+
+  const repairable = loaded && !kinds.missing && !kinds.saving && !roles.saving
+  useEffect(() => {
+    if (!repairable || repaired) return
+    repaired = true
+    const next = repairKinds(kinds.items, roles.items)
+    if (!next) return
+    kinds.save(next).catch(() => {
+      repaired = false // tried again the next time a screen with kinds opens
+    })
+  }, [repairable, kinds, roles])
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { emptyPlaces } from './gaps'
 import { autoAssign, type PlanContext } from './planner'
-import { starterKinds, toggleKind } from './workKinds'
+import { repairKinds, starterKinds, toggleKind } from './workKinds'
 import type { ShiftDefinition, ShiftRecord, StaffSlot, Worker, WorkKind } from '../types/models'
 
 const G = 'general'
@@ -98,21 +98,47 @@ describe('autoAssign with work kinds', () => {
 })
 
 describe('starterKinds', () => {
-  it('adds the missing roles and certification', () => {
+  it('adds the missing role and certification: טיפוס is מנהל טיפוס + 2 כללי', () => {
     const r = starterKinds([{ id: G, name: 'כללי' }], [])
-    expect(r.roles.map((x) => x.name)).toEqual(['מנהל טיפוס', 'מטפס'])
+    expect(r.roles.map((x) => x.name)).toEqual(['מנהל טיפוס'])
     expect(r.certs.map((x) => x.name)).toEqual(['רתך'])
     expect(r.kinds.map((k) => [k.name, k.staffing.length])).toEqual([
       ['טיפוס', 3],
       ['ריתוך', 1],
     ])
+    const mgr = r.roles[0].id
+    expect(r.kinds[0].staffing).toEqual([{ roleId: mgr }, { roleId: G }, { roleId: G }])
   })
 
-  it('uses an existing "טפסן" as the climber', () => {
-    const r = starterKinds([{ id: G, name: 'כללי' }, { id: 't', name: 'טפסן' }], [{ id: 'c', name: 'רתך' }])
-    expect(r.roles.map((x) => x.name)).toEqual(['מנהל טיפוס'])
+  it('uses the existing roles and certification', () => {
+    const r = starterKinds([{ id: G, name: 'כללי' }, { id: 'm', name: 'מנהל טיפוס' }], [{ id: 'c', name: 'רתך' }])
+    expect(r.roles).toEqual([])
     expect(r.certs).toEqual([])
-    expect(r.kinds[0].staffing[1].roleId).toBe('t')
+    expect(r.kinds[0].staffing).toEqual([{ roleId: 'm' }, { roleId: G }, { roleId: G }])
     expect(r.kinds[1].staffing[0].certificationIds).toEqual(['c'])
+  })
+})
+
+describe('repairKinds', () => {
+  const roles = [{ id: 'x', name: 'מנהל במה' }, { id: G, name: 'כללי' }, { id: MGR, name: 'מנהל טיפוס' }, { id: CLIMB, name: 'מטפס' }]
+
+  it('turns the first version of טיפוס into מנהל טיפוס + 2 כללי, once', () => {
+    const next = repairKinds([climbing, welding], roles)!
+    expect(next[0].staffing).toEqual([{ roleId: MGR }, { roleId: G }, { roleId: G }])
+    expect(next[1]).toBe(welding)
+    // Changed back by hand afterwards: kept.
+    const byHand = { ...next[0], staffing: climbing.staffing }
+    expect(repairKinds([byHand, welding], roles)).toBeNull()
+  })
+
+  it('a place whose role was deleted needs כללי, not the first role in the list', () => {
+    const kind: WorkKind = { id: 'k', name: 'הרכבה', staffing: [{ roleId: MGR }, { roleId: 'gone', altRoleIds: ['gone2', MGR] }], fixed: 1 }
+    const next = repairKinds([kind], roles)!
+    expect(next[0].staffing).toEqual([{ roleId: MGR }, { roleId: G, altRoleIds: [MGR] }])
+  })
+
+  it('leaves kinds that need nothing alone', () => {
+    const ok: WorkKind = { id: 'k', name: 'טיפוס', staffing: [{ roleId: MGR }, { roleId: G }, { roleId: G }], fixed: 1 }
+    expect(repairKinds([ok, welding], roles)).toBeNull()
   })
 })

@@ -4,6 +4,7 @@ import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { generalRoleId, nameError, newId, staffingFor, staffingText, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { useStarterWorkKinds } from '../../lib/data/useStarterWorkKinds'
+import { KIND_FIXED } from '../../lib/workKinds'
 import type { WorkKind } from '../../types/models'
 import { StaffingField } from '../calendar/StaffingField'
 import { AddButton, EditMark, EmptyState } from '../workers/common'
@@ -86,7 +87,9 @@ function KindForm({ kind, onDone }: { kind: WorkKind; onDone: () => void }) {
     const err = nameError(name, kinds.items, kind.id)
     setError(err)
     if (err) return
-    run(() => kinds.save(upsert(kinds.items, { ...kind, name: name.trim(), staffing: staffing.map(({ kindId: _, ...s }) => s) })))
+    // Checked again against the roles as they are now: the form may have opened before they loaded.
+    const places = staffingFor(staffing, roles.items, certs.items.map((c) => c.id)).map(({ kindId: _, ...s }) => s)
+    run(() => kinds.save(upsert(kinds.items, { ...kind, name: name.trim(), staffing: places, fixed: KIND_FIXED })))
   }
 
   return (
