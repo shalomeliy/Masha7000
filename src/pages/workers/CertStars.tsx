@@ -1,9 +1,8 @@
 import { Star } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent } from 'react'
-import { Sheet, SheetActions } from '../../components/Sheet'
+import type { KeyboardEvent, MouseEvent } from 'react'
+import { Sheet } from '../../components/Sheet'
 import { tx } from '../../i18n'
-import { certStars, fullName, MAX_STARS, upsert } from '../../lib/catalog'
+import { certStars, fullName, MAX_STARS } from '../../lib/catalog'
 import { averageStars, rateCert } from '../../lib/certRatings'
 import { useDriveList } from '../../lib/data/useDriveList'
 import type { Worker } from '../../types/models'
@@ -44,49 +43,35 @@ export function CertStarsField({ worker, certs, onChange }: { worker: Worker; ce
   )
 }
 
-const HOLD_MS = 500
-
 /** A number to one decimal, without a trailing ".0". */
 const starText = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
 
 /**
  * The worker's one average star on their card (the user's request, 2026-11-08). It sits inside the
- * card's button: a tap opens the card as before, a long press opens the per-certification stars.
+ * card's button: a tap on the star shows the stars in each certification (view only); a tap anywhere
+ * else on the card opens the worker's form, where the stars are edited.
  */
-export function AverageStars({ worker, certIds, onHold }: { worker: Worker; certIds: string[]; onHold: () => void }) {
-  const timer = useRef<number | undefined>(undefined)
-  const held = useRef(false)
-  useEffect(() => () => window.clearTimeout(timer.current), [])
+export function AverageStars({ worker, certIds, onOpen }: { worker: Worker; certIds: string[]; onOpen: () => void }) {
   const avg = averageStars(worker, certIds)
   if (avg === null) return null
-  const stop = () => window.clearTimeout(timer.current)
-  // After a long press the finger's lift still sends a click: swallow it, so the card does not open too.
-  const swallow = (e: MouseEvent) => {
-    if (!held.current) return
-    held.current = false
-    e.preventDefault()
-    e.stopPropagation()
-  }
   return (
     <span
-      role="img"
+      role="button"
+      tabIndex={0}
       aria-label={tx('דירוג ממוצע {v} מתוך 5', { v: starText(avg) })}
-      title={tx('לחיצה ארוכה: הכוכבים בכל הסמכה')}
-      onPointerDown={() => {
-        held.current = false
-        stop()
-        timer.current = window.setTimeout(() => {
-          held.current = true
-          navigator.vibrate?.(20)
-          onHold()
-        }, HOLD_MS)
+      onClick={(e: MouseEvent) => {
+        // Only the star's window opens, not the worker's form under it.
+        e.preventDefault()
+        e.stopPropagation()
+        onOpen()
       }}
-      onPointerUp={stop}
-      onPointerLeave={stop}
-      onPointerCancel={stop}
-      onContextMenu={(e) => e.preventDefault()}
-      onClickCapture={swallow}
-      className="inline-flex shrink-0 select-none items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200 [-webkit-touch-callout:none]"
+      onKeyDown={(e: KeyboardEvent) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        e.preventDefault()
+        e.stopPropagation()
+        onOpen()
+      }}
+      className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2.5 text-xs font-semibold text-amber-200"
     >
       <Star size={14} aria-hidden className="fill-amber-400 text-amber-400" />
       <span dir="ltr">{starText(avg)}</span>
@@ -94,43 +79,41 @@ export function AverageStars({ worker, certIds, onHold }: { worker: Worker; cert
   )
 }
 
-/** The per-certification stars of one worker, opened by a long press on their average. */
+/** The stars of one worker in each certification, view only; opened by a tap on their average. */
 export function RatingsSheet({ worker, onClose }: { worker: Worker | null; onClose: () => void }) {
-  const workers = useDriveList('workers')
   const certs = useDriveList('certifications')
-  const [draft, setDraft] = useState<Worker | null>(worker)
-  const [busy, setBusy] = useState(false)
-  const [saveError, setSaveError] = useState<unknown>(null)
-  useEffect(() => {
-    setDraft(worker)
-    setSaveError(null)
-  }, [worker])
-
-  const save = async () => {
-    if (!draft) return
-    setBusy(true)
-    setSaveError(null)
-    try {
-      // Saved onto the latest copy of the worker, so only the stars change.
-      const current = workers.items.find((w) => w.id === draft.id) ?? draft
-      const next = { ...current, certRatings: draft.certRatings }
-      if (!draft.certRatings) delete next.certRatings
-      await workers.save(upsert(workers.items, next))
-      onClose()
-    } catch (e) {
-      setSaveError(e)
-    } finally {
-      setBusy(false)
-    }
-  }
-
+  const held = worker ? certs.items.filter((c) => worker.certificationIds.includes(c.id)) : []
   return (
-    <Sheet open={worker !== null} title={worker ? tx('הכוכבים של {name}', { name: fullName(worker) }) : ''} onClose={onClose} locked={busy}>
-      {draft && (
+    <Sheet open={worker !== null} title={worker ? tx('הכוכבים של {name}', { name: fullName(worker) }) : ''} onClose={onClose}>
+      {worker && (
         <div className="space-y-4">
-          <p className="text-sm text-slate-300">{tx('כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.')}</p>
-          <CertStarsField worker={draft} certs={certs.items} onChange={setDraft} />
-          <SheetActions onSave={save} onCancel={onClose} busy={busy} error={null} saveError={saveError} />
+          <ul className="space-y-1 rounded-xl border border-slate-800 bg-slate-950 p-2">
+            {held.map((c) => {
+              const stars = certStars(worker, c.id)
+              return (
+                <li key={c.id} className="flex min-h-10 items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-sm">{c.name}</span>
+                  <span
+                    role="img"
+                    aria-label={stars === 0 ? tx('עוד לא דורג') : stars === 1 ? tx('כוכב אחד') : tx('{n} כוכבים', { n: stars })}
+                    className="flex shrink-0 gap-1 px-2"
+                  >
+                    {Array.from({ length: MAX_STARS }, (_, i) => (
+                      <Star key={i} size={20} aria-hidden className={i < stars ? 'fill-amber-400 text-amber-400' : 'text-slate-600'} />
+                    ))}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+          <p className="text-sm text-slate-400">{tx('הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.')}</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex min-h-12 w-full items-center justify-center rounded-xl border border-slate-700 text-slate-200"
+          >
+            {tx('סגירה')}
+          </button>
         </div>
       )}
     </Sheet>

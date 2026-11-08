@@ -381,8 +381,8 @@ function WorkerCard({
           <span className="flex items-center gap-2 font-semibold">
             <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
             {fullName(w)}
-            {/* One average star; a long press shows the stars in each certification. */}
-            <AverageStars worker={w} certIds={certList.map((c) => c.id)} onHold={onRatings} />
+            {/* One average star; a tap on it shows the stars in each certification (view only). */}
+            <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
           </span>
           {w.mobilePhone && (
             <span dir="ltr" className="text-sm text-slate-400">

@@ -1039,9 +1039,9 @@
  "חזרה למילה הקודמת: {v}": "Volver a la palabra anterior: {v}",
  "כוכב אחד": "1 estrella",
  "דירוג ממוצע {v} מתוך 5": "Valoración media {v} de 5",
- "לחיצה ארוכה: הכוכבים בכל הסמכה": "Pulsación larga: las estrellas en cada certificación",
  "הכוכבים של {name}": "Estrellas de {name}",
- "כמה כוכבים העובד מקבל בכל הסמכה. הכוכב שבכרטיס הוא הממוצע שלהם.": "Cuántas estrellas recibe el trabajador en cada certificación. La estrella de la tarjeta es su promedio.",
  "כתבתי כאן איך אני חושב שאומרים אותה באנגלית. תקן את מה שלא נכון ולחץ \"שמע את התיקון\".": "Escribí aquí cómo creo que se dice, con letras en inglés. Corrige lo que esté mal y toca \"Escuchar la corrección\".",
- "כתוב איך אומרים אותה, באנגלית או בעברית אחרת, ולחץ \"שמע את התיקון\".": "Escribe cómo se dice, con letras en inglés o con otra escritura en hebreo, y toca \"Escuchar la corrección\"."
+ "כתוב איך אומרים אותה, באנגלית או בעברית אחרת, ולחץ \"שמע את התיקון\".": "Escribe cómo se dice, con letras en inglés o con otra escritura en hebreo, y toca \"Escuchar la corrección\".",
+ "עוד לא דורג": "Aún sin valorar",
+ "הכוכב שבכרטיס הוא הממוצע. לשינוי הכוכבים פותחים את העובד לעריכה.": "La estrella de la tarjeta es el promedio. Para cambiar las estrellas, abre el trabajador para editarlo."
 }
