@@ -53,13 +53,13 @@ The last line beats every other: a free path that does the wrong thing is worse 
 
 ## Next steps, in order
 
-1. **Turn the log on for sessions.** The owner sets `CLAUDE_LOG_TOKEN` (32+ characters) in Vercel env and in `.env.local`. Without it the weekly routine has nothing to read. (Owner's step.)
-2. **Add the weekly routine** in the desktop app (Scheduled tasks, Sunday 09:00) with the prompt in `docs/routines/weekly-free-commands.md`. (Owner's step; a thread could not create it.)
-3. **Make the free share readable by a session.** Today the counter lives only in the phone's localStorage. Send the monthly free/paid count to the server next to the log, so the routine can report the number against the targets above.
-4. **More actions free, in the order agreed with the owner (2026-11-07):** leave / constraints, assign a named worker, move a job, close a job, edit a worker's phone or certifications. Each with its own tests in `freeCommands.test.ts`.
-5. **Free after Claude joins.** Today the free path runs only before Claude is in the conversation. Let a later sentence that is fully known (a new, separate request) be done free too.
-6. **Advisor wording without the model.** The solver already finds the options; word the common cases from templates so a staffing question needs no paid call.
-7. **Other languages.** The free path is Hebrew only; every other language is paid. Add the most used one only if the log shows it.
+Already in place (2026-11-08): `CLAUDE_LOG_TOKEN` is set in Vercel and `.env.local`, and the weekly routine "Masha7000: לימוד שבועי של פקודות חינמיות" runs every Sunday at 09:00 (first run 2026-11-08).
+
+1. **Make the free share readable by a session.** Today the counter lives only in the phone's localStorage. Send the monthly free/paid count to the server next to the log, so the routine can report the number against the targets above.
+2. **More actions free, in the order agreed with the owner (2026-11-07):** leave / constraints, assign a named worker, move a job, close a job, edit a worker's phone or certifications. Each with its own tests in `freeCommands.test.ts`.
+3. **Free after Claude joins.** Today the free path runs only before Claude is in the conversation. Let a later sentence that is fully known (a new, separate request) be done free too.
+4. **Advisor wording without the model.** The solver already finds the options; word the common cases from templates so a staffing question needs no paid call.
+5. **Other languages.** The free path is Hebrew only; every other language is paid. Add the most used one only if the log shows it.
 
 ## Honest limit
 
