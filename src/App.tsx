@@ -90,9 +90,9 @@ function NewWords() {
     () =>
       onSpoken((text) => {
         if (language().code !== 'he' || !latest.current.loaded) return
-        void import('./lib/pronunciationSeed').then(({ SEED_WORDS }) => {
+        void import('./lib/pronunciationSeed').then(({ SEED_WORDS, EASY_WORDS }) => {
           const l = latest.current
-          const known = new Set([...SEED_WORDS, ...BUILT_IN.map((b) => b.word), ...l.approved.map((a) => a.word), ...l.fixed.map((p) => p.word), ...l.fresh.map((n) => n.word)])
+          const known = new Set([...SEED_WORDS, ...EASY_WORDS, ...BUILT_IN.map((b) => b.word), ...l.approved.map((a) => a.word), ...l.fixed.map((p) => p.word), ...l.fresh.map((n) => n.word)])
           const add = unknownWords(text, known)
           if (!add.length) return
           const at = new Date().toISOString()
