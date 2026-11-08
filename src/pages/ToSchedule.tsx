@@ -20,6 +20,7 @@ import { StaffingField } from './calendar/StaffingField'
 import { WorkKindField } from './calendar/WorkKindField'
 import { toggleKind } from '../lib/workKinds'
 import { AddButton, EditMark, EmptyState } from './workers/common'
+import { asTaskList } from '../lib/taskList'
 
 // "לשיבוץ": jobs that still need a shift (left over from partial or postponed night jobs, or added
 // by hand), and the manager's list of postpone reasons.
@@ -122,7 +123,7 @@ function JobsSection() {
                       {j.createdAt && <span className="text-slate-400">{tx('מ-{v}', { v: showDate(todayIso(new Date(j.createdAt))) })}</span>}
                     </span>
                     {j.location && <span className="block font-semibold">{j.location}</span>}
-                    {j.jobDescription && <span className="block text-sm text-slate-300">{j.jobDescription}</span>}
+                    {j.jobDescription && <span className="block whitespace-pre-line text-sm text-slate-300">{j.jobDescription}</span>}
                     {why && <span className="block text-sm text-slate-400">{why}</span>}
                     {!!j.pinnedIds?.length && (
                       <span className="block text-sm text-emerald-300">
@@ -220,7 +221,7 @@ function TaskHistory({ job }: { job: PendingJob }) {
             <li key={s.id} className="space-y-0.5">
               <span className="block text-xs text-slate-400">
                 {tx('יום {weekday} {v2}{v3}', { weekday: dayName(s.date), v2: showDate(s.date), v3: s.location && ` · ${s.location}` })}</span>
-              {s.jobDescription && <span className="block text-slate-200">{s.jobDescription}</span>}
+              {s.jobDescription && <span className="block whitespace-pre-line text-slate-200">{s.jobDescription}</span>}
               {outcome && (
                 <span className="block text-xs">
                   <span className={`rounded-full border px-2 py-0.5 font-semibold ${outcome.tone}`}>{outcome.label}</span>
@@ -267,7 +268,7 @@ function JobForm({ job, onDone, onSchedule }: { job: PendingJob; onDone: () => v
   }
 
   const cleaned = () => {
-    const clean = { ...draft, location: draft.location.trim(), jobDescription: draft.jobDescription.trim(), note: draft.note?.trim() || undefined, pinnedIds: draft.pinnedIds?.length ? draft.pinnedIds : undefined }
+    const clean = { ...draft, location: draft.location.trim(), jobDescription: asTaskList(draft.jobDescription), note: draft.note?.trim() || undefined, pinnedIds: draft.pinnedIds?.length ? draft.pinnedIds : undefined }
     const err = clean.location || clean.jobDescription ? null : tx('צריך למלא מיקום או מהות עבודה')
     setError(err)
     return err ? null : clean
@@ -310,7 +311,7 @@ function JobForm({ job, onDone, onSchedule }: { job: PendingJob; onDone: () => v
         <input autoFocus value={draft.location} onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))} className={inputClass} />
       </Field>
       <Suggestions list="places" value={draft.location} onPick={(location) => setDraft((d) => ({ ...d, location }))} />
-      <DictationField label={tx('מהות העבודה')} value={draft.jobDescription} onChange={(v) => setDraft((d) => ({ ...d, jobDescription: v }))} />
+      <DictationField label={tx('מהות העבודה')} value={draft.jobDescription} tasks onChange={(v) => setDraft((d) => ({ ...d, jobDescription: v }))} />
       <Suggestions list="jobTypes" value={draft.jobDescription} onPick={(jobDescription) => setDraft((d) => ({ ...d, jobDescription }))} />
       <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind, generalRoleId(roles.items)) }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => setDraft((d) => ({ ...d, staffing }))} />

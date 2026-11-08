@@ -28,6 +28,7 @@ import type {
   Worker,
 } from '../types/models'
 import { tx } from '../i18n'
+import { asTaskList, oneLine } from './taskList'
 
 export interface AppData {
   roles: Role[]
@@ -330,13 +331,13 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     const base = {
       id: newId(),
       location: j.location.trim(),
-      jobDescription: j.jobDescription.trim(),
+      jobDescription: asTaskList(j.jobDescription),
       staffing,
       ...(j.shiftKindId ? { shiftDefinitionId: j.shiftKindId } : {}),
       ...(workKindIds.length ? { workKindIds } : {}),
     }
     const kind = d.shiftDefinitions.find((s) => s.id === j.shiftKindId)
-    const next = { location: j.nextJob.location.trim(), jobDescription: j.nextJob.jobDescription.trim() }
+    const next = { location: j.nextJob.location.trim(), jobDescription: asTaskList(j.nextJob.jobDescription) }
     const hasNext = Boolean(kind?.thenJob && (next.location || next.jobDescription))
     if (j.date) {
       // Workers the manager named must be in the job: "שבץ" fills the rest around them.
@@ -347,7 +348,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
       if (j.crew.length) crewed.push(base.id)
     } else {
       // A waiting job has no field for the job after the night: it goes into the note.
-      const note = [j.note.trim(), hasNext ? tx('אחרי הלינה: {v}', { v: [next.location, next.jobDescription].filter(Boolean).join(' - ') }) : ''].filter(Boolean).join('. ')
+      const note = [j.note.trim(), hasNext ? tx('אחרי הלינה: {v}', { v: [next.location, oneLine(next.jobDescription)].filter(Boolean).join(' - ') }) : ''].filter(Boolean).join('. ')
       d.pendingJobs = [...d.pendingJobs, { ...base, reasonIds: [], createdAt: at, ...(note ? { note } : {}) }]
       changed.add('pendingJobs')
       waiting++
@@ -377,10 +378,10 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     d.shifts = pullFrom(shift, moves.map((b) => b.worker.id), d.shifts, d.shiftDefinitions, {}, at)
     changed.add('shifts')
     for (const { worker, other } of moves) {
-      const from = tx('{v} (יום {weekday} {v3})', { v: other.location || other.jobDescription, weekday: dayName(other.date), v3: showDate(other.date) })
-      const into = shift.location || shift.jobDescription
+      const from = tx('{v} (יום {weekday} {v3})', { v: other.location || oneLine(other.jobDescription), weekday: dayName(other.date), v3: showDate(other.date) })
+      const into = shift.location || oneLine(shift.jobDescription)
       conflicts.push(tx('{firstName} כבר משובץ באותו זמן ב{from}. אם תאשר, אעביר אותו ל{into}, ושם יישאר מקום ריק', { firstName: worker.firstName, from, into }))
-      report.push(tx('העברתי את {firstName} מ{v} ל{into}', { firstName: worker.firstName, v: other.location || other.jobDescription, into }))
+      report.push(tx('העברתי את {firstName} מ{v} ל{into}', { firstName: worker.firstName, v: other.location || oneLine(other.jobDescription), into }))
     }
   }
 
@@ -391,7 +392,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     const plan = autoAssign(shift, staffing, { workers: d.workers, records: d.shifts, defs: d.shiftDefinitions, generalId: general })
     d.shifts = upsert(d.shifts, { ...shift, crew: plan.crew })
     changed.add('shifts')
-    const where = shift.location || shift.jobDescription
+    const where = shift.location || oneLine(shift.jobDescription)
     const names = plan.crew.map((c) => d.workers.find((w) => w.id === c.workerId)).filter((w): w is Worker => Boolean(w)).map((w) => w.firstName)
     report.push(names.length ? tx('ב{where} שיבצתי את {v}', { where, v: names.join(', ') }) : tx('ב{where} לא מצאתי עובדים מתאימים', { where }))
     if (plan.unfilled.length && names.length) report.push(tx('ב{where} נשארו {v}', { where, v: plan.unfilled.length === 1 ? tx('מקום אחד פנוי') : tx('{length} מקומות פנויים', { length: plan.unfilled.length }) }))

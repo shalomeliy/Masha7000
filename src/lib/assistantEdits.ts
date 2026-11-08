@@ -12,6 +12,7 @@ import { endAbsence } from './workerState'
 import type { AbsenceKind, Constraint, PendingJob, StaffSlot, Worker, WorkerStatus } from '../types/models'
 import type { AppData } from './assistant'
 import { tx } from '../i18n'
+import { asTaskList, oneLine } from './taskList'
 
 export interface StaffLine {
   roleId: string
@@ -76,7 +77,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
   const toAssign: string[] = []
   const general = generalRoleId(d.roles)
   const touched = new Set<string>()
-  const where = (r: { location: string; jobDescription: string }) => r.location || r.jobDescription || 'העבודה'
+  const where = (r: { location: string; jobDescription: string }) => r.location || oneLine(r.jobDescription) || 'העבודה'
   const lineErrors = (lines: StaffLine[], n: string) => {
     for (const s of lines) {
       if (!has(d.roles, s.roleId)) errors.push(`${n}: אין תפקיד עם id "${s.roleId}"`)
@@ -143,7 +144,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     const fields = <T extends { location: string; jobDescription: string; staffing: StaffSlot[]; shiftDefinitionId?: string; workKindIds?: string[] }>(r: T): T => ({
       ...r,
       ...(j.location.trim() ? { location: j.location.trim() } : {}),
-      ...(j.jobDescription.trim() ? { jobDescription: j.jobDescription.trim() } : {}),
+      ...(j.jobDescription.trim() ? { jobDescription: asTaskList(j.jobDescription) } : {}),
       ...(j.shiftKindId ? { shiftDefinitionId: j.shiftKindId } : {}),
       ...(j.staffing.length ? { staffing: linesToSlots(j.staffing), workKindIds: undefined } : {}),
     })

@@ -20,6 +20,7 @@ import { ShiftDefField } from './ShiftDefField'
 import { StaffingField } from './StaffingField'
 import { WorkKindField } from './WorkKindField'
 import { toggleKind } from '../../lib/workKinds'
+import { asTaskList } from '../../lib/taskList'
 
 // Create or edit one shift. A new shift that came from "לשיבוץ" removes that job when saved.
 
@@ -125,11 +126,11 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
     // A worker replaced in a saved shift is kept in its history, for the archive.
     const saved = shifts.items.find((s) => s.id === shift.id)
     const swaps = saved ? crewSwaps(saved.crew, draft.crew, new Date().toISOString()) : []
-    const next = { location: nextJob.location.trim(), jobDescription: nextJob.jobDescription.trim() }
+    const next = { location: nextJob.location.trim(), jobDescription: asTaskList(nextJob.jobDescription) }
     const clean: ShiftRecord = {
       ...draft,
       location: draft.location.trim(),
-      jobDescription: draft.jobDescription.trim(),
+      jobDescription: asTaskList(draft.jobDescription),
       // Only "לינה" carries the job after the night; switching type away drops it.
       nextJob: thenJob && (next.location || next.jobDescription) ? next : undefined,
       ...(swaps.length ? { swaps: [...(draft.swaps ?? []), ...swaps] } : {}),
@@ -243,7 +244,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         <input value={draft.location} onChange={(e) => set('location', e.target.value)} className={inputClass} />
       </Field>
       <Suggestions list="places" value={draft.location} onPick={(v) => set('location', v)} />
-      <DictationField label={tx('מהות העבודה')} value={draft.jobDescription} onChange={(v) => set('jobDescription', v)} />
+      <DictationField label={tx('מהות העבודה')} value={draft.jobDescription} tasks onChange={(v) => set('jobDescription', v)} />
       <Suggestions list="jobTypes" value={draft.jobDescription} onPick={(v) => set('jobDescription', v)} />
       {thenJob && (
         <div className="space-y-2 rounded-2xl border border-violet-500/50 bg-violet-500/10 p-3">
@@ -252,7 +253,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
             <input value={nextJob.location} onChange={(e) => set('nextJob', { ...nextJob, location: e.target.value })} className={inputClass} />
           </Field>
           <Suggestions list="places" value={nextJob.location} onPick={(v) => set('nextJob', { ...nextJob, location: v })} />
-          <DictationField label={tx('מהות העבודה הנוספת')} value={nextJob.jobDescription} onChange={(v) => set('nextJob', { ...nextJob, jobDescription: v })} />
+          <DictationField label={tx('מהות העבודה הנוספת')} value={nextJob.jobDescription} tasks onChange={(v) => set('nextJob', { ...nextJob, jobDescription: v })} />
         </div>
       )}
       <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind, general) }))} />

@@ -7,6 +7,7 @@ import { useDriveList } from '../../lib/data/useDriveList'
 import { applyClosure, closureError } from '../../lib/shifts'
 import type { ClosureOutcome, ShiftRecord } from '../../types/models'
 import { OUTCOMES } from './outcomes'
+import { asTaskList, oneLine } from '../../lib/taskList'
 
 // Closing a night job: done, partial, or postponed (reasons and/or a note).
 // Partial either reopens the same task, or closes it and opens a linked follow-up task with what is left.
@@ -66,7 +67,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       reasonIds: outcome === 'postponed' ? reasonIds : [],
       followUp:
         outcome === 'partial' && mode === 'followUp'
-          ? { location: followUp.location.trim(), jobDescription: followUp.jobDescription.trim() }
+          ? { location: followUp.location.trim(), jobDescription: asTaskList(followUp.jobDescription) }
           : undefined,
       closedAt: new Date().toISOString(),
     }
@@ -78,7 +79,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   return (
     <>
       <p className="text-sm text-slate-400">
-        {[shift.location, shift.jobDescription].filter(Boolean).join(' · ')}
+        {[shift.location, oneLine(shift.jobDescription)].filter(Boolean).join(' · ')}
       </p>
       <div role="radiogroup" aria-label={tx('איך העבודה הסתיימה')} className="grid grid-cols-3 gap-2">
         {OUTCOMES.map((o) => (
@@ -136,7 +137,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
                 <input value={followUp.location} onChange={(e) => setFollowUp((f) => ({ ...f, location: e.target.value }))} className={inputClass} />
               </Field>
               <Suggestions list="places" value={followUp.location} onPick={(location) => setFollowUp((f) => ({ ...f, location }))} />
-              <DictationField label={tx('מה נשאר לעשות')} value={followUp.jobDescription} onChange={(v) => setFollowUp((f) => ({ ...f, jobDescription: v }))} />
+              <DictationField label={tx('מה נשאר לעשות')} value={followUp.jobDescription} tasks onChange={(v) => setFollowUp((f) => ({ ...f, jobDescription: v }))} />
             </div>
           )}
         </>

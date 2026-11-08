@@ -196,7 +196,7 @@ function ArchiveCard({ shift: r, today }: { shift: ShiftRecord; today: string })
         {outcome && <span className={`rounded-full border px-2 py-0.5 font-semibold ${outcome.tone}`}>{outcome.label}</span>}
       </header>
       {r.location && <p className="font-semibold">{r.location}</p>}
-      {r.jobDescription && <p className="text-sm text-slate-300">{r.jobDescription}</p>}
+      {r.jobDescription && <p className="whitespace-pre-line text-sm text-slate-300">{r.jobDescription}</p>}
 
       {r.crew.length ? (
         <ul className="flex flex-wrap gap-1.5">

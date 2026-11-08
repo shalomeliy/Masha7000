@@ -72,7 +72,7 @@ function WeekPlan({ shifts, onDone }: { shifts: ShiftRecord[]; onDone: () => voi
           <li key={r.id} className={`space-y-1 rounded-xl border p-3 text-sm ${unfilled.length ? 'border-red-500/60' : 'border-slate-800'}`}>
             <p className="font-semibold">
               {tx('יום {weekday} {v2}{v3}', { weekday: dayName(r.date), v2: showDate(r.date), v3: r.location && ` · ${r.location}` })}</p>
-            {r.jobDescription && <p className="text-slate-400">{r.jobDescription}</p>}
+            {r.jobDescription && <p className="whitespace-pre-line text-slate-400">{r.jobDescription}</p>}
             {nextJobText(r) && <p className="text-violet-300">{tx('אחרי הלילה: {v}', { v: nextJobText(r) })}</p>}
             {added.map((c) => (
               <p key={c.workerId} className="text-emerald-300">

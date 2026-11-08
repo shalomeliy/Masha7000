@@ -9,6 +9,7 @@ import { todayIso } from '../../lib/dates'
 import { DAY_NAMES, showDate, weekday } from '../../lib/shifts'
 import { workerMonth, type DayEntry } from '../../lib/workerAgenda'
 import type { Worker } from '../../types/models'
+import { oneLine } from '../../lib/taskList'
 
 // The worker's whole month, opened from the personal calendar in their card: a month grid with a
 // colored dot per thing on each day, and below it every day with its jobs, sickness and absences.
@@ -118,7 +119,7 @@ export function WorkerMonth({
     const more = day !== s.date ? tx('המשך מ-{v}', { v: showDate(s.date) }) : e.endDate !== s.date ? tx('עד {v}', { v: showDate(e.endDate) }) : ''
     return (
       <li key={e.key} className={`border-s-2 ps-2 ${tone.line}`}>
-        <span className="block text-slate-100">{[s.location, s.jobDescription].filter(Boolean).join(' · ') || tx('עבודה')}</span>
+        <span className="block text-slate-100">{[s.location, oneLine(s.jobDescription)].filter(Boolean).join(' · ') || tx('עבודה')}</span>
         <span className="block text-xs text-slate-400">{[kind, role, more].filter(Boolean).join(' · ')}</span>
       </li>
     )

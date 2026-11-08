@@ -5,6 +5,7 @@
 import { constraintText, isOver, onDay, shiftDays, sickConstraint } from './constraints'
 import { addDays } from './shifts'
 import type { Constraint, Role, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
+import { oneLine } from './taskList'
 
 export type AgendaItem =
   | { type: 'job'; key: string; date: string; endDate: string; shift: ShiftRecord; roleId: string }
@@ -60,7 +61,7 @@ export function agendaText(item: AgendaItem, roles: Role[]): { title: string; de
   if (item.type === 'away') return { title: constraintText(item.constraint), detail: '' }
   const s = item.shift
   const role = roles.find((r) => r.id === item.roleId)?.name ?? ''
-  return { title: [s.location, s.jobDescription].filter(Boolean).join(' · '), detail: role }
+  return { title: [s.location, oneLine(s.jobDescription)].filter(Boolean).join(' · '), detail: role }
 }
 
 // ---- The worker's month: everything on each day, past days too ----

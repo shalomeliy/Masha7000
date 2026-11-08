@@ -3,6 +3,7 @@ import { GENERAL_ROLE_NAME, endsNextDay, fullName } from './catalog'
 import { dayName, showDate, sortShifts, weekOf } from './shifts'
 import { UNKNOWN_WORKER_COLOR, workerColors } from './workerColor'
 import type { Role, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
+import { oneLine } from './taskList'
 
 // The shifts of one day or one Sunday-to-Saturday week, as WhatsApp text and as the data the
 // image card draws. Pure: the share sheet sends what these return.
@@ -42,7 +43,7 @@ const year = (date: string) => date.slice(0, 4)
 
 /** "חיפה · החלפת אנטנה" for the job a "לינה" crew does after the night; undefined when there is none. */
 export const nextJobText = (r: Pick<ShiftRecord, 'nextJob'>) =>
-  [r.nextJob?.location, r.nextJob?.jobDescription].filter(Boolean).join(' · ') || undefined
+  [r.nextJob?.location, r.nextJob?.jobDescription && oneLine(r.nextJob.jobDescription)].filter(Boolean).join(' · ') || undefined
 
 function reportShift(r: ShiftRecord, ctx: ReportContext, colors: Map<string, string>): ReportShift {
   const def = ctx.defs.find((d) => d.id === r.shiftDefinitionId)

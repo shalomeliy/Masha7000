@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { Mic, Square } from 'lucide-react'
 import { inputClass } from './Sheet'
 import { joinTranscripts } from '../lib/dictation'
+import { asTaskList } from '../lib/taskList'
 import { language, tx } from '../i18n'
 
 // Text field with Hebrew voice dictation (Web Speech API, he-IL). See docs/spikes/hebrew-dictation.md.
 // The mic button shows only where the browser has speech recognition; the phone keyboard's own
 // mic key works everywhere. Dictated words are added after what is already there, never replace it.
+// `tasks`: a job's description; when dictation stops (or the field is left), several tasks said become a
+// numbered list (lib/taskList).
 
 interface Recognition {
   lang: string
@@ -31,7 +34,7 @@ const ERRORS: Record<string, string> = {
   'no-speech': tx('לא נשמע דיבור. נסה שוב.'),
 }
 
-export function DictationField({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+export function DictationField({ label, value, onChange, placeholder, tasks }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; tasks?: boolean }) {
   const [listening, setListening] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const rec = useRef<Recognition | null>(null)
@@ -49,13 +52,16 @@ export function DictationField({ label, value, onChange, placeholder }: { label:
     r.interimResults = true
     r.continuous = true
     const base = value.trim() ? `${value.trim()} ` : ''
+    let said = ''
     r.onresult = (e) => {
       const pieces: string[] = []
       for (let i = 0; i < e.results.length; i++) pieces.push(e.results[i][0].transcript)
-      onChange(base + joinTranscripts(pieces))
+      said = base + joinTranscripts(pieces)
+      onChange(said)
     }
     r.onerror = (e) => e.error !== 'aborted' && setError(ERRORS[e.error] ?? tx('ההכתבה לא הצליחה. אפשר להקליד במקום.'))
     r.onend = () => {
+      if (tasks && said) onChange(asTaskList(said))
       rec.current = null
       setListening(false)
     }
@@ -69,7 +75,10 @@ export function DictationField({ label, value, onChange, placeholder }: { label:
     <div className="space-y-1">
       <label className="block space-y-1">
         <span className="text-sm text-slate-300">{label}</span>
-        <textarea rows={3} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={inputClass} />
+        <textarea rows={3} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
+          onBlur={() => tasks && value.trim() && asTaskList(value) !== value && onChange(asTaskList(value))}
+          className={inputClass}
+        />
       </label>
       {Speech && (
         <button

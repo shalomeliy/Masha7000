@@ -411,3 +411,10 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Voice, free (`src/lib/freeDates.ts`, hooked in `handleFree`/`continueJob`): "תמצא לי מתי יוסי וניר פנויים לעבודת לילה בערד" (also "ועוד חשמלאי", a place not in the lists said with ב, "אחרי <date>"). A missing kind or place is asked first. Says up to 3 days; "הראשון/השני" (or yes for one) gives a ready new job with them pinned (`SolverOption.proposal`), confirmed as usual. Jobs from the assistant with named crew are saved pinned too.
 - Tests: `pinnedDates.test.ts`, `freeDates.test.ts`. Browser check on the mock Drive: יוסי on vacation 8-9.11, night job in ערד with יוסי and דני -> 10, 11, 12.11 offered, picked 10.11, saved with `pinnedIds`.
 - Also in לשיבוץ (2026-11-08, user's report): the waiting-job form has the same box (`PendingJob.pinnedIds`, shown on the card). Picking a day saves the job and opens it as a shift on that day with them pinned; "שבץ" from the card brings them in pinned, each in his own role (`blankShift` + `ShiftForm`). Checked in the browser on the mock Drive.
+
+## Done: a job's description as a numbered task list (2026-11-08)
+
+- `src/lib/taskList.ts`: free, local split (no Claude). Splits at a task word joined with "ו" ("וניקוי", "ולנקות"), a task word right after another task, "ואז"/"בנוסף"/"וגם", new lines, and a comma or full stop only when a task word follows ("מבנה A, קומה 2" stays one). The manager's words are kept as said (said "ניקוי עדשה" stays "עדשה"); only the split, numbers and the joining "ו" change.
+- Saved as `1. ...\n2. ...` when there are 2+ tasks, else as written. Applied on save in לשיבוץ, the calendar job form (also the "לינה" next job), the follow-up task when closing a job, and Shaly (`applyProposal`, editJobs). `DictationField tasks` also formats when dictation stops or the field is left, so the manager sees the list before saving.
+- Shown with `whitespace-pre-line`; where it sits inside a title or a spoken sentence, `oneLine()` joins the tasks with commas.
+- To add a task word: `TASK_NOUNS` / `TASK_VERBS` in `taskList.ts`, plus a case in `taskList.test.ts`.

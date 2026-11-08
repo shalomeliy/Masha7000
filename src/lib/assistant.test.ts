@@ -101,6 +101,12 @@ describe('jobStaffing', () => {
 })
 
 describe('applyProposal', () => {
+  it('a description of several tasks is saved as a numbered list, in the calendar and the waiting list', () => {
+    const said = 'החלפת נורה וניקוי עדשה'
+    const r = applyProposal(proposal({ jobs: [job({ jobDescription: said }), job({ date: '', jobDescription: said })] }), data(), NOW)
+    expect(r.data.shifts[1].jobDescription).toBe('1. החלפת נורה\n2. ניקוי עדשה')
+    expect(r.data.pendingJobs[0].jobDescription).toBe('1. החלפת נורה\n2. ניקוי עדשה')
+  })
   it('a job with a date goes to the calendar, without one to the waiting list', () => {
     const r = applyProposal(proposal({ jobs: [job(), job({ date: '', location: 'דימונה אתר 556' })] }), data(), NOW)
     expect([...r.changed].sort()).toEqual(['pendingJobs', 'shifts'])
