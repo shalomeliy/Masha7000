@@ -98,7 +98,10 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
   const isDayWord = (w: string) => /^(?:ב|ל)?יום$/.test(w)
 
   // Places: all the words of a known place, in a row (the first maybe with ב/ל).
-  for (const p of d.places) {
+  // Places: the list, and every place a job was already at (said once, known from then on).
+  const used0 = [...d.shifts, ...d.pendingJobs].map((s) => s.location?.trim()).filter((x): x is string => Boolean(x))
+  const knownPlaces = [...d.places.map((p) => p.name), ...new Set(used0)].filter((n, i, all) => all.indexOf(n) === i).map((name) => ({ name }))
+  for (const p of knownPlaces) {
     const pw = words(p.name)
     for (let i = 0; i + pw.length <= ws.length; i++) {
       if (pw.every((w, k) => (k === 0 ? bare(ws[i]) === w || ws[i] === w : ws[i + k] === w))) {
@@ -111,7 +114,7 @@ function find(said: string, d: AppData, aliases: Record<string, string>, now: Da
   if (!out.location) {
     for (let i = 0; i < ws.length; i++) {
       if (used[i]) continue
-      const hits = d.places.filter((p) => {
+      const hits = knownPlaces.filter((p) => {
         const first = words(p.name)[0]
         return words(p.name).length > 1 && /^(?:ו?[בל])/.test(ws[i]) && bare(ws[i]) === first
       })
@@ -467,31 +470,28 @@ function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
   let description = f.description ?? ''
   let location = f.location ?? ''
   if (unknownAt.length) {
-    // Unexplained words in runs: at most a place not in the lists ("בערד", said with ב) and a description.
+    // Unexplained words in runs: at most one place not in the lists (said with ב: a town, a name, a number,
+    // or a name and a number: "בירוחם", "בבאר שבע", "ב-556", "בערד 17") and one description.
     const ws = words(text)
     const runs: string[][] = []
     unknownAt.forEach((at, k) => (k > 0 && at === unknownAt[k - 1] + 1 ? runs[runs.length - 1].push(ws[at]) : runs.push([ws[at]])))
-    // A question, another action or a bare number is neither: Claude.
-    if (runs.flat().some((w) => NOT_DESCRIPTION.test(w) || NOT_DESCRIPTION.test(bare(w)) || /^\d+$/.test(w))) return null
-    const isPlace = (r: string[]) => /^ב(?=.{2,})/.test(r[0]) && !location
-    const asPlace = (r: string[]) => [r[0].slice(1), ...r.slice(1)].join(' ')
-    if (runs.length > 2) return null
-    if (runs.length === 2) {
-      // One said with ב is the place, the other the description.
-      const places = runs.filter(isPlace)
-      if (places.length !== 1 || description) return null
-      location = asPlace(places[0])
-      description = runs.find((r) => r !== places[0])!.join(' ')
-    } else if (description || (runs[0].length === 1 && isPlace(runs[0]))) {
-      // Next to a known description, or one word with ב: a place.
-      if (!isPlace(runs[0])) return null
-      location = asPlace(runs[0])
-    } else if (isPlace(runs[0]) && !WORK_START.test(runs[0][0])) {
-      // "בירוחם החלפת כבלים": the place, then what is done there ("בבאר שבע ..." keeps both words of the town).
-      const n = TOWN_FIRST.test(bare(runs[0][0])) && runs[0].length > 1 ? 2 : 1
-      location = asPlace(runs[0].slice(0, n))
-      description = runs[0].slice(n).join(' ')
-    } else description = runs[0].join(' ')
+    // A question or another action is neither: Claude.
+    if (runs.flat().some((w) => NOT_DESCRIPTION.test(w) || NOT_DESCRIPTION.test(bare(w)))) return null
+    const pieces: string[][] = []
+    for (const r of runs) {
+      const first = r[0]
+      if (!location && /^ב-?(?=.{2,})/.test(first) && !WORK_START.test(first)) {
+        // The place: the word after ב, a second word of a two-word town, then any numbers after it.
+        let n = 1
+        if (TOWN_FIRST.test(bare(first)) && r.length > 1 && !/^\d+$/.test(r[1])) n = 2
+        while (n < r.length && /^\d+$/.test(r[n])) n++
+        location = [first.replace(/^ב-?/, ''), ...r.slice(1, n)].join(' ')
+        if (n < r.length) pieces.push(r.slice(n))
+      } else pieces.push(r)
+    }
+    // Numbers not tied to a place, two descriptions, or one next to a known job type: Claude.
+    if (pieces.flat().some((w) => /\d/.test(w)) || pieces.length > 1 || (pieces.length && description)) return null
+    if (pieces.length) description = pieces[0].join(' ')
   }
   // With one kind of job only, that is the kind.
   const kind = f.shiftKindId ?? (d.shiftDefinitions.length === 1 ? d.shiftDefinitions[0].id : '')

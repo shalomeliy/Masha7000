@@ -186,6 +186,17 @@ describe('a new job, any phrasing, from the first time', () => {
     expect(job(none('תפתח עבודה לילה בירוחם'))).toMatchObject({ location: 'ירוחם', jobDescription: '' })
     expect(job(none('תפתח עבודה לילה בבאר שבע החלפת כבלים'))).toMatchObject({ location: 'באר שבע', jobDescription: 'החלפת כבלים' })
     expect(job(none('תפתח עבודה לילה בדיקת מצלמות'))).toMatchObject({ location: '', jobDescription: 'בדיקת מצלמות' })
+    // A place of a name and a number, or a number alone.
+    expect(job(none('תפתח עבודה לילה בירוחם 12 החלפת כבלים'))).toMatchObject({ location: 'ירוחם 12', jobDescription: 'החלפת כבלים' })
+    expect(job(none('תפתח עבודה לילה ב-556 החלפת כבלים'))).toMatchObject({ location: '556', jobDescription: 'החלפת כבלים' })
+    expect(job(none('תפתח עבודה לילה ב556'))).toMatchObject({ location: '556' })
+    expect(job(none('תפתח עבודה לילה בבאר שבע 9 החלפת אנטנה'))).toMatchObject({ location: 'באר שבע 9', jobDescription: 'החלפת אנטנה' })
+    expect(none('תפתח עבודה לילה החלפת כבלים 12')).toBeNull() // a number tied to no place
+  })
+
+  it('a place a job was already at is known from then on', () => {
+    const d = data({ assistantExamples: [], pendingJobs: [{ id: 'x', location: 'תחנת הכוח רוטנברג', jobDescription: '', staffing: [], shiftDefinitionId: 's1', reasonIds: [], createdAt: '' }] })
+    expect(job(run('תפתח עבודה לילה בתחנת הכוח רוטנברג החלפת כבלים', d))).toMatchObject({ location: 'תחנת הכוח רוטנברג', jobDescription: 'החלפת כבלים' })
     expect(none('תפתח עבודה לילה בירוחם בדימונה החלפת כבלים')).toBeNull() // two places
   })
 
