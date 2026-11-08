@@ -569,3 +569,38 @@ describe('one long sentence with several requests', () => {
     expect(kinds(split('יוסי חולה היום ותפתח עבודה בערד 17'))).toEqual({ known: [['יוסי חולה היום', 'propose']], unknown: ['תפתח עבודה בערד 17'] })
   })
 })
+
+describe('certifications and plural roles (the user, 2026-11-08)', () => {
+  const certs = [{ id: 'c1', name: 'רתך' }, { id: 'c2', name: 'טיפוס' }, { id: 'c3', name: 'חשמלאי מוסמך' }, { id: 'c4', name: 'עבודה בגובה' }]
+  const d = () => data({ certifications: certs, roles: [...base.roles, { id: 'general', name: 'כללי' }] })
+  const staff = (said: string) => job(run(said, d()))?.staffing.map((s) => [s.roleId, s.count, ...(s.certificationIds ?? [])])
+
+  it('a certification, singular or plural, is a place with the general role and that certification', () => {
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה רתך')).toEqual([['general', 1, 'c1']])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני רתכים')).toEqual([['general', 2, 'c1']])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה 3 חשמלאים מוסמכים')).toEqual([['general', 3, 'c3']])
+  })
+  it('a role, singular or plural, with a count', () => {
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני טכנאי מצלמות')).toEqual([['r4', 2]])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה טכנאי מצלמות אחד')).toEqual([['r4', 1]])
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה 2 חשמלאים')).toEqual([['r2', 2]])
+  })
+  it('a role and a certification in one sentence', () => {
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים ורתך')).toEqual([['r1', 2], ['general', 1, 'c1']])
+  })
+  it('a word heard a little wrong ("רתח") is the certification', () => {
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה שני מטפסים ותוסיף גם רתח')).toEqual([['r1', 2], ['general', 1, 'c1']])
+  })
+  it('a new worker with a certification', () => {
+    const r = run('תוסיף עובד חדש חגי מלכה טלפון 0535765663 הסמכה רתך', d())
+    expect(r).toMatchObject({ kind: 'propose' })
+    if (r?.kind === 'propose') {
+      expect(r.proposal.workers[0]).toMatchObject({ firstName: 'חגי', lastName: 'מלכה', roleIds: [], certificationIds: ['c1'] })
+      expect(r.proposal.summary).toContain('הסמכה רתך')
+    }
+  })
+  it('does not turn ordinary words or worker names into a certification', () => {
+    expect(staff('תפתח עבודה מחר לילה בערד 17 החלפת אנטנה')).toEqual([])
+    expect(run('יוסי חולה מחר', d())).toMatchObject({ kind: 'propose' })
+  })
+})
