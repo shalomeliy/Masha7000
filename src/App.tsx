@@ -1,12 +1,15 @@
 import { tx } from './i18n'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { BottomNav } from './components/BottomNav'
 import type { Tab } from './components/BottomNav'
 import { ensureWeeklyCopy } from './lib/backup'
 import { applyWordSettings } from './lib/constraintWords'
-import { applyPronunciations } from './lib/pronounce'
+import { applyPronunciations, BUILT_IN, unknownWords } from './lib/pronounce'
+import { onSpoken } from './lib/speech'
+import { language } from './i18n'
+import { newId } from './lib/catalog'
 import { useDriveList } from './lib/data/useDriveList'
 import { Calendar } from './pages/Calendar'
 import { Settings } from './pages/Settings'
@@ -51,6 +54,7 @@ export default function App() {
     <div className="mx-auto min-h-full max-w-md pb-24">
       <ConstraintWords />
       <Pronunciations />
+      <NewWords />
       <WeeklyCopy />
       {shown === 'voice' && voice && <Voice onNavigate={setTab} />}
       {shown === 'calendar' && <Calendar />}
@@ -71,6 +75,34 @@ function ConstraintWords() {
 // How the assistant says words the phone's voice gets wrong (Settings), put in before it speaks.
 function Pronunciations() {
   applyPronunciations(useDriveList('pronunciations').items)
+  return null
+}
+
+// Words the assistant says that the manager has not listened to yet wait in "אימון הגייה" (Settings).
+// The starting list is loaded only once something is said.
+function NewWords() {
+  const approved = useDriveList('approvedWords')
+  const fixed = useDriveList('pronunciations')
+  const fresh = useDriveList('newWords')
+  const latest = useRef({ approved: approved.items, fixed: fixed.items, fresh: fresh.items, save: fresh.save, loaded: approved.query.isSuccess && fixed.query.isSuccess && fresh.query.isSuccess })
+  latest.current = { approved: approved.items, fixed: fixed.items, fresh: fresh.items, save: fresh.save, loaded: approved.query.isSuccess && fixed.query.isSuccess && fresh.query.isSuccess }
+  useEffect(
+    () =>
+      onSpoken((text) => {
+        if (language().code !== 'he' || !latest.current.loaded) return
+        void import('./lib/pronunciationSeed').then(({ SEED_WORDS }) => {
+          const l = latest.current
+          const known = new Set([...SEED_WORDS, ...BUILT_IN.map((b) => b.word), ...l.approved.map((a) => a.word), ...l.fixed.map((p) => p.word), ...l.fresh.map((n) => n.word)])
+          const add = unknownWords(text, known)
+          if (!add.length) return
+          const at = new Date().toISOString()
+          void l.save([...l.fresh, ...add.map((word) => ({ id: newId(), word, at }))]).catch(() => {
+            // not saved: the word comes again the next time it is said
+          })
+        })
+      }),
+    [],
+  )
   return null
 }
 

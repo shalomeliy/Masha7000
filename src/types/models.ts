@@ -170,6 +170,19 @@ export interface Pronunciation {
   say: string
 }
 
+// A word the manager listened to in "אימון הגייה" and said sounds right as is.
+export interface ApprovedWord {
+  id: string
+  word: string
+}
+
+// A word the assistant said that nobody listened to yet; it waits in "אימון הגייה".
+export interface NewWord {
+  id: string
+  word: string
+  at: string // ISO time it was first said
+}
+
 export interface AssistantNote {
   id: string
   text: string

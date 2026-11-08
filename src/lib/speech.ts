@@ -157,6 +157,14 @@ export function nextRate(): number {
 }
 export const rateName = (v: number) => RATES.find((r) => r.value === v)?.name ?? tx('רגיל')
 
+// Who wants to know what was said (new words go to "אימון הגייה", src/App.tsx).
+const heard = new Set<(text: string) => void>()
+/** Calls `fn` with each text read aloud; returns a function to stop. */
+export function onSpoken(fn: (text: string) => void): () => void {
+  heard.add(fn)
+  return () => heard.delete(fn)
+}
+
 /** Reads the text aloud in the app's language; `onDone` when it ends or cannot start. */
 export function speak(text: string, onDone?: () => void) {
   if (!canSpeak || !text) {
@@ -164,6 +172,7 @@ export function speak(text: string, onDone?: () => void) {
     return
   }
   speechSynthesis.cancel()
+  heard.forEach((fn) => fn(text))
   const u = new SpeechSynthesisUtterance(pronounce(speakable(text, language().speech)))
   u.lang = language().speech
   u.rate = current ?? (current = speechRate())

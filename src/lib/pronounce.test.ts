@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { applyPronunciations, pronounce, pronunciationError, pronunciationTable } from './pronounce'
+import { applyPronunciations, isKnownWord, pronounce, pronunciationError, pronunciationTable, reviewQueue, unknownWords } from './pronounce'
 
 afterEach(() => applyPronunciations([]))
 
@@ -30,5 +30,20 @@ describe('pronounce', () => {
     expect(pronunciationError('טפסן', ' ')).toBe('say')
     expect(pronunciationError('טפסן', 'טפסן')).toBe('same')
     expect(pronunciationError('טפסן', 'Tapsan')).toBeNull()
+  })
+})
+
+describe('training', () => {
+  it('says a two-word entry as a whole', () => {
+    expect(pronounce('נוסעים לבאר שבע מחר', [{ word: 'באר שבע', say: 'Beer Sheva' }])).toBe('נוסעים le Beer Sheva מחר')
+    expect(pronounce('באר שבע', [{ word: 'באר שבע', say: 'Beer Sheva' }])).toBe('Beer Sheva')
+  })
+  it('finds words not known yet, also behind ו/ב/ל/ה', () => {
+    const known = new Set(['עבודה', 'לילה'])
+    expect(unknownWords('העבודה בלילה של אביחי, ואביחי בא', known)).toEqual(['של', 'אביחי', 'ואביחי', 'בא'])
+    expect(isKnownWord('ולעבודה', known)).toBe(true)
+  })
+  it('puts new words first and leaves out what was heard', () => {
+    expect(reviewQueue(['עבודה', 'לילה', 'יום'], [{ word: 'אביחי' }, { word: 'לילה' }], new Set(['לילה']))).toEqual(['אביחי', 'עבודה', 'יום'])
   })
 })

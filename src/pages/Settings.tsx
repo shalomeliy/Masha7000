@@ -138,8 +138,8 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
   },
   {
     id: 'pronunciations',
-    title: tx('הגייה של מילים'),
-    explain: tx('איך שלי אומר מילים שהקול טועה בהן'),
+    title: tx('אימון הגייה'),
+    explain: tx('שומעים מילים ששלי אומר, ומאשרים או מתקנים'),
   },
 ]
 
