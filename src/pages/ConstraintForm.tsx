@@ -1,5 +1,5 @@
 import { tx } from '../i18n'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { Field, inputClass } from '../components/Sheet'
 import { isIsraeliMobile } from '../lib/catalog'
@@ -55,6 +55,19 @@ export function ConstraintForm({ code }: { code: string }) {
       (e: Error) => setLoadError(e.message),
     )
   }, [code])
+
+  // Each day's reason field: after a quick choice the screen moves to it, so the reason is typed next.
+  const reasons = useRef<(HTMLInputElement | null)[]>([])
+  const choose = (i: number, part: DayPart) => {
+    const on = days[i].part !== part
+    setDay(i, { part: on ? part : undefined })
+    if (!on) return
+    const field = reasons.current[i]
+    if (!field) return
+    field.focus({ preventScroll: true })
+    // After the phone's keyboard opens and the page settles, bring the field to the middle of the screen.
+    setTimeout(() => field.scrollIntoView({ block: 'center' }), 300)
+  }
 
   const setDay = (i: number, patch: Partial<DayChoice>) => setDays((ds) => ds.map((d, j) => (j === i ? { ...d, ...patch } : d)))
 
@@ -150,7 +163,7 @@ export function ConstraintForm({ code }: { code: string }) {
                     key={p.id}
                     type="button"
                     aria-pressed={d.part === p.id}
-                    onClick={() => setDay(i, { part: d.part === p.id ? undefined : p.id })}
+                    onClick={() => choose(i, p.id)}
                     className={`min-h-10 rounded-full border px-3 text-sm ${d.part === p.id ? 'border-amber-400 bg-amber-400/15 text-amber-200' : 'border-slate-700 text-slate-300'}`}
                   >
                     {p.name}
@@ -158,6 +171,9 @@ export function ConstraintForm({ code }: { code: string }) {
                 ))}
               </div>
               <input
+                ref={(el) => {
+                  reasons.current[i] = el
+                }}
                 value={d.text}
                 onChange={(e) => setDay(i, { text: e.target.value })}
                 maxLength={100}
