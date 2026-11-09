@@ -1092,5 +1092,6 @@
  "בתוקף עד (ריק = בלי תפוגה)": "Valid until (empty = no expiry)",
  "הסמכות שעומדות לפוג: {n}": "Certifications about to expire: {n}",
  "הסמכות שפג תוקפן: {n}": "Expired certifications: {n}",
- "טוען גם את העבודות הישנות...": "Loading older jobs too..."
+ "טוען גם את העבודות הישנות...": "Loading older jobs too...",
+ "אילוצים קבועים": "Fixed constraints"
 }

@@ -1,10 +1,11 @@
-import { CalendarDays, ChevronLeft, Pencil, X } from 'lucide-react'
+import { CalendarDays, ChevronLeft, Pencil, Plus, Repeat, X } from 'lucide-react'
 import { dayNames, tx } from '../../i18n'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { todayIso } from '../../lib/dates'
 import { addDays, showDate, weekday } from '../../lib/shifts'
 import { agendaDays, agendaText, workerAgenda, type AgendaDay, type AgendaItem } from '../../lib/workerAgenda'
-import type { Worker } from '../../types/models'
+import { constraintText } from '../../lib/constraints'
+import type { Constraint, Worker } from '../../types/models'
 
 const SHORT_DAYS = dayNames('short')
 
@@ -15,17 +16,21 @@ export function useWorkerAgenda(worker: Worker) {
   return { items: workerAgenda(worker, shifts.items, defs.items, todayIso()), loading: shifts.query.isPending }
 }
 
-/** The worker's own calendar in their card. A constraint shown here is removed here (it is not in the list above). */
+/** The worker's own calendar in their card: the only place constraints are listed, added and removed there. */
 export function WorkerAgenda({
   items,
+  fixed,
   loading,
   onRemove,
   onEditSick,
   onEdit,
   onOpen,
+  onAdd,
 }: {
   items: AgendaItem[]
+  fixed: Constraint[] // weekly and "always" constraints, not tied to the next days
   loading: boolean
+  onAdd: () => void // a new constraint's editor, under the calendar
   onRemove: (constraintId: string) => void // 'sick' ends the status sickness
   onEditSick: () => void // the status sheet, to change the sickness's last day
   onEdit: (constraintId: string) => void // any other absence: its editor in the constraints list
@@ -118,6 +123,52 @@ export function WorkerAgenda({
       ) : (
         <ul className="space-y-3">{agendaDays(items, today).map(row)}</ul>
       )}
+      {fixed.length > 0 && (
+        <ul className="space-y-2 border-t border-slate-800 pt-3" aria-label={tx('אילוצים קבועים')}>
+          {fixed.map((c) => (
+            <li key={c.id} className="flex items-center gap-2 border-s-2 border-amber-400 ps-3">
+              <Repeat size={14} aria-hidden className="shrink-0 text-amber-300" />
+              <span className="min-w-0 flex-1 text-sm leading-snug">
+                <span className="block text-amber-200">{constraintText(c)}</span>
+                {c.note?.trim() && <span className="block truncate text-xs text-slate-400">{c.note}</span>}
+              </span>
+              <button
+                type="button"
+                aria-label={tx('עריכת האילוץ: {v}', { v: constraintText(c) })}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(c.id)
+                }}
+                className="flex size-11 shrink-0 items-center justify-center text-slate-400"
+              >
+                <Pencil size={16} aria-hidden />
+              </button>
+              <button
+                type="button"
+                aria-label={tx('מחיקת האילוץ: {v}', { v: constraintText(c) })}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRemove(c.id)
+                }}
+                className="flex size-11 shrink-0 items-center justify-center text-slate-400"
+              >
+                <X size={18} aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation() // not a tap on the box, which opens the month
+          onAdd()
+        }}
+        className="flex min-h-11 w-full items-center justify-center gap-1 rounded-xl border border-slate-700 text-sm text-slate-200"
+      >
+        <Plus size={16} aria-hidden />
+        {tx('הוספת אילוץ')}
+      </button>
     </section>
   )
 }

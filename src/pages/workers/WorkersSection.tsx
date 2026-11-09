@@ -30,6 +30,7 @@ import { endAbsence, STATE_NAMES, STATE_TONE, teamStates, workerState, type Stat
 import { EditMark, EmptyState } from "./common";
 import { ConstraintsField } from "./ConstraintsField";
 import { useWorkerAgenda, WorkerAgenda } from "./WorkerAgenda";
+import { fixedConstraints } from "../../lib/workerAgenda";
 import { WorkerMonth } from "./WorkerMonth";
 import { ConstraintFormPanel } from "./ConstraintFormSection";
 import { JoinButton, JoinPending } from "./JoinSection";
@@ -544,8 +545,10 @@ function WorkerForm({
         ? { ...d, status: "active", sickUntil: undefined }
         : { ...d, constraints: d.constraints.filter((c) => c.id !== id) },
     );
-  // A pencil on an absence in a calendar: its editor opens in the constraints list at the top.
+  // A pencil on an absence in a calendar: its editor opens under the personal calendar.
   const [openConstraint, setOpenConstraint] = useState<{ id: string; n: number }>();
+  // "הוספת אילוץ" in the personal calendar: a new constraint's editor opens under it.
+  const [addConstraint, setAddConstraint] = useState(0);
   const editAway = (id: string) => {
     setMonthOpen(false);
     setOpenConstraint((o) => ({ id, n: (o?.n ?? 0) + 1 }));
@@ -606,19 +609,6 @@ function WorkerForm({
 
   return (
     <>
-      <ConstraintsField
-        value={draft.constraints}
-        // Each constraint is shown once: dated ones are in the personal and monthly calendar.
-        calendar={exists}
-        open={openConstraint}
-        onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
-        onNotes={(text) =>
-          setDraft((d) => ({
-            ...d,
-            notes: [d.notes?.trim(), text].filter(Boolean).join("\n"),
-          }))
-        }
-      />
       <div className="grid grid-cols-2 gap-3">
         <Field label={tx('שם פרטי (חובה)')}>
           <input
@@ -675,6 +665,8 @@ function WorkerForm({
       {exists && (
         <WorkerAgenda
           items={agenda.items}
+          fixed={fixedConstraints(draft.constraints, todayIso())}
+          onAdd={() => setAddConstraint((n) => n + 1)}
           loading={agenda.loading}
           onRemove={removeAway}
           onEditSick={editSick}
@@ -682,6 +674,13 @@ function WorkerForm({
           onOpen={() => setMonthOpen(true)}
         />
       )}
+      {/* A constraint's editor: from the calendar's pencil or its "add" button. */}
+      <ConstraintsField
+        value={draft.constraints}
+        open={openConstraint}
+        add={addConstraint}
+        onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
+      />
       {exists && (
         <WorkerMonth
           worker={draft}

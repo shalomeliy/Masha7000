@@ -1,6 +1,6 @@
 // A worker's own calendar, for the worker's card: the jobs they are in over the next few days, and
 // the days they are away (sickness, vacation and the other absences, and ordinary dated constraints),
-// in date order. Weekly constraints are not in it: they stay in the card's constraints list.
+// in date order. Weekly constraints are not in it: `fixedConstraints` lists them under the days.
 
 import { constraintText, isOver, onDay, shiftDays, sickConstraint } from './constraints'
 import { addDays } from './shifts'
@@ -10,6 +10,9 @@ import { oneLine } from './taskList'
 export type AgendaItem =
   | { type: 'job'; key: string; date: string; endDate: string; shift: ShiftRecord }
   | { type: 'away'; key: string; date: string; endDate: string; constraint: Constraint; sick?: true }
+
+/** The constraints that repeat (every week, or always) and have not ended: listed under the days. */
+export const fixedConstraints = (constraints: Constraint[], today: string) => constraints.filter((c) => c.when !== 'dates' && !isOver(c, today))
 
 /** The user's rule: the card shows only the next 3 days, today included. */
 export const AGENDA_DAYS = 3

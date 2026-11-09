@@ -1092,5 +1092,6 @@
  "בתוקף עד (ריק = בלי תפוגה)": "Valable jusqu'au (vide = sans expiration)",
  "הסמכות שעומדות לפוג: {n}": "Certifications bientôt expirées : {n}",
  "הסמכות שפג תוקפן: {n}": "Certifications expirées : {n}",
- "טוען גם את העבודות הישנות...": "Chargement des anciens travaux aussi..."
+ "טוען גם את העבודות הישנות...": "Chargement des anciens travaux aussi...",
+ "אילוצים קבועים": "Contraintes fixes"
 }

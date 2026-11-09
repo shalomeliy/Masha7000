@@ -59,9 +59,9 @@ export function WorkerMonth({
   worker: Worker
   open: boolean
   onClose: () => void
-  onRemove: (constraintId: string) => void // a dated constraint, removed from the card (saved with "שמירה"); 'sick' ends the status sickness
+  onRemove: (constraintId: string) => void // a constraint, removed from the card (saved with "שמירה"); 'sick' ends the status sickness
   onEditSick: () => void // the status sheet, to change the sickness's last day
-  onEdit: (constraintId: string) => void // any other dated absence: its editor in the card
+  onEdit: (constraintId: string) => void // any other absence: its editor in the card
 }) {
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
@@ -87,27 +87,23 @@ export function WorkerMonth({
             <span className={`block ${tone.text}`}>{constraintText(e.constraint)}</span>
             {note && note !== 'מחלה' && <span className="block truncate text-xs text-slate-400">{note}</span>}
           </span>
-          {/* Dated ones and sickness are changed here (not in the card's list); weekly ones in the list. */}
-          {(e.key === 'sick' || e.constraint.when === 'dates') && (
-            <button
-              type="button"
-              aria-label={e.key === 'sick' ? tx('עריכת המחלה') : tx('עריכת האילוץ: {v}', { v: constraintText(e.constraint) })}
-              onClick={() => (e.key === 'sick' ? onEditSick() : onEdit(e.constraint.id))}
-              className="flex size-11 shrink-0 items-center justify-center text-slate-400"
-            >
-              <Pencil size={16} aria-hidden />
-            </button>
-          )}
-          {e.constraint.when === 'dates' && (
-            <button
-              type="button"
-              aria-label={tx('מחיקת האילוץ: {v}', { v: constraintText(e.constraint) })}
-              onClick={() => onRemove(e.constraint.id)}
-              className="flex size-11 shrink-0 items-center justify-center text-slate-400"
-            >
-              <X size={18} aria-hidden />
-            </button>
-          )}
+          {/* Every absence is changed or removed here or in the personal calendar; the card has no other list. */}
+          <button
+            type="button"
+            aria-label={e.key === 'sick' ? tx('עריכת המחלה') : tx('עריכת האילוץ: {v}', { v: constraintText(e.constraint) })}
+            onClick={() => (e.key === 'sick' ? onEditSick() : onEdit(e.constraint.id))}
+            className="flex size-11 shrink-0 items-center justify-center text-slate-400"
+          >
+            <Pencil size={16} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label={tx('מחיקת האילוץ: {v}', { v: constraintText(e.constraint) })}
+            onClick={() => onRemove(e.constraint.id)}
+            className="flex size-11 shrink-0 items-center justify-center text-slate-400"
+          >
+            <X size={18} aria-hidden />
+          </button>
         </li>
       )
     }
