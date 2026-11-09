@@ -400,23 +400,16 @@ function WorkerCard({
         className="relative min-w-0 flex-1 space-y-2 p-4 pe-9 text-start"
       >
         <EditMark />
-        {/* On a narrow phone the number drops under the name instead of squeezing it onto two lines. */}
-        <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          {/* Only a dot here (the user's rule); the state in words is inside the worker's form. */}
-          <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
-            <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
-            <span className="max-w-full truncate">{fullName(w)}</span>
-            {/* One average star (a tap shows the stars in each certification) and the expiry counts, kept together. */}
-            <span className="flex shrink-0 items-center gap-1.5">
-              <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
-              <ExpiryBadges worker={w} certIds={certList.map((c) => c.id)} today={today} />
-            </span>
+        {/* The mobile number is not shown in the list (the user's rule, 2026-11-09): it is in the worker's form, and the call button dials it. */}
+        {/* Only a dot here (the user's rule); the state in words is inside the worker's form. */}
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
+          <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
+          <span className="max-w-full truncate">{fullName(w)}</span>
+          {/* One average star (a tap shows the stars in each certification) and the expiry counts, kept together. */}
+          <span className="flex shrink-0 items-center gap-1.5">
+            <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
+            <ExpiryBadges worker={w} certIds={certList.map((c) => c.id)} today={today} />
           </span>
-          {w.mobilePhone && (
-            <span dir="ltr" className="shrink-0 text-sm text-slate-400">
-              {w.mobilePhone}
-            </span>
-          )}
         </span>
         <span className="flex flex-wrap gap-1">
           {department && (
