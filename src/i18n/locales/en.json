@@ -1085,5 +1085,11 @@
  "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "This is what you sent. Two hours have passed since you first sent it, so it can no longer be fixed. To change it, ask your manager.",
  "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "You already sent this, and this is what you sent. You can fix it and send again until {v}.",
  "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Two hours have passed since you first sent it, so it can no longer be fixed. To change it, ask your manager.",
- "שליחת התיקון למנהל": "Send the fix to the manager"
+ "שליחת התיקון למנהל": "Send the fix to the manager",
+ "ההסמכה פגה אצל: {v}. אפשר לעדכן תוקף בלשונית \"עובדים\".": "The certification has expired for: {v}. You can update its validity in the \"Workers\" tab.",
+ "פג תוקף ב-{v}": "Expired on {v}",
+ "התוקף נגמר ב-{v}": "Expires on {v}",
+ "בתוקף עד (ריק = בלי תפוגה)": "Valid until (empty = no expiry)",
+ "הסמכות שעומדות לפוג: {n}": "Certifications about to expire: {n}",
+ "הסמכות שפג תוקפן: {n}": "Expired certifications: {n}"
 }

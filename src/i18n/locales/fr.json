@@ -1085,5 +1085,11 @@
  "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Voici ce que vous avez envoyé. Deux heures se sont écoulées depuis le premier envoi, il n'est donc plus possible de corriger. Pour modifier, adressez-vous à votre responsable.",
  "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "Vous avez déjà envoyé, voici votre réponse. Vous pouvez corriger et renvoyer jusqu'à {v}.",
  "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Deux heures se sont écoulées depuis le premier envoi, il n'est donc plus possible de corriger. Pour modifier, adressez-vous à votre responsable.",
- "שליחת התיקון למנהל": "Envoyer la correction au responsable"
+ "שליחת התיקון למנהל": "Envoyer la correction au responsable",
+ "ההסמכה פגה אצל: {v}. אפשר לעדכן תוקף בלשונית \"עובדים\".": "La certification a expiré pour : {v}. Vous pouvez mettre à jour sa validité dans l'onglet « Employés ».",
+ "פג תוקף ב-{v}": "Expirée le {v}",
+ "התוקף נגמר ב-{v}": "Expire le {v}",
+ "בתוקף עד (ריק = בלי תפוגה)": "Valable jusqu'au (vide = sans expiration)",
+ "הסמכות שעומדות לפוג: {n}": "Certifications bientôt expirées : {n}",
+ "הסמכות שפג תוקפן: {n}": "Certifications expirées : {n}"
 }

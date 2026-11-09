@@ -80,9 +80,10 @@ describe('setting a crew', () => {
   it('refuses an inactive worker; a busy one is a move to confirm', () => {
     const errs = proposalErrors(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w3' }, { workerId: 'w4' }] }] }), data())
     expect(errs).toEqual(['עזב כהן לא פעיל'])
-    // Yossi is on the Arad night of 10.11; the 9.11 day job is free, but a night on 9.11 would not be.
+    // Yossi is on the Arad night of 10.11; the 9.11 day job is free. A night starting 9.11 clashes;
+    // one that started 8.11 would not (a day job the morning after a night is allowed).
     const d = data()
-    d.shifts[1].date = '2026-11-08'
+    d.shifts[1].date = '2026-11-09'
     expect(proposalConflicts(p({ setCrews: [{ shiftId: 's1', crew: [{ workerId: 'w2' }] }] }), d)).toHaveLength(1)
   })
 })

@@ -124,9 +124,22 @@ describe('autoAssign', () => {
       shift('x', '2026-10-26', { crew: on('b') }),
       shift('y', '2026-10-25', { crew: on('b') }),
     ]
-    const p = autoAssign(shift('s', '2026-10-28'), [{}], ctx([worker('a'), worker('b')], records))
+    // The next day is taken for another night job.
+    const nextNight = shift('s', '2026-10-28', { shiftDefinitionId: 'night' })
+    const p = autoAssign(nextNight, [{}], ctx([worker('a'), worker('b')], records))
     expect(ids(p)).toEqual(['b'])
-    expect(loadWarning(workerLoad(worker('a'), shift('s', '2026-10-28'), ctx([], records)))).toBe('כבר בעבודה אחרת באותו זמן')
+    expect(loadWarning(workerLoad(worker('a'), nextNight, ctx([], records)))).toBe('כבר בעבודה אחרת באותו זמן')
+  })
+
+  it('a day job the morning after a night job is allowed: the crew slept at a hotel', () => {
+    const records = [shift('n', '2026-10-27', { shiftDefinitionId: 'night', crew: on('a') })]
+    const nextDay = shift('s', '2026-10-28')
+    expect(workerLoad(worker('a'), nextDay, ctx([], records)).busy).toBe(false)
+    expect(loadWarning(workerLoad(worker('a'), nextDay, ctx([], records)))).toBeNull()
+    // Saved the other way round: the night job sees the day job after it as no clash either.
+    expect(workerLoad(worker('a'), records[0], ctx([], [{ ...nextDay, crew: on('a') }])).busy).toBe(false)
+    // The night's own first day is still taken.
+    expect(workerLoad(worker('a'), shift('t', '2026-10-27'), ctx([], records)).busy).toBe(true)
   })
 
   it('keeps workers the manager already put in, and fills only the empty places', () => {
@@ -257,14 +270,14 @@ describe('planShifts', () => {
 describe('never two shifts at the same time', () => {
   it('"שבץ" leaves a place empty rather than pick a worker already in another shift then', () => {
     const records = [shift('n', '2026-10-27', { shiftDefinitionId: 'night', crew: on('a') })]
-    const p = autoAssign(shift('s', '2026-10-28'), [{}], ctx([worker('a')], records))
+    const p = autoAssign(shift('s', '2026-10-27'), [{}], ctx([worker('a')], records))
     expect(p.crew).toEqual([])
     expect(p.why).toEqual(['בעבודה אחרת באותו זמן: a'])
   })
 
   it('busyCrew names the crew member and the other shift; a shift on another day is not a clash', () => {
     const n = shift('n', '2026-10-27', { shiftDefinitionId: 'night', crew: on('a') })
-    const d = shift('d', '2026-10-28', { crew: on('a', 'b') })
+    const d = shift('d', '2026-10-27', { crew: on('a', 'b') })
     const busy = busyCrew(d, [worker('a'), worker('b')], [n, d], [day, night])
     expect(busy.map((b) => [b.worker.id, b.other.id])).toEqual([['a', 'n']])
     expect(busyText(busy)).toBe('a כבר בעבודה ביום שלישי 27.10 (חיפה)')

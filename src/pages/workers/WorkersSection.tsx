@@ -38,6 +38,7 @@ import { tx } from '../../i18n'
 import { searchWorkers } from "../../lib/workerSearch";
 import { AverageStars, CertStarsField, RatingsSheet } from "./CertStars";
 import { keepHeldRatings } from "../../lib/certRatings";
+import { expiryCounts, expiryNote, expiryState, keepHeldExpiry } from "../../lib/certExpiry";
 
 const blankWorker = (): Worker => ({
   id: newId(),
@@ -337,6 +338,38 @@ function TabIntro({ title, text }: { title: string; text: string }) {
   );
 }
 
+/**
+ * Two small counts beside the worker's name (the manager's request, 2026-11-09): orange, how many of
+ * their certifications end within 30 days; red, how many already expired. Nothing when all are fine.
+ */
+function ExpiryBadges({ worker, certIds, today }: { worker: Worker; certIds: string[]; today: string }) {
+  const { soon, expired } = expiryCounts(worker, certIds, today);
+  return (
+    <>
+      {soon > 0 && (
+        <span
+          role="img"
+          aria-label={tx('הסמכות שעומדות לפוג: {n}', { n: soon })}
+          title={tx('הסמכות שעומדות לפוג: {n}', { n: soon })}
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-orange-500 text-xs font-bold text-slate-950"
+        >
+          {soon}
+        </span>
+      )}
+      {expired > 0 && (
+        <span
+          role="img"
+          aria-label={tx('הסמכות שפג תוקפן: {n}', { n: expired })}
+          title={tx('הסמכות שפג תוקפן: {n}', { n: expired })}
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white"
+        >
+          {expired}
+        </span>
+      )}
+    </>
+  );
+}
+
 function WorkerCard({
   worker: w,
   onOpen,
@@ -373,6 +406,7 @@ function WorkerCard({
             {fullName(w)}
             {/* One average star; a tap on it shows the stars in each certification (view only). */}
             <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
+            <ExpiryBadges worker={w} certIds={certList.map((c) => c.id)} today={today} />
           </span>
           {w.mobilePhone && (
             <span dir="ltr" className="text-sm text-slate-400">
@@ -386,14 +420,18 @@ function WorkerCard({
               {department}
             </span>
           )}
-          {certList.map((c) => (
-            <span
-              key={c.id}
-              className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-200"
-            >
-              {c.name}
-            </span>
-          ))}
+          {certList.map((c) => {
+            const expiry = expiryState(w, c.id, today);
+            return (
+              <span
+                key={c.id}
+                title={expiryNote(w, c.id, today) ?? undefined}
+                className={`rounded-full px-2 py-0.5 text-xs ${expiry === "expired" ? "bg-red-500/15 text-red-200" : expiry === "soon" ? "bg-orange-500/15 text-orange-200" : "bg-emerald-500/15 text-emerald-200"}`}
+              >
+                {c.name}
+              </span>
+            );
+          })}
         </span>
         {active.length > 0 && (
           <span className="flex flex-wrap gap-1">
@@ -553,7 +591,7 @@ function WorkerForm({
     setError(err);
     if (err) return;
     const clean: Worker = {
-      ...keepHeldRatings(draft),
+      ...keepHeldExpiry(keepHeldRatings(draft)),
       firstName: draft.firstName.trim(),
       lastName: draft.lastName.trim(),
     };

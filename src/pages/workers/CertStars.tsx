@@ -2,25 +2,40 @@ import { Star } from 'lucide-react'
 import type { KeyboardEvent, MouseEvent } from 'react'
 import { Sheet } from '../../components/Sheet'
 import { tx } from '../../i18n'
-import { certStars, fullName, MAX_STARS } from '../../lib/catalog'
+import { DateField } from '../../components/DateField'
+import { certStars, fullName, GENERAL_CERT_ID, MAX_STARS } from '../../lib/catalog'
+import { expiryNote, expiryState, setCertExpiry } from '../../lib/certExpiry'
 import { averageStars, rateCert } from '../../lib/certRatings'
+import { todayIso } from '../../lib/dates'
 import { useDriveList } from '../../lib/data/useDriveList'
 import type { Worker } from '../../types/models'
 
 // The manager's own 1-5 star rating of a worker in each certification they hold (the user's
 // request, 2026-11-08). The rules are in src/lib/certRatings.ts.
 
-/** One row per certification the worker holds: its name and 5 stars to tap. */
+/** Orange for a certification that ends within 30 days, red for an expired one (src/lib/certExpiry.ts). */
+export const EXPIRY_TONE = { soon: 'text-orange-300', expired: 'text-red-300' } as const
+
+/** "פג תוקף ב-1.12.2026" in its color under a certification, or nothing when it is fine. */
+export function ExpiryNote({ worker, certId, today }: { worker: Worker; certId: string; today: string }) {
+  const state = expiryState(worker, certId, today)
+  if (!state) return null
+  return <span className={`block text-xs ${EXPIRY_TONE[state]}`}>{expiryNote(worker, certId, today)}</span>
+}
+
+/** One row per certification the worker holds: its name, 5 stars to tap and the date it is valid until. */
 export function CertStarsField({ worker, certs, onChange }: { worker: Worker; certs: { id: string; name: string }[]; onChange: (w: Worker) => void }) {
   const held = certs.filter((c) => worker.certificationIds.includes(c.id))
   if (!held.length) return null
+  const today = todayIso()
   return (
     <ul className="space-y-1 rounded-xl border border-slate-800 bg-slate-950 p-2">
       {held.map((c) => {
         const stars = certStars(worker, c.id)
+        const state = expiryState(worker, c.id, today)
         return (
-          <li key={c.id} className="flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-sm">{c.name}</span>
+          <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-2 border-b border-slate-800/60 pb-1 last:border-0">
+            <span className={`min-w-0 truncate text-sm ${state ? EXPIRY_TONE[state] : ''}`}>{c.name}</span>
             <span className="flex shrink-0" role="radiogroup" aria-label={tx('דירוג ב{name}', { name: c.name })}>
               {Array.from({ length: MAX_STARS }, (_, i) => i + 1).map((n) => (
                 <button
@@ -36,6 +51,17 @@ export function CertStarsField({ worker, certs, onChange }: { worker: Worker; ce
                 </button>
               ))}
             </span>
+            {/* "כללי" is held by every worker and does not expire. */}
+            {c.id !== GENERAL_CERT_ID && (
+              <div className="w-full pb-1">
+                <DateField
+                  label={tx('בתוקף עד (ריק = בלי תפוגה)')}
+                  value={worker.certExpiry?.[c.id] ?? ''}
+                  onChange={(date, ok) => ok && onChange(setCertExpiry(worker, c.id, date))}
+                />
+                <ExpiryNote worker={worker} certId={c.id} today={today} />
+              </div>
+            )}
           </li>
         )
       })}
@@ -92,7 +118,10 @@ export function RatingsSheet({ worker, onClose }: { worker: Worker | null; onClo
               const stars = certStars(worker, c.id)
               return (
                 <li key={c.id} className="flex min-h-10 items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-sm">{c.name}</span>
+                  <span className="min-w-0 text-sm">
+                    <span className="block truncate">{c.name}</span>
+                    <ExpiryNote worker={worker} certId={c.id} today={todayIso()} />
+                  </span>
                   <span
                     role="img"
                     aria-label={stars === 0 ? tx('עוד לא דורג') : stars === 1 ? tx('כוכב אחד') : tx('{n} כוכבים', { n: stars })}

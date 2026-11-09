@@ -122,9 +122,9 @@ describe('applyProposal', () => {
   })
 
   it('auto-assigns a new job and an existing one', () => {
-    const r = applyProposal(proposal({ jobs: [job({ autoAssign: true })], assignShiftIds: ['s1'] }), data(), NOW)
-    const fresh = r.data.shifts.find((s) => s.date === '2026-11-08')!
-    // רון went to באר שבע first; the night job runs into that day, so his place stays empty.
+    const r = applyProposal(proposal({ jobs: [job({ autoAssign: true, date: '2026-11-09' })], assignShiftIds: ['s1'] }), data(), NOW)
+    const fresh = r.data.shifts.find((s) => s.id !== 's1')!
+    // רון went to באר שבע first; the night job starts that same day, so his place stays empty.
     expect(fresh.crew.map((c) => c.workerId).sort()).toEqual(['w1', 'w2'])
     expect(r.report).toContain('באילת אתר 123 נשארו מקום אחד פנוי')
     expect(r.data.shifts.find((s) => s.id === 's1')!.crew).toEqual([{ workerId: 'w3' }])

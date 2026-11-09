@@ -1085,5 +1085,11 @@
  "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Ini yang Anda kirim. Sudah dua jam sejak pengiriman pertama, jadi tidak bisa diperbaiki lagi. Untuk mengubahnya, hubungi manajer.",
  "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "Anda sudah mengirim, dan ini yang Anda kirim. Anda bisa memperbaiki dan mengirim lagi sampai pukul {v}.",
  "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Sudah dua jam sejak pengiriman pertama, jadi tidak bisa diperbaiki lagi. Untuk mengubahnya, hubungi manajer.",
- "שליחת התיקון למנהל": "Kirim perbaikan ke manajer"
+ "שליחת התיקון למנהל": "Kirim perbaikan ke manajer",
+ "ההסמכה פגה אצל: {v}. אפשר לעדכן תוקף בלשונית \"עובדים\".": "Sertifikasi sudah kedaluwarsa untuk: {v}. Masa berlaku bisa diperbarui di tab \"Pekerja\".",
+ "פג תוקף ב-{v}": "Kedaluwarsa pada {v}",
+ "התוקף נגמר ב-{v}": "Berakhir pada {v}",
+ "בתוקף עד (ריק = בלי תפוגה)": "Berlaku sampai (kosong = tanpa kedaluwarsa)",
+ "הסמכות שעומדות לפוג: {n}": "Sertifikasi yang segera berakhir: {n}",
+ "הסמכות שפג תוקפן: {n}": "Sertifikasi kedaluwarsa: {n}"
 }

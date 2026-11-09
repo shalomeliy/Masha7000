@@ -1,5 +1,6 @@
 import { tx } from '../i18n'
 import { fullName, isActive, slotCerts, slotStars } from './catalog'
+import { validOn } from './certExpiry'
 import { blockingConstraint, constraintText } from './constraints'
 import { addDays, dayName, isNightShift, showDate, weekOf, weekShiftCount } from './shifts'
 import { canShare } from './workKinds'
@@ -10,6 +11,7 @@ import type { Constraint, CrewMember, ShiftDefinition, ShiftRecord, StaffSlot, W
 // certifications (places of two different work kinds may share one worker), a worker a constraint blocks or who is already in another shift at the same time is never picked. Soft rules, in
 // this order: under the weekly night limit, fewest shifts this week, fewest nights this week, fewest shifts lately, name.
 // Among the workers who fit a place that asks for certifications, more of the manager's stars in them come first.
+// A certification expired by the day of the job is not counted.
 
 /** Night jobs per worker per week (Sunday to Saturday). Beyond it the worker may still be placed, with a warning. */
 export const NIGHT_LIMIT = 2
@@ -45,13 +47,24 @@ function span(r: ShiftRecord, defs: ShiftDefinition[]): [string, string] {
   return [r.date, r.endDate ?? (isNightShift(r, defs) ? addDays(r.date, 1) : r.date)]
 }
 
+/**
+ * A day job on the day after a night job started: allowed (the manager, 2026-11-09). The crew sleeps
+ * at a hotel and goes back in the next morning, so it is no rest problem. Not after a "לינה" (its next
+ * day is the job after the night), an urgent shift, or before another night job.
+ */
+function dayAfterNight(night: ShiftRecord, day: ShiftRecord, defs: ShiftDefinition[]): boolean {
+  const def = defs.find((d) => d.id === night.shiftDefinitionId)
+  if (night.urgent || night.endDate || !def || !isNightShift(night, defs) || def.thenJob) return false
+  return !day.endDate && !isNightShift(day, defs) && day.date === addDays(night.date, 1)
+}
+
 /** Another saved shift the worker is in that runs on one of this shift's days, if any. */
 export function busyWith(workerId: string, shift: ShiftRecord, records: ShiftRecord[], defs: ShiftDefinition[]): ShiftRecord | undefined {
   const [from, to] = span(shift, defs)
   return records.find((r) => {
     if (r.id === shift.id || !r.crew.some((c) => c.workerId === workerId)) return false
     const [a, b] = span(r, defs)
-    return a <= to && b >= from
+    return a <= to && b >= from && !dayAfterNight(r, shift, defs) && !dayAfterNight(shift, r, defs)
   })
 }
 
@@ -147,7 +160,9 @@ export function candidateOrder(shift: ShiftRecord, ctx: PlanContext): { worker: 
  * fill places of other kinds comes first, so the job needs as few people as it can.
  * `staffing` is the shift's staffing read through `staffingFor`.
  */
-export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanContext): Plan {
+export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], given: PlanContext): Plan {
+  // A certification expired by the day of the job does not count here (src/lib/certExpiry.ts).
+  const ctx = { ...given, workers: given.workers.map((w) => validOn(w, shift.date)) }
   const candidates = candidateOrder(shift, ctx)
   const ordered = candidates.filter((c) => !c.load.blocked && !c.load.busy).map((c) => c.worker)
   const byId = new Map(ctx.workers.map((w) => [w.id, w]))
@@ -238,9 +253,9 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], ctx: PlanC
         ]
           .filter(Boolean)
           .join(' · ')
-      return fit.length || candidates.some((c) => fitsSlot(c.worker, slot))
-        ? tx('כל המתאימים כבר בעבודה הזו')
-        : NO_WORKER
+      if (fit.length || candidates.some((c) => fitsSlot(c.worker, slot))) return tx('כל המתאימים כבר בעבודה הזו')
+      const lapsed = given.workers.filter((w) => isActive(w) && fitsSlot(w, slot))
+      return lapsed.length ? tx('ההסמכה פגה אצל: {v}. אפשר לעדכן תוקף בלשונית "עובדים".', { v: lapsed.map(fullName).join(', ') }) : NO_WORKER
     }),
   }
 }

@@ -47,6 +47,9 @@ export interface Worker {
   // The manager's own 1-5 star rating of the worker in each certification they hold; absent = 5.
   // "שבץ" prefers more stars in the certifications a place asks for.
   certRatings?: Record<string, number>
+  // The day each certification is valid until (YYYY-MM-DD), by certification id; absent = no expiry.
+  // Orange from 30 days before, red after it; "שבץ" skips an expired one (src/lib/certExpiry.ts).
+  certExpiry?: Record<string, string>
   notes?: string
   constraints: Constraint[]
   status?: WorkerStatus // absent = active. Inactive: hidden from the list and never picked for a shift

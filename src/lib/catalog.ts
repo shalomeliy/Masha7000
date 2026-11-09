@@ -182,7 +182,13 @@ export function removeTagReferences(id: string, workers: Worker[], shifts: Shift
       ? workers.map((w) => {
           if (!w.certificationIds.includes(id)) return w
           const { [id]: _, ...ratings } = w.certRatings ?? {}
-          return { ...w, certificationIds: w.certificationIds.filter((x) => x !== id), ...(w.certRatings ? { certRatings: ratings } : {}) }
+          const { [id]: _until, ...expiry } = w.certExpiry ?? {}
+          return {
+            ...w,
+            certificationIds: w.certificationIds.filter((x) => x !== id),
+            ...(w.certRatings ? { certRatings: ratings } : {}),
+            ...(w.certExpiry ? { certExpiry: expiry } : {}),
+          }
         })
       : workers,
     shifts: usage.shifts ? shifts.map((s) => ({ ...s, requiredCertificationIds: s.requiredCertificationIds.filter((x) => x !== id) })) : shifts,

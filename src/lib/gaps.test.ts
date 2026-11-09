@@ -73,12 +73,18 @@ describe('shiftGaps', () => {
     expect(shiftGaps(s, ctx([worker('a', ['climber'])], [s])).kinds).toEqual([])
   })
 
-  it('a worker in a Monday night job and a Tuesday day shift is in both at once', () => {
+  it('a worker in a Monday night job and a Tuesday night job is in both at once', () => {
     const n = shift('n', '2026-10-26', { shiftDefinitionId: 'night', crew: [{ workerId: 'a' }] })
-    const d = shift('d', '2026-10-27', { crew: [{ workerId: 'a' }] })
+    const d = shift('d', '2026-10-27', { shiftDefinitionId: 'night', crew: [{ workerId: 'a' }] })
     const g = shiftGaps(d, ctx([worker('a')], [n, d]))
     expect(g.doubleIds).toEqual(['a'])
     expect(g.kinds).toEqual(['double'])
+  })
+
+  it('a Tuesday day shift after a Monday night job is no clash: the crew slept at a hotel', () => {
+    const n = shift('n', '2026-10-26', { shiftDefinitionId: 'night', crew: [{ workerId: 'a' }] })
+    const d = shift('d', '2026-10-27', { crew: [{ workerId: 'a' }] })
+    expect(shiftGaps(d, ctx([worker('a')], [n, d])).doubleIds).toEqual([])
   })
 
   it('a third night job in the week is a night warning, not a missing place', () => {

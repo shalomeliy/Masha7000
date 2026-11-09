@@ -1085,5 +1085,11 @@
  "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Gönderdiğiniz bu. İlk gönderimden bu yana iki saat geçti, artık düzeltilemez. Değiştirmek için yöneticinize başvurun.",
  "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "Zaten gönderdiniz, gönderdiğiniz bu. Saat {v}'e kadar düzeltip yeniden gönderebilirsiniz.",
  "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "İlk gönderimden bu yana iki saat geçti, artık düzeltilemez. Değiştirmek için yöneticinize başvurun.",
- "שליחת התיקון למנהל": "Düzeltmeyi yöneticiye gönder"
+ "שליחת התיקון למנהל": "Düzeltmeyi yöneticiye gönder",
+ "ההסמכה פגה אצל: {v}. אפשר לעדכן תוקף בלשונית \"עובדים\".": "Şu kişilerin sertifikasının süresi doldu: {v}. Geçerliliği \"Çalışanlar\" sekmesinden güncelleyebilirsiniz.",
+ "פג תוקף ב-{v}": "Süresi {v} tarihinde doldu",
+ "התוקף נגמר ב-{v}": "Süresi {v} tarihinde doluyor",
+ "בתוקף עד (ריק = בלי תפוגה)": "Geçerlilik sonu (boş = süresiz)",
+ "הסמכות שעומדות לפוג: {n}": "Süresi dolmak üzere olan sertifikalar: {n}",
+ "הסמכות שפג תוקפן: {n}": "Süresi dolmuş sertifikalar: {n}"
 }
