@@ -399,17 +399,20 @@ function WorkerCard({
         className="relative min-w-0 flex-1 space-y-2 p-4 pe-9 text-start"
       >
         <EditMark />
-        <span className="flex items-baseline justify-between gap-2">
+        {/* On a narrow phone the number drops under the name instead of squeezing it onto two lines. */}
+        <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           {/* Only a dot here (the user's rule); the state in words is inside the worker's form. */}
-          <span className="flex items-center gap-2 font-semibold">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
             <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
-            {fullName(w)}
-            {/* One average star; a tap on it shows the stars in each certification (view only). */}
-            <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
-            <ExpiryBadges worker={w} certIds={certList.map((c) => c.id)} today={today} />
+            <span className="max-w-full truncate">{fullName(w)}</span>
+            {/* One average star (a tap shows the stars in each certification) and the expiry counts, kept together. */}
+            <span className="flex shrink-0 items-center gap-1.5">
+              <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
+              <ExpiryBadges worker={w} certIds={certList.map((c) => c.id)} today={today} />
+            </span>
           </span>
           {w.mobilePhone && (
-            <span dir="ltr" className="text-sm text-slate-400">
+            <span dir="ltr" className="shrink-0 text-sm text-slate-400">
               {w.mobilePhone}
             </span>
           )}
