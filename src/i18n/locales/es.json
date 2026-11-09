@@ -1080,5 +1080,10 @@
  "שולחים את ההודעה לקבוצה. כל עובד ממלא בטלפון את המספר שלו ואת הימים שאין לו אפשרות, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו.": "Envía el mensaje al grupo. Cada trabajador escribe en su teléfono su número y los días en que no puede, y pulsa enviar. Entra solo en sus restricciones.",
  "שולחים לקבוצת העובדים בוואטסאפ קישור לטופס של השבוע שבוחרים. כל עובד ממלא את הנייד שלו ובאילו ימים הוא לא יכול, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו, אז השיבוץ יודע לא לשים אותו בימים האלה.": "Envía al grupo de WhatsApp de los trabajadores un enlace al formulario de la semana que elijas. Cada uno escribe su móvil y los días en que no puede, y pulsa enviar. Entra solo en sus restricciones, así la planificación no lo asigna esos días.",
  "שלום לכולם, נא למלא בקישור באילו ימים אין לכם אפשרות לעבוד בשבוע {v} עד {v2}. ממלאים את מספר הנייד שלכם ושולחים, זה לוקח דקה:\n{url}": "Hola a todos, por favor indiquen en el enlace qué días no pueden trabajar en la semana del {v} al {v2}. Escriban su número de móvil y envíen, lleva un minuto:\n{url}",
- "שליחת טופס אילוצים בוואטסאפ": "Enviar el formulario de restricciones por WhatsApp"
+ "שליחת טופס אילוצים בוואטסאפ": "Enviar el formulario de restricciones por WhatsApp",
+ "אם טעית, אפשר לפתוח שוב את הקישור ולתקן עד השעה {v}.": "Si te equivocaste, puedes abrir el enlace de nuevo y corregirlo hasta las {v}.",
+ "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Esto es lo que enviaste. Pasaron dos horas desde el primer envío, así que ya no se puede corregir. Para cambiarlo, habla con tu responsable.",
+ "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "Ya lo enviaste, y esto es lo que enviaste. Puedes corregirlo y enviarlo de nuevo hasta las {v}.",
+ "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Pasaron dos horas desde el primer envío, así que ya no se puede corregir. Para cambiarlo, habla con tu responsable.",
+ "שליחת התיקון למנהל": "Enviar la corrección al responsable"
 }

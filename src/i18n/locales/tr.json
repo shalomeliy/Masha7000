@@ -1080,5 +1080,10 @@
  "שולחים את ההודעה לקבוצה. כל עובד ממלא בטלפון את המספר שלו ואת הימים שאין לו אפשרות, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו.": "Mesajı gruba gönderin. Her çalışan telefonundan numarasını ve çalışamayacağı günleri girip gönder'e basar. Kendiliğinden kısıtlarına girer.",
  "שולחים לקבוצת העובדים בוואטסאפ קישור לטופס של השבוע שבוחרים. כל עובד ממלא את הנייד שלו ובאילו ימים הוא לא יכול, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו, אז השיבוץ יודע לא לשים אותו בימים האלה.": "Çalışanların WhatsApp grubuna seçtiğiniz haftanın form bağlantısını gönderin. Her çalışan cep numarasını ve çalışamayacağı günleri girip gönder'e basar. Kendiliğinden kısıtlarına girer, böylece planlama onu o günlere koymaz.",
  "שלום לכולם, נא למלא בקישור באילו ימים אין לכם אפשרות לעבוד בשבוע {v} עד {v2}. ממלאים את מספר הנייד שלכם ושולחים, זה לוקח דקה:\n{url}": "Herkese merhaba, lütfen {v} - {v2} haftasında hangi günler çalışamayacağınızı bağlantıdan doldurun. Cep numaranızı yazıp gönderin, bir dakika sürer:\n{url}",
- "שליחת טופס אילוצים בוואטסאפ": "Kısıt formunu WhatsApp'tan gönder"
+ "שליחת טופס אילוצים בוואטסאפ": "Kısıt formunu WhatsApp'tan gönder",
+ "אם טעית, אפשר לפתוח שוב את הקישור ולתקן עד השעה {v}.": "Yanlış yaptıysanız, saat {v}'e kadar bağlantıyı yeniden açıp düzeltebilirsiniz.",
+ "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Gönderdiğiniz bu. İlk gönderimden bu yana iki saat geçti, artık düzeltilemez. Değiştirmek için yöneticinize başvurun.",
+ "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "Zaten gönderdiniz, gönderdiğiniz bu. Saat {v}'e kadar düzeltip yeniden gönderebilirsiniz.",
+ "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "İlk gönderimden bu yana iki saat geçti, artık düzeltilemez. Değiştirmek için yöneticinize başvurun.",
+ "שליחת התיקון למנהל": "Düzeltmeyi yöneticiye gönder"
 }

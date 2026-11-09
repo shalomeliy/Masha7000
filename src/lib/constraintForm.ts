@@ -62,8 +62,19 @@ const PART_WORDS: Record<DayPart, string> = {
 /** One day's answer as the worker means it: "לא יכול בערב, חתונה, כל שבוע"; '' = can work. */
 export const dayAnswer = (d: DayChoice) => {
   const words = [d.part ? PART_WORDS[d.part] : '', d.text.trim()].filter(Boolean)
-  return words.length ? [...words, ...(d.weekly ? ['כל שבוע'] : [])].join(', ') : ''
+  return words.length ? [...words, ...(d.weekly ? [WEEKLY_WORDS] : [])].join(', ') : ''
 }
+
+/** Back from a sent answer to the form's choices, so a reopened form shows what was sent. */
+export function dayChoiceOf(answer: string): DayChoice {
+  let rest = answer.trim()
+  const weekly = rest.endsWith(WEEKLY_WORDS) && rest !== WEEKLY_WORDS
+  if (weekly) rest = rest.slice(0, -WEEKLY_WORDS.length).replace(/,\s*$/, '')
+  const part = (Object.keys(PART_WORDS) as DayPart[]).find((p) => rest === PART_WORDS[p] || rest.startsWith(`${PART_WORDS[p]}, `))
+  if (part) rest = rest.slice(PART_WORDS[part].length).replace(/^,\s*/, '')
+  return { ...(part ? { part } : {}), text: rest, weekly }
+}
+const WEEKLY_WORDS = 'כל שבוע'
 
 const digits = (s: string | undefined) => (s ?? '').replace(/\D/g, '').replace(/^972/, '0')
 
@@ -100,6 +111,7 @@ export function applyAnswers(workers: Worker[], answers: ConstraintAnswer[]): { 
 
 const REASONS: Record<string, string> = {
   closed: tx('הטופס הזה כבר סגור. בקש מהמנהל קישור חדש.'),
+  locked: tx('עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.'),
   'unknown-phone': tx('המספר הזה לא מופיע אצל המנהל. בדוק שכתבת את הנייד שלך כמו שהמנהל מכיר אותו, או פנה למנהל.'),
   'bad-days': tx('משהו השתבש. נסה שוב בעוד רגע.'),
   'bad-week': tx('משהו השתבש. נסה שוב בעוד רגע.'),
@@ -123,13 +135,38 @@ async function call<T>(init: RequestInit, query = ''): Promise<T> {
 }
 const post = <T>(body: object) => call<T>({ method: 'POST', body: JSON.stringify(body) })
 
-export const readConstraintForm = (code: string) => call<{ weekStart: string }>({ method: 'GET' }, `?c=${encodeURIComponent(code)}`)
-export const submitConstraints = (code: string, phone: string, days: string[], notes: string) =>
-  post<{ ok: true; firstName: string }>({ action: 'submit', code, phone, days, notes })
+/** What this phone already sent for the open week, while it keeps the token for it. */
+export interface MyAnswer {
+  firstName: string
+  days: string[]
+  notes: string
+  until: number // fixing is taken until this moment (ms)
+}
+export const readConstraintForm = (code: string, token?: string) =>
+  call<{ weekStart: string; mine?: MyAnswer }>({ method: 'GET' }, `?c=${encodeURIComponent(code)}${token ? `&t=${encodeURIComponent(token)}` : ''}`)
+export const submitConstraints = (code: string, phone: string, days: string[], notes: string, token?: string) =>
+  post<{ ok: true; firstName: string; token: string; until: number }>({ action: 'submit', code, phone, days, notes, token })
 export const openConstraintForm = (weekStart: string, roster: RosterEntry[], renew = false) => post<{ code: string }>({ action: 'open', weekStart, roster, renew })
 export const closeConstraintForm = () => post<{ code: null }>({ action: 'close' })
 export const listConstraintAnswers = () => post<FormState>({ action: 'list' })
 export const removeConstraintAnswers = (ids: string[]) => post<{ ok: true }>({ action: 'remove', ids })
+
+// The token of the answer this phone sent on this link: opening the link again shows that answer.
+const tokenKey = (code: string) => `shiftsmart.consToken.${code}`
+export function savedToken(code: string) {
+  try {
+    return localStorage.getItem(tokenKey(code)) ?? undefined
+  } catch {
+    return undefined
+  }
+}
+export function saveToken(code: string, token: string) {
+  try {
+    localStorage.setItem(tokenKey(code), token)
+  } catch {
+    // Storage blocked: the form opens empty next time.
+  }
+}
 
 // The worker's own number, kept on their phone so next week's form opens with it filled in.
 const PHONE_KEY = 'shiftsmart.myPhone'

@@ -553,6 +553,29 @@ describe('weekly constraints form', () => {
     expect((await consForm(new Request(`${ORIGIN}/api/constraints?c=${code}`))).status).toBe(404)
   })
 
+  it('opens again with the answer this phone sent, and takes fixes for two hours only', async () => {
+    const s = await manager()
+    const code = await openFor(s)
+    const first = await (await post(cons, null, { action: 'submit', code, phone: '0501234567', days })).json()
+    expect(first.token).toMatch(/^[\w-]{24}$/)
+    const read = (t: string) => consForm(new Request(`${ORIGIN}/api/constraints?c=${code}&t=${t}`)).then((r) => r.json())
+    expect(await read(first.token)).toEqual({ weekStart: '2026-11-15', mine: { firstName: 'דנה', days, notes: '', until: first.until } })
+    expect(await read('x'.repeat(24))).toEqual({ weekStart: '2026-11-15' })
+    const fixed = ['לא יכול', '', '', '', '', '', '']
+    const second = await (await post(cons, null, { action: 'submit', code, phone: '0501234567', days: fixed, token: first.token })).json()
+    expect(second).toMatchObject({ ok: true, token: first.token, until: first.until })
+    expect((await read(first.token)).mine.days).toEqual(fixed)
+    // Another week on the same link: the old answer is not shown.
+    await openFor(s, '2026-11-22')
+    expect(await read(first.token)).toEqual({ weekStart: '2026-11-22' })
+    await openFor(s, '2026-11-15')
+    const later = vi.spyOn(Date, 'now').mockReturnValue(first.until + 1)
+    const res = await post(cons, null, { action: 'submit', code, phone: '0501234567', days, token: first.token })
+    later.mockRestore()
+    expect(res.status).toBe(409)
+    expect((await res.json()).reason).toBe('locked')
+  })
+
   it('takes an answer only from a phone on the roster, sealed, and a second one replaces the first', async () => {
     const s = await manager()
     const code = await openFor(s)
@@ -560,7 +583,7 @@ describe('weekly constraints form', () => {
     expect((await post(cons, null, { action: 'submit', code, phone: '0529999999', days })).status).toBe(404)
     expect((await post(cons, null, { action: 'submit', code, phone: '+972-50-123-4567', days: ['x'] })).status).toBe(400)
     const ok = await post(cons, null, { action: 'submit', code, phone: '+972-50-123-4567', days, notes: 'בצפון' })
-    expect(await ok.json()).toEqual({ ok: true, firstName: 'דנה' })
+    expect(await ok.json()).toMatchObject({ ok: true, firstName: 'דנה' })
     expect([...(store.get('cons:subs') as Set<string>)][0]).not.toContain('חופש')
     await post(cons, null, { action: 'submit', code, phone: '0501234567', days: ['לא יכול', '', '', '', '', '', ''] })
     const state = await list(s)

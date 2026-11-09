@@ -1080,5 +1080,10 @@
  "שולחים את ההודעה לקבוצה. כל עובד ממלא בטלפון את המספר שלו ואת הימים שאין לו אפשרות, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו.": "Send the message to the group. Each worker types their number and the days they cannot work on their phone, and presses send. It goes into their constraints by itself.",
  "שולחים לקבוצת העובדים בוואטסאפ קישור לטופס של השבוע שבוחרים. כל עובד ממלא את הנייד שלו ובאילו ימים הוא לא יכול, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו, אז השיבוץ יודע לא לשים אותו בימים האלה.": "Send the workers' WhatsApp group a link to the form for the week you pick. Each worker types their mobile and the days they cannot work, and presses send. It goes into their constraints by itself, so scheduling knows not to place them on those days.",
  "שלום לכולם, נא למלא בקישור באילו ימים אין לכם אפשרות לעבוד בשבוע {v} עד {v2}. ממלאים את מספר הנייד שלכם ושולחים, זה לוקח דקה:\n{url}": "Hi everyone, please fill in at the link which days you cannot work in the week {v} to {v2}. Type your mobile number and send, it takes a minute:\n{url}",
- "שליחת טופס אילוצים בוואטסאפ": "Send the constraints form on WhatsApp"
+ "שליחת טופס אילוצים בוואטסאפ": "Send the constraints form on WhatsApp",
+ "אם טעית, אפשר לפתוח שוב את הקישור ולתקן עד השעה {v}.": "If you made a mistake, you can open the link again and fix it until {v}.",
+ "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "This is what you sent. Two hours have passed since you first sent it, so it can no longer be fixed. To change it, ask your manager.",
+ "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "You already sent this, and this is what you sent. You can fix it and send again until {v}.",
+ "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Two hours have passed since you first sent it, so it can no longer be fixed. To change it, ask your manager.",
+ "שליחת התיקון למנהל": "Send the fix to the manager"
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyAnswers, constraintCodeOf, dayAnswer, rosterOf, withoutMobile, type ConstraintAnswer } from './constraintForm'
+import { applyAnswers, constraintCodeOf, dayAnswer, dayChoiceOf, rosterOf, withoutMobile, type ConstraintAnswer } from './constraintForm'
 import { answersToConstraints } from './constraints'
 import type { Worker } from '../types/models'
 
@@ -26,6 +26,17 @@ describe('weekly constraints form', () => {
     expect(night).toMatchObject({ from: '2026-11-18', nightsOnly: true })
     expect(whole).toMatchObject({ from: '2026-11-19' })
     expect(whole.part).toBeUndefined()
+  })
+
+  it('a sent answer opens back as the same choices', () => {
+    for (const d of [
+      { part: 'evening' as const, text: 'חתונה', weekly: false },
+      { part: 'whole' as const, text: '', weekly: true },
+      { text: 'לימודים, אחר הצהריים', weekly: true },
+      { text: 'כל שבוע', weekly: false },
+      { text: '', weekly: false },
+    ])
+      expect(dayChoiceOf(dayAnswer(d))).toEqual(d)
   })
 
   it('knows only active workers with a valid mobile', () => {

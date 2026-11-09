@@ -1080,5 +1080,10 @@
  "שולחים את ההודעה לקבוצה. כל עובד ממלא בטלפון את המספר שלו ואת הימים שאין לו אפשרות, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו.": "Kirim pesan ke grup. Setiap pekerja mengisi nomornya dan hari yang tidak bisa di ponselnya, lalu menekan kirim. Itu langsung masuk ke batasannya.",
  "שולחים לקבוצת העובדים בוואטסאפ קישור לטופס של השבוע שבוחרים. כל עובד ממלא את הנייד שלו ובאילו ימים הוא לא יכול, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו, אז השיבוץ יודע לא לשים אותו בימים האלה.": "Kirim ke grup WhatsApp pekerja tautan formulir untuk minggu yang dipilih. Setiap pekerja mengisi ponselnya dan hari yang tidak bisa, lalu menekan kirim. Itu langsung masuk ke batasannya, jadi penjadwalan tidak menempatkannya di hari-hari itu.",
  "שלום לכולם, נא למלא בקישור באילו ימים אין לכם אפשרות לעבוד בשבוע {v} עד {v2}. ממלאים את מספר הנייד שלכם ושולחים, זה לוקח דקה:\n{url}": "Halo semua, mohon isi di tautan hari apa saja Anda tidak bisa bekerja pada minggu {v} sampai {v2}. Isi nomor ponsel Anda lalu kirim, hanya semenit:\n{url}",
- "שליחת טופס אילוצים בוואטסאפ": "Kirim formulir batasan lewat WhatsApp"
+ "שליחת טופס אילוצים בוואטסאפ": "Kirim formulir batasan lewat WhatsApp",
+ "אם טעית, אפשר לפתוח שוב את הקישור ולתקן עד השעה {v}.": "Jika salah, Anda bisa membuka tautan lagi dan memperbaikinya sampai pukul {v}.",
+ "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Ini yang Anda kirim. Sudah dua jam sejak pengiriman pertama, jadi tidak bisa diperbaiki lagi. Untuk mengubahnya, hubungi manajer.",
+ "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "Anda sudah mengirim, dan ini yang Anda kirim. Anda bisa memperbaiki dan mengirim lagi sampai pukul {v}.",
+ "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Sudah dua jam sejak pengiriman pertama, jadi tidak bisa diperbaiki lagi. Untuk mengubahnya, hubungi manajer.",
+ "שליחת התיקון למנהל": "Kirim perbaikan ke manajer"
 }

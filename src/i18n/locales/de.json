@@ -1080,5 +1080,10 @@
  "שולחים את ההודעה לקבוצה. כל עובד ממלא בטלפון את המספר שלו ואת הימים שאין לו אפשרות, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו.": "Schick die Nachricht an die Gruppe. Jeder Mitarbeiter gibt am Handy seine Nummer und die Tage ein, an denen er nicht kann, und tippt auf Senden. Es landet von selbst in seinen Einschränkungen.",
  "שולחים לקבוצת העובדים בוואטסאפ קישור לטופס של השבוע שבוחרים. כל עובד ממלא את הנייד שלו ובאילו ימים הוא לא יכול, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו, אז השיבוץ יודע לא לשים אותו בימים האלה.": "Schick der WhatsApp-Gruppe der Mitarbeiter einen Link zum Formular für die gewählte Woche. Jeder gibt seine Handynummer und die Tage ein, an denen er nicht kann, und tippt auf Senden. Es landet von selbst in seinen Einschränkungen, und die Einteilung setzt ihn an diesen Tagen nicht ein.",
  "שלום לכולם, נא למלא בקישור באילו ימים אין לכם אפשרות לעבוד בשבוע {v} עד {v2}. ממלאים את מספר הנייד שלכם ושולחים, זה לוקח דקה:\n{url}": "Hallo zusammen, bitte tragt im Link ein, an welchen Tagen ihr in der Woche {v} bis {v2} nicht arbeiten könnt. Handynummer eingeben und senden, dauert eine Minute:\n{url}",
- "שליחת טופס אילוצים בוואטסאפ": "Einschränkungsformular per WhatsApp senden"
+ "שליחת טופס אילוצים בוואטסאפ": "Einschränkungsformular per WhatsApp senden",
+ "אם טעית, אפשר לפתוח שוב את הקישור ולתקן עד השעה {v}.": "Falls du dich vertan hast, kannst du den Link erneut öffnen und bis {v} Uhr korrigieren.",
+ "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Das hast du gesendet. Seit dem ersten Senden sind zwei Stunden vergangen, daher ist keine Korrektur mehr möglich. Für Änderungen wende dich an deinen Vorgesetzten.",
+ "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "Du hast schon gesendet, das hier ist deine Antwort. Du kannst sie bis {v} Uhr korrigieren und erneut senden.",
+ "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Seit dem ersten Senden sind zwei Stunden vergangen, daher ist keine Korrektur mehr möglich. Für Änderungen wende dich an deinen Vorgesetzten.",
+ "שליחת התיקון למנהל": "Korrektur an den Vorgesetzten senden"
 }

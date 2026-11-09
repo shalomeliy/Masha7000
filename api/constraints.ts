@@ -16,7 +16,9 @@ import { requireManager } from './_lib/session.js'
 // POST /api/constraints { action: 'submit', code, phone, days, notes }   public
 // POST /api/constraints { action: 'open' | 'close' | 'list' | 'remove', ... }   signed-in managers
 //
-// A worker may send again for the same week (to fix it): the new answer replaces the one waiting.
+// A worker may send again for the same week (to fix it) for two hours after their first answer:
+// the new answer replaces the earlier one. Each answer gives the phone a token; opening the form
+// with it shows the answer already sent, so it can be fixed instead of filled again.
 
 interface Form {
   code: string
@@ -25,6 +27,20 @@ interface Form {
 }
 
 export const MAX_ANSWERS = 1000
+export const EDIT_WINDOW_MS = 2 * 60 * 60 * 1000
+const FIRST_DAYS = 21 // the first answer's time is kept this long (the week is long over by then)
+const EDIT_DAYS = 8 // the answer behind the phone's token, shown when the form is opened again
+
+interface Edit {
+  workerId: string
+  firstName: string
+  weekStart: string
+  days: string[]
+  notes?: string
+  until: number // last moment a fix is taken
+}
+const readEdit = async (env: Env, token: unknown) =>
+  typeof token === 'string' && /^[\w-]{16,64}$/.test(token) ? open<Edit>(env.sessionKey, await kv.get(env, KEYS.consEdit(token))) : null
 const MAX_BODY = 64_000 // the roster of a big team
 
 const readForm = async (env: Env) => open<Form>(env.sessionKey, await kv.get(env, KEYS.consForm))
@@ -45,7 +61,10 @@ export const GET = guarded(async (req: Request) => {
   const code = new URL(req.url).searchParams.get('c')
   const form = await readForm(env)
   if (!form || !code || code !== form.code) return json({ reason: 'closed' }, 404)
-  return json({ weekStart: form.weekStart })
+  // The answer this phone already sent for this week, when it holds the token for it.
+  const edit = await readEdit(env, new URL(req.url).searchParams.get('t'))
+  const mine = edit && edit.weekStart === form.weekStart && form.roster.some((r) => r.id === edit.workerId) ? edit : null
+  return json({ weekStart: form.weekStart, ...(mine ? { mine: { firstName: mine.firstName, days: mine.days, notes: mine.notes ?? '', until: mine.until } } : {}) })
 })
 
 export const POST = guarded(async (req: Request) => {
@@ -63,15 +82,27 @@ export const POST = guarded(async (req: Request) => {
     if (!worker) return json({ reason: 'unknown-phone' }, 404)
     const cleaned = cleanAnswer(body)
     if (!cleaned) return json({ reason: 'bad-days' }, 400)
+    // Fixing is open for two hours from the first answer to this week, then locked.
+    const now = Date.now()
+    const firstKey = KEYS.consFirst(form.weekStart, worker.id)
+    await kv.setNew(env, firstKey, String(now), FIRST_DAYS * 86_400)
+    const first = Number(await kv.get(env, firstKey)) || now
+    const until = first + EDIT_WINDOW_MS
+    if (now > until) return json({ reason: 'locked', until }, 409)
     const waiting = await readAnswers(env)
     // A second answer for the same week replaces the first, if the manager's app has not taken it yet.
     const earlier = waiting.filter((o) => o.answer.workerId === worker.id && o.answer.weekStart === form.weekStart)
     if (waiting.length - earlier.length >= MAX_ANSWERS) return json({ reason: 'full' }, 429)
-    const answer: ConstraintAnswer = { id: randomToken(9), at: Date.now(), workerId: worker.id, weekStart: form.weekStart, ...cleaned }
+    const answer: ConstraintAnswer = { id: randomToken(9), at: now, workerId: worker.id, weekStart: form.weekStart, ...cleaned }
     await kv.add(env, KEYS.consSubs, await seal(env.sessionKey, answer))
     for (const o of earlier) await kv.remove(env, KEYS.consSubs, o.sealed)
     await kv.add(env, KEYS.consAnswered, answeredMark(form.weekStart, worker.id))
-    return json({ ok: true, firstName: worker.firstName })
+    // The same token while it is this worker's answer to this week; a new one otherwise.
+    const kept = await readEdit(env, body.token)
+    const token = kept && kept.workerId === worker.id && kept.weekStart === form.weekStart ? (body.token as string) : randomToken(18)
+    const edit: Edit = { workerId: worker.id, firstName: worker.firstName, weekStart: form.weekStart, ...cleaned, until }
+    await kv.set(env, KEYS.consEdit(token), await seal(env.sessionKey, edit), EDIT_DAYS * 86_400)
+    return json({ ok: true, firstName: worker.firstName, token, until })
   }
 
   // Everything else is a manager's.

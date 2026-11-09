@@ -1080,5 +1080,10 @@
  "שולחים את ההודעה לקבוצה. כל עובד ממלא בטלפון את המספר שלו ואת הימים שאין לו אפשרות, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו.": "Envoyez le message au groupe. Chaque employé saisit sur son téléphone son numéro et les jours où il ne peut pas, puis appuie sur envoyer. Cela s'ajoute tout seul à ses contraintes.",
  "שולחים לקבוצת העובדים בוואטסאפ קישור לטופס של השבוע שבוחרים. כל עובד ממלא את הנייד שלו ובאילו ימים הוא לא יכול, ולוחץ שליחה. זה נכנס לבד לאילוצים שלו, אז השיבוץ יודע לא לשים אותו בימים האלה.": "Envoyez au groupe WhatsApp des employés un lien vers le formulaire de la semaine choisie. Chacun saisit son portable et les jours où il ne peut pas, puis appuie sur envoyer. Cela s'ajoute tout seul à ses contraintes, et la planification ne le place pas ces jours-là.",
  "שלום לכולם, נא למלא בקישור באילו ימים אין לכם אפשרות לעבוד בשבוע {v} עד {v2}. ממלאים את מספר הנייד שלכם ושולחים, זה לוקח דקה:\n{url}": "Bonjour à tous, merci d'indiquer via le lien les jours où vous ne pouvez pas travailler la semaine du {v} au {v2}. Saisissez votre numéro de portable et envoyez, cela prend une minute :\n{url}",
- "שליחת טופס אילוצים בוואטסאפ": "Envoyer le formulaire de contraintes sur WhatsApp"
+ "שליחת טופס אילוצים בוואטסאפ": "Envoyer le formulaire de contraintes sur WhatsApp",
+ "אם טעית, אפשר לפתוח שוב את הקישור ולתקן עד השעה {v}.": "En cas d'erreur, vous pouvez rouvrir le lien et corriger jusqu'à {v}.",
+ "זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Voici ce que vous avez envoyé. Deux heures se sont écoulées depuis le premier envoi, il n'est donc plus possible de corriger. Pour modifier, adressez-vous à votre responsable.",
+ "כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.": "Vous avez déjà envoyé, voici votre réponse. Vous pouvez corriger et renvoyer jusqu'à {v}.",
+ "עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.": "Deux heures se sont écoulées depuis le premier envoi, il n'est donc plus possible de corriger. Pour modifier, adressez-vous à votre responsable.",
+ "שליחת התיקון למנהל": "Envoyer la correction au responsable"
 }

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { Field, inputClass } from '../components/Sheet'
 import { isIsraeliMobile } from '../lib/catalog'
-import { dayAnswer, readConstraintForm, savedPhone, savePhone, submitConstraints, type DayChoice, type DayPart } from '../lib/constraintForm'
+import { dayAnswer, dayChoiceOf, readConstraintForm, savedPhone, savePhone, savedToken, saveToken, submitConstraints, type DayChoice, type DayPart } from '../lib/constraintForm'
 import { addDays, DAY_NAMES, showDate } from '../lib/shifts'
 
 // The page a worker opens from the WhatsApp link: the days of one week they cannot work. No sign-in;
@@ -19,6 +19,12 @@ const PARTS: { id: DayPart; name: string }[] = [
 
 const blankDays = (): DayChoice[] => Array.from({ length: 7 }, () => ({ text: '', weekly: false }))
 
+/** "14:35": the hour a fix is taken until, on the worker's phone clock. */
+const clock = (ms: number) => {
+  const d = new Date(ms)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 export function ConstraintForm({ code }: { code: string }) {
   const [weekStart, setWeekStart] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -28,11 +34,24 @@ export function ConstraintForm({ code }: { code: string }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [sentTo, setSentTo] = useState<string | null>(null)
+  // Set once this phone has sent an answer to this week: fixing is taken until then (two hours from the first).
+  const [until, setUntil] = useState<number | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+  const locked = until !== null && now > until
 
   useEffect(() => {
     document.title = tx('אילוצים לשבוע')
-    readConstraintForm(code).then(
-      (r) => setWeekStart(r.weekStart),
+    readConstraintForm(code, savedToken(code)).then(
+      (r) => {
+        // Opened again: the answer already sent, to fix instead of filling again.
+        if (r.mine) {
+          setDays(r.mine.days.map(dayChoiceOf))
+          setNotes(r.mine.notes)
+          setUntil(r.mine.until)
+          setNow(Date.now())
+        }
+        setWeekStart(r.weekStart)
+      },
       (e: Error) => setLoadError(e.message),
     )
   }, [code])
@@ -47,8 +66,11 @@ export function ConstraintForm({ code }: { code: string }) {
     setError(null)
     setBusy(true)
     try {
-      const r = await submitConstraints(code, phone, days.map(dayAnswer), notes)
+      const r = await submitConstraints(code, phone, days.map(dayAnswer), notes, savedToken(code))
       savePhone(phone)
+      saveToken(code, r.token)
+      setUntil(r.until)
+      setNow(Date.now())
       setSentTo(r.firstName)
       window.scrollTo(0, 0)
     } catch (e) {
@@ -64,7 +86,13 @@ export function ConstraintForm({ code }: { code: string }) {
         <CheckCircle2 size={48} className="text-emerald-400" aria-hidden />
         <h1 className="text-2xl font-bold">{tx('תודה, {trim}!', { trim: sentTo })}</h1>
         <p className="text-slate-300">{tx('האילוצים שלך נשלחו למנהל. אפשר לסגור את הדף.')}</p>
-        <button type="button" onClick={() => setSentTo(null)} className="min-h-11 rounded-xl border border-slate-700 px-4 text-sm text-slate-300">
+        {until !== null && <p className="text-sm text-slate-400">{tx('אם טעית, אפשר לפתוח שוב את הקישור ולתקן עד השעה {v}.', { v: clock(until) })}</p>}
+        <button
+          type="button"
+          onClick={() => {
+            setNow(Date.now())
+            setSentTo(null)
+          }} className="min-h-11 rounded-xl border border-slate-700 px-4 text-sm text-slate-300">
           {tx('טעיתי, לתקן ולשלוח שוב')}
         </button>
       </main>
@@ -92,6 +120,16 @@ export function ConstraintForm({ code }: { code: string }) {
         <p className="text-sm text-slate-400">{tx('מסמנים רק את הימים שבהם אין לך אפשרות לעבוד. יום שלא סימנת, המנהל יודע שאפשר לשבץ אותך בו.')}</p>
       </header>
 
+      {until !== null && (
+        <p role="status" className={`rounded-xl border p-3 text-sm ${locked ? 'border-slate-700 bg-slate-900 text-slate-300' : 'border-sky-500/40 bg-sky-500/10 text-sky-200'}`}>
+          {locked
+            ? tx('זה מה ששלחת. עברו שעתיים מהשליחה הראשונה, אז אי אפשר לתקן יותר. לשינוי פנה למנהל.')
+            : tx('כבר שלחת, וזה מה ששלחת. אפשר לתקן ולשלוח שוב עד השעה {v}.', { v: clock(until) })}
+        </p>
+      )}
+
+      {/* After the two hours the answer stays on screen, but nothing in it can be changed. */}
+      <fieldset disabled={locked} className="m-0 min-w-0 space-y-5 border-0 p-0">
       <Field label={tx('הטלפון הנייד שלך (חובה)')} hint={tx('אותו מספר שיש למנהל. לפיו הוא יודע שזה אתה.')}>
         <input type="tel" dir="ltr" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={`${inputClass} text-right`} />
       </Field>
@@ -142,6 +180,8 @@ export function ConstraintForm({ code }: { code: string }) {
         <textarea rows={3} value={notes} maxLength={500} onChange={(e) => setNotes(e.target.value)} className={inputClass} />
       </Field>
 
+      </fieldset>
+
       <p className="text-xs text-slate-400">
         {tx('מה שנשלח מגיע רק למנהל העבודה שלך, כדי לא לשבץ אותך בימים שאין לך אפשרות.')}{' '}
         <a href="/privacy.html" target="_blank" rel="noopener" className="text-sky-300 underline">
@@ -154,9 +194,11 @@ export function ConstraintForm({ code }: { code: string }) {
           {error}
         </p>
       )}
+      {!locked && (
       <button type="button" onClick={send} disabled={busy} className="min-h-12 w-full rounded-xl bg-sky-500 font-semibold text-slate-950 disabled:opacity-50">
-        {busy ? tx('שולח...') : tx('שליחה למנהל')}
+        {busy ? tx('שולח...') : until !== null ? tx('שליחת התיקון למנהל') : tx('שליחה למנהל')}
       </button>
+      )}
     </main>
   )
 }
