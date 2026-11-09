@@ -22,7 +22,7 @@ describe('constraints', () => {
   it('writes each kind in plain Hebrew', () => {
     expect(constraintText(c({ from: '2026-11-01', to: '2026-11-05' }))).toBe('לא זמין 1.11 עד 5.11')
     expect(constraintText(c({ from: '2026-11-01', to: '2026-11-01' }))).toBe('לא זמין ב-1.11')
-    expect(constraintText(c({ when: 'weekdays', weekdays: [5] }))).toBe('לא זמין ביום שישי')
+    expect(constraintText(c({ when: 'weekdays', weekdays: [5] }))).toBe('לא זמין בימי שישי')
     expect(constraintText(c({ when: 'weekdays', weekdays: [4, 2], nightsOnly: true }))).toBe('בלי לילות בימי שלישי וחמישי')
     expect(constraintText(c({ when: 'always', nightsOnly: true }))).toBe('בלי לילות בכלל')
   })
@@ -151,7 +151,7 @@ describe('weekly constraint with a last date', () => {
   })
 
   it('says the last date, and is over after it', () => {
-    expect(constraintText(weekly('2026-11-16'))).toBe('לא זמין ביום שני עד 16.11')
+    expect(constraintText(weekly('2026-11-16'))).toBe('לא זמין בימי שני עד 16.11')
     expect(isOver(weekly('2026-11-16'), '2026-11-17')).toBe(true)
     expect(isOver(weekly(), '2030-01-01')).toBe(false)
     expect(normalizeConstraint(weekly('2026-11-16')).to).toBe('2026-11-16')

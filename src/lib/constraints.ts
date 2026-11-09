@@ -68,7 +68,8 @@ export function constraintText(c: Constraint): string {
   if (c.id === SICK_ID) return tx('במחלה עד {v}', { v: showDate(c.to!) })
   const what = c.kind ? ABSENCE_NAMES[c.kind] : c.nightsOnly ? tx('בלי לילות') : c.part ? tx('לא זמין {v}', { v: PART_NAMES[c.part] }) : tx('לא זמין')
   if (c.when === 'always') return tx('בלי לילות בכלל')
-  if (c.when === 'weekdays') return `${what} ${c.weekdays?.length === 1 ? tx('ביום') : tx('בימי')} ${dayList(c.weekdays ?? [])}${c.to ? tx(' עד {v}', { v: showDate(c.to) }) : ''}`
+  // Weekly repeats, so always the plural "בימי רביעי" (the manager's wording, 2026-11-09), also for one day.
+  if (c.when === 'weekdays') return `${what} ${tx('בימי')} ${dayList(c.weekdays ?? [])}${c.to ? tx(' עד {v}', { v: showDate(c.to) }) : ''}`
   if (!c.from) return what
   // A Hebrew word between the dates: "1.11 - 5.11" shows reversed in a right-to-left line.
   return c.to && c.to !== c.from ? tx('{what} {v} עד {v2}', { what, v: showDate(c.from), v2: showDate(c.to) }) : tx('{what} ב-{v}', { what, v: showDate(c.from) })

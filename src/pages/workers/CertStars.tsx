@@ -1,5 +1,5 @@
-import { Star } from 'lucide-react'
-import type { KeyboardEvent, MouseEvent } from 'react'
+import { ChevronDown, Star } from 'lucide-react'
+import { useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Sheet } from '../../components/Sheet'
 import { tx } from '../../i18n'
 import { DateField } from '../../components/DateField'
@@ -23,8 +23,13 @@ export function ExpiryNote({ worker, certId, today }: { worker: Worker; certId: 
   return <span className={`block text-xs ${EXPIRY_TONE[state]}`}>{expiryNote(worker, certId, today)}</span>
 }
 
-/** One row per certification the worker holds: its name, 5 stars to tap and the date it is valid until. */
+/**
+ * One row per certification the worker holds. Folded, a row shows only the name (orange or red when it
+ * ends soon or expired) and its stars (the manager's request, 2026-11-09); a tap opens it to edit the
+ * stars and the date it is valid until. One row is open at a time.
+ */
 export function CertStarsField({ worker, certs, onChange }: { worker: Worker; certs: { id: string; name: string }[]; onChange: (w: Worker) => void }) {
+  const [openId, setOpenId] = useState<string | null>(null)
   const held = certs.filter((c) => worker.certificationIds.includes(c.id))
   if (!held.length) return null
   const today = todayIso()
@@ -33,33 +38,54 @@ export function CertStarsField({ worker, certs, onChange }: { worker: Worker; ce
       {held.map((c) => {
         const stars = certStars(worker, c.id)
         const state = expiryState(worker, c.id, today)
+        const open = openId === c.id
         return (
-          <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-2 border-b border-slate-800/60 pb-1 last:border-0">
-            <span className={`min-w-0 truncate text-sm ${state ? EXPIRY_TONE[state] : ''}`}>{c.name}</span>
-            <span className="flex shrink-0" role="radiogroup" aria-label={tx('דירוג ב{name}', { name: c.name })}>
-              {Array.from({ length: MAX_STARS }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  role="radio"
-                  aria-checked={stars === n}
-                  aria-label={n === 1 ? tx('כוכב אחד') : tx('{n} כוכבים', { n })}
-                  onClick={() => onChange(rateCert(worker, c.id, n))}
-                  className="flex size-10 items-center justify-center"
-                >
-                  <Star size={22} aria-hidden className={n <= stars ? 'fill-amber-400 text-amber-400' : 'text-slate-600'} />
-                </button>
-              ))}
-            </span>
-            {/* "כללי" is held by every worker and does not expire. */}
-            {c.id !== GENERAL_CERT_ID && (
-              <div className="w-full pb-1">
-                <DateField
-                  label={tx('בתוקף עד (ריק = בלי תפוגה)')}
-                  value={worker.certExpiry?.[c.id] ?? ''}
-                  onChange={(date, ok) => ok && onChange(setCertExpiry(worker, c.id, date))}
-                />
-                <ExpiryNote worker={worker} certId={c.id} today={today} />
+          <li key={c.id} className="border-b border-slate-800/60 last:border-0">
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-label={`${tx('עריכת הסמכה')}: ${c.name}`}
+              onClick={() => setOpenId(open ? null : c.id)}
+              className="flex min-h-11 w-full items-center justify-between gap-2 text-start"
+            >
+              <span className={`min-w-0 truncate text-sm ${state ? EXPIRY_TONE[state] : ''}`}>{c.name}</span>
+              <span className="flex shrink-0 items-center gap-1">
+                <span className="flex gap-0.5" aria-hidden>
+                  {Array.from({ length: MAX_STARS }, (_, i) => (
+                    <Star key={i} size={16} className={i < stars ? 'fill-amber-400 text-amber-400' : 'text-slate-600'} />
+                  ))}
+                </span>
+                <ChevronDown size={18} aria-hidden className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+              </span>
+            </button>
+            {open && (
+              <div className="space-y-1 pb-2">
+                <span className="flex justify-center" role="radiogroup" aria-label={tx('דירוג ב{name}', { name: c.name })}>
+                  {Array.from({ length: MAX_STARS }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      role="radio"
+                      aria-checked={stars === n}
+                      aria-label={n === 1 ? tx('כוכב אחד') : tx('{n} כוכבים', { n })}
+                      onClick={() => onChange(rateCert(worker, c.id, n))}
+                      className="flex size-11 items-center justify-center"
+                    >
+                      <Star size={24} aria-hidden className={n <= stars ? 'fill-amber-400 text-amber-400' : 'text-slate-600'} />
+                    </button>
+                  ))}
+                </span>
+                {/* "כללי" is held by every worker and does not expire. */}
+                {c.id !== GENERAL_CERT_ID && (
+                  <>
+                    <DateField
+                      label={tx('בתוקף עד (ריק = בלי תפוגה)')}
+                      value={worker.certExpiry?.[c.id] ?? ''}
+                      onChange={(date, ok) => ok && onChange(setCertExpiry(worker, c.id, date))}
+                    />
+                    <ExpiryNote worker={worker} certId={c.id} today={today} />
+                  </>
+                )}
               </div>
             )}
           </li>

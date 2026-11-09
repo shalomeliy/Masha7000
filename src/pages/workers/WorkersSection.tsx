@@ -340,34 +340,25 @@ function TabIntro({ title, text }: { title: string; text: string }) {
 }
 
 /**
- * Two small counts beside the worker's name (the manager's request, 2026-11-09): orange, how many of
- * their certifications end within 30 days; red, how many already expired. Nothing when all are fine.
+ * One red "!" beside the worker's name when any of their certifications already expired or ends within
+ * 30 days (the manager's request, 2026-11-09, instead of two counts). Nothing when all are fine.
  */
-function ExpiryBadges({ worker, certIds, today }: { worker: Worker; certIds: string[]; today: string }) {
+function ExpiryAlert({ worker, certIds, today }: { worker: Worker; certIds: string[]; today: string }) {
   const { soon, expired } = expiryCounts(worker, certIds, today);
+  if (!soon && !expired) return null;
+  const label = [
+    expired > 0 ? tx('הסמכות שפג תוקפן: {n}', { n: expired }) : "",
+    soon > 0 ? tx('הסמכות שעומדות לפוג: {n}', { n: soon }) : "",
+  ].filter(Boolean).join(", ");
   return (
-    <>
-      {soon > 0 && (
-        <span
-          role="img"
-          aria-label={tx('הסמכות שעומדות לפוג: {n}', { n: soon })}
-          title={tx('הסמכות שעומדות לפוג: {n}', { n: soon })}
-          className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-orange-500 text-xs font-bold text-slate-950"
-        >
-          {soon}
-        </span>
-      )}
-      {expired > 0 && (
-        <span
-          role="img"
-          aria-label={tx('הסמכות שפג תוקפן: {n}', { n: expired })}
-          title={tx('הסמכות שפג תוקפן: {n}', { n: expired })}
-          className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white"
-        >
-          {expired}
-        </span>
-      )}
-    </>
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white"
+    >
+      !
+    </span>
   );
 }
 
@@ -405,10 +396,10 @@ function WorkerCard({
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
           <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
           <span className="max-w-full truncate">{fullName(w)}</span>
-          {/* One average star (a tap shows the stars in each certification) and the expiry counts, kept together. */}
+          {/* One average star (a tap shows the stars in each certification) and the expiry "!", kept together. */}
           <span className="flex shrink-0 items-center gap-1.5">
             <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
-            <ExpiryBadges worker={w} certIds={certList.map((c) => c.id)} today={today} />
+            <ExpiryAlert worker={w} certIds={certList.map((c) => c.id)} today={today} />
           </span>
         </span>
         <span className="flex flex-wrap gap-1">
@@ -750,7 +741,7 @@ function WorkerForm({
           </p>
         )}
         {draft.certificationIds.length > 0 && (
-          <p className="text-xs text-slate-400">{tx('כמה כוכבים העובד מקבל בכל הסמכה. "שבץ" מעדיף מי שיש לו יותר כוכבים.')}</p>
+          <p className="text-xs text-slate-400">{tx('כמה כוכבים העובד מקבל בכל הסמכה. "שבץ" מעדיף מי שיש לו יותר כוכבים.')} {tx('לחיצה על הסמכה פותחת את הכוכבים ואת תאריך התוקף שלה.')}</p>
         )}
         <CertStarsField worker={draft} certs={certs.items} onChange={setDraft} />
       </div>

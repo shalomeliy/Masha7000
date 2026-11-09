@@ -1013,6 +1013,7 @@
  "כל סוג עבודה אומר כמה אנשים הוא צריך ועם איזו הסמכה. כשבוחרים סוג בעבודה, האנשים שלו נוספים לבד ל\"כמה אנשים צריך\".": "Each work kind says how many people it needs and with which certification. When you pick a kind in a job, its people are added to \"How many people are needed\" on their own.",
  "כל עובד": "Any worker",
  "כמה כוכבים העובד מקבל בכל הסמכה. \"שבץ\" מעדיף מי שיש לו יותר כוכבים.": "How many stars the worker gets in each certification. \"Assign\" prefers whoever has more stars.",
+ "לחיצה על הסמכה פותחת את הכוכבים ואת תאריך התוקף שלה.": "Tap a certification to open its stars and expiry date.",
  "עוד אין הסמכות. מוסיפים אותן בהגדרות.": "No certifications yet. Add them in Settings.",
  "שולחים לעובדים בוואטסאפ קישור לטופס קצר. כל עובד ממלא שם, טלפון והסמכות, והתשובות מחכות כאן. בודקים, שומרים, ורק אז העובד נכנס לרשימה.": "Send the workers a WhatsApp link to a short form. Each worker fills in name, phone and certifications, and the answers wait here. Check, save, and only then the worker joins the list.",
  "תבנית עבודה אומרת אם העבודה נגמרת באותו יום או למחרת, כמה אנשים צריך בה ואילו הסמכות חייבות להיות בה.": "A job template says whether the job ends the same day or the next day, how many people it needs and which certifications must be in it.",
