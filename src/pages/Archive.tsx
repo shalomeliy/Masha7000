@@ -7,7 +7,7 @@ import { Field, inputClass } from '../components/Sheet'
 import { fullName, tagNames } from '../lib/catalog'
 import { RANGES, archivePlaces, archiveShifts, archiveSummary, rangeDates, taskLinks } from '../lib/archive'
 import type { ArchiveFilter } from '../lib/archive'
-import { useDriveList } from '../lib/data/useDriveList'
+import { useDriveList, useWholeHistory } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { defaultMonth, monthDates } from '../lib/monthReport'
 import { dayName, showDate } from '../lib/shifts'
@@ -25,6 +25,7 @@ const fullDate = (d: string) => `${showDate(d)}.${d.slice(0, 4)}`
 
 export function Archive() {
   const shifts = useDriveList('shifts')
+  const older = useWholeHistory() // the app opens with 3 months; the archive reads the older ones too
   const workers = useDriveList('workers')
   const lists = [shifts, workers, useDriveList('shiftDefinitions'), useDriveList('pendingJobs'), useDriveList('postponeReasons')]
   const loading = lists.some((l) => l.query.isPending)
@@ -67,6 +68,12 @@ export function Archive() {
         ))}
       </div>
 
+      {older && !loading && !failed && (
+        <p className="flex items-center gap-2 text-sm text-slate-400" role="status">
+          <Loader2 className="animate-spin" size={16} aria-hidden />
+          {tx('טוען גם את העבודות הישנות...')}
+        </p>
+      )}
       {failed ? (
         <DriveError error={failed.query.error} action="load" onRetry={() => lists.forEach((l) => l.query.isError && l.query.refetch())} />
       ) : loading ? (

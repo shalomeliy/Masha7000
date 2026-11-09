@@ -1091,5 +1091,6 @@
  "התוקף נגמר ב-{v}": "Berakhir pada {v}",
  "בתוקף עד (ריק = בלי תפוגה)": "Berlaku sampai (kosong = tanpa kedaluwarsa)",
  "הסמכות שעומדות לפוג: {n}": "Sertifikasi yang segera berakhir: {n}",
- "הסמכות שפג תוקפן: {n}": "Sertifikasi kedaluwarsa: {n}"
+ "הסמכות שפג תוקפן: {n}": "Sertifikasi kedaluwarsa: {n}",
+ "טוען גם את העבודות הישנות...": "Memuat pekerjaan lama juga..."
 }

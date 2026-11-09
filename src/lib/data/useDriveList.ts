@@ -1,7 +1,9 @@
-import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useIsFetching, useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConflictError, readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
-import { readShifts, saveShifts } from './shiftMonths'
+import { readShifts, saveShifts, windowStart } from './shiftMonths'
+import { todayIso } from '../dates'
 import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withGeneralCert, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
 import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Pronunciation, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
@@ -42,6 +44,21 @@ const normalizers: { [K in ListFile]?: (raw: never) => ListOf[K] } = {
 // Lists whose file was not found on the last read; cleared by the first save.
 const missingFiles = new Set<ListFile>()
 
+// Shifts: opening the app reads the last 3 months and every later one. The archive asks once for
+// the whole history; from then on every read of the shifts in this tab is the whole history.
+let wholeHistory = false
+
+/** For the archive: loads the older months too. True while they are being read. */
+export function useWholeHistory(): boolean {
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (wholeHistory) return
+    wholeHistory = true
+    void qc.invalidateQueries({ queryKey: ['drive', 'shifts'] })
+  }, [qc])
+  return useIsFetching({ queryKey: ['drive', 'shifts'] }) > 0
+}
+
 export function useDriveList<K extends ListFile>(key: K) {
   type T = ListOf[K]
   const qc = useQueryClient()
@@ -50,7 +67,7 @@ export function useDriveList<K extends ListFile>(key: K) {
   const query = useQuery({
     queryKey: ['drive', key],
     queryFn: async () => {
-      const stored = key === 'shifts' ? await readShifts<ShiftRecord>() as T[] | null : await readJson<T[]>(file)
+      const stored = key === 'shifts' ? await readShifts<ShiftRecord>(wholeHistory ? undefined : windowStart(todayIso())) as T[] | null : await readJson<T[]>(file)
       if (stored === null) missingFiles.add(key)
       else missingFiles.delete(key)
       // No departments file yet: the starter list, written to the file with the first save.
@@ -69,8 +86,11 @@ export function useDriveList<K extends ListFile>(key: K) {
     mutationKey: ['drive', key],
     scope: { id: `drive-${key}` },
     mutationFn: async (next: T[]) => {
-      if (key === 'shifts') await saveShifts(next as ShiftRecord[])
-      else await writeJson(file, next)
+      if (key === 'shifts') {
+        // A shift dated into an older month not read yet: that month's shifts join the list.
+        const all = await saveShifts(next as ShiftRecord[])
+        if (all !== (next as unknown)) qc.setQueryData<T[]>(['drive', key], (cur) => (cur === next ? (all.map(normalizeShiftRecord) as T[]) : cur))
+      } else await writeJson(file, next)
       missingFiles.delete(key)
     },
     onMutate: async (next) => {

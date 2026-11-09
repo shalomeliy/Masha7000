@@ -1091,5 +1091,6 @@
  "התוקף נגמר ב-{v}": "Vence el {v}",
  "בתוקף עד (ריק = בלי תפוגה)": "Válida hasta (vacío = sin vencimiento)",
  "הסמכות שעומדות לפוג: {n}": "Certificaciones por vencer: {n}",
- "הסמכות שפג תוקפן: {n}": "Certificaciones vencidas: {n}"
+ "הסמכות שפג תוקפן: {n}": "Certificaciones vencidas: {n}",
+ "טוען גם את העבודות הישנות...": "Cargando también los trabajos antiguos..."
 }

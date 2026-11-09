@@ -3,8 +3,10 @@ import { expectAbsent, forgetVersions, listNames, peekJson, readJson, renameFile
 
 // Shifts are kept one Drive file per month (shifts-2026-11.json), by the day each shift starts.
 // A save writes only the months whose shifts changed, so its size stays a month's worth however
-// long the history grows. Every month is still read when the app opens, so the screens and the
-// archive see the whole list as before.
+// long the history grows. Opening the app reads only the last 3 months and every later one
+// (windowStart); the older months are read only when the archive asks for the whole history.
+// A month left unread is never written by a save, so it is never emptied by mistake. A shift dated
+// into such a month makes the save read that month first and keep its shifts.
 // The old single shifts.json is split into months the first time it is found, then renamed to
 // shifts-old-<time>.json and kept untouched as a copy. If an app not yet updated writes shifts.json
 // again, its list is split in the same way, and its shifts win over the month files' ones.
@@ -47,26 +49,43 @@ export function mergeLegacy<T extends Dated>(months: T[], legacy: T[]): T[] {
   return [...months.filter((s) => !ids.has(s.id)), ...legacy]
 }
 
+/** The first month read when the app opens: three months before today's month (2026-11-09 gives 2026-08). */
+export function windowStart(today: string): string {
+  const months = Number(today.slice(0, 4)) * 12 + Number(today.slice(5, 7)) - 1 - 3
+  return `${Math.floor(months / 12)}-${String((months % 12) + 1).padStart(2, '0')}`
+}
+
 /** Each month file as last read or written here, to write only what changed. */
 const saved = new Map<string, string>()
+/** Month files found on Drive but left unread (older than the window), never to be written blindly. */
+const unread = new Set<string>()
 
-async function readMonths<T>(baseline: boolean): Promise<{ months: Map<string, T[]>; found: boolean }> {
-  const names = [...new Set(await listNames('shifts-', MONTH_FILE))].sort()
+async function readMonths<T>(baseline: boolean, from?: string): Promise<{ months: Map<string, T[]>; found: boolean }> {
+  const all = [...new Set(await listNames('shifts-', MONTH_FILE))].sort()
+  const names = from ? all.filter((n) => n.match(MONTH_FILE)![1] >= from) : all
   const lists = await Promise.all(names.map((n) => (baseline ? readJson<T[]>(n) : peekJson<T[]>(n))))
+  if (baseline) {
+    saved.clear()
+    unread.clear()
+    for (const n of all) if (!names.includes(n)) unread.add(n)
+  }
   const months = new Map<string, T[]>()
   names.forEach((n, i) => {
     const list = lists[i] ?? []
     months.set(n.match(MONTH_FILE)![1], list)
     if (baseline) saved.set(n, JSON.stringify(list))
   })
-  return { months, found: names.length > 0 }
+  return { months, found: all.length > 0 }
 }
 
-/** Every shift, or null when nothing was ever saved. Splits an old shifts.json into months on the way. */
-export async function readShifts<T extends Dated>(): Promise<T[] | null> {
+/**
+ * The shifts from month `from` (YYYY-MM) on, or every shift when it is left out; null when nothing
+ * was ever saved. Splits an old shifts.json into months on the way (then every month is read).
+ */
+export async function readShifts<T extends Dated>(from?: string): Promise<T[] | null> {
   const old = `shifts-old-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
   const renamed = await renameFile(LEGACY, old)
-  const [{ months, found }, legacy] = await Promise.all([readMonths<T>(true), renamed ? peekJson<T[]>(old) : null])
+  const [{ months, found }, legacy] = await Promise.all([readMonths<T>(true, renamed ? undefined : from), renamed ? peekJson<T[]>(old) : null])
   const all = uniqueIds([...months.values()].flat())
   if (!legacy) return found || renamed ? all : null
   const merged = mergeLegacy(all, legacy)
@@ -86,8 +105,19 @@ export async function peekShifts<T extends Dated>(): Promise<T[]> {
   return legacy ? mergeLegacy(all, legacy) : all
 }
 
-/** Writes the months whose shifts changed; a month left with no shifts is written empty. */
-export async function saveShifts<T extends Dated>(list: T[]): Promise<void> {
+/**
+ * Writes the months whose shifts changed; a month left with no shifts is written empty.
+ * Returns the list as saved: when a shift lands in a month left unread, that month's shifts join it.
+ */
+export async function saveShifts<T extends Dated>(input: T[]): Promise<T[]> {
+  let list = input
+  const reach = [...new Set(list.map((s) => monthFile(monthOf(s))))].filter((n) => unread.has(n))
+  if (reach.length) {
+    const lists = await Promise.all(reach.map((n) => readJson<T[]>(n)))
+    reach.forEach((n, i) => (unread.delete(n), saved.set(n, JSON.stringify(lists[i] ?? []))))
+    const ids = new Set(list.map((s) => s.id))
+    list = [...lists.flatMap((l) => l ?? []).filter((s) => !ids.has(s.id)), ...list]
+  }
   const next = byMonth(list)
   const changed = [...new Set([...[...next.keys()].map(monthFile), ...saved.keys()])]
     .sort()
@@ -101,6 +131,7 @@ export async function saveShifts<T extends Dated>(list: T[]): Promise<void> {
     await writeJson(m.name, m.body)
     saved.set(m.name, JSON.stringify(m.body))
   }
+  return list
 }
 
 /** A restore replaces every month: those found on Drive now, not only the ones this screen read. */
@@ -108,6 +139,7 @@ export async function restoreShifts<T extends Dated>(list: T[], retry: boolean):
   const names = await listNames('shifts-', MONTH_FILE)
   if (retry) forgetVersions([...names, ...saved.keys()])
   for (const n of names) if (!saved.has(n)) saved.set(n, '')
+  unread.clear()
   await saveShifts(list)
   // A shifts.json left by an older app would be laid over the restored shifts on the next read.
   await renameFile(LEGACY, `shifts-old-${new Date().toISOString().replace(/[:.]/g, '-')}.json`)

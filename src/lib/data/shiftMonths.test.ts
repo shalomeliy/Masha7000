@@ -122,3 +122,46 @@ describe('shifts kept by month', () => {
     expect((await (await load()).readShifts())!.map((s) => s.id)).toEqual(['x'])
   })
 })
+
+describe('opening reads only the recent months', () => {
+  it('the window starts three months before this month', async () => {
+    const m = await load()
+    expect(m.windowStart('2026-11-09')).toBe('2026-08')
+    expect(m.windowStart('2026-02-28')).toBe('2025-11')
+    expect(m.windowStart('2026-03-01')).toBe('2025-12')
+  })
+
+  it('reads only months from the window on; a save never touches the older ones', async () => {
+    files.set('shifts-2026-01.json', JSON.stringify([shift('old', '2026-01-05')]))
+    files.set('shifts-2026-10.json', JSON.stringify([shift('a', '2026-10-30')]))
+    const m = await load()
+    const recent = (await m.readShifts('2026-08'))!
+    expect(recent.map((s) => s.id)).toEqual(['a'])
+    await m.saveShifts([...recent, shift('b', '2026-11-01')])
+    expect(uploads).toEqual(['shifts-2026-11.json'])
+    expect(JSON.parse(files.get('shifts-2026-01.json')!)).toEqual([shift('old', '2026-01-05')])
+  })
+
+  it('only old months on Drive still counts as saved, not as a new list', async () => {
+    files.set('shifts-2025-01.json', JSON.stringify([shift('old', '2025-01-05')]))
+    const m = await load()
+    expect(await m.readShifts('2026-08')).toEqual([])
+  })
+
+  it("a shift dated into an unread month keeps that month's shifts and joins them to the list", async () => {
+    files.set('shifts-2026-01.json', JSON.stringify([shift('old', '2026-01-05')]))
+    const m = await load()
+    await m.readShifts('2026-08')
+    const saved = await m.saveShifts([shift('moved', '2026-01-20')])
+    expect(saved.map((s) => s.id).sort()).toEqual(['moved', 'old'])
+    expect(JSON.parse(files.get('shifts-2026-01.json')!).map((s: { id: string }) => s.id).sort()).toEqual(['moved', 'old'])
+  })
+
+  it('the whole history reads every month', async () => {
+    files.set('shifts-2026-01.json', JSON.stringify([shift('old', '2026-01-05')]))
+    files.set('shifts-2026-10.json', JSON.stringify([shift('a', '2026-10-30')]))
+    const m = await load()
+    await m.readShifts('2026-08')
+    expect((await m.readShifts())!.map((s) => s.id)).toEqual(['old', 'a'])
+  })
+})
