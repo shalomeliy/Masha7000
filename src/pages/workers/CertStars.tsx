@@ -4,7 +4,7 @@ import { Sheet } from '../../components/Sheet'
 import { tx } from '../../i18n'
 import { DateField } from '../../components/DateField'
 import { certStars, fullName, GENERAL_CERT_ID, MAX_STARS } from '../../lib/catalog'
-import { expiryNote, expiryState, setCertExpiry } from '../../lib/certExpiry'
+import { daysLeftText, expiryNote, expiryState, setCertExpiry } from '../../lib/certExpiry'
 import { averageStars, rateCert } from '../../lib/certRatings'
 import { todayIso } from '../../lib/dates'
 import { useDriveList } from '../../lib/data/useDriveList'
@@ -24,9 +24,10 @@ export function ExpiryNote({ worker, certId, today }: { worker: Worker; certId: 
 }
 
 /**
- * One row per certification the worker holds. Folded, a row shows only the name (orange or red when it
- * ends soon or expired) and its stars (the manager's request, 2026-11-09); a tap opens it to edit the
- * stars and the date it is valid until. One row is open at a time.
+ * One row per certification the worker holds. Folded, a row shows the name (orange or red when it ends
+ * soon or expired), the days left until it ends, and its stars (the manager's request, 2026-11-09). A
+ * tap opens it: the same stars become tappable, and the date it is valid until shows under them. One
+ * row is open at a time.
  */
 export function CertStarsField({ worker, certs, onChange }: { worker: Worker; certs: { id: string; name: string }[]; onChange: (w: Worker) => void }) {
   const [openId, setOpenId] = useState<string | null>(null)
@@ -38,29 +39,24 @@ export function CertStarsField({ worker, certs, onChange }: { worker: Worker; ce
       {held.map((c) => {
         const stars = certStars(worker, c.id)
         const state = expiryState(worker, c.id, today)
+        const left = daysLeftText(worker, c.id, today)
         const open = openId === c.id
+        const toggle = () => setOpenId(open ? null : c.id)
         return (
           <li key={c.id} className="border-b border-slate-800/60 last:border-0">
-            <button
-              type="button"
-              aria-expanded={open}
-              aria-label={`${tx('עריכת הסמכה')}: ${c.name}`}
-              onClick={() => setOpenId(open ? null : c.id)}
-              className="flex min-h-11 w-full items-center justify-between gap-2 text-start"
-            >
-              <span className={`min-w-0 truncate text-sm ${state ? EXPIRY_TONE[state] : ''}`}>{c.name}</span>
-              <span className="flex shrink-0 items-center gap-1">
-                <span className="flex gap-0.5" aria-hidden>
-                  {Array.from({ length: MAX_STARS }, (_, i) => (
-                    <Star key={i} size={16} className={i < stars ? 'fill-amber-400 text-amber-400' : 'text-slate-600'} />
-                  ))}
-                </span>
-                <ChevronDown size={18} aria-hidden className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-              </span>
-            </button>
-            {open && (
-              <div className="space-y-1 pb-2">
-                <span className="flex justify-center" role="radiogroup" aria-label={tx('דירוג ב{name}', { name: c.name })}>
+            <div className="flex min-h-11 items-center gap-2">
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-label={`${tx('עריכת הסמכה')}: ${c.name}${left ? `, ${left}` : ''}`}
+                onClick={toggle}
+                className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-2 text-start"
+              >
+                <span className={`min-w-0 truncate text-sm ${state ? EXPIRY_TONE[state] : ''}`}>{c.name}</span>
+                {left && <span className={`shrink-0 text-xs ${state ? EXPIRY_TONE[state] : 'text-slate-400'}`}>{left}</span>}
+              </button>
+              {open ? (
+                <span className="flex shrink-0" role="radiogroup" aria-label={tx('דירוג ב{name}', { name: c.name })}>
                   {Array.from({ length: MAX_STARS }, (_, i) => i + 1).map((n) => (
                     <button
                       key={n}
@@ -69,23 +65,31 @@ export function CertStarsField({ worker, certs, onChange }: { worker: Worker; ce
                       aria-checked={stars === n}
                       aria-label={n === 1 ? tx('כוכב אחד') : tx('{n} כוכבים', { n })}
                       onClick={() => onChange(rateCert(worker, c.id, n))}
-                      className="flex size-11 items-center justify-center"
+                      className="flex size-9 items-center justify-center"
                     >
-                      <Star size={24} aria-hidden className={n <= stars ? 'fill-amber-400 text-amber-400' : 'text-slate-600'} />
+                      <Star size={20} aria-hidden className={n <= stars ? 'fill-amber-400 text-amber-400' : 'text-slate-600'} />
                     </button>
                   ))}
                 </span>
-                {/* "כללי" is held by every worker and does not expire. */}
-                {c.id !== GENERAL_CERT_ID && (
-                  <>
-                    <DateField
-                      label={tx('בתוקף עד (ריק = בלי תפוגה)')}
-                      value={worker.certExpiry?.[c.id] ?? ''}
-                      onChange={(date, ok) => ok && onChange(setCertExpiry(worker, c.id, date))}
-                    />
-                    <ExpiryNote worker={worker} certId={c.id} today={today} />
-                  </>
-                )}
+              ) : (
+                <button type="button" tabIndex={-1} aria-hidden onClick={toggle} className="flex min-h-11 shrink-0 items-center gap-0.5">
+                  {Array.from({ length: MAX_STARS }, (_, i) => (
+                    <Star key={i} size={16} className={i < stars ? 'fill-amber-400 text-amber-400' : 'text-slate-600'} />
+                  ))}
+                </button>
+              )}
+              <button type="button" tabIndex={-1} aria-hidden onClick={toggle} className="flex size-8 shrink-0 items-center justify-center">
+                <ChevronDown size={18} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+            {/* "כללי" is held by every worker and does not expire. */}
+            {open && c.id !== GENERAL_CERT_ID && (
+              <div className="pb-2">
+                <DateField
+                  label={tx('בתוקף עד (ריק = בלי תפוגה)')}
+                  value={worker.certExpiry?.[c.id] ?? ''}
+                  onChange={(date, ok) => ok && onChange(setCertExpiry(worker, c.id, date))}
+                />
               </div>
             )}
           </li>

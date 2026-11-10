@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { expiryCounts, expiryNote, expiryState, keepHeldExpiry, setCertExpiry, validOn } from './certExpiry'
+import { daysLeft, daysLeftText, expiryCounts, expiryNote, expiryState, keepHeldExpiry, setCertExpiry, validOn } from './certExpiry'
 import { autoAssign } from './planner'
 import type { ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
@@ -54,5 +54,17 @@ describe('certification expiry', () => {
     const alone = autoAssign(shift, [{ certificationIds: ['climber'] }], { ...ctx, workers: [lapsed] })
     expect(alone.crew).toEqual([])
     expect(alone.why[0]).toContain('ההסמכה פגה אצל: a')
+  })
+
+  it('counts the days left until a certification ends', () => {
+    const w = { certExpiry: { a: '2026-11-30', b: '2026-11-10', c: '2026-11-09', d: '2026-10-29' } }
+    expect(daysLeft(w, 'a', '2026-11-09')).toBe(21)
+    expect(daysLeftText(w, 'a', '2026-11-09')).toBe('עוד 21 ימים')
+    expect(daysLeftText(w, 'b', '2026-11-09')).toBe('עוד יום')
+    expect(daysLeftText(w, 'c', '2026-11-09')).toBe('נגמר היום')
+    expect(daysLeftText(w, 'd', '2026-11-09')).toBe('פג תוקף')
+    expect(daysLeftText(w, 'none', '2026-11-09')).toBeNull()
+    // Across the clock change at the end of October, still whole days.
+    expect(daysLeft({ certExpiry: { a: '2026-11-02' } }, 'a', '2026-10-20')).toBe(13)
   })
 })

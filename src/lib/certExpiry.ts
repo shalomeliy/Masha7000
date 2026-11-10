@@ -45,6 +45,22 @@ export function expiryNote(w: Pick<Worker, 'certExpiry'>, certId: string, today:
   return state === 'expired' ? tx('פג תוקף ב-{v}', { v }) : tx('התוקף נגמר ב-{v}', { v })
 }
 
+/** Days from `today` to the last valid day (0 = ends today, negative = expired), or null with no expiry date. */
+export function daysLeft(w: Pick<Worker, 'certExpiry'>, certId: string, today: string): number | null {
+  const until = w.certExpiry?.[certId]
+  if (!until) return null
+  return Math.round((Date.parse(`${until}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000)
+}
+
+/** "עוד 21 ימים", "עוד יום", "נגמר היום", "פג תוקף"; null with no expiry date. */
+export function daysLeftText(w: Pick<Worker, 'certExpiry'>, certId: string, today: string): string | null {
+  const n = daysLeft(w, certId, today)
+  if (n === null) return null
+  if (n < 0) return tx('פג תוקף')
+  if (n === 0) return tx('נגמר היום')
+  return n === 1 ? tx('עוד יום') : tx('עוד {n} ימים', { n })
+}
+
 /** How many of `certIds` the worker holds that end soon and that already expired. */
 export function expiryCounts(w: Worker, certIds: string[], today: string): { soon: number; expired: number } {
   const held = certIds.filter((id) => w.certificationIds.includes(id))
