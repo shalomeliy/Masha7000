@@ -2,14 +2,14 @@
 // Run: npx vitest run spikes/voice-assistant/v2.live.test.ts  (needs ANTHROPIC_API_KEY in .env.local)
 // Costs a few cents. Not part of `npm test` (vitest only collects src/ by default config? it is
 // skipped unless LIVE=1).
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { it } from 'vitest'
 import { runAssistant } from '../../api/_lib/assistant'
 import { snapshot, type AppData } from '../../src/lib/assistant'
 import type { ShiftRecord, Worker } from '../../src/types/models'
 
 const env = Object.fromEntries(
-  readFileSync(new URL('../../.env.local', import.meta.url), 'utf8')
+  (existsSync(new URL('../../.env.local', import.meta.url)) ? readFileSync(new URL('../../.env.local', import.meta.url), 'utf8') : '')
     .split(/\r?\n/)
     .filter((l) => /^\w+=/.test(l))
     .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]),

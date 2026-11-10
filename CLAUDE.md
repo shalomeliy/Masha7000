@@ -53,6 +53,7 @@ Before calling it done:
 | Spike result and verdict | `docs/spikes/<feature>.md` | `feature-spike` |
 | Implementation plan | `docs/plans/<feature>-PLAN.md` | `architecture-plan` |
 | Solved-problem learnings | `docs/solutions/` | `ce-compound` |
+| Code scans (bugs, security, speed) | `docs/reviews/<date>-code-scan.md` | main session |
 
 ## Skill routing: which skill when
 

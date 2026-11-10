@@ -29,8 +29,11 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone()
-          caches.open(CACHE).then((cache) => cache.put('/', copy))
+          // Only a good page becomes the offline copy: a server error page must never replace it.
+          if (response.ok) {
+            const copy = response.clone()
+            caches.open(CACHE).then((cache) => cache.put('/', copy))
+          }
           return response
         })
         .catch(() => caches.match('/')),

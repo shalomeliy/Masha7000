@@ -2,7 +2,7 @@
 // Throwaway spike for the phase 2 advisor: given a hard staffing problem, does the model return up to
 // 5 ranked, correct, doable solutions from the app's snapshot? Haiku vs Sonnet.
 // Run: LIVE=1 npx vitest run spikes/advisor/advisor.live.test.ts --dir . --silent=false
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { it } from 'vitest'
 import { runAssistant } from '../../api/_lib/assistant'
 import { normalizeProposal, proposalErrors } from '../../src/lib/assistant'
@@ -11,7 +11,7 @@ import { snapshot, type AppData } from '../../src/lib/assistant'
 import type { ShiftRecord, Worker } from '../../src/types/models'
 
 const env = Object.fromEntries(
-  readFileSync(new URL('../../.env.local', import.meta.url), 'utf8')
+  (existsSync(new URL('../../.env.local', import.meta.url)) ? readFileSync(new URL('../../.env.local', import.meta.url), 'utf8') : '')
     .split(/\r?\n/)
     .filter((l) => /^\w+=/.test(l))
     .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]),

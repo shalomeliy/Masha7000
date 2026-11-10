@@ -660,7 +660,7 @@ export function continueWho(text: string, p: PendingWho, d: AppData, L: Learned,
     const only = fits.filter(Boolean).length === 1 ? fits.indexOf(true) : -1
     // When the said words fit both, the closer last name decides.
     if (only < 0) {
-      const scores = options.map((w) => Math.min(...ws.map((x) => nameDistance(x, w.lastName || ' '))))
+      const scores = options.map((w) => Math.min(...ws.map((x) => nameDistance(x, w.lastName || '\u0000'))))
       const best = Math.min(...scores)
       if (fits.every(Boolean) && scores.filter((x) => x === best).length === 1 && best <= 1) pick = scores.indexOf(best)
     } else pick = only

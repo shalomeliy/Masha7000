@@ -1,7 +1,7 @@
 // Throwaway spike: the code solves a "worker missing from a job" problem in milliseconds and the
 // model only recognizes the problem (and, in variant B, ranks and words it). Measures the time.
 // Run: LIVE=1 npx vitest run spikes/solver/solver.live.test.ts --dir . --silent=false
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import Anthropic from '@anthropic-ai/sdk'
 import { assertPaidCallAllowed } from '../../api/_lib/spendGuard.js'
 import { it } from 'vitest'
@@ -15,7 +15,7 @@ import { addDays, dayName, moveShift, showDate } from '../../src/lib/shifts'
 import type { ShiftRecord, Worker } from '../../src/types/models'
 
 const env = Object.fromEntries(
-  readFileSync(new URL('../../.env.local', import.meta.url), 'utf8')
+  (existsSync(new URL('../../.env.local', import.meta.url)) ? readFileSync(new URL('../../.env.local', import.meta.url), 'utf8') : '')
     .split(/\r?\n/)
     .filter((l) => /^\w+=/.test(l))
     .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]),
