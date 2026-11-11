@@ -63,6 +63,22 @@ describe('editing jobs', () => {
     expect(all.report).toContain('עדכנתי שדני כבר לא בחופש')
   })
 
+  it('a vacation and a plain constraint over the same days: both asked about and both cut (bug, 2026-11-11)', () => {
+    const d = data()
+    d.workers[1].constraints = [
+      { id: 'a', when: 'dates', from: '2026-11-06', to: '2026-11-25' },
+      { id: 'b', when: 'dates', from: '2026-11-12', to: '2026-11-25', kind: 'vacation' },
+    ]
+    const proposal = p({ editJobs: [edit({ id: 's2', date: '2026-11-11' })] }) // a night job: 11.11 and 12.11
+    expect(applyProposal(proposal, d, NOW).conflicts).toEqual(['יוסי רשום לא זמין 6.11 עד 25.11', 'יוסי רשום בחופש 12.11 עד 25.11'])
+    expect(applyProposal({ ...proposal, absenceReturn: 'job' }, d, NOW).data.workers[1].constraints).toMatchObject([
+      { id: 'a', from: '2026-11-06', to: '2026-11-10' },
+      { from: '2026-11-13', to: '2026-11-25' },
+      { id: 'b', from: '2026-11-13', to: '2026-11-25', kind: 'vacation' },
+    ])
+    expect(applyProposal({ ...proposal, absenceReturn: 'all' }, d, NOW).data.workers[1].constraints).toEqual([])
+  })
+
   it('an absence of only the job days asks a plain yes; a weekly one is only said', () => {
     const proposal = p({ editJobs: [edit({ date: '2026-11-12' })] })
     const plain = data()

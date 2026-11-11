@@ -96,6 +96,11 @@ export function shiftDays(r: ShiftRecord, defs: ShiftDefinition[]): string[] {
  * shift ends later. A nights-only one blocks a night job that starts on one of its days.
  */
 export function blockingConstraint(w: Pick<Worker, 'constraints' | 'status' | 'sickUntil'>, shift: ShiftRecord, defs: ShiftDefinition[]): Constraint | null {
+  return blockingConstraints(w, shift, defs)[0] ?? null
+}
+
+/** Every constraint that keeps this worker out of this shift (see blockingConstraint), sickness first. */
+export function blockingConstraints(w: Pick<Worker, 'constraints' | 'status' | 'sickUntil'>, shift: ShiftRecord, defs: ShiftDefinition[]): Constraint[] {
   const night = isNightShift(shift, defs)
   const days = shiftDays(shift, defs)
   const endTime = shift.urgent ? shift.endTime : defs.find((d) => d.id === shift.shiftDefinitionId)?.endTime
@@ -103,7 +108,7 @@ export function blockingConstraint(w: Pick<Worker, 'constraints' | 'status' | 's
   const blocks = (c: Constraint, d: string, last: boolean) => onDay(c, d) && (c.part !== 'evening' || !last || endsInEvening)
   const sick = sickConstraint(w)
   return (
-    [...(sick ? [sick] : []), ...w.constraints].find((c) => (c.nightsOnly ? night && onDay(c, shift.date) : days.some((d, i) => blocks(c, d, i === days.length - 1)))) ?? null
+    [...(sick ? [sick] : []), ...w.constraints].filter((c) => (c.nightsOnly ? night && onDay(c, shift.date) : days.some((d, i) => blocks(c, d, i === days.length - 1))))
   )
 }
 

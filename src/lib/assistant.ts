@@ -4,7 +4,7 @@
 // the screens use.
 
 import { certStars, endsNextDay, fullName, isActive, MAX_STAFF, MAX_STARS, nameError, newId, placeText, staffingFor, upsert } from './catalog'
-import { ABSENCE_NAMES, blockingConstraint, constraintText, isOver, shiftDays } from './constraints'
+import { ABSENCE_NAMES, blockingConstraints, constraintText, isOver, shiftDays } from './constraints'
 import { todayIso } from './dates'
 import { autoAssign, busyCrew, busyText, pullFrom } from './planner'
 import { addDays, dayName, hebrewDayName, isNightShift, isWaiting, showDate } from './shifts'
@@ -395,10 +395,10 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   for (const id of placed) {
     const shift = d.shifts.find((s) => s.id === id)
     if (!shift) continue
-    for (const m of shift.crew) {
-      const worker = d.workers.find((w) => w.id === m.workerId)
-      const c = worker && blockingConstraint(worker, shift, d.shiftDefinitions)
-      if (!worker || !c) continue
+    // Every reason he is out on those days, not only the first: a vacation and a plain "לא זמין"
+    // over the same days are both asked about and both updated (a bug the user found, 2026-11-11).
+    for (const m of shift.crew) for (const c of blockingConstraints(d.workers.find((w) => w.id === m.workerId) ?? { constraints: [] }, shift, d.shiftDefinitions)) {
+      const worker = d.workers.find((w) => w.id === m.workerId)!
       const kind = c.id === 'sick' ? 'sick' : kindOf(c)
       const what = constraintText(c)
       if (c.id !== 'sick' && (c.when !== 'dates' || c.part || c.nightsOnly)) {
