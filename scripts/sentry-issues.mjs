@@ -94,9 +94,11 @@ if (args.includes('--resolve')) {
     if (builds.has(sha)) return builds.get(sha)
     const dir = join(tmpdir(), 'masha7000-sentry', sha)
     if (!existsSync(join(dir, 'dist-map'))) {
-      mkdirSync(dir, { recursive: true })
-      // The commit's files only: the shared checkout is never touched.
-      execSync(`git archive ${sha} | tar -x -C "${dir.replace(/\\/g, '/')}"`, { cwd: ROOT, stdio: 'ignore', shell: 'bash' })
+      // A separate worktree of that commit: the shared checkout's files and branch are never touched.
+      if (!existsSync(join(dir, 'package.json'))) {
+        mkdirSync(join(dir, '..'), { recursive: true })
+        execSync(`git worktree add --detach "${dir}" ${sha}`, { cwd: ROOT, stdio: 'ignore' })
+      }
       if (!existsSync(join(dir, 'node_modules'))) {
         if (process.platform === 'win32') execSync(`mklink /J "${join(dir, 'node_modules')}" "${join(ROOT, 'node_modules')}"`, { shell: 'cmd.exe', stdio: 'ignore' })
         else execSync(`ln -s "${join(ROOT, 'node_modules')}" "${join(dir, 'node_modules')}"`)
