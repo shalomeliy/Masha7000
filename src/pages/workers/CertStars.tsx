@@ -1,9 +1,9 @@
-import { ChevronDown, Star } from 'lucide-react'
+import { ChevronDown, Star, Trash2 } from 'lucide-react'
 import { useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Sheet } from '../../components/Sheet'
 import { tx } from '../../i18n'
 import { DateField } from '../../components/DateField'
-import { certStars, fullName, GENERAL_CERT_ID, MAX_STARS } from '../../lib/catalog'
+import { certStars, fullName, MAX_STARS } from '../../lib/catalog'
 import { daysLeftText, expiryNote, expiryState, setCertExpiry } from '../../lib/certExpiry'
 import { averageStars, rateCert } from '../../lib/certRatings'
 import { todayIso } from '../../lib/dates'
@@ -26,10 +26,20 @@ export function ExpiryNote({ worker, certId, today }: { worker: Worker; certId: 
 /**
  * One row per certification the worker holds. Folded, a row shows the name (orange or red when it ends
  * soon or expired), the days left until it ends, and its stars (the manager's request, 2026-11-09). A
- * tap opens it: the same stars become tappable, and the date it is valid until shows under them. One
- * row is open at a time.
+ * tap opens it: the same stars become tappable, and the date it is valid until shows under them, with
+ * "הסר הסמכה" (2026-11-10). One row is open at a time.
  */
-export function CertStarsField({ worker, certs, onChange }: { worker: Worker; certs: { id: string; name: string }[]; onChange: (w: Worker) => void }) {
+export function CertStarsField({
+  worker,
+  certs,
+  onChange,
+  onRemove,
+}: {
+  worker: Worker
+  certs: { id: string; name: string }[]
+  onChange: (w: Worker) => void
+  onRemove: (certId: string) => void
+}) {
   const [openId, setOpenId] = useState<string | null>(null)
   const held = certs.filter((c) => worker.certificationIds.includes(c.id))
   if (!held.length) return null
@@ -82,14 +92,24 @@ export function CertStarsField({ worker, certs, onChange }: { worker: Worker; ce
                 <ChevronDown size={18} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
               </button>
             </div>
-            {/* "כללי" is held by every worker and does not expire. */}
-            {open && c.id !== GENERAL_CERT_ID && (
-              <div className="pb-2">
+            {open && (
+              <div className="space-y-2 pb-2">
                 <DateField
                   label={tx('בתוקף עד (ריק = בלי תפוגה)')}
                   value={worker.certExpiry?.[c.id] ?? ''}
                   onChange={(date, ok) => ok && onChange(setCertExpiry(worker, c.id, date))}
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenId(null)
+                    onRemove(c.id)
+                  }}
+                  className="flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm text-red-300"
+                >
+                  <Trash2 size={16} aria-hidden />
+                  {tx('הסר הסמכה')}
+                </button>
               </div>
             )}
           </li>

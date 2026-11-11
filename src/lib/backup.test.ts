@@ -16,7 +16,7 @@ import {
 import type { CopyInfo } from './backup'
 
 const data = {
-  workers: [{ id: 'w1', firstName: 'דני', lastName: 'כהן', mobilePhone: '050', certificationIds: ['general'], constraints: [], status: 'active' }],
+  workers: [{ id: 'w1', firstName: 'דני', lastName: 'כהן', mobilePhone: '050', certificationIds: ['c1'], constraints: [], status: 'active' }],
   shifts: [
     { id: 's1', date: '2026-10-20', location: 'חיפה', jobDescription: '', crew: [], staffing: [] },
     { id: 's2', date: '2026-10-21', location: '', jobDescription: '', crew: [], staffing: [] },

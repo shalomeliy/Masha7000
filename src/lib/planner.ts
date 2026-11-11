@@ -1,5 +1,5 @@
 import { tx } from '../i18n'
-import { fullName, isActive, slotCerts, slotStars } from './catalog'
+import { fullName, isActive, slotCerts } from './catalog'
 import { validOn } from './certExpiry'
 import { blockingConstraint, constraintText } from './constraints'
 import { addDays, dayName, isNightShift, showDate, weekOf, weekShiftCount } from './shifts'
@@ -10,7 +10,7 @@ import type { Constraint, CrewMember, ShiftDefinition, ShiftRecord, StaffSlot, W
 // same crew. Hard rules: one worker per place, a worker fills a place only with its
 // certifications (places of two different work kinds may share one worker), a worker a constraint blocks or who is already in another shift at the same time is never picked. Soft rules, in
 // this order: under the weekly night limit, fewest shifts this week, fewest nights this week, fewest shifts lately, name.
-// Among the workers who fit a place that asks for certifications, more of the manager's stars in them come first.
+// The manager's stars do not change who is picked: shifts are spread as evenly as possible (the user, 2026-11-11).
 // A certification expired by the day of the job is not counted.
 
 /** Night jobs per worker per week (Sunday to Saturday). Beyond it the worker may still be placed, with a warning. */
@@ -153,7 +153,7 @@ export function candidateOrder(shift: ShiftRecord, ctx: PlanContext): { worker: 
 
 /**
  * Fills the shift's places. Workers already in the crew stay (in a place they fit when there is
- * one); the empty places get the fitting workers with the most stars, fairest first among equals. Uses augmenting paths, so a place
+ * one); the empty places get the fairest fitting workers (stars do not count). Uses augmenting paths, so a place
  * only one worker can fill is never left empty because that worker was used elsewhere.
  * A place of one work kind is filled by a worker already in a place of another kind when one fits
  * (a climber who welds takes the "ריתוך" place too), and among new workers the one who can also
@@ -218,8 +218,7 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], given: Pla
   const pool = (s: number) => {
     const fit = fitting[s].filter((w) => !lockedIds.has(w.id) || slotOf.has(w.id))
     const extra = new Map(fit.map((w) => [w.id, extraKinds(w, s)]))
-    const stars = new Map(fit.map((w) => [w.id, slotStars(w, staffing[s])]))
-    return [...fit].sort((a, b) => extra.get(b.id)! - extra.get(a.id)! || stars.get(b.id)! - stars.get(a.id)!)
+    return [...fit].sort((a, b) => extra.get(b.id)! - extra.get(a.id)!)
   }
   const order = [...slots].sort((a, b) => fitting[a].length - fitting[b].length || a - b)
   fill(order, pool)

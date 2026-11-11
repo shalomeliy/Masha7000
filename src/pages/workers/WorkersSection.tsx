@@ -9,7 +9,6 @@ import {
 } from "../../components/Sheet";
 import {
   countText,
-  GENERAL_CERT_ID,
   filterWorkers,
   fullName,
   isActive,
@@ -45,7 +44,7 @@ const blankWorker = (): Worker => ({
   id: newId(),
   firstName: "",
   lastName: "",
-  certificationIds: [GENERAL_CERT_ID],
+  certificationIds: [],
   constraints: [],
   status: "active",
 });
@@ -700,17 +699,20 @@ function WorkerForm({
       <div className="space-y-1">
         <span className="text-sm text-slate-300">{tx('מחלקה')}</span>
         {departments.items.length ? (
-          <Chips
-            options={departments.items}
-            selected={draft.departmentId ? [draft.departmentId] : []}
-            // One department at most: tapping the chosen one again clears it.
-            onToggle={(id) =>
-              setDraft((d) => ({
-                ...d,
-                departmentId: d.departmentId === id ? undefined : id,
-              }))
-            }
-          />
+          // A list that opens on a tap; closed, it shows only the chosen department (the user's request, 2026-11-10).
+          <select
+            aria-label={tx('מחלקה')}
+            value={draft.departmentId ?? ""}
+            onChange={(e) => setDraft((d) => ({ ...d, departmentId: e.target.value || undefined }))}
+            className={inputClass}
+          >
+            <option value="">{tx('בלי מחלקה')}</option>
+            {departments.items.map((dep) => (
+              <option key={dep.id} value={dep.id}>
+                {dep.name}
+              </option>
+            ))}
+          </select>
         ) : (
           <p className="text-sm text-amber-300">
             {tx('עוד אין מחלקות. אפשר להוסיף אותן בהגדרות, "מחלקות".')}
@@ -720,30 +722,49 @@ function WorkerForm({
 
       <div className="space-y-1">
         <span className="text-sm text-slate-300">{tx('הסמכות')}</span>
+        {/* Only the certifications the worker holds; more are added from the list under them, and an open
+            row has "הסר הסמכה" (the user's request, 2026-11-10). A new worker's certifications start with
+            no stars: the manager rates them (2026-11-08). */}
+        {draft.certificationIds.length > 0 && (
+          <p className="text-xs text-slate-400">{tx('כמה כוכבים העובד מקבל בכל הסמכה. לחיצה על הסמכה פותחת את הכוכבים, את תאריך התוקף ואת ההסרה שלה.')}</p>
+        )}
+        <CertStarsField
+          worker={draft}
+          certs={certs.items}
+          onChange={setDraft}
+          onRemove={(id) => setDraft((d) => ({ ...d, certificationIds: d.certificationIds.filter((x) => x !== id) }))}
+        />
         {certs.items.length ? (
-          <Chips
-            options={certs.items}
-            selected={draft.certificationIds}
-            // "כללי" stays: every worker holds it. A new worker's certifications start with no stars:
-            // the manager rates them (the user's request, 2026-11-08).
-            onToggle={(id) =>
-              id !== GENERAL_CERT_ID &&
-              setDraft((d) => ({
-                ...d,
-                certificationIds: toggle(d.certificationIds, id),
-                ...(!exists && !d.certificationIds.includes(id) ? { certRatings: { ...d.certRatings, [id]: 0 } } : {}),
-              }))
-            }
-          />
+          certs.items.some((c) => !draft.certificationIds.includes(c.id)) && (
+            <select
+              aria-label={tx('הוסף הסמכה')}
+              value=""
+              onChange={(e) => {
+                const id = e.target.value
+                if (!id) return
+                setDraft((d) => ({
+                  ...d,
+                  certificationIds: d.certificationIds.includes(id) ? d.certificationIds : [...d.certificationIds, id],
+                  ...(!exists ? { certRatings: { ...d.certRatings, [id]: 0 } } : {}),
+                }))
+              }}
+              className={`${inputClass} text-slate-300`}
+            >
+              <option value="">{tx('+ הוסף הסמכה')}</option>
+              {certs.items
+                .filter((c) => !draft.certificationIds.includes(c.id))
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          )
         ) : (
           <p className="text-sm text-amber-300">
             {tx('עוד אין הסמכות. אפשר להוסיף אותן בלשונית "הסמכות".')}
           </p>
         )}
-        {draft.certificationIds.length > 0 && (
-          <p className="text-xs text-slate-400">{tx('כמה כוכבים העובד מקבל בכל הסמכה. "שבץ" מעדיף מי שיש לו יותר כוכבים.')} {tx('לחיצה על הסמכה פותחת את הכוכבים ואת תאריך התוקף שלה.')}</p>
-        )}
-        <CertStarsField worker={draft} certs={certs.items} onChange={setDraft} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">

@@ -1098,5 +1098,11 @@
  "הסמכות שעומדות לפוג: {n}": "Certifications about to expire: {n}",
  "הסמכות שפג תוקפן: {n}": "Expired certifications: {n}",
  "טוען גם את העבודות הישנות...": "Loading older jobs too...",
- "אילוצים קבועים": "Fixed constraints"
+ "אילוצים קבועים": "Fixed constraints",
+ "+ הוסף הסמכה": "+ Add certification",
+ "בלי מחלקה": "No department",
+ "הוסף הסמכה": "Add certification",
+ "הסר הסמכה": "Remove certification",
+ "כמה כוכבים העובד מקבל בכל הסמכה. לחיצה על הסמכה פותחת את הכוכבים, את תאריך התוקף ואת ההסרה שלה.": "How many stars the worker gets in each certification. Tap a certification to open its stars, its expiry date and its removal.",
+ "ללא": "None"
 }

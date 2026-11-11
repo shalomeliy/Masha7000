@@ -1098,5 +1098,11 @@
  "הסמכות שעומדות לפוג: {n}": "Süresi dolmak üzere olan sertifikalar: {n}",
  "הסמכות שפג תוקפן: {n}": "Süresi dolmuş sertifikalar: {n}",
  "טוען גם את העבודות הישנות...": "Eski işler de yükleniyor...",
- "אילוצים קבועים": "Sabit kısıtlar"
+ "אילוצים קבועים": "Sabit kısıtlar",
+ "+ הוסף הסמכה": "+ Sertifika ekle",
+ "בלי מחלקה": "Departman yok",
+ "הוסף הסמכה": "Sertifika ekle",
+ "הסר הסמכה": "Sertifikayı kaldır",
+ "כמה כוכבים העובד מקבל בכל הסמכה. לחיצה על הסמכה פותחת את הכוכבים, את תאריך התוקף ואת ההסרה שלה.": "Çalışanın her sertifikada aldığı yıldız sayısı. Bir sertifikaya dokunun; yıldızları, son geçerlilik tarihi ve kaldırma seçeneği açılır.",
+ "ללא": "Yok"
 }

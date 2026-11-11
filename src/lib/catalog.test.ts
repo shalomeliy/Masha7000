@@ -7,8 +7,9 @@ import {
   withNightPlus,
   filterWorkers,
   certStars,
-  withGeneralCert,
-  slotStars,
+  withoutGeneralCert,
+  slotCerts,
+  placeText,
   resizeStaffing,
   staffingFor,
   fullName,
@@ -131,37 +132,34 @@ describe('stars (the user, 2026-11-08)', () => {
     expect(certStars({ certRatings: { c1: 0 } }, 'c1')).toBe(0)
     expect(certStars({ certRatings: { c1: 9 } }, 'c1')).toBe(5)
   })
-  it('a place counts the stars of every certification it asks for; a place that asks for none counts "כללי"', () => {
-    const w = { certRatings: { c1: 2, general: 3 } }
-    expect(slotStars(w, { certificationIds: ['c1', 'c2'] })).toBe(7)
-    expect(slotStars(w, {})).toBe(3)
-    expect(slotStars({}, {})).toBe(5)
-  })
-  it('"כללי" is always in the list, and every worker holds it', () => {
-    expect(withGeneralCert(certs)[0]).toEqual({ id: 'general', name: 'כללי' })
-    const has = withGeneralCert(certs)
-    expect(withGeneralCert(has)).toBe(has)
-    expect(normalizeWorker(workers[0]).certificationIds).toEqual(['general', 'c1'])
-    const held = normalizeWorker({ ...workers[0], certificationIds: ['c1', 'general'] })
-    expect(held.certificationIds).toEqual(['c1', 'general'])
+  it('the old "כללי" is dropped from the list, from every worker and from every place (the user, 2026-11-11)', () => {
+    const withOld = [{ id: 'general', name: 'כללי' }, ...certs]
+    expect(withoutGeneralCert(withOld)).toEqual(certs)
+    expect(withoutGeneralCert(certs)).toBe(certs)
+    const w = normalizeWorker({ ...workers[0], certificationIds: ['general', 'c1'], certRatings: { general: 5, c1: 2 }, certExpiry: { general: '2027-01-01' } })
+    expect(w.certificationIds).toEqual(['c1'])
+    expect(w.certRatings).toEqual({ c1: 2 })
+    expect(w.certExpiry).toEqual({})
+    expect(slotCerts({ certificationIds: ['general'] })).toEqual([])
+    expect(placeText({ certificationIds: ['general'] }, certs)).toBe('ללא')
   })
 })
 
 describe('normalize older files', () => {
   it('splits a single name and keeps the phone as mobile', () => {
     const w = normalizeWorker({ id: 'w', name: 'דנה בת כהן', phone: '050', constraints: [] } as never)
-    expect(w).toMatchObject({ firstName: 'דנה', lastName: 'בת כהן', mobilePhone: '050', certificationIds: ['general'] })
+    expect(w).toMatchObject({ firstName: 'דנה', lastName: 'בת כהן', mobilePhone: '050', certificationIds: [] })
     expect('name' in w).toBe(false)
     expect(fullName(w)).toBe('דנה בת כהן')
   })
   it('leaves a current worker unchanged', () => {
-    const w: Worker = { ...workers[1], certificationIds: ['general', 'c1'], mobilePhone: '050', status: 'sick', sickUntil: '2026-11-05' }
+    const w: Worker = { ...workers[1], certificationIds: ['c1'], mobilePhone: '050', status: 'sick', sickUntil: '2026-11-05' }
     expect(normalizeWorker(w)).toEqual(w)
   })
   it('a worker saved while roles existed keeps only the certifications', () => {
     const w = normalizeWorker({ ...workers[1], roleIds: ['r1'] } as never)
     expect('roleIds' in w).toBe(false)
-    expect(w.certificationIds).toEqual(['general', 'c1', 'c2'])
+    expect(w.certificationIds).toEqual(['c1', 'c2'])
     const def = normalizeShift({ ...shifts[0], requiredRoleIds: ['r1'] } as never)
     expect('requiredRoleIds' in def).toBe(false)
   })

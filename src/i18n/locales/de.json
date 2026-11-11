@@ -1098,5 +1098,11 @@
  "הסמכות שעומדות לפוג: {n}": "Bald ablaufende Qualifikationen: {n}",
  "הסמכות שפג תוקפן: {n}": "Abgelaufene Qualifikationen: {n}",
  "טוען גם את העבודות הישנות...": "Ältere Einsätze werden ebenfalls geladen...",
- "אילוצים קבועים": "Feste Einschränkungen"
+ "אילוצים קבועים": "Feste Einschränkungen",
+ "+ הוסף הסמכה": "+ Zertifizierung hinzufügen",
+ "בלי מחלקה": "Keine Abteilung",
+ "הוסף הסמכה": "Zertifizierung hinzufügen",
+ "הסר הסמכה": "Zertifizierung entfernen",
+ "כמה כוכבים העובד מקבל בכל הסמכה. לחיצה על הסמכה פותחת את הכוכבים, את תאריך התוקף ואת ההסרה שלה.": "Wie viele Sterne der Mitarbeiter in jeder Zertifizierung bekommt. Tippe auf eine Zertifizierung, um ihre Sterne, ihr Ablaufdatum und das Entfernen zu öffnen.",
+ "ללא": "Keine"
 }

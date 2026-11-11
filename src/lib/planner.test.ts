@@ -43,14 +43,12 @@ const ids = (p: { crew: { workerId: string }[] }) => p.crew.map((c) => c.workerI
 
 // 2026-10-25 is a Sunday.
 describe('autoAssign', () => {
-  it('more stars in the certification of the place come first; a place that asks for none stays fair (the user, 2026-11-08)', () => {
-    // "a" is the fairest pick, but the manager gave him 2 stars in climbing.
+  it('stars do not change the pick: the fairest worker comes first (the user, 2026-11-11)', () => {
+    // "a" is the fairest pick; the manager gave him 2 stars in climbing and "b" has the full 5.
     const ws = [{ ...worker('a', ['climber']), certRatings: { climber: 2 } }, worker('b', ['climber'])]
     const busyB = [shift('x', '2026-10-26', { crew: on('b') })]
-    expect(ids(autoAssign(shift('s', '2026-10-28'), [{ certificationIds: ['climber'] }], ctx(ws, busyB)))).toEqual(['b'])
+    expect(ids(autoAssign(shift('s', '2026-10-28'), [{ certificationIds: ['climber'] }], ctx(ws, busyB)))).toEqual(['a'])
     expect(ids(autoAssign(shift('s', '2026-10-28'), [{}], ctx(ws, busyB)))).toEqual(['a'])
-    // Equal stars: the fairest, as before.
-    expect(ids(autoAssign(shift('s', '2026-10-28'), [{ certificationIds: ['climber'] }], ctx([worker('a', ['climber']), worker('b', ['climber'])], busyB)))).toEqual(['a'])
   })
 
   it('never puts the same worker in two places of one shift', () => {

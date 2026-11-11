@@ -1098,5 +1098,11 @@
  "הסמכות שעומדות לפוג: {n}": "Sertifikasi yang segera berakhir: {n}",
  "הסמכות שפג תוקפן: {n}": "Sertifikasi kedaluwarsa: {n}",
  "טוען גם את העבודות הישנות...": "Memuat pekerjaan lama juga...",
- "אילוצים קבועים": "Batasan tetap"
+ "אילוצים קבועים": "Batasan tetap",
+ "+ הוסף הסמכה": "+ Tambah sertifikasi",
+ "בלי מחלקה": "Tanpa departemen",
+ "הוסף הסמכה": "Tambah sertifikasi",
+ "הסר הסמכה": "Hapus sertifikasi",
+ "כמה כוכבים העובד מקבל בכל הסמכה. לחיצה על הסמכה פותחת את הכוכבים, את תאריך התוקף ואת ההסרה שלה.": "Berapa bintang yang didapat pekerja di setiap sertifikasi. Ketuk sertifikasi untuk membuka bintangnya, tanggal kedaluwarsanya, dan opsi menghapusnya.",
+ "ללא": "Tidak ada"
 }

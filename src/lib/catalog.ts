@@ -79,32 +79,26 @@ export const newId = () => crypto.randomUUID()
 
 const normalize = (name: string) => name.trim().toLocaleLowerCase()
 
-// "כללי": a certification every worker holds (the user's request, 2026-11-08). It is always in the
-// list (added on read), every worker holds it (added on read), and it cannot be renamed or deleted.
-// A place that asks for no certification is filled by the stars in it.
+// "כללי" was a certification every worker held (2026-11-08). The user removed it (2026-11-11): a place
+// that asks for no certification is "ללא", and anyone fills it. Files saved before may still hold its id:
+// it is dropped on read from the certifications list, from every worker and from every place.
 export const GENERAL_CERT_ID = 'general'
-export const GENERAL_CERT_NAME = 'כללי'
-export const isGeneralCert = (c: Pick<Certification, 'id'>) => c.id === GENERAL_CERT_ID
+const notGeneral = (id: string) => id !== GENERAL_CERT_ID
+const withoutKey = <V,>(o: Record<string, V>, key: string) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== key))
 
-/** The certifications list with "כללי" first when the file does not hold it yet. Same array when nothing was added. */
-export const withGeneralCert = (certs: Certification[]): Certification[] =>
-  certs.some(isGeneralCert) ? certs : [{ id: GENERAL_CERT_ID, name: GENERAL_CERT_NAME }, ...certs]
+/** The certifications list without the old "כללי". Same array when it was not there. */
+export const withoutGeneralCert = (certs: Certification[]): Certification[] =>
+  certs.some((c) => c.id === GENERAL_CERT_ID) ? certs.filter((c) => notGeneral(c.id)) : certs
 
 // A worker's star rating in a certification: 1-5, or 0 = not rated yet (a new worker's certifications,
-// until the manager rates them). Absent = the full 5: certifications held before ratings existed, and "כללי".
+// until the manager rates them). Absent = the full 5: certifications held before ratings existed.
 export const MAX_STARS = 5
 export const certStars = (w: Pick<Worker, 'certRatings'>, certId: string) => {
   const n = w.certRatings?.[certId]
   return typeof n === 'number' && n >= 0 && n <= MAX_STARS ? Math.round(n) : MAX_STARS
 }
-/** The worker's stars over the certifications a place asks for; a place that asks for none counts "כללי". */
-export const slotStars = (w: Pick<Worker, 'certRatings'>, slot: StaffSlot) => {
-  const ids = slotCerts(slot)
-  return (ids.length ? ids : [GENERAL_CERT_ID]).reduce((sum, id) => sum + certStars(w, id), 0)
-}
-
 /** Text for a place that asks for no certification: anyone can fill it. */
-export const anyWorkerText = () => tx('כל עובד')
+export const anyWorkerText = () => tx('ללא')
 
 export const MAX_STAFF = 20
 
@@ -121,15 +115,16 @@ export function staffingFor(staffing: StaffSlot[] | undefined, certificationIds:
 }
 
 /** The certifications the person in a place must all hold; older files kept one in `certificationId`. */
-export const slotCerts = (slot: StaffSlot): string[] => slot.certificationIds ?? (slot.certificationId ? [slot.certificationId] : [])
+export const slotCerts = (slot: StaffSlot): string[] =>
+  (slot.certificationIds ?? (slot.certificationId ? [slot.certificationId] : [])).filter(notGeneral)
 
-/** "טיפוס + רתך" for one place; "כל עובד" when it asks for no certification. */
+/** "טיפוס + רתך" for one place; "ללא" when it asks for no certification. */
 export function placeText(slot: StaffSlot, certs: { id: string; name: string }[]): string {
   const names = slotCerts(slot).flatMap((id) => certs.find((c) => c.id === id)?.name ?? [])
   return names.length ? names.join(' + ') : anyWorkerText()
 }
 
-/** "2 אנשים: טיפוס, כל עובד" for a job card. */
+/** "2 אנשים: טיפוס, ללא" for a job card. */
 export function staffingText(slots: StaffSlot[], certs: { id: string; name: string }[]): string {
   const names = slots.map((s) => placeText(s, certs))
   return `${countText(slots.length, tx('אדם אחד'), tx('אנשים'))}: ${names.join(', ')}`
@@ -221,8 +216,10 @@ export function normalizeWorker(raw: Partial<Worker> & { name?: string; phone?: 
     firstName: w.firstName ?? first,
     lastName: w.lastName ?? rest.join(' '),
     mobilePhone: w.mobilePhone ?? phone,
-    // Every worker holds "כללי".
-    certificationIds: (w.certificationIds ?? []).includes(GENERAL_CERT_ID) ? (w.certificationIds ?? []) : [GENERAL_CERT_ID, ...(w.certificationIds ?? [])],
+    // The old "כללי" is gone (2026-11-11).
+    certificationIds: (w.certificationIds ?? []).filter(notGeneral),
+    ...(w.certRatings && GENERAL_CERT_ID in w.certRatings ? { certRatings: withoutKey(w.certRatings, GENERAL_CERT_ID) } : {}),
+    ...(w.certExpiry && GENERAL_CERT_ID in w.certExpiry ? { certExpiry: withoutKey(w.certExpiry, GENERAL_CERT_ID) } : {}),
     constraints: (w.constraints ?? []).map(normalizeConstraint),
     status: w.status ?? 'active',
   }
@@ -233,7 +230,7 @@ export function normalizeShift(raw: Omit<ShiftDefinition, 'requiredCertification
   return {
     ...def,
     endsNextDay: def.thenJob || endsNextDay(def),
-    requiredCertificationIds: raw.requiredCertificationIds ?? [],
+    requiredCertificationIds: (raw.requiredCertificationIds ?? []).filter(notGeneral),
   }
 }
 

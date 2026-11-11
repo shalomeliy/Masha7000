@@ -1,5 +1,4 @@
 import { tx } from '../i18n'
-import { GENERAL_CERT_ID } from './catalog'
 import { addDays, showDate } from './shifts'
 import type { Worker } from '../types/models'
 
@@ -68,9 +67,9 @@ export function expiryCounts(w: Worker, certIds: string[], today: string): { soo
   return { soon: states.filter((s) => s === 'soon').length, expired: states.filter((s) => s === 'expired').length }
 }
 
-/** The worker as "שבץ" sees them on `date`: without the certifications expired by then ("כללי" never expires). */
+/** The worker as "שבץ" sees them on `date`: without the certifications expired by then. */
 export function validOn(w: Worker, date: string): Worker {
   if (!w.certExpiry) return w
-  const ids = w.certificationIds.filter((id) => id === GENERAL_CERT_ID || expiryState(w, id, date) !== 'expired')
+  const ids = w.certificationIds.filter((id) => expiryState(w, id, date) !== 'expired')
   return ids.length === w.certificationIds.length ? w : { ...w, certificationIds: ids }
 }

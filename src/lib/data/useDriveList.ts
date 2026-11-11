@@ -4,7 +4,7 @@ import { ConflictError, readJson, writeJson } from '../google/drive'
 import { DRIVE_FILES } from '../google/config'
 import { readShifts, saveShifts, windowStart } from './shiftMonths'
 import { todayIso } from '../dates'
-import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withGeneralCert, withNightPlus } from '../catalog'
+import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withoutGeneralCert, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
 import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Pronunciation, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
 
@@ -74,8 +74,8 @@ export function useDriveList<K extends ListFile>(key: K) {
       const raw = stored ?? (key === 'departments' ? (STARTER_DEPARTMENTS as T[]) : [])
       const fix = normalizers[key] as ((r: T) => T) | undefined
       const list = fix ? raw.map(fix) : raw
-      // "לינה" and the certification "כללי" always exist; they are written to the file with the next save of their list.
-      if (key === 'certifications') return withGeneralCert(list as Certification[]) as T[]
+      // "לינה" always exists, and the old certification "כללי" is dropped; the file follows with the next save of its list.
+      if (key === 'certifications') return withoutGeneralCert(list as Certification[]) as T[]
       if (key === 'shiftDefinitions') return withNightPlus(list as ShiftDefinition[]) as T[]
       return list
     },
