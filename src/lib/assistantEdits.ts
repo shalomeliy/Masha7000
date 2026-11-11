@@ -5,7 +5,7 @@
 
 import { crewSwaps } from './archive'
 import { fullName, isActive, MAX_STAFF, newId, upsert } from './catalog'
-import { blockingConstraint, constraintError, constraintText, normalizeConstraint } from './constraints'
+import { constraintError, constraintText, normalizeConstraint } from './constraints'
 import { isRealDate } from './dates'
 import { applyClosure, blankShift, isNightShift, moveShift, pendingAfterShiftSave } from './shifts'
 import { endAbsence } from './workerState'
@@ -194,21 +194,8 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     report.push(crew.length ? tx('ב{v} שמתי את {v2}', { v: where(shift), v2: crew.map((m) => d.workers.find((w) => w.id === m.workerId)?.firstName).join(', ') }) : tx('ב{v} הורדתי את כל העובדים', { v: where(shift) }))
   }
 
-  // A worker in two jobs at once is handled by the caller (applyProposal: the manager is warned and
-  // confirms moving him); being sick is only a warning.
-  for (const id of touched) {
-    const shift = d.shifts.find((s) => s.id === id)
-    if (!shift) continue
-    for (const m of shift.crew) {
-      const w = d.workers.find((x) => x.id === m.workerId)
-      if (!w) continue
-      // Sickness saved as the status, and any absence or constraint on the job's days (sickness saved
-      // as a dated note, vacation, reserve duty...), so both ways of saving it warn the same.
-      const c = blockingConstraint(w, shift, d.shiftDefinitions)
-      if (c?.id === 'sick' && w.sickUntil) warnings.push(tx('שים לב, {firstName} רשום חולה עד {v}.{v2}', { firstName: w.firstName, v: w.sickUntil.slice(8), v2: Number(w.sickUntil.slice(5, 7)) }))
-      else if (c) warnings.push(tx('שים לב, {firstName}: {v}.', { firstName: w.firstName, v: constraintText(c) }))
-    }
-  }
+  // A worker in two jobs at once, or sick or away on the job's days, is handled by the caller
+  // (applyProposal: the manager is asked and confirms).
 
   for (const c of e.closeJobs) {
     const shift = d.shifts.find((s) => s.id === c.shiftId)

@@ -4,17 +4,18 @@
 // the screens use.
 
 import { certStars, endsNextDay, fullName, isActive, MAX_STAFF, MAX_STARS, nameError, newId, placeText, staffingFor, upsert } from './catalog'
-import { constraintText, isOver } from './constraints'
+import { ABSENCE_NAMES, blockingConstraint, constraintText, isOver, shiftDays } from './constraints'
 import { todayIso } from './dates'
 import { autoAssign, busyCrew, busyText, pullFrom } from './planner'
 import { addDays, dayName, hebrewDayName, isNightShift, isWaiting, showDate } from './shifts'
 import { toggleKind } from './workKinds'
 import { applyEdits, editCount, type Edits } from './assistantEdits'
-import { workerState } from './workerState'
+import { kindOf, workerState } from './workerState'
 import type {
   AssistantExample,
   AssistantNote,
   Certification,
+  Constraint,
   Department,
   JobType,
   PendingJob,
@@ -378,6 +379,37 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     }
   }
 
+  // A worker the manager put in a job (or who moved with it) while sick or away on its days: the
+  // manager is asked whether that is over (the user's rule, 2026-11-11). The yes places him and
+  // updates his state: sickness saved as the status ends, a dated absence is cut around the job's
+  // days. A weekly or part-of-day constraint is not changed, only said.
+  for (const id of placed) {
+    const shift = d.shifts.find((s) => s.id === id)
+    if (!shift) continue
+    for (const m of shift.crew) {
+      const worker = d.workers.find((w) => w.id === m.workerId)
+      const c = worker && blockingConstraint(worker, shift, d.shiftDefinitions)
+      if (!worker || !c) continue
+      const kind = c.id === 'sick' ? 'sick' : kindOf(c)
+      const what = constraintText(c)
+      if (c.id !== 'sick' && (c.when !== 'dates' || c.part || c.nightsOnly)) {
+        report.push(tx('שים לב, {firstName}: {v}.', { firstName: worker.firstName, v: what }))
+        continue
+      }
+      const days = shiftDays(shift, d.shiftDefinitions)
+      const updated: Worker = c.id === 'sick' ? { ...worker, status: 'active', sickUntil: undefined } : { ...worker, constraints: cutAround(worker.constraints, c, days[0], days.at(-1)!) }
+      d.workers = upsert(d.workers, updated)
+      changed.add('workers')
+      if (kind) {
+        conflicts.push(tx('{firstName} רשום {v}. הוא כבר לא {state}? אם תאשר, אשבץ אותו ואעדכן את הסטטוס שלו', { firstName: worker.firstName, v: what, state: ABSENCE_NAMES[kind] }))
+        report.push(tx('עדכנתי ש{firstName} כבר לא {state}', { firstName: worker.firstName, state: ABSENCE_NAMES[kind] }))
+      } else {
+        conflicts.push(tx('{firstName} רשום {v}. הוא כבר זמין? אם תאשר, אשבץ אותו ואעדכן את הסטטוס שלו', { firstName: worker.firstName, v: what }))
+        report.push(tx('עדכנתי ש{firstName} זמין', { firstName: worker.firstName }))
+      }
+    }
+  }
+
   for (const id of toAssign) {
     const shift = d.shifts.find((s) => s.id === id)
     if (!shift) continue
@@ -392,6 +424,16 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   }
   report.push(...edits.warnings)
   return { data: d, changed, report, errors, conflicts }
+}
+
+/** A dated absence without the days from `first` to `last`: what was before and after them stays. */
+function cutAround(list: Constraint[], c: Constraint, first: string, last: string): Constraint[] {
+  const from = c.from!
+  const to = c.to ?? from
+  const parts: Constraint[] = []
+  if (from < first) parts.push({ ...c, to: addDays(first, -1) })
+  if (to > last) parts.push({ ...c, id: parts.length ? newId() : c.id, from: addDays(last, 1), to })
+  return list.flatMap((x) => (x.id === c.id ? parts : [x]))
 }
 
 /** The moves of busy workers the manager has to hear before saying yes (empty: none). */

@@ -60,7 +60,7 @@ export function absenceToday(w: Pick<Worker, 'constraints'>, today: string): Con
   return now.sort((a, b) => (b.to ?? '9999').localeCompare(a.to ?? '9999'))[0] ?? null
 }
 
-const kindOf = (c: Constraint): AbsenceKind | null => c.kind ?? NOTE_KINDS.find(([re]) => re.test(c.note ?? ''))?.[1] ?? null
+export const kindOf = (c: Constraint): AbsenceKind | null => c.kind ?? NOTE_KINDS.find(([re]) => re.test(c.note ?? ''))?.[1] ?? null
 
 export function workerState(w: Pick<Worker, 'status' | 'sickUntil' | 'constraints'>, today: string): WorkerState {
   if (w.status === 'inactive') return { id: 'inactive', label: tx('לא פעיל') }

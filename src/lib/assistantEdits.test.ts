@@ -36,13 +36,36 @@ describe('editing jobs', () => {
     expect(out.shifts.find((s) => s.id === 's1')).toMatchObject({ date: '2026-11-11', location: 'דימונה', jobDescription: 'חיבור חשמל', crew: [{ workerId: 'w1' }] })
   })
 
-  it('a worker sick on the new day by a dated note warns like a sickness saved as the status', () => {
+  it('a job moved onto a day its worker is sick: the manager is asked, and the yes ends the sickness', () => {
     const d = data()
-    d.workers[0].constraints = [{ id: 'c', when: 'dates', from: '2026-11-11', to: '2026-11-11', kind: 'sick' }]
-    expect(applyProposal(p({ editJobs: [edit({ date: '2026-11-11' })] }), d, NOW).report).toContain('שים לב, דני: במחלה ב-11.11.')
-    const s = data()
-    s.workers[0] = { ...s.workers[0], status: 'sick', sickUntil: '2026-11-12' }
-    expect(applyProposal(p({ editJobs: [edit({ date: '2026-11-11' })] }), s, NOW).report).toContain('שים לב, דני רשום חולה עד 12.11')
+    d.workers[0] = { ...d.workers[0], status: 'sick', sickUntil: '2026-11-12' }
+    const proposal = p({ editJobs: [edit({ date: '2026-11-11' })] })
+    expect(proposalConflicts(proposal, d)).toEqual(['דני רשום במחלה עד 12.11. הוא כבר לא במחלה? אם תאשר, אשבץ אותו ואעדכן את הסטטוס שלו'])
+    const out = applyProposal(proposal, d, NOW)
+    expect(out.data.workers[0]).toMatchObject({ status: 'active', sickUntil: undefined })
+    expect(out.data.shifts.find((s) => s.id === 's1')?.crew).toEqual([{ workerId: 'w1' }])
+    expect(out.report).toContain('עדכנתי שדני כבר לא במחלה')
+  })
+
+  it('a dated absence is cut around the job days only; a weekly one is only said', () => {
+    const d = data()
+    d.workers[0].constraints = [{ id: 'c', when: 'dates', from: '2026-11-10', to: '2026-11-14', kind: 'vacation' }]
+    const proposal = p({ editJobs: [edit({ date: '2026-11-12' })] })
+    expect(proposalConflicts(proposal, d)).toEqual(['דני רשום בחופש 10.11 עד 14.11. הוא כבר לא בחופש? אם תאשר, אשבץ אותו ואעדכן את הסטטוס שלו'])
+    expect(applyProposal(proposal, d, NOW).data.workers[0].constraints).toMatchObject([
+      { id: 'c', from: '2026-11-10', to: '2026-11-11', kind: 'vacation' },
+      { from: '2026-11-13', to: '2026-11-14', kind: 'vacation' },
+    ])
+    const plain = data()
+    plain.workers[0].constraints = [{ id: 'c', when: 'dates', from: '2026-11-12', to: '2026-11-12' }]
+    expect(proposalConflicts(proposal, plain)).toEqual(['דני רשום לא זמין ב-12.11. הוא כבר זמין? אם תאשר, אשבץ אותו ואעדכן את הסטטוס שלו'])
+    expect(applyProposal(proposal, plain, NOW).data.workers[0].constraints).toEqual([])
+    const weekly = data()
+    weekly.workers[0].constraints = [{ id: 'c', when: 'weekdays', weekdays: [4] }] // Thursday 12.11
+    expect(proposalConflicts(proposal, weekly)).toEqual([])
+    const out = applyProposal(proposal, weekly, NOW)
+    expect(out.report).toContain('שים לב, דני: לא זמין בימי חמישי.')
+    expect(out.data.workers[0].constraints).toHaveLength(1)
   })
 
   it('a waiting job with a date goes into the calendar and is marked scheduled', () => {
