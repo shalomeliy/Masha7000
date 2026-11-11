@@ -36,6 +36,15 @@ describe('editing jobs', () => {
     expect(out.shifts.find((s) => s.id === 's1')).toMatchObject({ date: '2026-11-11', location: 'דימונה', jobDescription: 'חיבור חשמל', crew: [{ workerId: 'w1' }] })
   })
 
+  it('a worker sick on the new day by a dated note warns like a sickness saved as the status', () => {
+    const d = data()
+    d.workers[0].constraints = [{ id: 'c', when: 'dates', from: '2026-11-11', to: '2026-11-11', kind: 'sick' }]
+    expect(applyProposal(p({ editJobs: [edit({ date: '2026-11-11' })] }), d, NOW).report).toContain('שים לב, דני: במחלה ב-11.11.')
+    const s = data()
+    s.workers[0] = { ...s.workers[0], status: 'sick', sickUntil: '2026-11-12' }
+    expect(applyProposal(p({ editJobs: [edit({ date: '2026-11-11' })] }), s, NOW).report).toContain('שים לב, דני רשום חולה עד 12.11')
+  })
+
   it('a waiting job with a date goes into the calendar and is marked scheduled', () => {
     const r = applyProposal(p({ editJobs: [edit({ id: 'p1', date: '2026-11-12', autoAssign: true })] }), data(), NOW)
     const created = r.data.shifts.find((s) => s.location === 'אילת')!

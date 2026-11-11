@@ -868,6 +868,7 @@
  "שחזור מגיבוי": "Restore from backup",
  "שיבוץ ביומן": "Schedule in calendar",
  "שיבצתי ליומן את העבודה ב{v}": "I added the job to the calendar on {v}",
+ "שים לב, {firstName}: {v}.": "Heads up, {firstName}: {v}.",
  "שים לב, {firstName} רשום חולה עד {v}.{v2}": "Heads up, {firstName} is marked as sick until {v}.{v2}",
  "שים לב: {v} כבר עם הרבה לילות השבוע.": "Heads up: {v} already has a lot of nights this week.",
  "שים לב: {v} עובדים.": "Heads up: {v} workers.",

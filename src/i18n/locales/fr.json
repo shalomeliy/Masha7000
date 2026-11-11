@@ -868,6 +868,7 @@
  "שחזור מגיבוי": "Restaurer depuis une sauvegarde",
  "שיבוץ ביומן": "Affectation dans le calendrier",
  "שיבצתי ליומן את העבודה ב{v}": "J'ai ajouté l'intervention au calendrier : {v}",
+ "שים לב, {firstName}: {v}.": "Attention, {firstName} : {v}.",
  "שים לב, {firstName} רשום חולה עד {v}.{v2}": "Attention, {firstName} est noté malade jusqu'au {v}.{v2}",
  "שים לב: {v} כבר עם הרבה לילות השבוע.": "Attention : {v} a déjà beaucoup de nuits cette semaine.",
  "שים לב: {v} עובדים.": "Attention : {v} employés.",

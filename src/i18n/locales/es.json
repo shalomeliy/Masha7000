@@ -868,6 +868,7 @@
  "שחזור מגיבוי": "Restaurar desde copia de seguridad",
  "שיבוץ ביומן": "Asignar en el calendario",
  "שיבצתי ליומן את העבודה ב{v}": "Asigné en el calendario el trabajo en {v}",
+ "שים לב, {firstName}: {v}.": "Ojo, {firstName}: {v}.",
  "שים לב, {firstName} רשום חולה עד {v}.{v2}": "Ojo, {firstName} figura enfermo hasta {v}.{v2}",
  "שים לב: {v} כבר עם הרבה לילות השבוע.": "Ojo: {v} ya tiene muchas noches esta semana.",
  "שים לב: {v} עובדים.": "Ojo: {v} trabajadores.",
