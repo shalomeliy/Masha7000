@@ -10,6 +10,7 @@ import { POST as logout } from '../logout.js'
 import { GET as joinForm, POST as join } from '../join.js'
 import { GET as consForm, POST as cons } from '../constraints.js'
 import { POST as mfa } from '../mfa.js'
+import { POST as assistant } from '../assistant.js'
 import { codeAt, currentStep, fromBase32 } from './totp.js'
 
 const KEY = Buffer.alloc(32, 7).toString('base64')
@@ -598,5 +599,25 @@ describe('weekly constraints form', () => {
     expect((await list(s)).answered).toEqual([])
     await post(cons, s, { action: 'close' })
     expect((await post(cons, null, { action: 'submit', code, phone: '0501234567', days })).status).toBe(404)
+  })
+})
+
+describe('assistant budget cap', () => {
+  it('sends nothing to Anthropic once the month reached its cap', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+    vi.stubEnv('ASSISTANT_BUDGET_USD', '5')
+    const s = await managerSession(OWNER)
+    store.set(`spend:${new Date().toISOString().slice(0, 7)}`, String(5_000_000))
+    const res = await post(assistant, s, { messages: [{ role: 'user', content: 'מי עובד מחר' }], context: {} })
+    expect(res.status).toBe(402)
+    expect(await res.json()).toMatchObject({ reason: 'over-budget', budget: { spentUsd: 5, limitUsd: 5 } })
+  })
+  it('lets the turn through under the cap (refused before any paid call outside Vercel)', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+    const s = await managerSession(OWNER)
+    store.set(`spend:${new Date().toISOString().slice(0, 7)}`, String(1_000_000))
+    const res = await post(assistant, s, { messages: [{ role: 'user', content: 'מי עובד מחר' }], context: {} })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('no-key')
   })
 })

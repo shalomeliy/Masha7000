@@ -1104,5 +1104,10 @@
  "הוסף הסמכה": "Add certification",
  "הסר הסמכה": "Remove certification",
  "כמה כוכבים העובד מקבל בכל הסמכה. לחיצה על הסמכה פותחת את הכוכבים, את תאריך התוקף ואת ההסרה שלה.": "How many stars the worker gets in each certification. Tap a certification to open its stars, its expiry date and its removal.",
- "ללא": "None"
+ "ללא": "None",
+ "זה ימחק את העבודה ב{where} (יום {weekday} {date})": "this will delete the job in {where} ({weekday} {date})",
+ "זה ימחק את העבודה הממתינה ב{where}": "this will delete the waiting job in {where}",
+ "{name} יסומן כלא פעיל": "{name} will be marked inactive",
+ "זה יוריד ל{name} את ההסמכה {cert}": "this will remove the {cert} certification from {name}",
+ "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "You've reached the assistant's monthly budget cap, so it won't call Claude until next month. Simple commands still work for free."
 }

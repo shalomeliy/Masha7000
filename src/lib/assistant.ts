@@ -397,6 +397,30 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
 /** The moves of busy workers the manager has to hear before saying yes (empty: none). */
 export const proposalConflicts = (p: Proposal, d: AppData) => applyProposal(p, d).conflicts
 
+/**
+ * What the proposal removes, worded here from the proposal itself and not by the model (code scan
+ * 2026-11-10): the manager hears every deletion before the yes, even when the model's summary left it out.
+ */
+export function proposalDangers(p: Proposal, d: AppData): string[] {
+  const out: string[] = []
+  for (const id of p.deleteJobIds) {
+    const shift = d.shifts.find((s) => s.id === id)
+    const job = d.pendingJobs.find((j) => j.id === id)
+    if (shift) out.push(tx('זה ימחק את העבודה ב{where} (יום {weekday} {date})', { where: shift.location || oneLine(shift.jobDescription), weekday: dayName(shift.date), date: showDate(shift.date) }))
+    else if (job) out.push(tx('זה ימחק את העבודה הממתינה ב{where}', { where: job.location || oneLine(job.jobDescription) }))
+  }
+  for (const e of p.editWorkers) {
+    const w = d.workers.find((x) => x.id === e.workerId)
+    if (!w) continue
+    if (e.status === 'inactive') out.push(tx('{name} יסומן כלא פעיל', { name: fullName(w) }))
+    for (const cid of e.removeCertificationIds) {
+      const cert = d.certifications.find((c) => c.id === cid)
+      if (cert && w.certificationIds.includes(cid)) out.push(tx('זה יוריד ל{name} את ההסמכה {cert}', { name: fullName(w), cert: cert.name }))
+    }
+  }
+  return out
+}
+
 /** The spoken proposal: the model's summary, with any move of a busy worker said before the question. */
 export function summaryWithConflicts(summary: string, conflicts: string[]): string {
   if (!conflicts.length) return summary

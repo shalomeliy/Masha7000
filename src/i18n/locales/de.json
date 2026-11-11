@@ -1104,5 +1104,10 @@
  "הוסף הסמכה": "Zertifizierung hinzufügen",
  "הסר הסמכה": "Zertifizierung entfernen",
  "כמה כוכבים העובד מקבל בכל הסמכה. לחיצה על הסמכה פותחת את הכוכבים, את תאריך התוקף ואת ההסרה שלה.": "Wie viele Sterne der Mitarbeiter in jeder Zertifizierung bekommt. Tippe auf eine Zertifizierung, um ihre Sterne, ihr Ablaufdatum und das Entfernen zu öffnen.",
- "ללא": "Keine"
+ "ללא": "Keine",
+ "זה ימחק את העבודה ב{where} (יום {weekday} {date})": "das löscht den Einsatz in {where} ({weekday} {date})",
+ "זה ימחק את העבודה הממתינה ב{where}": "das löscht den wartenden Einsatz in {where}",
+ "{name} יסומן כלא פעיל": "{name} wird als inaktiv markiert",
+ "זה יוריד ל{name} את ההסמכה {cert}": "das entfernt bei {name} die Qualifikation {cert}",
+ "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Das monatliche Budget des Assistenten ist erreicht, deshalb ruft er Claude erst nächsten Monat wieder auf. Einfache Befehle funktionieren weiterhin kostenlos."
 }

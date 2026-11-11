@@ -39,6 +39,10 @@ export const POST = guarded(async (req: Request) => {
   const body = await readJson(req, 400_000)
   if (!body) return json({ reason: 'bad-body' }, 400)
   if (!validConversation(body.messages) || !body.context || typeof body.context !== 'object') return json({ reason: 'bad-body' }, 400)
+  // The month's cap is kept here too, not only by the Anthropic account's limit (code scan 2026-11-10):
+  // once the counted spending reaches it, nothing is sent until the next month.
+  const budget = await readBudget(env)
+  if (budget.spentUsd >= budget.limitUsd) return json({ reason: 'over-budget', budget }, 402)
   // After each answer its cost is added to the month, and the new total goes back with it.
   const after = async (reply: AssistantReply) => {
     if (reply.ok) await recordSpend(env, pickModel(process.env.ASSISTANT_MODEL), reply.usage)

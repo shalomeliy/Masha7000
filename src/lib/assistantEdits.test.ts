@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyProposal, normalizeProposal, proposalConflicts, proposalErrors, summaryWithConflicts, type AppData, type Proposal } from './assistant'
+import { applyProposal, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, summaryWithConflicts, type AppData, type Proposal } from './assistant'
 import { NO_EDITS, type EditJob, type Edits } from './assistantEdits'
 import type { Worker } from '../types/models'
 
@@ -148,4 +148,18 @@ describe('summaryWithConflicts', () => {
   it('says the move before the question', () =>
     expect(summaryWithConflicts('מזיז את דימונה לשלישי. לאשר, או שיש עוד תיקון?', ['דני כבר משובץ בערד'])).toBe('מזיז את דימונה לשלישי. שים לב: דני כבר משובץ בערד. לאשר, או שיש עוד תיקון?'))
   it('no conflicts: unchanged', () => expect(summaryWithConflicts('x', [])).toBe('x'))
+})
+
+describe('proposalDangers', () => {
+  const ew = (over: Partial<Edits['editWorkers'][number]>) => ({ workerId: 'w1', mobilePhone: '', addCertificationIds: [], removeCertificationIds: [], status: '' as const, sickUntil: '', ...over })
+  it('says every deletion from the proposal itself, with the day', () => {
+    expect(proposalDangers(p({ deleteJobIds: ['s2', 'p1', 'nope'] }), data())).toEqual(['זה ימחק את העבודה בערד (יום שלישי 10.11)', 'זה ימחק את העבודה הממתינה באילת'])
+  })
+  it('says a worker made inactive and a certification taken away', () => {
+    const out = proposalDangers(p({ editWorkers: [ew({ status: 'inactive', removeCertificationIds: ['climb', 'el'] })] }), data())
+    expect(out).toEqual(['דני כהן יסומן כלא פעיל', 'זה יוריד לדני כהן את ההסמכה טפסן'])
+  })
+  it('nothing removed: nothing said', () => {
+    expect(proposalDangers(p({ editJobs: [edit({ date: '2026-11-11' })], editWorkers: [ew({ status: 'sick' })] }), data())).toEqual([])
+  })
 })

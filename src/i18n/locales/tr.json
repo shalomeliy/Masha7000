@@ -1104,5 +1104,10 @@
  "הוסף הסמכה": "Sertifika ekle",
  "הסר הסמכה": "Sertifikayı kaldır",
  "כמה כוכבים העובד מקבל בכל הסמכה. לחיצה על הסמכה פותחת את הכוכבים, את תאריך התוקף ואת ההסרה שלה.": "Çalışanın her sertifikada aldığı yıldız sayısı. Bir sertifikaya dokunun; yıldızları, son geçerlilik tarihi ve kaldırma seçeneği açılır.",
- "ללא": "Yok"
+ "ללא": "Yok",
+ "זה ימחק את העבודה ב{where} (יום {weekday} {date})": "bu, {where} işini silecek ({weekday} {date})",
+ "זה ימחק את העבודה הממתינה ב{where}": "bu, {where} bekleyen işini silecek",
+ "{name} יסומן כלא פעיל": "{name} pasif olarak işaretlenecek",
+ "זה יוריד ל{name} את ההסמכה {cert}": "bu, {name} adlı kişiden {cert} sertifikasını kaldıracak",
+ "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Asistanın aylık bütçe sınırına ulaşıldı, bu yüzden gelecek aya kadar Claude çağrılmayacak. Basit komutlar hâlâ ücretsiz çalışıyor."
 }

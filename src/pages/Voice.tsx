@@ -2,7 +2,7 @@ import { language, tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, AudioLines, BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
-import { applyProposal, isYes, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalErrors, snapshot, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
+import { applyProposal, isYes, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, snapshot, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
 import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
@@ -249,7 +249,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       claudeProposal.current = p
       p = mergeProposals([localPart.current.proposal, p])
     }
-    const moves = proposalConflicts(p, data)
+    // Deletions first (worded by the app, not the model), then moves of busy workers.
+    const moves = [...proposalDangers(p, data), ...proposalConflicts(p, data)]
     setConflicts(moves)
     setProposal(p)
     say(`${before ? `${before} ` : ''}${summaryWithConflicts(p.summary, moves)}`)
