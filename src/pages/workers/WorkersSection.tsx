@@ -35,6 +35,7 @@ import { ConstraintFormPanel } from "./ConstraintFormSection";
 import { JoinButton, JoinPending } from "./JoinSection";
 import { authMode } from "../../lib/google/auth";
 import { tx } from '../../i18n'
+import { departmentColor } from "../../lib/departmentColor";
 import { searchWorkers } from "../../lib/workerSearch";
 import { AverageStars, CertStarsField, RatingsSheet } from "./CertStars";
 import { keepHeldRatings } from "../../lib/certRatings";
@@ -628,9 +629,19 @@ function WorkerForm({
         )}
       </div>
 
-      {/* Small on purpose: one line under the name, the status on one side and the department on the other.
+      {/* Small on purpose: one line under the name, the department first and the status after it.
           A tap on either opens its own screen (department: the user's request, 2026-11-11). */}
-      <div className="-mt-3 flex items-center justify-between gap-3 text-xs text-slate-400">
+      <div className="-mt-3 flex flex-wrap items-center gap-x-4 text-xs text-slate-400">
+        <p className="min-w-0">
+          {tx('מחלקה:')}{" "}
+          <button
+            type="button"
+            onClick={() => setDepartmentOpen(true)}
+            className={`py-1 font-semibold ${departmentColor(draft.departmentId, departments.items)}`}
+          >
+            {departments.items.find((d) => d.id === draft.departmentId)?.name ?? tx('בלי מחלקה')}
+          </button>
+        </p>
         <p>
           {tx('סטטוס:')}{" "}
           <button
@@ -639,12 +650,6 @@ function WorkerForm({
             className={`py-1 font-semibold ${draftState.id === "fit" ? STATUS_COLOR.active : draftState.id === "inactive" ? STATUS_COLOR.inactive : STATUS_COLOR.sick}`}
           >
             {draftState.label}
-          </button>
-        </p>
-        <p className="min-w-0 truncate">
-          {tx('מחלקה:')}{" "}
-          <button type="button" onClick={() => setDepartmentOpen(true)} className="py-1 font-semibold text-slate-200">
-            {departments.items.find((d) => d.id === draft.departmentId)?.name ?? tx('בלי מחלקה')}
           </button>
         </p>
       </div>
@@ -662,7 +667,7 @@ function WorkerForm({
                       setDraft((d) => ({ ...d, departmentId: dep.id || undefined }));
                       setDepartmentOpen(false);
                     }}
-                    className={`flex min-h-12 w-full items-center rounded-xl border px-4 text-start ${chosen ? "border-sky-400 bg-sky-500/15 font-semibold text-sky-100" : "border-slate-800 bg-slate-900"}`}
+                    className={`flex min-h-12 w-full items-center rounded-xl border px-4 text-start ${departmentColor(dep.id, departments.items)} ${chosen ? "border-sky-400 bg-sky-500/15 font-semibold" : "border-slate-800 bg-slate-900"}`}
                   >
                     {dep.name}
                   </button>
