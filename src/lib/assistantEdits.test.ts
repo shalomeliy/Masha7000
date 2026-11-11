@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyProposal, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, summaryWithConflicts, type AppData, type Proposal } from './assistant'
+import { applyProposal, normalizeProposal, returnChoice, proposalConflicts, proposalDangers, proposalErrors, summaryWithConflicts, type AppData, type Proposal } from './assistant'
 import { NO_EDITS, type EditJob, type Edits } from './assistantEdits'
 import type { Worker } from '../types/models'
 
@@ -47,17 +47,27 @@ describe('editing jobs', () => {
     expect(out.report).toContain('עדכנתי שדני כבר לא במחלה')
   })
 
-  it('a dated absence is cut around the job days only; a weekly one is only said', () => {
+  it('back in the middle of a vacation: asked whether only for this job or cancelled, and saved by the answer', () => {
     const d = data()
-    d.workers[0].constraints = [{ id: 'c', when: 'dates', from: '2026-11-10', to: '2026-11-14', kind: 'vacation' }]
+    d.workers[0].constraints = [{ id: 'c', when: 'dates', from: '2026-11-05', to: '2026-11-14', kind: 'vacation' }]
     const proposal = p({ editJobs: [edit({ date: '2026-11-12' })] })
-    expect(proposalConflicts(proposal, d)).toEqual(['דני רשום בחופש 10.11 עד 14.11. הוא כבר לא בחופש? אם תאשר, אשבץ אותו ואעדכן את הסטטוס שלו'])
-    expect(applyProposal(proposal, d, NOW).data.workers[0].constraints).toMatchObject([
-      { id: 'c', from: '2026-11-10', to: '2026-11-11', kind: 'vacation' },
-      { from: '2026-11-13', to: '2026-11-14', kind: 'vacation' },
+    const asked = applyProposal(proposal, d, NOW)
+    expect(asked.asksReturn).toBe(true)
+    expect(asked.conflicts).toEqual(['דני רשום בחופש 5.11 עד 14.11'])
+    expect(applyProposal({ ...proposal, absenceReturn: 'job' }, d, NOW).data.workers[0].constraints).toMatchObject([
+      { id: 'c', from: '2026-11-05', to: '2026-11-11' },
+      { from: '2026-11-13', to: '2026-11-14' },
     ])
+    const all = applyProposal({ ...proposal, absenceReturn: 'all' }, d, NOW)
+    expect(all.data.workers[0].constraints).toMatchObject([{ id: 'c', from: '2026-11-05', to: '2026-11-05' }]) // days before today stay
+    expect(all.report).toContain('עדכנתי שדני כבר לא בחופש')
+  })
+
+  it('an absence of only the job days asks a plain yes; a weekly one is only said', () => {
+    const proposal = p({ editJobs: [edit({ date: '2026-11-12' })] })
     const plain = data()
     plain.workers[0].constraints = [{ id: 'c', when: 'dates', from: '2026-11-12', to: '2026-11-12' }]
+    expect(applyProposal(proposal, plain, NOW).asksReturn).toBe(false)
     expect(proposalConflicts(proposal, plain)).toEqual(['דני רשום לא זמין ב-12.11. הוא כבר זמין? אם תאשר, אשבץ אותו ואעדכן את הסטטוס שלו'])
     expect(applyProposal(proposal, plain, NOW).data.workers[0].constraints).toEqual([])
     const weekly = data()
@@ -66,6 +76,14 @@ describe('editing jobs', () => {
     const out = applyProposal(proposal, weekly, NOW)
     expect(out.report).toContain('שים לב, דני: לא זמין בימי חמישי.')
     expect(out.data.workers[0].constraints).toHaveLength(1)
+  })
+
+  it('the answer to "only this job or cancelled", said in Hebrew', () => {
+    expect(returnChoice('רק לעבודה הזו')).toBe('job')
+    expect(returnChoice('רק להיום')).toBe('job')
+    expect(returnChoice('בוטל לגמרי')).toBe('all')
+    expect(returnChoice('החופשה בוטלה')).toBe('all')
+    expect(returnChoice('תוריד אותו')).toBeNull()
   })
 
   it('a waiting job with a date goes into the calendar and is marked scheduled', () => {

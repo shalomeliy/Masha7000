@@ -70,6 +70,9 @@ export interface Proposal extends Edits {
   rememberNotes: string[] // things the manager asked the assistant to remember from now on
   lessons: string[] // rules the assistant learned from the manager in this conversation; saved with the yes
   forgetNoteIds: string[]
+  // The manager's answer when a worker comes back in the middle of an absence: for this job only
+  // (the rest stays), or the absence is cancelled from now on. Set by the app, never by the model.
+  absenceReturn?: 'job' | 'all'
 }
 
 // Shifts this far back and ahead go to the assistant; enough for "מי עבד אתמול" and the coming weeks.
@@ -270,6 +273,9 @@ export interface Applied {
   // Workers the proposal puts in a job while they are in another one at the same time. Applying
   // moves them (the other job is left with an empty place); the manager hears this before the yes.
   conflicts: string[]
+  // A worker comes back in the middle of an absence that goes on after the job: the manager is asked
+  // whether only for this job or the absence is cancelled (RETURN_ASK), before the yes.
+  asksReturn: boolean
 }
 
 /** The data after the confirmed proposal; the caller saves each list in `changed`. */
@@ -381,8 +387,11 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
 
   // A worker the manager put in a job (or who moved with it) while sick or away on its days: the
   // manager is asked whether that is over (the user's rule, 2026-11-11). The yes places him and
-  // updates his state: sickness saved as the status ends, a dated absence is cut around the job's
-  // days. A weekly or part-of-day constraint is not changed, only said.
+  // updates his state: sickness saved as the status ends. A dated absence with days still to come
+  // around the job asks first: back only for this job (those days are cut out, the rest stays), or
+  // the absence is cancelled from now on. A weekly or part-of-day constraint is only said.
+  const today = at.slice(0, 10)
+  let asksReturn = false
   for (const id of placed) {
     const shift = d.shifts.find((s) => s.id === id)
     if (!shift) continue
@@ -397,10 +406,24 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
         continue
       }
       const days = shiftDays(shift, d.shiftDefinitions)
-      const updated: Worker = c.id === 'sick' ? { ...worker, status: 'active', sickUntil: undefined } : { ...worker, constraints: cutAround(worker.constraints, c, days[0], days.at(-1)!) }
-      d.workers = upsert(d.workers, updated)
+      const cut = c.id === 'sick' ? [] : cutAround([c], c, days[0], days.at(-1)!)
+      const ask = cut.some((x) => (x.to ?? x.from!) >= today)
+      let constraints = worker.constraints
+      if (c.id !== 'sick') {
+        const from = days[0] < today ? days[0] : today
+        constraints = !ask || p.absenceReturn !== 'all' ? cutAround(constraints, c, days[0], days.at(-1)!) : constraints.flatMap((x) => (x.id !== c.id ? [x] : c.from! < from ? [{ ...c, to: addDays(from, -1) }] : []))
+      }
+      d.workers = upsert(d.workers, c.id === 'sick' ? { ...worker, status: 'active', sickUntil: undefined } : { ...worker, constraints })
       changed.add('workers')
-      if (kind) {
+      if (ask) {
+        asksReturn = true
+        conflicts.push(tx('{firstName} רשום {v}', { firstName: worker.firstName, v: what }))
+        report.push(
+          p.absenceReturn === 'all'
+            ? kind ? tx('עדכנתי ש{firstName} כבר לא {state}', { firstName: worker.firstName, state: ABSENCE_NAMES[kind] }) : tx('עדכנתי ש{firstName} זמין', { firstName: worker.firstName })
+            : tx('עדכנתי ש{firstName} זמין רק לעבודה הזו', { firstName: worker.firstName }),
+        )
+      } else if (kind) {
         conflicts.push(tx('{firstName} רשום {v}. הוא כבר לא {state}? אם תאשר, אשבץ אותו ואעדכן את הסטטוס שלו', { firstName: worker.firstName, v: what, state: ABSENCE_NAMES[kind] }))
         report.push(tx('עדכנתי ש{firstName} כבר לא {state}', { firstName: worker.firstName, state: ABSENCE_NAMES[kind] }))
       } else {
@@ -423,7 +446,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     if (plan.unfilled.length && names.length) report.push(tx('ב{where} נשארו {v}', { where, v: plan.unfilled.length === 1 ? tx('מקום אחד פנוי') : tx('{length} מקומות פנויים', { length: plan.unfilled.length }) }))
   }
   report.push(...edits.warnings)
-  return { data: d, changed, report, errors, conflicts }
+  return { data: d, changed, report, errors, conflicts, asksReturn }
 }
 
 /** A dated absence without the days from `first` to `last`: what was before and after them stays. */
@@ -434,6 +457,16 @@ function cutAround(list: Constraint[], c: Constraint, first: string, last: strin
   if (from < first) parts.push({ ...c, to: addDays(first, -1) })
   if (to > last) parts.push({ ...c, id: parts.length ? newId() : c.id, from: addDays(last, 1), to })
   return list.flatMap((x) => (x.id === c.id ? parts : [x]))
+}
+
+/** The question when a worker comes back in the middle of an absence (asksReturn). */
+export const returnAsk = () => tx('הוא חוזר רק לעבודה הזו, או שזה בוטל לגמרי?')
+
+/** The answer to returnAsk, said in Hebrew: "רק לעבודה הזו" or "בוטל לגמרי"; null when it is neither. */
+export function returnChoice(said: string): 'job' | 'all' | null {
+  if (/בוטל|בוטלה|לגמרי|נגמר|נגמרה|כל ה/.test(said)) return 'all'
+  if (/רק|הזו|הזאת|היום|לעבודה/.test(said)) return 'job'
+  return null
 }
 
 /** The moves of busy workers the manager has to hear before saying yes (empty: none). */

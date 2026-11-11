@@ -2,7 +2,7 @@ import { language, tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, AudioLines, BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
-import { applyProposal, isYes, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, snapshot, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
+import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, snapshot, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
 import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
@@ -76,6 +76,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [error, setError] = useState<string | null>(null)
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [conflicts, setConflicts] = useState<string[]>([])
+  // A worker comes back in the middle of an absence: the yes is "only this job" or "cancelled".
+  const [asksReturn, setAsksReturn] = useState(false)
   const [advice, setAdvice] = useState<Advice | null>(null)
   const [talking, setTalking] = useState(false) // a conversation is open: it can be closed without saving
   const typedRef = useRef<HTMLInputElement>(null)
@@ -134,6 +136,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     claudeProposal.current = null
     logged.current = null
     setProposal(null)
+    setAsksReturn(false)
     setAdvice(null)
     setTalking(false)
   }
@@ -251,9 +254,12 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     }
     // Deletions first (worded by the app, not the model), then moves of busy workers.
     const moves = [...proposalDangers(p, data), ...proposalConflicts(p, data)]
+    const asks = applyProposal(p, data).asksReturn
     setConflicts(moves)
+    setAsksReturn(asks)
     setProposal(p)
-    say(`${before ? `${before} ` : ''}${summaryWithConflicts(p.summary, moves)}`)
+    const spoken = summaryWithConflicts(p.summary, moves)
+    say(`${before ? `${before} ` : ''}${asks ? spoken.replace(tx('לאשר, או שיש עוד תיקון?'), returnAsk()) : spoken}`)
   }
 
   // When Claude ends without a proposal (an answer, an error), the parts done here are offered alone.
@@ -267,11 +273,11 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     return true
   }
 
-  const confirm = async (byButton: boolean) => {
+  const confirm = async (byButton: boolean, absenceReturn?: 'job' | 'all') => {
     if (!proposal) return
     setPhase('saving')
     setError(null)
-    const { data: next, changed, report } = applyProposal(proposal, data)
+    const { data: next, changed, report } = applyProposal(absenceReturn ? { ...proposal, absenceReturn } : proposal, data)
     // From a joined proposal only Claude's part is learned, with what was said for it.
     const own = claudeProposal.current ?? proposal
     const action = fromFree.current ? undefined : exampleAction(own, asked.current)
@@ -300,7 +306,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       setPhase('idle')
       return
     }
-    if (byButton) setLines((l) => [...l, { who: 'me', text: tx('מאשר') }])
+    if (byButton) setLines((l) => [...l, { who: 'me', text: absenceReturn === 'job' ? tx('רק לעבודה הזו') : absenceReturn === 'all' ? tx('בוטל לגמרי') : tx('מאשר') }])
     logEnd('confirmed', action?.type ?? '')
     say(`${report.join('. ')}.`)
     reset()
@@ -319,6 +325,17 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     const text = said.trim()
     if (!text) return
     setLines((l) => [...l, { who: 'me', text }])
+    if (proposal && asksReturn) {
+      const choice = returnChoice(text)
+      if (choice) {
+        void confirm(false, choice)
+        return
+      }
+      if (isYes(text)) {
+        say(returnAsk())
+        return
+      }
+    }
     if (proposal && isYes(text)) {
       void confirm(false)
       return
@@ -397,6 +414,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     const why = whyNotFree(split.unknown[0], data, learned, now)
     logStart(`part of a long sentence; done free: ${split.known.map((k) => `"${k.text}"`).join(', ')}. This part: ${why.reason}`, why.understood)
     setProposal(null)
+    setAsksReturn(false)
     setAdvice(null)
     void send({ role: 'user', content: claudePart(split, text) })
     return true
@@ -564,10 +582,23 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         )}
         {proposal && phase === 'idle' && (
           <div className="flex gap-3">
-            <button type="button" onClick={() => void confirm(true)} className="flex min-h-12 items-center gap-2 rounded-xl bg-emerald-600 px-6 font-semibold text-white">
-              <Check size={20} aria-hidden />
-              {tx('אשר')}
-            </button>
+            {asksReturn ? (
+              <>
+                <button type="button" onClick={() => void confirm(true, 'job')} className="flex min-h-12 items-center gap-2 rounded-xl bg-emerald-600 px-4 font-semibold text-white">
+                  <Check size={20} aria-hidden />
+                  {tx('רק לעבודה הזו')}
+                </button>
+                <button type="button" onClick={() => void confirm(true, 'all')} className="flex min-h-12 items-center gap-2 rounded-xl bg-emerald-600 px-4 font-semibold text-white">
+                  <Check size={20} aria-hidden />
+                  {tx('בוטל לגמרי')}
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => void confirm(true)} className="flex min-h-12 items-center gap-2 rounded-xl bg-emerald-600 px-6 font-semibold text-white">
+                <Check size={20} aria-hidden />
+                {tx('אשר')}
+              </button>
+            )}
             <button type="button" onClick={correct} className="flex min-h-12 items-center gap-2 rounded-xl bg-sky-600 px-6 font-semibold text-white">
               <Pencil size={20} aria-hidden />
               {tx('תקן')}
