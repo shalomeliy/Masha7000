@@ -1109,5 +1109,7 @@
  "זה ימחק את העבודה הממתינה ב{where}": "isso vai apagar o trabalho pendente em {where}",
  "{name} יסומן כלא פעיל": "{name} vai ser marcado como inativo",
  "זה יוריד ל{name} את ההסמכה {cert}": "isso vai tirar de {name} a certificação {cert}",
- "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Você chegou ao teto mensal do orçamento do assistente, então ele não vai chamar o Claude até o mês que vem. Comandos simples continuam funcionando de graça."
+ "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Você chegou ao teto mensal do orçamento do assistente, então ele não vai chamar o Claude até o mês que vem. Comandos simples continuam funcionando de graça.",
+ "מחלקה:": "Departamento:",
+ "בתוקף עד": "Válida até"
 }

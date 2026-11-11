@@ -1109,5 +1109,7 @@
  "זה ימחק את העבודה הממתינה ב{where}": "das löscht den wartenden Einsatz in {where}",
  "{name} יסומן כלא פעיל": "{name} wird als inaktiv markiert",
  "זה יוריד ל{name} את ההסמכה {cert}": "das entfernt bei {name} die Qualifikation {cert}",
- "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Das monatliche Budget des Assistenten ist erreicht, deshalb ruft er Claude erst nächsten Monat wieder auf. Einfache Befehle funktionieren weiterhin kostenlos."
+ "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Das monatliche Budget des Assistenten ist erreicht, deshalb ruft er Claude erst nächsten Monat wieder auf. Einfache Befehle funktionieren weiterhin kostenlos.",
+ "מחלקה:": "Abteilung:",
+ "בתוקף עד": "Gültig bis"
 }

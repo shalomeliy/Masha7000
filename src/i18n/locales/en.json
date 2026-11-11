@@ -1109,5 +1109,7 @@
  "זה ימחק את העבודה הממתינה ב{where}": "this will delete the waiting job in {where}",
  "{name} יסומן כלא פעיל": "{name} will be marked inactive",
  "זה יוריד ל{name} את ההסמכה {cert}": "this will remove the {cert} certification from {name}",
- "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "You've reached the assistant's monthly budget cap, so it won't call Claude until next month. Simple commands still work for free."
+ "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "You've reached the assistant's monthly budget cap, so it won't call Claude until next month. Simple commands still work for free.",
+ "מחלקה:": "Department:",
+ "בתוקף עד": "Valid until"
 }

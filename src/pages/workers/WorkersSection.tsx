@@ -512,7 +512,9 @@ function WorkerForm({
       : worker,
   );
   const [statusOpen, setStatusOpen] = useState(false);
+  const [departmentOpen, setDepartmentOpen] = useState(false);
   const draftState = workerState(draft, todayIso());
+  const mainDial = telHref(draft.mobilePhone);
   const [error, setError] = useState<string | null>(null);
   const [birthDateValid, setBirthDateValid] = useState(true);
   const [saveError, setSaveError] = useState<unknown>(null);
@@ -592,35 +594,88 @@ function WorkerForm({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label={tx('שם פרטי (חובה)')}>
-          <input
-            autoFocus
-            value={draft.firstName}
-            onChange={set("firstName")}
-            className={inputClass}
-          />
-        </Field>
-        <Field label={tx('שם משפחה (חובה)')}>
-          <input
-            value={draft.lastName}
-            onChange={set("lastName")}
-            className={inputClass}
-          />
-        </Field>
+      {/* Names a little narrower, and the main mobile's call button at their end (the user's request, 2026-11-11). */}
+      <div className="flex items-end gap-2">
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+          <Field label={tx('שם פרטי (חובה)')}>
+            <input
+              autoFocus
+              value={draft.firstName}
+              onChange={set("firstName")}
+              className={inputClass}
+            />
+          </Field>
+          <Field label={tx('שם משפחה (חובה)')}>
+            <input
+              value={draft.lastName}
+              onChange={set("lastName")}
+              className={inputClass}
+            />
+          </Field>
+        </div>
+        {mainDial ? (
+          <a
+            href={mainDial}
+            aria-label={tx('חיוג: {label}', { label: tx('טלפון נייד (חובה)') })}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300"
+          >
+            <Phone size={20} aria-hidden />
+          </a>
+        ) : (
+          <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800/60 text-slate-600">
+            <Phone size={20} />
+          </span>
+        )}
       </div>
 
-      {/* Small on purpose: a line of its own under the name, not a full form row. */}
-      <p className="-mt-3 text-xs text-slate-400">
-        {tx('סטטוס:')}{" "}
-        <button
-          type="button"
-          onClick={() => setStatusOpen(true)}
-          className={`py-1 font-semibold ${draftState.id === "fit" ? STATUS_COLOR.active : draftState.id === "inactive" ? STATUS_COLOR.inactive : STATUS_COLOR.sick}`}
-        >
-          {draftState.label}
-        </button>
-      </p>
+      {/* Small on purpose: one line under the name, the status on one side and the department on the other.
+          A tap on either opens its own screen (department: the user's request, 2026-11-11). */}
+      <div className="-mt-3 flex items-center justify-between gap-3 text-xs text-slate-400">
+        <p>
+          {tx('סטטוס:')}{" "}
+          <button
+            type="button"
+            onClick={() => setStatusOpen(true)}
+            className={`py-1 font-semibold ${draftState.id === "fit" ? STATUS_COLOR.active : draftState.id === "inactive" ? STATUS_COLOR.inactive : STATUS_COLOR.sick}`}
+          >
+            {draftState.label}
+          </button>
+        </p>
+        <p className="min-w-0 truncate">
+          {tx('מחלקה:')}{" "}
+          <button type="button" onClick={() => setDepartmentOpen(true)} className="py-1 font-semibold text-slate-200">
+            {departments.items.find((d) => d.id === draft.departmentId)?.name ?? tx('בלי מחלקה')}
+          </button>
+        </p>
+      </div>
+      <Sheet open={departmentOpen} title={tx('מחלקה')} onClose={() => setDepartmentOpen(false)}>
+        {departments.items.length ? (
+          <ul className="space-y-2">
+            {[{ id: "", name: tx('בלי מחלקה') }, ...departments.items].map((dep) => {
+              const chosen = (draft.departmentId ?? "") === dep.id;
+              return (
+                <li key={dep.id || "none"}>
+                  <button
+                    type="button"
+                    aria-pressed={chosen}
+                    onClick={() => {
+                      setDraft((d) => ({ ...d, departmentId: dep.id || undefined }));
+                      setDepartmentOpen(false);
+                    }}
+                    className={`flex min-h-12 w-full items-center rounded-xl border px-4 text-start ${chosen ? "border-sky-400 bg-sky-500/15 font-semibold text-sky-100" : "border-slate-800 bg-slate-900"}`}
+                  >
+                    {dep.name}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-sm text-amber-300">
+            {tx('עוד אין מחלקות. אפשר להוסיף אותן בהגדרות, "מחלקות".')}
+          </p>
+        )}
+      </Sheet>
       <StatusSheet
         open={statusOpen}
         worker={draft}
@@ -645,36 +700,6 @@ function WorkerForm({
         }
       />
 
-      {exists && (
-        <WorkerAgenda
-          items={agenda.items}
-          fixed={fixedConstraints(draft.constraints, todayIso())}
-          onAdd={() => setAddConstraint((n) => n + 1)}
-          loading={agenda.loading}
-          onRemove={removeAway}
-          onEditSick={editSick}
-          onEdit={editAway}
-          onOpen={() => setMonthOpen(true)}
-        />
-      )}
-      {/* A constraint's editor: from the calendar's pencil or its "add" button. */}
-      <ConstraintsField
-        value={draft.constraints}
-        open={openConstraint}
-        add={addConstraint}
-        onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
-      />
-      {exists && (
-        <WorkerMonth
-          worker={draft}
-          open={monthOpen}
-          onClose={() => setMonthOpen(false)}
-          onRemove={removeAway}
-          onEditSick={editSick}
-          onEdit={editAway}
-        />
-      )}
-
       <div className="grid grid-cols-2 gap-3">
         <Field label={tx('ת.ז')}>
           <input
@@ -696,30 +721,6 @@ function WorkerForm({
           />
         </Field>
       </div>
-      <div className="space-y-1">
-        <span className="text-sm text-slate-300">{tx('מחלקה')}</span>
-        {departments.items.length ? (
-          // A list that opens on a tap; closed, it shows only the chosen department (the user's request, 2026-11-10).
-          <select
-            aria-label={tx('מחלקה')}
-            value={draft.departmentId ?? ""}
-            onChange={(e) => setDraft((d) => ({ ...d, departmentId: e.target.value || undefined }))}
-            className={inputClass}
-          >
-            <option value="">{tx('בלי מחלקה')}</option>
-            {departments.items.map((dep) => (
-              <option key={dep.id} value={dep.id}>
-                {dep.name}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <p className="text-sm text-amber-300">
-            {tx('עוד אין מחלקות. אפשר להוסיף אותן בהגדרות, "מחלקות".')}
-          </p>
-        )}
-      </div>
-
       <div className="space-y-1">
         <span className="text-sm text-slate-300">{tx('הסמכות')}</span>
         {/* Only the certifications the worker holds; more are added from the list under them, and an open
@@ -766,6 +767,36 @@ function WorkerForm({
           </p>
         )}
       </div>
+
+      {exists && (
+        <WorkerAgenda
+          items={agenda.items}
+          fixed={fixedConstraints(draft.constraints, todayIso())}
+          onAdd={() => setAddConstraint((n) => n + 1)}
+          loading={agenda.loading}
+          onRemove={removeAway}
+          onEditSick={editSick}
+          onEdit={editAway}
+          onOpen={() => setMonthOpen(true)}
+        />
+      )}
+      {/* A constraint's editor: from the calendar's pencil or its "add" button. */}
+      <ConstraintsField
+        value={draft.constraints}
+        open={openConstraint}
+        add={addConstraint}
+        onChange={(constraints) => setDraft((d) => ({ ...d, constraints }))}
+      />
+      {exists && (
+        <WorkerMonth
+          worker={draft}
+          open={monthOpen}
+          onClose={() => setMonthOpen(false)}
+          onRemove={removeAway}
+          onEditSick={editSick}
+          onEdit={editAway}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         {PHONES.map(([field, label]) => {

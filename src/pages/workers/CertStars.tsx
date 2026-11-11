@@ -95,7 +95,7 @@ export function CertStarsField({
             {open && (
               <div className="space-y-2 pb-2">
                 <DateField
-                  label={tx('בתוקף עד (ריק = בלי תפוגה)')}
+                  label={tx('בתוקף עד')}
                   value={worker.certExpiry?.[c.id] ?? ''}
                   onChange={(date, ok) => ok && onChange(setCertExpiry(worker, c.id, date))}
                 />

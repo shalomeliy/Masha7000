@@ -1109,5 +1109,7 @@
  "זה ימחק את העבודה הממתינה ב{where}": "ini akan menghapus pekerjaan tertunda di {where}",
  "{name} יסומן כלא פעיל": "{name} akan ditandai tidak aktif",
  "זה יוריד ל{name} את ההסמכה {cert}": "ini akan mencabut sertifikasi {cert} dari {name}",
- "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Anggaran bulanan asisten sudah mencapai batas, jadi asisten tidak akan memanggil Claude sampai bulan depan. Perintah sederhana tetap gratis."
+ "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Anggaran bulanan asisten sudah mencapai batas, jadi asisten tidak akan memanggil Claude sampai bulan depan. Perintah sederhana tetap gratis.",
+ "מחלקה:": "Departemen:",
+ "בתוקף עד": "Berlaku hingga"
 }
