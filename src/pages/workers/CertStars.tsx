@@ -62,8 +62,9 @@ export function CertStarsField({
                 onClick={toggle}
                 className="flex min-h-11 min-w-0 flex-1 items-center justify-between gap-2 text-start"
               >
-                <span className={`min-w-0 truncate text-sm ${state ? EXPIRY_TONE[state] : ''}`}>{c.name}</span>
-                {left && <span className={`shrink-0 text-xs ${state ? EXPIRY_TONE[state] : 'text-slate-400'}`}>{left}</span>}
+                <span className={`min-w-0 break-words text-sm leading-tight ${state ? EXPIRY_TONE[state] : ''}`}>{c.name}</span>
+                {/* Open, the days left move next to the date, so a long name keeps the room the stars leave it. */}
+                {left && !open && <span className={`shrink-0 text-xs ${state ? EXPIRY_TONE[state] : 'text-slate-400'}`}>{left}</span>}
               </button>
               {open ? (
                 <span className="flex shrink-0" role="radiogroup" aria-label={tx('דירוג ב{name}', { name: c.name })}>
@@ -94,11 +95,16 @@ export function CertStarsField({
             </div>
             {open && (
               <div className="space-y-2 pb-2">
-                <DateField
-                  label={tx('בתוקף עד')}
-                  value={worker.certExpiry?.[c.id] ?? ''}
-                  onChange={(date, ok) => ok && onChange(setCertExpiry(worker, c.id, date))}
-                />
+                <div className="flex items-end gap-3">
+                  <div className="w-1/2 min-w-0">
+                    <DateField
+                      label={tx('בתוקף עד')}
+                      value={worker.certExpiry?.[c.id] ?? ''}
+                      onChange={(date, ok) => ok && onChange(setCertExpiry(worker, c.id, date))}
+                    />
+                  </div>
+                  {left && <span className={`flex min-h-12 items-center text-sm ${state ? EXPIRY_TONE[state] : 'text-slate-400'}`}>{left}</span>}
+                </div>
                 <button
                   type="button"
                   onClick={() => {
