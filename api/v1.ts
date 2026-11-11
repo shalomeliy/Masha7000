@@ -17,6 +17,7 @@ import { date, idList, Invalid, isDate, oneOf, onlyFields, staffing, stars, text
 type Raw = Record<string, unknown>
 const MAX_BODY = 32_000
 const MAX_RANGE_DAYS = 366
+const MAX_CONSTRAINTS = 200
 
 class Fail extends Error {
   status: number
@@ -92,19 +93,19 @@ async function read(drive: Drive, key: ApiKey, path: string[], url: URL): Promis
       if (id) {
         const found = await store.findShift(drive, id)
         if (!found) throw new Fail(404, 'not-found', 'no such shift')
-        return ok(toApiShift(normalizeShiftRecord(found.raw)))
+        return ok(toApiShift(normalizeShiftRecord(found.raw), key.personal))
       }
       const from = url.searchParams.get('from') ?? ''
       const to = url.searchParams.get('to') ?? ''
       if (!isDate(from)) throw new Fail(422, 'invalid', 'from: required, YYYY-MM-DD', 'from')
       if (!isDate(to) || to < from) throw new Fail(422, 'invalid', 'to: required, YYYY-MM-DD, not before from', 'to')
       if (days(from, to) > MAX_RANGE_DAYS) throw new Fail(422, 'invalid', `at most ${MAX_RANGE_DAYS} days at a time`, 'to')
-      return ok((await store.shiftsBetween(drive, from, to)).map(toApiShift))
+      return ok((await store.shiftsBetween(drive, from, to)).map((x) => toApiShift(x, key.personal)))
     }
     case 'pending-jobs': {
       if (id) break
       const waiting = url.searchParams.get('waiting') === 'true'
-      return ok((await store.pendingJobs(drive)).filter((j) => !waiting || !j.scheduledShiftId).map(toApiPendingJob))
+      return ok((await store.pendingJobs(drive)).filter((j) => !waiting || !j.scheduledShiftId).map((j) => toApiPendingJob(j, key.personal)))
     }
     case 'certifications':
       if (id) break
@@ -143,7 +144,11 @@ async function known(drive: Drive): Promise<Known> {
 function crewWarnings(k: Known, shift: StoredShift, sameDay: StoredShift[]): string[] {
   const out: string[] = []
   for (const { workerId } of shift.crew) {
-    const w = k.workers.get(workerId)!
+    const w = k.workers.get(workerId)
+    if (!w) {
+      out.push(`worker ${workerId} is no longer in the workers list`)
+      continue
+    }
     const busy = sameDay.find((s) => s.id !== shift.id && s.crew.some((c) => c.workerId === workerId))
     if (busy) out.push(`worker ${workerId} is also in shift ${busy.id} on ${shift.date}`)
     if (w.status === 'sick' && (!w.sickUntil || w.sickUntil >= shift.date)) out.push(`worker ${workerId} is marked sick`)
@@ -170,7 +175,7 @@ async function sameDayShifts(drive: Drive, day: string) {
 
 const SHIFT_FIELDS = ['date', 'shiftKindId', 'location', 'jobDescription', 'crew', 'pinnedWorkerIds', 'staffing']
 
-async function createShift(drive: Drive, b: Raw) {
+async function createShift(drive: Drive, b: Raw, personal: boolean) {
   onlyFields(b, SHIFT_FIELDS)
   const k = await known(drive)
   const day = date(b, 'date', true)!
@@ -196,10 +201,10 @@ async function createShift(drive: Drive, b: Raw) {
   const stored = normalizeShiftRecord(shift)
   const warnings = crewWarnings(k, stored, await sameDayShifts(drive, day))
   await store.putShift(drive, shift)
-  return ok(toApiShift(stored), warnings, 201)
+  return ok(toApiShift(stored, personal), warnings, 201)
 }
 
-async function patchShift(drive: Drive, id: string, b: Raw) {
+async function patchShift(drive: Drive, id: string, b: Raw, personal: boolean) {
   onlyFields(b, SHIFT_FIELDS)
   const found = await store.findShift(drive, id)
   if (!found) throw new Fail(404, 'not-found', 'no such shift')
@@ -238,10 +243,10 @@ async function patchShift(drive: Drive, id: string, b: Raw) {
     await store.putShift(drive, next)
     await store.dropShift(drive, found.read, id)
   }
-  return ok(toApiShift(stored), warnings)
+  return ok(toApiShift(stored, personal), warnings)
 }
 
-async function createPendingJob(drive: Drive, b: Raw) {
+async function createPendingJob(drive: Drive, b: Raw, personal: boolean) {
   onlyFields(b, ['location', 'jobDescription', 'shiftKindId', 'staffing', 'pinnedWorkerIds', 'note'])
   const k = await known(drive)
   const location = text(b, 'location') ?? ''
@@ -263,7 +268,7 @@ async function createPendingJob(drive: Drive, b: Raw) {
   }
   const { read: before, list } = await store.readList(drive, store.FILES.pendingJobs)
   await drive.write(before, [...list, job])
-  return ok(toApiPendingJob(normalizePendingJob(job)), [], 201)
+  return ok(toApiPendingJob(normalizePendingJob(job), personal), [], 201)
 }
 
 async function patchWorker(drive: Drive, id: string, b: Raw, key: ApiKey) {
@@ -321,6 +326,7 @@ async function addConstraint(drive: Drive, id: string, b: Raw, key: ApiKey) {
   const { read: before, list } = await store.readList(drive, store.FILES.workers)
   const at = list.findIndex((w) => w.id === id)
   if (at < 0) throw new Fail(404, 'not-found', 'no such worker')
+  if (((list[at].constraints as unknown[]) ?? []).length >= MAX_CONSTRAINTS) throw new Fail(409, 'too-many-constraints', `at most ${MAX_CONSTRAINTS} constraints per worker; remove old ones in the app`)
   const when = b.when ?? 'dates'
   if (!['dates', 'weekdays', 'always'].includes(String(when))) throw new Invalid('when', 'dates, weekdays or always')
   const c: Raw = { id: crypto.randomUUID(), when }
@@ -361,13 +367,13 @@ async function write(drive: Drive, key: ApiKey, method: string, path: string[], 
   if (more) throw new Fail(404, 'not-found')
   if (method === 'POST' && what === 'shifts' && !id) {
     if (await store.legacyShiftsLeft(drive)) throw new Fail(409, 'open-app-first', 'open the app once so it updates its shift files, then try again')
-    return createShift(drive, b)
+    return createShift(drive, b, key.personal)
   }
   if (method === 'PATCH' && what === 'shifts' && id && !sub) {
     if (await store.legacyShiftsLeft(drive)) throw new Fail(409, 'open-app-first', 'open the app once so it updates its shift files, then try again')
-    return patchShift(drive, id, b)
+    return patchShift(drive, id, b, key.personal)
   }
-  if (method === 'POST' && what === 'pending-jobs' && !id) return createPendingJob(drive, b)
+  if (method === 'POST' && what === 'pending-jobs' && !id) return createPendingJob(drive, b, key.personal)
   if (method === 'PATCH' && what === 'workers' && id && !sub) return patchWorker(drive, id, b, key)
   if (method === 'POST' && what === 'workers' && id && sub === 'constraints') return addConstraint(drive, id, b, key)
   throw new Fail(404, 'not-found')
@@ -389,6 +395,15 @@ async function handle(req: Request, env: Env, key: ApiKey): Promise<Response> {
 }
 
 async function entry(req: Request): Promise<Response> {
+  try {
+    return await gate(req)
+  } catch (e) {
+    console.error('api v1 error', (e as Error).name)
+    return answer(500, { error: { code: 'server-error', message: 'server-error' } })
+  }
+}
+
+async function gate(req: Request): Promise<Response> {
   const env = readEnv()
   if (!env) return answer(503, { error: { code: 'not-configured', message: 'not-configured' } })
   const key = await keyOf(env, req)
@@ -411,7 +426,7 @@ async function entry(req: Request): Promise<Response> {
     }
     await markUsed(env, key.id).catch(() => {})
   }
-  await logCall(env, { at: new Date().toISOString(), keyId: key?.id ?? null, method: req.method, path: `/${pathOf(req).join('/')}`.slice(0, 200), status: res.status }).catch(() => {})
+  await logCall(env, { at: new Date().toISOString(), keyId: key?.id ?? null, method: req.method, path: key ? `/${pathOf(req).join('/')}`.slice(0, 200) : '(wrong key)', status: res.status }).catch(() => {})
   return res
 }
 

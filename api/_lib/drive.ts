@@ -57,6 +57,11 @@ export interface Read<T> {
   data: T | null
 }
 
+// Names go into Drive's query text: only plain file names, never a quote.
+function safeName(name: string) {
+  if (!/^[\w.-]+$/.test(name)) throw new DriveFailed('bad file name')
+}
+
 export class Drive {
   private token: string
   constructor(token: string) {
@@ -70,6 +75,7 @@ export class Drive {
   }
 
   private async find(name: string): Promise<FoundFile | null> {
+    safeName(name)
     const q = encodeURIComponent(`name = '${name}' and trashed = false`)
     const res = await this.call(`${FILES}?spaces=appDataFolder&q=${q}&orderBy=createdTime&fields=files(id,md5Checksum)`)
     return ((await res.json()) as { files: FoundFile[] }).files[0] ?? null
@@ -88,6 +94,7 @@ export class Drive {
 
   /** Names of this app's files that contain `contains` and match. */
   async names(contains: string, match: RegExp): Promise<string[]> {
+    safeName(contains)
     const q = encodeURIComponent(`name contains '${contains}' and trashed = false`)
     const out: string[] = []
     let page = ''

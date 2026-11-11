@@ -128,7 +128,7 @@ export function toApiWorker(w: StoredWorker, personal: boolean): ApiWorker {
   }
 }
 
-export function toApiShift(s: StoredShift): ApiShift {
+export function toApiShift(s: StoredShift, personal: boolean): ApiShift {
   return {
     id: s.id,
     date: s.date,
@@ -145,11 +145,11 @@ export function toApiShift(s: StoredShift): ApiShift {
     endTime: n(s.endTime),
     fromPendingJobId: n(s.fromJobId),
     nextJob: s.nextJob ?? null,
-    closure: s.closure ? { outcome: s.closure.outcome, note: n(s.closure.note), reasonIds: s.closure.reasonIds ?? [], closedAt: s.closure.closedAt } : null,
+    closure: s.closure ? { outcome: s.closure.outcome, note: personal ? n(s.closure.note) : null, reasonIds: s.closure.reasonIds ?? [], closedAt: s.closure.closedAt } : null,
   }
 }
 
-export function toApiPendingJob(j: StoredPendingJob): ApiPendingJob {
+export function toApiPendingJob(j: StoredPendingJob, personal: boolean): ApiPendingJob {
   return {
     id: j.id,
     location: j.location,
@@ -162,7 +162,7 @@ export function toApiPendingJob(j: StoredPendingJob): ApiPendingJob {
     fromShiftId: n(j.fromShiftId),
     scheduledShiftId: n(j.scheduledShiftId),
     outcome: n(j.outcome),
-    note: n(j.note),
+    note: personal ? n(j.note) : null, // free text may hold anything: personal keys only
   }
 }
 

@@ -166,6 +166,16 @@ describe('reads', () => {
     for (const secret of ['123456789', '0501234567', 'יבנה', 'סוד', 'חתונה']) expect(text).not.toContain(secret)
     expect(w1.personal).toBeUndefined()
   })
+  it('free-text notes of jobs and closures only with a personal key', async () => {
+    put('pending_jobs.json', [{ id: 'j1', location: 'ערד', note: 'טלפון 0509999999', reasonIds: [], staffing: [] }])
+    put('shifts-2026-11.json', [{ id: 's9', date: '2026-11-02', location: 'x', crew: [], staffing: [], closure: { outcome: 'done', note: 'ת.ז 222', reasonIds: [], closedAt: 't' } }])
+    const plain = await key()
+    const text = JSON.stringify([await (await call(GET, 'pending-jobs', plain)).json(), await (await call(GET, 'shifts/s9', plain)).json()])
+    expect(text).not.toContain('0509999999')
+    expect(text).not.toContain('222')
+    const full = await (await call(GET, 'pending-jobs', await key(false, true))).json()
+    expect(full.data[0].note).toBe('טלפון 0509999999')
+  })
   it('personal fields only with a personal key', async () => {
     const res = await (await call(GET, 'workers/w1', await key(false, true))).json()
     expect(res.data.personal).toMatchObject({ idNumber: '123456789', mobilePhone: '0501234567', address: 'יבנה', notes: 'סוד' })
