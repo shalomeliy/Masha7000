@@ -67,7 +67,9 @@ export function workerState(w: Pick<Worker, 'status' | 'sickUntil' | 'constraint
   if (w.status === 'sick' && w.sickUntil && w.sickUntil >= today) return { id: 'sick', label: tx('במחלה עד {v}', { v: showDate(w.sickUntil) }) }
   const away = absenceToday(w, today)
   if (away) {
-    const until = away.when === 'dates' && away.to && away.to !== today ? tx(' עד {v}', { v: showDate(away.to) }) : away.when === 'weekdays' ? tx(' היום') : ''
+    // Always says until when, also for today only ("במחלה עד 11.11"), as the workers list shows it (the user's rule, 2026-11-11).
+    const last = away.to ?? away.from
+    const until = away.when === 'dates' && last ? tx(' עד {v}', { v: showDate(last) }) : away.when === 'weekdays' ? tx(' היום') : ''
     const kind = kindOf(away)
     return kind ? { id: kind, label: `${ABSENCE_NAMES[kind]}${until}` } : { id: 'away', label: `${tx('לא זמין')}${until}` }
   }

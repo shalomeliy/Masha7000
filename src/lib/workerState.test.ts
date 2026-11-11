@@ -20,6 +20,11 @@ describe('workerState', () => {
     expect(workerState(vacation, '2026-11-04').id).toBe('fit')
   })
 
+  it('an absence for today only still says until when', () => {
+    const today = w({ constraints: [{ id: 'c', when: 'dates', from: TODAY, to: TODAY, kind: 'sick' }] })
+    expect(workerState(today, TODAY)).toEqual({ id: 'sick', label: 'במחלה עד 6.11' })
+  })
+
   it('a weekly study day shows only on that weekday', () => {
     const study = w({ constraints: [{ id: 'c', when: 'weekdays', weekdays: [5], kind: 'study' }] }) // Friday
     expect(workerState(study, TODAY)).toEqual({ id: 'study', label: 'בלימודים היום' })

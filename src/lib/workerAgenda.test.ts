@@ -58,7 +58,7 @@ describe('sickness ahead', () => {
     const worker = w({ constraints: [c] })
     expect(workerAgenda(worker, [], defs, TODAY)).toMatchObject([{ key: 'c-s', date: '2026-11-08', sick: true }])
     expect(workerState(worker, TODAY).id).toBe('fit')
-    expect(workerState(worker, '2026-11-08')).toEqual({ id: 'sick', label: 'במחלה' })
+    expect(workerState(worker, '2026-11-08')).toEqual({ id: 'sick', label: 'במחלה עד 8.11' })
   })
 })
 

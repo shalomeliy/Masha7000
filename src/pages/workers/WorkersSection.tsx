@@ -18,7 +18,7 @@ import {
   telHref,
   upsert,
 } from "../../lib/catalog";
-import { constraintText, isOver } from "../../lib/constraints";
+import { constraintText, isOver, sickConstraint } from "../../lib/constraints";
 import { useDriveList } from "../../lib/data/useDriveList";
 import { daysToRanges, todayIso } from "../../lib/dates";
 import { DateField } from "../../components/DateField";
@@ -378,7 +378,9 @@ function WorkerCard({
     (d) => d.id === w.departmentId,
   )?.name;
   const today = todayIso();
-  const active = w.constraints.filter((c) => !isOver(c, today));
+  // A sickness saved as the worker's status ("חולה עד") is shown like one saved as a dated constraint.
+  const sick = sickConstraint(w);
+  const active = [...(sick ? [sick] : []), ...w.constraints].filter((c) => !isOver(c, today));
   const state = workerState(w, today);
 
   const dial = telHref(w.mobilePhone);
@@ -426,7 +428,7 @@ function WorkerCard({
             {active.slice(0, 2).map((c) => (
               <span
                 key={c.id}
-                className={`rounded-full px-2 py-0.5 text-xs ${c.kind === "sick" ? "bg-rose-500/15 text-rose-200" : "bg-amber-500/15 text-amber-200"}`}
+                className={`rounded-full px-2 py-0.5 text-xs ${c.kind === "sick" || c === sick ? "bg-rose-500/15 text-rose-200" : "bg-amber-500/15 text-amber-200"}`}
               >
                 {constraintText(c)}
               </span>
