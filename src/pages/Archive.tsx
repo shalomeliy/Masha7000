@@ -31,8 +31,8 @@ export function Archive() {
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
   const today = todayIso()
-  const [range, setRange] = useState<string>('half')
-  const [filter, setFilter] = useState<ArchiveFilter>(() => ({ ...rangeDates(182, today), workerId: '', location: '', text: '' }))
+  const [range, setRange] = useState<string>('month')
+  const [filter, setFilter] = useState<ArchiveFilter>(() => ({ ...rangeDates(30, today), workerId: '', location: '', text: '' }))
   const [shown, setShown] = useState(PAGE)
   const [mode, setMode] = useState<'list' | 'week' | 'month'>('list')
   const [month, setMonth] = useState(() => defaultMonth(today))
@@ -107,7 +107,7 @@ export function Archive() {
             </div>
             <Field label={tx('עובד')}>
               <select value={filter.workerId} onChange={(e) => set({ workerId: e.target.value })} className={inputClass}>
-                <option value="">{tx('כל העובדים')}</option>
+                <option value="">{tx('ללא בחירת עובד')}</option>
                 {sortedWorkers.map((w) => (
                   <option key={w.id} value={w.id}>
                     {fullName(w)}
