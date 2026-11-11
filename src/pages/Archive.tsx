@@ -23,6 +23,8 @@ const PAGE = 50
 
 const fullDate = (d: string) => `${showDate(d)}.${d.slice(0, 4)}`
 
+const NONE = '__none' // the worker select's placeholder: no worker and not "all" either
+
 export function Archive() {
   const shifts = useDriveList('shifts')
   const older = useWholeHistory() // the app opens with 3 months; the archive reads the older ones too
@@ -32,7 +34,7 @@ export function Archive() {
   const failed = lists.find((l) => l.query.isError)
   const today = todayIso()
   const [range, setRange] = useState<string>('month')
-  const [filter, setFilter] = useState<ArchiveFilter>(() => ({ ...rangeDates(30, today), workerId: '', location: '', text: '' }))
+  const [filter, setFilter] = useState<ArchiveFilter>(() => ({ ...rangeDates(30, today), workerId: undefined, location: '', text: '' }))
   const [shown, setShown] = useState(PAGE)
   const [mode, setMode] = useState<'list' | 'week' | 'month'>('list')
   const [month, setMonth] = useState(() => defaultMonth(today))
@@ -40,7 +42,9 @@ export function Archive() {
 
   const set = (patch: Partial<ArchiveFilter>) => (setFilter((f) => ({ ...f, ...patch })), setShown(PAGE))
   const showWorker = (workerId: string, dates: { from: string; to: string }) => (setMode('list'), setRange(''), set({ ...dates, workerId, location: '', text: '' }))
-  const hits = archiveShifts(shifts.items, filter, workers.items)
+  // Nothing until a worker or "כל העובדים" is picked (workerId undefined = not picked yet, '' = all workers).
+  const picked = filter.workerId !== undefined
+  const hits = picked ? archiveShifts(shifts.items, filter, workers.items) : []
   const sum = archiveSummary(hits)
   const places = archivePlaces(shifts.items)
   const sortedWorkers = [...workers.items].sort((a, b) => fullName(a).localeCompare(fullName(b), 'he'))
@@ -106,8 +110,11 @@ export function Archive() {
               <DateField label={tx('עד תאריך')} value={filter.to} min={filter.from || undefined} onChange={(to, ok) => ok && (setRange(''), set({ to }))} />
             </div>
             <Field label={tx('עובד')}>
-              <select value={filter.workerId} onChange={(e) => set({ workerId: e.target.value })} className={inputClass}>
-                <option value="">{tx('ללא בחירת עובד')}</option>
+              <select value={filter.workerId ?? NONE} onChange={(e) => set({ workerId: e.target.value })} className={inputClass}>
+                <option value={NONE} disabled hidden>
+                  {tx('בחר עובד')}
+                </option>
+                <option value="">{tx('כל העובדים')}</option>
                 {sortedWorkers.map((w) => (
                   <option key={w.id} value={w.id}>
                     {fullName(w)}
@@ -140,7 +147,9 @@ export function Archive() {
           </div>
 
           <p role="status" className="text-sm text-slate-300">
-            {sum.shifts === 0 ? (
+            {!picked ? (
+              tx('בחר עובד או "כל העובדים" כדי לראות עבודות')
+            ) : sum.shifts === 0 ? (
               tx('אין עבודות שמתאימות לחיפוש')
             ) : (
               <>
