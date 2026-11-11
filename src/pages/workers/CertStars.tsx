@@ -49,8 +49,8 @@ export function CertStarsField({
       {held.map((c) => {
         const stars = certStars(worker, c.id)
         const state = expiryState(worker, c.id, today)
-        // "כללי" and a certification marked "ללא תוקף" have no date at all.
-        const dated = c.id !== GENERAL_CERT_ID && !c.noExpiry
+        // A certification marked "ללא תוקף" has no date at all.
+        const dated = !c.noExpiry
         const left = dated ? daysLeftText(worker, c.id, today) : null
         const open = openId === c.id
         const toggle = () => setOpenId(open ? null : c.id)
