@@ -1118,5 +1118,6 @@
  "כבר נשלחה תשובה בשם העובד מטלפון אחר. אולי מישהו מילא בשמו, ואולי הוא החליף טלפון. כדאי לבדוק איתו לפני שמקבלים.": "An answer in this worker's name was already sent from another phone. Maybe someone filled it in for them, or maybe they changed phones. Check with them before accepting.",
  "יכול לעבוד בכל הימים": "Can work every day",
  "לקבל את התשובה הזו": "Accept this answer",
- "לדחות": "Reject"
+ "לדחות": "Reject",
+ "לא זמינים": "Unavailable"
 }

@@ -26,8 +26,18 @@ describe('workerState', () => {
     expect(workerState(study, '2026-11-07').id).toBe('fit')
   })
 
-  it('an ordinary constraint is not a state; inactive wins over everything', () => {
-    expect(workerState(w({ constraints: [{ id: 'c', when: 'dates', from: TODAY, to: TODAY }] }), TODAY).id).toBe('fit')
+  it('a whole-day plain constraint today is "away"; its reason can name the absence', () => {
+    const plain = w({ constraints: [{ id: 'c', when: 'dates', from: TODAY, to: '2026-11-25' }] })
+    expect(workerState(plain, TODAY)).toEqual({ id: 'away', label: 'לא זמין עד 25.11' })
+    expect(teamStates([plain, w()], TODAY)).toEqual([{ id: 'fit', count: 1 }, { id: 'away', count: 1 }])
+    const noted = w({ constraints: [{ id: 'c', when: 'dates', from: TODAY, to: '2026-11-25', note: 'חופש משפחתי' }] })
+    expect(workerState(noted, TODAY)).toEqual({ id: 'vacation', label: 'בחופש עד 25.11' })
+  })
+
+  it('a part of the day or nights only is not a state; inactive wins over everything', () => {
+    expect(workerState(w({ constraints: [{ id: 'c', when: 'dates', from: TODAY, to: TODAY, part: 'evening' }] }), TODAY).id).toBe('fit')
+    expect(workerState(w({ constraints: [{ id: 'c', when: 'dates', from: TODAY, to: TODAY, nightsOnly: true }] }), TODAY).id).toBe('fit')
+    expect(workerState(w({ constraints: [{ id: 'c', when: 'always', nightsOnly: true }] }), TODAY).id).toBe('fit')
     expect(workerState(w({ status: 'inactive', constraints: [{ id: 'c', when: 'dates', from: TODAY, to: TODAY, kind: 'vacation' }] }), TODAY).id).toBe('inactive')
   })
 
@@ -54,7 +64,7 @@ describe('endAbsence', () => {
     const list = [
       { id: 'a', when: 'dates' as const, from: '2026-11-01', to: '2026-11-10', kind: 'vacation' as const },
       { id: 'b', when: 'dates' as const, from: TODAY, to: '2026-11-08', kind: 'study' as const },
-      { id: 'c', when: 'dates' as const, from: TODAY, to: TODAY },
+      { id: 'c', when: 'dates' as const, from: TODAY, to: TODAY, part: 'evening' as const },
     ]
     expect(endAbsence(list, TODAY)).toEqual([{ ...list[0], to: '2026-11-05' }, list[2]])
   })
