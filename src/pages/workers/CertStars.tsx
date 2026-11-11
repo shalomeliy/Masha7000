@@ -36,7 +36,7 @@ export function CertStarsField({
   onRemove,
 }: {
   worker: Worker
-  certs: { id: string; name: string }[]
+  certs: { id: string; name: string; noExpiry?: true }[]
   onChange: (w: Worker) => void
   onRemove: (certId: string) => void
 }) {
@@ -49,7 +49,9 @@ export function CertStarsField({
       {held.map((c) => {
         const stars = certStars(worker, c.id)
         const state = expiryState(worker, c.id, today)
-        const left = daysLeftText(worker, c.id, today)
+        // "כללי" and a certification marked "ללא תוקף" have no date at all.
+        const dated = c.id !== GENERAL_CERT_ID && !c.noExpiry
+        const left = dated ? daysLeftText(worker, c.id, today) : null
         const open = openId === c.id
         const toggle = () => setOpenId(open ? null : c.id)
         return (
@@ -95,6 +97,7 @@ export function CertStarsField({
             </div>
             {open && (
               <div className="space-y-2 pb-2">
+                {dated && (
                 <div className="flex items-end gap-3">
                   <div className="w-1/2 min-w-0">
                     <DateField
@@ -105,6 +108,7 @@ export function CertStarsField({
                   </div>
                   {left && <span className={`flex min-h-12 items-center text-sm ${state ? EXPIRY_TONE[state] : 'text-slate-400'}`}>{left}</span>}
                 </div>
+                )}
                 <button
                   type="button"
                   onClick={() => {

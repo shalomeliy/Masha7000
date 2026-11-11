@@ -1,15 +1,24 @@
 import { tx } from '../../i18n'
 import { useState } from 'react'
-import { Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
+import { Chips, Field, inputClass, Sheet, SheetActions } from '../../components/Sheet'
 import { countText, nameError, newId, removeTagReferences, STARTER_CERTIFICATIONS, tagUsage, upsert } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { AddButton, EditMark, EmptyState } from './common'
+import { setCertExpiry } from '../../lib/certExpiry'
+import type { Worker } from '../../types/models'
 
 // The certifications list: workers hold them and a job's places ask for them.
 
 interface Tag {
   id: string
   name: string
+  noExpiry?: true
+}
+
+/** Without the valid-until dates the workers had for certification `id`; the same list when none had one. */
+function withoutExpiry(id: string, workers: Worker[]): Worker[] {
+  if (!workers.some((w) => w.certExpiry?.[id])) return workers
+  return workers.map((w) => (w.certExpiry?.[id] ? setCertExpiry(w, id, '') : w))
 }
 
 const t = {
@@ -65,7 +74,10 @@ export function TagSection() {
                     className="relative flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-2 pe-9 text-start"
                   >
                     <EditMark />
-                    <span className="font-semibold">{tag.name}</span>
+                    <span className="min-w-0">
+                      <span className="block font-semibold">{tag.name}</span>
+                      <span className="block text-xs text-slate-400">{tag.noExpiry ? tx('ללא תוקף') : tx('יש תוקף')}</span>
+                    </span>
                     <span className="shrink-0 text-sm text-slate-400">{countText(u.workers, tx('עובד אחד'), tx('עובדים'))}</span>
                   </button>
                 </li>
@@ -96,6 +108,7 @@ function TagForm({ tag, onDone }: { tag: Tag; onDone: () => void }) {
   const workers = useDriveList('workers')
   const shifts = useDriveList('shiftDefinitions')
   const [name, setName] = useState(tag.name)
+  const [noExpiry, setNoExpiry] = useState(!!tag.noExpiry)
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
@@ -118,7 +131,14 @@ function TagForm({ tag, onDone }: { tag: Tag; onDone: () => void }) {
   const save = () => {
     const err = nameError(name, tags.items, tag.id)
     setError(err)
-    if (!err) run(() => tags.save(upsert(tags.items, { ...tag, name: name.trim() })))
+    if (err) return
+    const { noExpiry: _, ...base } = tag
+    run(async () => {
+      // "ללא תוקף": the dates typed for it before go too, so nothing shows it as expiring.
+      const next = noExpiry ? withoutExpiry(tag.id, workers.items) : workers.items
+      if (next !== workers.items) await workers.save(next)
+      await tags.save(upsert(tags.items, { ...base, name: name.trim(), ...(noExpiry ? { noExpiry: true as const } : {}) }))
+    })
   }
 
   // References go first: if a later write fails, the tag is still listed and the delete can be retried.
@@ -139,6 +159,15 @@ function TagForm({ tag, onDone }: { tag: Tag; onDone: () => void }) {
       <Field label={t.field}>
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </Field>
+      <div className="space-y-1">
+        <span className="text-sm text-slate-300">{tx('תוקף')}</span>
+        <Chips
+          options={[{ id: 'expiry', name: tx('יש תוקף') }, { id: 'none', name: tx('ללא תוקף') }]}
+          selected={[noExpiry ? 'none' : 'expiry']}
+          onToggle={(id) => setNoExpiry(id === 'none')}
+        />
+        <span className="block text-xs text-slate-400">{noExpiry ? tx('ההסמכה לתמיד. בכרטיס העובד לא יופיע תאריך.') : tx('בכרטיס העובד ממלאים עד מתי ההסמכה בתוקף.')}</span>
+      </div>
       <SheetActions
         onSave={save}
         onCancel={onDone}

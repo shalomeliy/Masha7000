@@ -5,6 +5,8 @@
 export interface Certification {
   id: string
   name: string
+  /** True: held for good, with no valid-until date in the worker's form (the manager's choice, 2026-11-11). */
+  noExpiry?: true
 }
 
 export type DayPart = 'morning' | 'noon' | 'evening'
