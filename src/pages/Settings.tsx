@@ -14,6 +14,7 @@ import { authMode } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
 import { Archive } from './Archive'
 import { AccessSection } from './settings/AccessSection'
+import { ApiSection } from './settings/ApiSection'
 import { BackupSection } from './settings/BackupSection'
 import { SecuritySection } from './settings/SecuritySection'
 import { FeatureRequestSection } from './settings/FeatureRequestSection'
@@ -139,7 +140,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog'
+type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog' | 'api'
 type ItemId = ListId | PanelId
 
 // A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
@@ -164,6 +165,7 @@ const PANELS: Record<PanelId, { title: string; explain: string }> = {
   connection: { title: tx('בדיקת חיבור לגוגל'), explain: tx('בודקת שהשמירה בדרייב והיומן עובדים') },
   account: { title: tx('החשבון שלי'), explain: tx('עם איזה מייל נכנסת, והתנתקות') },
   feedback: { title: tx('בקשת תכונות חדשות'), explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח') },
+  api: { title: tx('גישת API'), explain: tx('מפתחות למערכות אחרות שקוראות וכותבות את הנתונים') },
   claudeLog: { title: tx('מה הלך ל-Claude'), explain: tx('בקשות שלא בוצעו בחינם, למה, ומה Claude עשה. עם כפתור העתקה') },
 }
 
@@ -208,7 +210,7 @@ function groups(isOwner: boolean, server: boolean): Group[] {
       title: tx('נתונים וגוגל'),
       explain: tx('גיבוי, ובדיקה שהחיבור לגוגל עובד'),
       icon: HardDrive,
-      items: [panelItem('backup'), panelItem('connection')],
+      items: [panelItem('backup'), panelItem('connection'), ...(isOwner && server ? [panelItem('api')] : [])],
     },
     {
       id: 'legal',
@@ -347,6 +349,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
         {open === 'connection' && <ConnectionCheck />}
         {open === 'feedback' && <FeatureRequestSection />}
         {open === 'claudeLog' && <ClaudeLogSection />}
+        {open === 'api' && <ApiSection />}
         {open === 'account' && (
           <div className="space-y-3">
             <h1 className="text-2xl font-bold">{tx('החשבון שלי')}</h1>
