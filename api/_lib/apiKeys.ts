@@ -2,7 +2,7 @@ import { open, randomToken, seal, sha256url } from './crypto.js'
 import type { Env } from './env.js'
 import { KEYS, kv } from './kv.js'
 
-// Keys for the outside API (/api/v1). Only the owner makes and revokes them (api/api-keys.ts).
+// Keys for the outside API (/api/v1). Only the owner makes and revokes them (POST /api/owner?scope=api-keys, api/_lib/apiKeysRoute.ts).
 // A key is shown once, when it is made; the store keeps only its SHA-256, and under that the sealed
 // record of what it may do. A request finds its record by the hash of the key it sent, so a key that
 // was revoked (record deleted) stops working at once. Personal fields of workers (ID numbers,

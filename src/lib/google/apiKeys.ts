@@ -1,6 +1,6 @@
 import { tx } from '../../i18n'
 
-// Settings > "גישת API": the owner's keys for the outside API (api/api-keys.ts, api/v1.ts).
+// Settings > "גישת API": the owner's keys for the outside API (api/owner.ts?scope=api-keys, api/v1.ts).
 
 export interface ApiKeyRow {
   id: string
@@ -29,7 +29,7 @@ const REASONS: Record<string, string> = {
 async function call<T>(body: object): Promise<T> {
   let res: Response
   try {
-    res = await fetch('/api/api-keys', {
+    res = await fetch('/api/owner?scope=api-keys', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
