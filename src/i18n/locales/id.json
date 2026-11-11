@@ -1111,5 +1111,12 @@
  "זה יוריד ל{name} את ההסמכה {cert}": "ini akan mencabut sertifikasi {cert} dari {name}",
  "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Anggaran bulanan asisten sudah mencapai batas, jadi asisten tidak akan memanggil Claude sampai bulan depan. Perintah sederhana tetap gratis.",
  "מחלקה:": "Departemen:",
- "בתוקף עד": "Berlaku hingga"
+ "בתוקף עד": "Berlaku hingga",
+ "כבר נשלחה תשובה בשמך מטלפון אחר, אז התשובה הזו מחכה לאישור של המנהל.": "Sudah ada jawaban atas namamu yang dikirim dari ponsel lain, jadi jawaban ini menunggu persetujuan manajer.",
+ "יום {weekday}: {v}": "{weekday}: {v}",
+ "{name}: הגיעה תשובה מטלפון אחר": "{name}: ada jawaban dari ponsel lain",
+ "כבר נשלחה תשובה בשם העובד מטלפון אחר. אולי מישהו מילא בשמו, ואולי הוא החליף טלפון. כדאי לבדוק איתו לפני שמקבלים.": "Sudah ada jawaban atas nama pekerja ini yang dikirim dari ponsel lain. Mungkin orang lain mengisinya atas namanya, atau mungkin dia ganti ponsel. Cek dulu dengannya sebelum menerima.",
+ "יכול לעבוד בכל הימים": "Bisa bekerja setiap hari",
+ "לקבל את התשובה הזו": "Terima jawaban ini",
+ "לדחות": "Tolak"
 }

@@ -15,7 +15,13 @@ export interface ConstraintAnswer {
   weekStart: string
   days: string[] // 7 answers, Sunday first; '' = can work that day
   notes?: string
+  /** Sent from another phone than the week's first answer for this worker: waits for the manager (accept or remove). */
+  disputed?: true
+  device?: string
 }
+
+/** The id a worker's phone keeps for the form; '' when missing or not one. */
+export const deviceOf = (v: unknown) => (typeof v === 'string' && /^[\w-]{16,64}$/.test(v) ? v : '')
 
 export const MAX_ROSTER = 500
 const MAX_DAY = 120

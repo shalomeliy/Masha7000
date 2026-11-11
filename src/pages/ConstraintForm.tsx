@@ -34,6 +34,7 @@ export function ConstraintForm({ code }: { code: string }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [sentTo, setSentTo] = useState<string | null>(null)
+  const [review, setReview] = useState(false)
   // Set once this phone has sent an answer to this week: fixing is taken until then (two hours from the first).
   const [until, setUntil] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -84,6 +85,7 @@ export function ConstraintForm({ code }: { code: string }) {
       saveToken(code, r.token)
       setUntil(r.until)
       setNow(Date.now())
+      setReview(r.review === true)
       setSentTo(r.firstName)
       window.scrollTo(0, 0)
     } catch (e) {
@@ -99,6 +101,7 @@ export function ConstraintForm({ code }: { code: string }) {
         <CheckCircle2 size={48} className="text-emerald-400" aria-hidden />
         <h1 className="text-2xl font-bold">{tx('תודה, {trim}!', { trim: sentTo })}</h1>
         <p className="text-slate-300">{tx('האילוצים שלך נשלחו למנהל. אפשר לסגור את הדף.')}</p>
+        {review && <p className="text-sm text-amber-300">{tx('כבר נשלחה תשובה בשמך מטלפון אחר, אז התשובה הזו מחכה לאישור של המנהל.')}</p>}
         {until !== null && <p className="text-sm text-slate-400">{tx('אם טעית, אפשר לפתוח שוב את הקישור ולתקן עד השעה {v}.', { v: clock(until) })}</p>}
         <button
           type="button"

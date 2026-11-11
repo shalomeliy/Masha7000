@@ -1111,5 +1111,12 @@
  "זה יוריד ל{name} את ההסמכה {cert}": "bu, {name} adlı kişiden {cert} sertifikasını kaldıracak",
  "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Asistanın aylık bütçe sınırına ulaşıldı, bu yüzden gelecek aya kadar Claude çağrılmayacak. Basit komutlar hâlâ ücretsiz çalışıyor.",
  "מחלקה:": "Departman:",
- "בתוקף עד": "Geçerlilik sonu"
+ "בתוקף עד": "Geçerlilik sonu",
+ "כבר נשלחה תשובה בשמך מטלפון אחר, אז התשובה הזו מחכה לאישור של המנהל.": "Senin adına başka bir telefondan zaten bir cevap gönderilmiş, bu yüzden bu cevap yöneticinin onayını bekliyor.",
+ "יום {weekday}: {v}": "{weekday}: {v}",
+ "{name}: הגיעה תשובה מטלפון אחר": "{name}: başka bir telefondan cevap geldi",
+ "כבר נשלחה תשובה בשם העובד מטלפון אחר. אולי מישהו מילא בשמו, ואולי הוא החליף טלפון. כדאי לבדוק איתו לפני שמקבלים.": "Bu çalışanın adına başka bir telefondan zaten bir cevap gönderilmiş. Belki biri onun yerine doldurdu, belki de telefonunu değiştirdi. Kabul etmeden önce kendisiyle konuş.",
+ "יכול לעבוד בכל הימים": "Her gün çalışabilir",
+ "לקבל את התשובה הזו": "Bu cevabı kabul et",
+ "לדחות": "Reddet"
 }

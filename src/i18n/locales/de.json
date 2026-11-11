@@ -1111,5 +1111,12 @@
  "זה יוריד ל{name} את ההסמכה {cert}": "das entfernt bei {name} die Qualifikation {cert}",
  "הגעת לתקרת התקציב החודשית של העוזר, אז הוא לא פונה ל-Claude עד החודש הבא. פקודות פשוטות עדיין עובדות בחינם.": "Das monatliche Budget des Assistenten ist erreicht, deshalb ruft er Claude erst nächsten Monat wieder auf. Einfache Befehle funktionieren weiterhin kostenlos.",
  "מחלקה:": "Abteilung:",
- "בתוקף עד": "Gültig bis"
+ "בתוקף עד": "Gültig bis",
+ "כבר נשלחה תשובה בשמך מטלפון אחר, אז התשובה הזו מחכה לאישור של המנהל.": "Eine Antwort in deinem Namen wurde schon von einem anderen Handy geschickt, deshalb wartet diese auf die Freigabe des Managers.",
+ "יום {weekday}: {v}": "{weekday}: {v}",
+ "{name}: הגיעה תשובה מטלפון אחר": "{name}: Antwort von einem anderen Handy",
+ "כבר נשלחה תשובה בשם העובד מטלפון אחר. אולי מישהו מילא בשמו, ואולי הוא החליף טלפון. כדאי לבדוק איתו לפני שמקבלים.": "Eine Antwort im Namen dieses Mitarbeiters kam schon von einem anderen Handy. Vielleicht hat jemand für ihn ausgefüllt, vielleicht hat er das Handy gewechselt. Vor dem Annehmen mit ihm klären.",
+ "יכול לעבוד בכל הימים": "Kann an allen Tagen arbeiten",
+ "לקבל את התשובה הזו": "Diese Antwort annehmen",
+ "לדחות": "Ablehnen"
 }

@@ -4,6 +4,7 @@ import { CalendarX, ChevronLeft, ChevronRight, Copy, Loader2, MessageCircle, Sha
 import { Sheet } from '../../components/Sheet'
 import { fullName } from '../../lib/catalog'
 import {
+  acceptConstraintAnswer,
   applyAnswers,
   closeConstraintForm,
   constraintFormMessage,
@@ -15,10 +16,11 @@ import {
   withoutMobile,
 } from '../../lib/constraintForm'
 import { useDriveList } from '../../lib/data/useDriveList'
+import type { ConstraintAnswer } from '../../lib/constraintForm'
 import { todayIso } from '../../lib/dates'
 import { authMode } from '../../lib/google/auth'
 import { whatsappHref } from '../../lib/report'
-import { addDays, showDate, weekOf } from '../../lib/shifts'
+import { addDays, dayName, showDate, weekOf } from '../../lib/shifts'
 import { tx } from '../../i18n'
 
 // The manager's side of the weekly constraints form: open it for a week, send the link, see who
@@ -40,7 +42,8 @@ export function ConstraintAnswersSync() {
   const state = useFormState()
   const workers = useDriveList('workers')
   const busy = useRef(false)
-  const answers = state.data?.answers
+  // An answer from another phone than the worker's first waits for the manager (DisputedAnswers).
+  const answers = state.data?.answers.filter((a) => !a.disputed)
 
   // One try per answers read from the server: a failed save waits for the next check, not the next render.
   const tried = useRef(0)
@@ -177,6 +180,8 @@ export function ConstraintFormPanel() {
         <p className="text-sm text-slate-400">{tx('הטופס סגור. לחיצה על השליחה פותחת אותו לשבוע שבחרת.')}</p>
       )}
 
+      <DisputedAnswers answers={(state.data?.answers ?? []).filter((a) => a.disputed)} names={new Map(workers.items.map((w) => [w.id, fullName(w)]))} />
+
       {noMobile.length > 0 && (
         <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200">
           {tx('לעובדים האלה אין נייד תקין ברשימה, אז הטופס לא יזהה אותם: {v}. מוסיפים להם נייד בכרטיס העובד.', { v: names(noMobile) })}
@@ -228,5 +233,41 @@ function LinkSheet({ sent, onClose }: { sent: { code: string; week: string } | n
         {tx('סגירה')}
       </button>
     </Sheet>
+  )
+}
+
+/**
+ * Answers sent for a worker from another phone than the week's first answer: someone may have typed a
+ * colleague's number, or the worker changed phones. They go in only when the manager accepts them.
+ */
+function DisputedAnswers({ answers, names }: { answers: ConstraintAnswer[]; names: Map<string, string> }) {
+  const qc = useQueryClient()
+  const decide = useMutation({
+    mutationFn: ({ id, accept }: { id: string; accept: boolean }) => (accept ? acceptConstraintAnswer(id) : removeConstraintAnswers([id])),
+    onSettled: () => qc.invalidateQueries({ queryKey: KEY }),
+  })
+  if (!answers.length) return null
+  return (
+    <section className="space-y-2" aria-live="polite">
+      {answers.map((a) => {
+        const said = a.days.map((d, i) => (d ? tx('יום {weekday}: {v}', { weekday: dayName(addDays(a.weekStart, i)), v: d }) : '')).filter(Boolean)
+        return (
+          <div key={a.id} className="space-y-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+            <h3 className="font-semibold text-amber-200">{tx('{name}: הגיעה תשובה מטלפון אחר', { name: names.get(a.workerId) ?? '' })}</h3>
+            <p>{tx('כבר נשלחה תשובה בשם העובד מטלפון אחר. אולי מישהו מילא בשמו, ואולי הוא החליף טלפון. כדאי לבדוק איתו לפני שמקבלים.')}</p>
+            <p className="text-amber-50">{said.length ? said.join('. ') : tx('יכול לעבוד בכל הימים')}{a.notes ? `. ${a.notes}` : ''}</p>
+            <div className="flex gap-2">
+              <button type="button" disabled={decide.isPending} onClick={() => decide.mutate({ id: a.id, accept: true })} className="min-h-11 flex-1 rounded-xl bg-amber-400 font-semibold text-slate-950 disabled:opacity-50">
+                {tx('לקבל את התשובה הזו')}
+              </button>
+              <button type="button" disabled={decide.isPending} onClick={() => decide.mutate({ id: a.id, accept: false })} className="min-h-11 flex-1 rounded-xl border border-slate-700 text-slate-300 disabled:opacity-50">
+                {tx('לדחות')}
+              </button>
+            </div>
+          </div>
+        )
+      })}
+      {decide.isError && <p role="alert" className="text-red-300">{(decide.error as Error).message}</p>}
+    </section>
   )
 }

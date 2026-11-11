@@ -1,5 +1,5 @@
 import { open, randomToken, seal } from './_lib/crypto.js'
-import { cleanAnswer, cleanRoster, isWeekStart, phoneDigits, type ConstraintAnswer, type RosterEntry } from './_lib/constraintForm.js'
+import { cleanAnswer, cleanRoster, deviceOf, isWeekStart, phoneDigits, type ConstraintAnswer, type RosterEntry } from './_lib/constraintForm.js'
 import { readEnv, type Env } from './_lib/env.js'
 import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { KEYS, kv } from './_lib/kv.js'
@@ -14,7 +14,7 @@ import { requireManager } from './_lib/session.js'
 //
 // GET  /api/constraints?c=<code>                         public: the week, or 404 when closed
 // POST /api/constraints { action: 'submit', code, phone, days, notes }   public
-// POST /api/constraints { action: 'open' | 'close' | 'list' | 'remove', ... }   signed-in managers
+// POST /api/constraints { action: 'open' | 'close' | 'list' | 'accept' | 'remove', ... }   signed-in managers
 //
 // A worker may send again for the same week (to fix it) for two hours after their first answer:
 // the new answer replaces the earlier one. Each answer gives the phone a token; opening the form
@@ -82,8 +82,27 @@ export const POST = guarded(async (req: Request) => {
     if (!worker) return json({ reason: 'unknown-phone' }, 404)
     const cleaned = cleanAnswer(body)
     if (!cleaned) return json({ reason: 'bad-days' }, 400)
-    // Fixing is open for two hours from the first answer to this week, then locked.
     const now = Date.now()
+    // The phone that first answered this week for this worker is theirs. An answer from another phone
+    // (someone typing a colleague's number, or the worker on a new phone) does not go in by itself: it
+    // waits for the manager to accept or remove it (code scan 2026-11-10, the user's choice).
+    const device = deviceOf(body.device) || '-'
+    const deviceKey = KEYS.consDevice(form.weekStart, worker.id)
+    await kv.setNew(env, deviceKey, device, FIRST_DAYS * 86_400)
+    if ((await kv.get(env, deviceKey)) !== device) {
+      const waiting = await readAnswers(env)
+      const earlier = waiting.filter((o) => o.answer.disputed && o.answer.workerId === worker.id && o.answer.weekStart === form.weekStart)
+      if (waiting.length - earlier.length >= MAX_ANSWERS) return json({ reason: 'full' }, 429)
+      const answer: ConstraintAnswer = { id: randomToken(9), at: now, workerId: worker.id, weekStart: form.weekStart, ...cleaned, disputed: true, device }
+      await kv.add(env, KEYS.consSubs, await seal(env.sessionKey, answer))
+      for (const o of earlier) await kv.remove(env, KEYS.consSubs, o.sealed)
+      const until = now + EDIT_WINDOW_MS
+      const kept = await readEdit(env, body.token)
+      const token = kept && kept.workerId === worker.id && kept.weekStart === form.weekStart ? (body.token as string) : randomToken(18)
+      await kv.set(env, KEYS.consEdit(token), await seal(env.sessionKey, { workerId: worker.id, firstName: worker.firstName, weekStart: form.weekStart, ...cleaned, until } satisfies Edit), EDIT_DAYS * 86_400)
+      return json({ ok: true, firstName: worker.firstName, token, until, review: true })
+    }
+    // Fixing is open for two hours from the first answer to this week, then locked.
     const firstKey = KEYS.consFirst(form.weekStart, worker.id)
     await kv.setNew(env, firstKey, String(now), FIRST_DAYS * 86_400)
     const first = Number(await kv.get(env, firstKey)) || now
@@ -91,7 +110,7 @@ export const POST = guarded(async (req: Request) => {
     if (now > until) return json({ reason: 'locked', until }, 409)
     const waiting = await readAnswers(env)
     // A second answer for the same week replaces the first, if the manager's app has not taken it yet.
-    const earlier = waiting.filter((o) => o.answer.workerId === worker.id && o.answer.weekStart === form.weekStart)
+    const earlier = waiting.filter((o) => !o.answer.disputed && o.answer.workerId === worker.id && o.answer.weekStart === form.weekStart)
     if (waiting.length - earlier.length >= MAX_ANSWERS) return json({ reason: 'full' }, 429)
     const answer: ConstraintAnswer = { id: randomToken(9), at: now, workerId: worker.id, weekStart: form.weekStart, ...cleaned }
     await kv.add(env, KEYS.consSubs, await seal(env.sessionKey, answer))
@@ -126,10 +145,23 @@ export const POST = guarded(async (req: Request) => {
       return json({ code: null })
     case 'list': {
       const form = await readForm(env)
-      const answers = (await readAnswers(env)).map((o) => o.answer).sort((a, b) => a.at - b.at)
+      // The phone's id stays here: the app only needs to know an answer is disputed.
+      const answers = (await readAnswers(env)).map(({ answer: { device: _device, ...a } }) => a).sort((a, b) => a.at - b.at)
       const week = form?.weekStart
       const answered = week ? (await kv.members(env, KEYS.consAnswered)).filter((m) => m.startsWith(`${week}|`)).map((m) => m.slice(week.length + 1)) : []
       return json({ code: form?.code ?? null, weekStart: week ?? null, answered, answers })
+    }
+    case 'accept': {
+      // The manager says a disputed answer is the worker's own: it goes in like any answer, its phone
+      // becomes the worker's phone for this week, and fixing is open for two hours from now.
+      const found = (await readAnswers(env)).find((o) => o.answer.id === body.id && o.answer.disputed)
+      if (!found) return json({ ok: true })
+      const { disputed: _d, device, ...answer } = found.answer
+      await kv.add(env, KEYS.consSubs, await seal(env.sessionKey, answer))
+      await kv.remove(env, KEYS.consSubs, found.sealed)
+      if (device) await kv.set(env, KEYS.consDevice(answer.weekStart, answer.workerId), device, FIRST_DAYS * 86_400)
+      await kv.set(env, KEYS.consFirst(answer.weekStart, answer.workerId), String(Date.now()), FIRST_DAYS * 86_400)
+      return json({ ok: true })
     }
     case 'remove': {
       // The manager's app wrote these into the workers' constraints.

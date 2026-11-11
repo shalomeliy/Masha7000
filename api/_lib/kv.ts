@@ -20,6 +20,8 @@ export const KEYS = {
   consAnswered: 'cons:answered',
   /** When a worker first answered a week (ms), for the two-hour window to fix it. */
   consFirst: (week: string, workerId: string) => `cons:first:${week}:${workerId}`,
+  /** The phone (a random id it keeps) that first answered a week for a worker: another phone's answer waits for the manager. */
+  consDevice: (week: string, workerId: string) => `cons:device:${week}:${workerId}`,
   /** A worker's last answer, sealed, behind the token their phone keeps: the form opens with it. */
   consEdit: (token: string) => `cons:edit:${token}`,
   /** sess:<sid> = one signed-in device; sessions:<email> = that person's sids. */

@@ -15,6 +15,8 @@ export interface ConstraintAnswer {
   weekStart: string
   days: string[]
   notes?: string
+  /** Sent from another phone than the week's first answer for this worker: waits for the manager. */
+  disputed?: boolean
 }
 export interface RosterEntry {
   id: string
@@ -145,10 +147,12 @@ export interface MyAnswer {
 export const readConstraintForm = (code: string, token?: string) =>
   call<{ weekStart: string; mine?: MyAnswer }>({ method: 'GET' }, `?c=${encodeURIComponent(code)}${token ? `&t=${encodeURIComponent(token)}` : ''}`)
 export const submitConstraints = (code: string, phone: string, days: string[], notes: string, token?: string) =>
-  post<{ ok: true; firstName: string; token: string; until: number }>({ action: 'submit', code, phone, days, notes, token })
+  post<{ ok: true; firstName: string; token: string; until: number; review?: boolean }>({ action: 'submit', code, phone, days, notes, token, device: deviceId() })
 export const openConstraintForm = (weekStart: string, roster: RosterEntry[], renew = false) => post<{ code: string }>({ action: 'open', weekStart, roster, renew })
 export const closeConstraintForm = () => post<{ code: null }>({ action: 'close' })
 export const listConstraintAnswers = () => post<FormState>({ action: 'list' })
+/** The manager says a disputed answer is the worker's own: it goes into their constraints. */
+export const acceptConstraintAnswer = (id: string) => post<{ ok: true }>({ action: 'accept', id })
 export const removeConstraintAnswers = (ids: string[]) => post<{ ok: true }>({ action: 'remove', ids })
 
 // The token of the answer this phone sent on this link: opening the link again shows that answer.
@@ -182,5 +186,22 @@ export function savePhone(phone: string) {
     localStorage.setItem(PHONE_KEY, phone)
   } catch {
     // Storage blocked: the worker types it again next week.
+  }
+}
+
+// A random id this phone keeps: an answer for a worker from another phone than the week's first one
+// waits for the manager (someone may have typed a colleague's number).
+const DEVICE_KEY = 'shiftsmart.device'
+let memoryDevice = ''
+export function deviceId() {
+  try {
+    const kept = localStorage.getItem(DEVICE_KEY)
+    if (kept) return kept
+    const made = crypto.randomUUID()
+    localStorage.setItem(DEVICE_KEY, made)
+    return made
+  } catch {
+    memoryDevice ||= crypto.randomUUID()
+    return memoryDevice
   }
 }

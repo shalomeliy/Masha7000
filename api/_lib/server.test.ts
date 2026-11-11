@@ -577,6 +577,36 @@ describe('weekly constraints form', () => {
     expect((await res.json()).reason).toBe('locked')
   })
 
+  it('an answer from another phone for the same worker waits for the manager, who accepts or removes it', async () => {
+    const s = await manager()
+    const code = await openFor(s)
+    const mine = 'phone-of-dana-0001'
+    const other = 'phone-of-someone-02'
+    const first = await post(cons, null, { action: 'submit', code, phone: '0501234567', days, device: other })
+    expect(await first.json()).not.toHaveProperty('review')
+    // The real worker, from her own phone: not applied by itself, not locked out, the first answer kept.
+    const second = await (await post(cons, null, { action: 'submit', code, phone: '0501234567', days: ['לא יכול', '', '', '', '', '', ''], device: mine })).json()
+    expect(second).toMatchObject({ ok: true, review: true, firstName: 'דנה' })
+    let state = await list(s)
+    expect(state.answers).toHaveLength(2)
+    const disputed = state.answers.find((a: { disputed?: boolean }) => a.disputed)
+    expect(disputed).toMatchObject({ workerId: 'w1', days: ['לא יכול', '', '', '', '', '', ''] })
+    expect(disputed).not.toHaveProperty('device')
+    // Sending again from the same other phone replaces its waiting answer, not the first one.
+    await post(cons, null, { action: 'submit', code, phone: '0501234567', days: ['', '', 'לא יכול', '', '', '', ''], device: mine })
+    state = await list(s)
+    expect(state.answers).toHaveLength(2)
+    const latest = state.answers.find((a: { disputed?: boolean }) => a.disputed)
+    expect((await post(cons, null, { action: 'accept', id: latest.id })).status).toBe(401)
+    await post(cons, s, { action: 'accept', id: latest.id })
+    state = await list(s)
+    expect(state.answers.filter((a: { disputed?: boolean }) => a.disputed)).toEqual([])
+    expect(state.answers.find((a: { id: string }) => a.id === latest.id)).toMatchObject({ days: ['', '', 'לא יכול', '', '', '', ''] })
+    // Her phone is now the worker's: her next fix goes in by itself; the other phone's waits.
+    expect(await (await post(cons, null, { action: 'submit', code, phone: '0501234567', days, device: mine })).json()).not.toHaveProperty('review')
+    expect(await (await post(cons, null, { action: 'submit', code, phone: '0501234567', days, device: other })).json()).toMatchObject({ review: true })
+  })
+
   it('takes an answer only from a phone on the roster, sealed, and a second one replaces the first', async () => {
     const s = await manager()
     const code = await openFor(s)
