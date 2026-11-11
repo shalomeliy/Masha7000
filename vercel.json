@@ -4,7 +4,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": { "api/assistant.ts": { "maxDuration": 60 } },
-  "rewrites": [{ "source": "/((?!api/|assets/|icons/|sw.js|manifest.webmanifest|privacy.html|terms.html|accessibility.html).*)", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/api/v1/:path*", "destination": "/api/v1?path=:path*" }, { "source": "/((?!api/|assets/|icons/|sw.js|manifest.webmanifest|privacy.html|terms.html|accessibility.html).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/(.*)",
