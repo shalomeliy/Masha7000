@@ -165,25 +165,51 @@ export function onSpoken(fn: (text: string) => void): () => void {
   return () => heard.delete(fn)
 }
 
-/** Reads the text aloud in the app's language; `onDone` when it ends or cannot start. */
-export function speak(text: string, onDone?: () => void) {
+// The utterance being read. Chrome can drop an utterance nobody holds before it is read, and then
+// nothing is heard; holding it here keeps it alive.
+const alive = new Set<SpeechSynthesisUtterance>()
+
+/**
+ * Reads the text aloud in the app's language; `onDone` when it ends or cannot start. `onFail` gets the
+ * browser's reason when the phone could not read it at all (not when another text cut it short).
+ */
+export function speak(text: string, onDone?: () => void, onFail?: (reason: string) => void) {
   if (!canSpeak || !text) {
     onDone?.()
     return
   }
-  speechSynthesis.cancel()
   heard.forEach((fn) => fn(text))
-  const u = new SpeechSynthesisUtterance(pronounce(speakable(text, language().speech)))
-  u.lang = language().speech
-  u.rate = current ?? (current = speechRate())
-  const v = currentVoice()
-  if (v) {
-    u.voice = v
-    u.lang = v.lang
+  const said = pronounce(speakable(text, language().speech))
+  const start = (withVoice: boolean) => {
+    const u = new SpeechSynthesisUtterance(said)
+    u.lang = language().speech
+    u.rate = current ?? (current = speechRate())
+    const v = withVoice ? currentVoice() : null
+    if (v) {
+      u.voice = v
+      u.lang = v.lang
+    }
+    u.onend = () => {
+      alive.delete(u)
+      onDone?.()
+    }
+    u.onerror = (e) => {
+      alive.delete(u)
+      if (e.error === 'interrupted' || e.error === 'canceled') return onDone?.()
+      // Some voices refuse a text (often one in English letters): try once more with the phone's own.
+      if (v) return start(false)
+      onFail?.(e.error)
+      onDone?.()
+    }
+    alive.add(u)
+    speechSynthesis.resume() // Chrome sometimes leaves the speech paused after a while of quiet
+    speechSynthesis.speak(u)
   }
-  u.onend = () => onDone?.()
-  u.onerror = () => onDone?.()
-  speechSynthesis.speak(u)
+  // Speaking right after cancelling is sometimes silently dropped (Chrome on Android): wait a moment.
+  if (speechSynthesis.speaking || speechSynthesis.pending) {
+    speechSynthesis.cancel()
+    setTimeout(() => start(true), 150)
+  } else start(true)
 }
 
 export const stopSpeaking = () => canSpeak && speechSynthesis.cancel()

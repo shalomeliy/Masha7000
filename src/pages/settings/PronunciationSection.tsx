@@ -293,7 +293,10 @@ function Trainer({
           </label>
           {error && <p className="text-sm text-red-300">{error}</p>}
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => speak(say)} disabled={!say.trim()} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-700 text-slate-200 disabled:opacity-40">
+            <button type="button" onClick={() => {
+                setError(null)
+                speak(say, undefined, (reason) => setError(tx('הטלפון לא הצליח להשמיע את זה ({v}). נסה לכתוב את זה אחרת.', { v: reason })))
+              }} disabled={!say.trim()} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-700 text-slate-200 disabled:opacity-40">
               <Volume2 size={18} aria-hidden />
               {tx('שמע את התיקון')}
             </button>

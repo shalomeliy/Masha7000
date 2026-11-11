@@ -1157,5 +1157,6 @@
  "שימוש אחרון: {when}": "Son kullanım: {when}",
  "שם המפתח": "Anahtar adı",
  "שם המפתח, למשל \"דוחות שכר\"": "Anahtar adı, ör. \"Bordro raporları\"",
- "ת.ז, טלפונים, כתובת והערות יוצאים רק במפתח כזה. תן אותו רק למערכת שחייבת אותם.": "Kimlik numaraları, telefonlar, adres ve notlar yalnızca böyle bir anahtarla gider. Yalnızca bunlara ihtiyacı olan bir sisteme verin."
+ "ת.ז, טלפונים, כתובת והערות יוצאים רק במפתח כזה. תן אותו רק למערכת שחייבת אותם.": "Kimlik numaraları, telefonlar, adres ve notlar yalnızca böyle bir anahtarla gider. Yalnızca bunlara ihtiyacı olan bir sisteme verin.",
+ "הטלפון לא הצליח להשמיע את זה ({v}). נסה לכתוב את זה אחרת.": "Telefon bunu çalamadı ({v}). Farklı yazmayı deneyin."
 }

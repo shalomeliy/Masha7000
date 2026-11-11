@@ -1157,5 +1157,6 @@
  "שימוש אחרון: {when}": "Último uso: {when}",
  "שם המפתח": "Nome da chave",
  "שם המפתח, למשל \"דוחות שכר\"": "Nome da chave, ex.: \"Relatórios de folha\"",
- "ת.ז, טלפונים, כתובת והערות יוצאים רק במפתח כזה. תן אותו רק למערכת שחייבת אותם.": "Números de identidade, telefones, endereço e notas só saem com uma chave assim. Dê-a só a um sistema que precise deles."
+ "ת.ז, טלפונים, כתובת והערות יוצאים רק במפתח כזה. תן אותו רק למערכת שחייבת אותם.": "Números de identidade, telefones, endereço e notas só saem com uma chave assim. Dê-a só a um sistema que precise deles.",
+ "הטלפון לא הצליח להשמיע את זה ({v}). נסה לכתוב את זה אחרת.": "O celular não conseguiu reproduzir isto ({v}). Tente escrever de outro jeito."
 }
