@@ -27,6 +27,9 @@ export const LIMITS = {
   feedbackIp: { max: 30, windowSeconds: 3600 },
   claudeLog: { max: 300, windowSeconds: 600 },
   feedbackEmail: { max: 10, windowSeconds: 3600 },
+  apiKey: { max: 60, windowSeconds: 60 }, // one outside API key
+  apiBadKey: { max: 30, windowSeconds: 600 }, // wrong keys from one address
+  apiKeysManage: { max: 120, windowSeconds: 600 },
 } satisfies Record<string, Limit>
 
 /** Counts this try; true when the caller is over the limit. */

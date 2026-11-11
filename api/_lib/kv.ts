@@ -31,6 +31,12 @@ export const KEYS = {
   rate: (bucket: string, id: string) => `rl:${bucket}:${id}`,
   /** The sealed "what went to Claude" log (claudeLog.ts). */
   claudeLog: 'claude-log',
+  /** Outside API keys (api/_lib/apiKeys.ts): apikey:<sha256 of the key> = the sealed key record; apikeys = those hashes. */
+  apiKey: (hash: string) => `apikey:${hash}`,
+  apiKeys: 'apikeys',
+  apiKeyUsed: (id: string) => `apikey-used:${id}`,
+  /** The last outside API calls, newest first (no bodies). */
+  apiLog: 'api-log',
   /** A code already used: a 30-second step, or a backup code's hash. */
   mfaUsed: (email: string, what: string) => `mfa-used:${email}:${what}`,
 } as const
@@ -84,4 +90,10 @@ export const kv = {
   /** Sets the key only if it is not there yet (keeps the first value). */
   setNew: (env: Env, key: string, value: string, exSeconds: number) => command(env, 'SET', key, value, 'NX', 'EX', exSeconds),
   expire: (env: Env, key: string, seconds: number) => command(env, 'EXPIRE', key, seconds),
+  /** Adds at the head of a list and keeps only its first `keep` items (newest first). */
+  pushKeep: async (env: Env, key: string, value: string, keep: number) => {
+    await command(env, 'LPUSH', key, value)
+    await command(env, 'LTRIM', key, 0, keep - 1)
+  },
+  list: (env: Env, key: string, count: number) => command<string[]>(env, 'LRANGE', key, 0, count - 1),
 }
