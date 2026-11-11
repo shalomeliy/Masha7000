@@ -72,5 +72,7 @@ function localAssistant(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss(), localAssistant()],
+  // The commit Vercel builds, as the Sentry release, so an error can be traced back to its exact code (scripts/sentry-issues.mjs).
+  define: { 'import.meta.env.VITE_RELEASE': JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? '') },
   server: { port: 5180, strictPort: true },
 })

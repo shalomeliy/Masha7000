@@ -22,7 +22,7 @@ export function startMonitoring(): void {
         Sentry.init({
           dsn: DSN,
           environment: import.meta.env.MODE,
-          release: import.meta.env.VITE_RELEASE as string | undefined,
+          release: (import.meta.env.VITE_RELEASE as string) || undefined, // the Vercel commit
           sendDefaultPii: false,
           tracesSampleRate: 0,
           integrations: (defaults) => [
