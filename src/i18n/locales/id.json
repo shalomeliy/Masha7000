@@ -1227,7 +1227,8 @@
  "תוקף ביטוח": "Asuransi berlaku sampai",
  "תוקף טסט": "Uji berlaku sampai",
  "עוזר קולי": "Asisten suara",
- "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Asisten suara: yang ditandai kuning dapat berbicara dengan Shaly. Semua memakai anggaran bulanan Anda yang sama.",
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.": "Asisten suara: yang ditandai kuning dapat berbicara dengan Shaly, hanya untuk hal yang sudah dipelajarinya secara gratis. Hanya Anda yang menghubungi Claude, dari anggaran Anda.",
+ "את זה Shaly עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.": "Shaly belum belajar melakukan ini sendiri, dan di akun ini ia tidak bertanya ke Claude. Coba katakan dengan cara lain, atau lakukan di layar.",
  "דגם רכב": "Model kendaraan",
  "מה רושמים על כל רכב בכרטיס הרכב. מספר רישוי ודגם תמיד קיימים, כי לפיהם בוחרים רכב לעבודה.": "Apa yang dicatat tentang tiap kendaraan di kartunya. Nomor polisi dan model selalu ada, karena kendaraan untuk pekerjaan dipilih dengan keduanya."
 }

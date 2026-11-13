@@ -1227,7 +1227,8 @@
  "תוקף ביטוח": "Seguro válido até",
  "תוקף טסט": "Inspeção válida até",
  "עוזר קולי": "Assistente de voz",
- "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Assistente de voz: quem estiver marcado em amarelo pode falar com a Shaly. Todos usam o mesmo orçamento mensal seu.",
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.": "Assistente de voz: quem estiver marcado em amarelo pode falar com a Shaly, só para o que ela já aprendeu a fazer de graça. Só você recorre ao Claude, com o seu orçamento.",
+ "את זה Shaly עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.": "A Shaly ainda não aprendeu a fazer isso sozinha, e nesta conta ela não recorre ao Claude. Tente dizer de outra forma ou faça isso nas telas.",
  "דגם רכב": "Modelo do veículo",
  "מה רושמים על כל רכב בכרטיס הרכב. מספר רישוי ודגם תמיד קיימים, כי לפיהם בוחרים רכב לעבודה.": "O que se regista sobre cada veículo na sua ficha. A matrícula e o modelo estão sempre lá, porque é por eles que se escolhe o veículo do trabalho."
 }

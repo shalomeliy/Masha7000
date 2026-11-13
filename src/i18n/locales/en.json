@@ -1227,7 +1227,8 @@
  "תוקף ביטוח": "Insurance valid until",
  "תוקף טסט": "Inspection valid until",
  "עוזר קולי": "Voice assistant",
- "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Voice assistant: anyone marked in yellow can talk to Shaly. Everyone uses the same monthly budget of yours.",
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.": "Voice assistant: anyone marked in yellow can talk to Shaly, only for what it already learned to do for free. Only you reach Claude, from your budget.",
+ "את זה Shaly עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.": "Shaly has not learned to do this on its own yet, and on this account it does not ask Claude. Try saying it differently, or do it in the screens.",
  "דגם רכב": "Vehicle model",
  "מה רושמים על כל רכב בכרטיס הרכב. מספר רישוי ודגם תמיד קיימים, כי לפיהם בוחרים רכב לעבודה.": "What is written about each vehicle on its card. Licence plate and model are always there, because jobs pick a vehicle by them."
 }

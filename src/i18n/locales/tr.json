@@ -1227,7 +1227,8 @@
  "תוקף ביטוח": "Sigorta bitişi",
  "תוקף טסט": "Muayene bitişi",
  "עוזר קולי": "Sesli asistan",
- "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Sesli asistan: sarı ile işaretlenenler Shaly ile konuşabilir. Herkes senin aynı aylık bütçeni kullanır.",
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.": "Sesli asistan: sarı ile işaretlenenler Shaly ile konuşabilir, sadece onun ücretsiz yapmayı öğrendiği şeyler için. Claude'a yalnızca sen, kendi bütçenden başvurursun.",
+ "את זה Shaly עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.": "Shaly bunu henüz kendi başına yapmayı öğrenmedi ve bu hesapta Claude'a sormuyor. Başka türlü söylemeyi dene ya da ekranlardan yap.",
  "דגם רכב": "Araç modeli",
  "מה רושמים על כל רכב בכרטיס הרכב. מספר רישוי ודגם תמיד קיימים, כי לפיהם בוחרים רכב לעבודה.": "Her aracın kartına ne yazılır. Plaka ve model hep vardır, çünkü iş için araç bunlarla seçilir."
 }

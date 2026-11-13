@@ -10,7 +10,7 @@ import { POST as logout } from '../logout.js'
 import { GET as joinForm, POST as join } from '../join.js'
 import { GET as consForm, POST as cons } from '../constraints.js'
 import { POST as mfa } from '../mfa.js'
-import { POST as assistant } from '../assistant.js'
+import { GET as assistantBudget, POST as assistant } from '../assistant.js'
 import { codeAt, currentStep, fromBase32 } from './totp.js'
 
 const KEY = Buffer.alloc(32, 7).toString('base64')
@@ -633,7 +633,7 @@ describe('weekly constraints form', () => {
 })
 
 describe('voice assistant for another manager', () => {
-  it('is closed to a manager until the owner opens it, and closes again when turned off or removed', async () => {
+  it('shows Shaly to a manager the owner opened it to, free commands only, and closes again when turned off or removed', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
     store.set('allowed', new Set(['deputy@example.com']))
     store.set('owner:refresh', await seal(KEY, 'refresh-1'))
@@ -649,12 +649,14 @@ describe('voice assistant for another manager', () => {
     const opened = await post(owner, boss, { action: 'assistant', email: 'deputy@example.com', on: true })
     expect(await opened.json()).toEqual({ owner: OWNER, emails: ['deputy@example.com'], assistant: ['deputy@example.com'] })
     expect(await (await post(token, deputy)).json()).toMatchObject({ assistant: true })
-    // Same gate and same monthly budget as the owner (refused before any paid call outside Vercel).
+    // Free commands only: the budget is the owner's, so Claude is never asked for them.
+    store.set(`spend:${new Date().toISOString().slice(0, 7)}`, String(0))
     const res = await post(assistant, deputy, turn)
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('no-key')
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({ reason: 'free-only' })
+    expect((await assistantBudget(new Request(`${ORIGIN}/api/x`, { headers: { cookie: `__Host-session=${deputy}` } }))).status).toBe(403)
     await post(owner, boss, { action: 'assistant', email: 'deputy@example.com', on: false })
-    expect((await post(assistant, deputy, turn)).status).toBe(403)
+    expect(await (await post(assistant, deputy, turn)).json()).toEqual({ reason: 'not-owner' })
     await post(owner, boss, { action: 'assistant', email: 'deputy@example.com', on: true })
     await post(owner, boss, { action: 'remove', email: 'deputy@example.com' })
     expect([...((store.get('assistant') as Set<string> | undefined) ?? [])]).toEqual([])
