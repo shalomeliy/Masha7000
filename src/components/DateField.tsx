@@ -13,6 +13,7 @@ export function DateField({
   min,
   max,
   required,
+  disabled,
 }: {
   label: string
   value: string
@@ -20,6 +21,7 @@ export function DateField({
   min?: string
   max?: string
   required?: boolean
+  disabled?: boolean
 }) {
   const [error, setError] = useState<string | null>(null)
 
@@ -38,6 +40,7 @@ export function DateField({
         value={value}
         min={min}
         max={max}
+        disabled={disabled}
         onClick={(e) => {
           try {
             e.currentTarget.showPicker()
@@ -48,7 +51,7 @@ export function DateField({
         onChange={(e) => check(e.currentTarget)}
         onBlur={(e) => check(e.currentTarget)}
         aria-invalid={error !== null}
-        className={`${inputClass} ${error ? 'border-red-500' : ''}`}
+        className={`${inputClass} ${error ? 'border-red-500' : ''} disabled:opacity-50`}
       />
       {error && (
         <span role="alert" className="block text-sm text-red-300">

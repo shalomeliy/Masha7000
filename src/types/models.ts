@@ -128,6 +128,8 @@ export interface ShiftRecord {
   nextJob?: { location: string; jobDescription: string } // "לינה" only: the job after the night
   swaps?: CrewSwap[] // workers replaced after the shift was first saved, oldest first; for the archive
   pinnedIds?: string[] // crew members who must be in this job ("עובדים קבועים"): "שבץ" and swap advice never take them out
+  vehicleId?: string // the vehicle the job goes out with ("רכבים")
+  vehicleType?: string // its type, also when no vehicle is picked yet
 }
 
 // One crew change in a saved shift: `outId` was replaced by `inId`.
@@ -155,6 +157,21 @@ export interface PendingJob {
   // and re-closing the original night job does not list it as waiting again.
   scheduledShiftId?: string
   pinnedIds?: string[] // workers the job must have ("עובדים שחייבים להיות"); carried into the shift it is scheduled to
+  vehicleId?: string // carried into the shift it is scheduled to
+  vehicleType?: string
+}
+
+// A field on the vehicle card ("מספר רישוי", "תוקף טסט"); the manager edits the list in Settings.
+export interface VehicleField {
+  id: string
+  name: string
+  kind?: 'text' | 'number' | 'date'
+}
+
+// One vehicle: its values by field id.
+export interface Vehicle {
+  id: string
+  values: Record<string, string>
 }
 
 // Something the manager told the voice assistant to remember ("טפסן ומטפס זה אותו דבר",

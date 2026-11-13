@@ -4,6 +4,7 @@ import { createCopy, deleteCopy, forgetVersions, listCopies, peekJson, readCopy,
 import type { DriveCopy } from './google/drive'
 import { countText, normalizeShift, normalizeWorker, STARTER_DEPARTMENTS } from './catalog'
 import { normalizePendingJob, normalizeShiftRecord } from './shifts'
+import { STARTER_VEHICLE_FIELDS } from './vehicles'
 import { peekShifts, restoreShifts } from './data/shiftMonths'
 import type { ShiftRecord } from '../types/models'
 
@@ -28,6 +29,8 @@ export const BACKUP_LISTS = [
   'pronunciations',
   'approvedWords',
   'newWords',
+  'vehicleFields',
+  'vehicles',
   'workers',
   'pendingJobs',
   'shifts',
@@ -46,6 +49,8 @@ export const LIST_TITLES: Record<BackupList, string> = {
   pronunciations: tx('הגייה של מילים'),
   approvedWords: tx('מילים שאושרו באימון הגייה'),
   newWords: tx('מילים חדשות לאימון הגייה'),
+  vehicleFields: tx('שדות בכרטיס רכב'),
+  vehicles: tx('רכבים'),
   workers: tx('עובדים'),
   pendingJobs: tx('משימות לשיבוץ'),
   shifts: tx('עבודות'),
@@ -63,7 +68,7 @@ export class BackupError extends Error {}
 
 export function makeBackup(files: Partial<Record<BackupList, unknown[] | null>>, now = new Date()): Backup {
   const all = {} as Backup['files']
-  for (const k of BACKUP_LISTS) all[k] = (files[k] ?? (k === 'departments' ? STARTER_DEPARTMENTS : [])) as Record<string, unknown>[]
+  for (const k of BACKUP_LISTS) all[k] = (files[k] ?? (k === 'departments' ? STARTER_DEPARTMENTS : k === 'vehicleFields' ? STARTER_VEHICLE_FIELDS : [])) as Record<string, unknown>[]
   return { app: APP_MARKER, version: BACKUP_VERSION, createdAt: now.toISOString(), files: all }
 }
 
@@ -72,6 +77,9 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 // Fields the screens show as text: anything else there would break the screen.
 const TEXT_FIELDS = ['name', 'firstName', 'lastName', 'mobilePhone', 'location', 'jobDescription', 'notes', 'address', 'idNumber', 'personalNumber', 'departmentId']
 const textFieldsOk = (item: Record<string, unknown>) => TEXT_FIELDS.every((f) => item[f] === undefined || item[f] === null || typeof item[f] === 'string')
+
+// A vehicle's card: text values only.
+const valuesOk = (v: unknown) => isObject(v) && Object.values(v).every((x) => typeof x === 'string')
 
 // The same fill-in the app reads with, so older backups gain the fields added since.
 const normalizers: Partial<Record<BackupList, (raw: never) => object>> = {
@@ -96,10 +104,10 @@ export function parseBackup(text: string): Backup {
   for (const k of BACKUP_LISTS) {
     // Backups made before departments existed: the starter list, as the app would read it.
     // Backups made before work kinds or pronunciations existed: none.
-    const list = raw.files[k] === undefined && k === 'departments' ? STARTER_DEPARTMENTS : raw.files[k] === undefined && (k === 'workKinds' || k === 'pronunciations' || k === 'approvedWords' || k === 'newWords') ? [] : raw.files[k]
+    const list = raw.files[k] === undefined && k === 'departments' ? STARTER_DEPARTMENTS : raw.files[k] === undefined && k === 'vehicleFields' ? STARTER_VEHICLE_FIELDS : raw.files[k] === undefined && (k === 'vehicles' || k === 'workKinds' || k === 'pronunciations' || k === 'approvedWords' || k === 'newWords') ? [] : raw.files[k]
     if (!Array.isArray(list)) throw new BackupError(tx('{NOT_A_BACKUP} חסרה בו הרשימה "{v}".', { NOT_A_BACKUP, v: LIST_TITLES[k] }))
     for (const item of list)
-      if (!isObject(item) || typeof item.id !== 'string' || (k === 'shifts' && typeof item.date !== 'string') || !textFieldsOk(item))
+      if (!isObject(item) || typeof item.id !== 'string' || (k === 'shifts' && typeof item.date !== 'string') || (k === 'vehicles' && !valuesOk(item.values)) || !textFieldsOk(item))
         throw new BackupError(tx('{NOT_A_BACKUP} הרשימה "{v}" פגומה.', { NOT_A_BACKUP, v: LIST_TITLES[k] }))
     const fix = normalizers[k] as ((r: unknown) => Record<string, unknown>) | undefined
     files[k] = fix ? list.map(fix) : (list as Record<string, unknown>[])

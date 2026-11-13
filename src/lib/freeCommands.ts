@@ -399,7 +399,7 @@ const SCREENS: [RegExp, Screen][] = [
   [/^(?:ה)?(?:ארכיון|היסטוריה|דוחות)$/, 'archive'],
   [/^(?:ה)?(?:הגדרות)$/, 'settings'],
 ]
-const SCREEN_NAME: Record<Screen, string> = { calendar: 'היומן', toSchedule: 'לשיבוץ', workers: 'העובדים', archive: 'הארכיון', settings: 'ההגדרות' }
+const SCREEN_NAME: Record<Screen, string> = { calendar: 'היומן', toSchedule: 'העבודות שמחכות ביומן', workers: 'העובדים', archive: 'הארכיון', settings: 'ההגדרות' }
 
 const BUTTONS: [RegExp, Hint, string][] = [
   [/^(?:תשלח|תשתף|שלח|שתף|תפיץ)(?: לי)?(?: לצוות| לעובדים)? (?:את )?(?:ה)?(?:שבוע|סידור|סידור השבועי|סידור של השבוע|לוח של השבוע)(?: בווטסאפ| לצוות| לעובדים| לקבוצה)?$/, 'shareWeek', 'הנה הכפתור לשליחת הסידור.'],

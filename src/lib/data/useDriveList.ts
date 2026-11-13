@@ -6,7 +6,8 @@ import { readShifts, saveShifts, windowStart } from './shiftMonths'
 import { todayIso } from '../dates'
 import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withoutGeneralCert, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
-import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Pronunciation, ShiftDefinition, ShiftRecord, Worker, WordGroupSetting } from '../../types/models'
+import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Pronunciation, ShiftDefinition, ShiftRecord, Vehicle, VehicleField, Worker, WordGroupSetting } from '../../types/models'
+import { STARTER_VEHICLE_FIELDS, withFixedFields } from '../vehicles'
 
 // One Drive appData JSON file = one list (shifts: one file per month). A missing file is an empty list.
 // Saves write the whole list, optimistically, and roll back if Drive refuses.
@@ -30,6 +31,8 @@ type ListOf = {
   pronunciations: Pronunciation
   approvedWords: ApprovedWord
   newWords: NewWord
+  vehicles: Vehicle
+  vehicleFields: VehicleField
 }
 type ListFile = keyof ListOf
 
@@ -71,12 +74,13 @@ export function useDriveList<K extends ListFile>(key: K) {
       if (stored === null) missingFiles.add(key)
       else missingFiles.delete(key)
       // No departments file yet: the starter list, written to the file with the first save.
-      const raw = stored ?? (key === 'departments' ? (STARTER_DEPARTMENTS as T[]) : [])
+      const raw = stored ?? (key === 'departments' ? (STARTER_DEPARTMENTS as T[]) : key === 'vehicleFields' ? (STARTER_VEHICLE_FIELDS as T[]) : [])
       const fix = normalizers[key] as ((r: T) => T) | undefined
       const list = fix ? raw.map(fix) : raw
       // "לינה" always exists, and the old certification "כללי" is dropped; the file follows with the next save of its list.
       if (key === 'certifications') return withoutGeneralCert(list as Certification[]) as T[]
       if (key === 'shiftDefinitions') return withNightPlus(list as ShiftDefinition[]) as T[]
+      if (key === 'vehicleFields') return withFixedFields(list as VehicleField[]) as T[]
       return list
     },
     staleTime: Infinity,

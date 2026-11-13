@@ -16,7 +16,7 @@ import { Settings } from './pages/Settings'
 import { Workers } from './pages/Workers'
 import { ConstraintAnswersSync } from './pages/workers/ConstraintFormSection'
 import { SignIn } from './pages/SignIn'
-import { ToSchedule } from './pages/ToSchedule'
+import { Vehicles } from './pages/Vehicles'
 import { Voice } from './pages/Voice'
 import { useAuth } from './store/auth'
 
@@ -60,10 +60,11 @@ export default function App() {
       <WeeklyCopy />
       {/* Workers' answers to the weekly constraints form land in their constraints on any screen. */}
       <ConstraintAnswersSync />
-      {shown === 'voice' && voice && <Voice onNavigate={setTab} />}
+      {/* "לשיבוץ" is no longer a screen: its waiting jobs are at the top of the calendar. */}
+      {shown === 'voice' && voice && <Voice onNavigate={(s) => setTab(s === 'toSchedule' ? 'calendar' : s)} />}
       {shown === 'calendar' && <Calendar />}
-      {shown === 'toSchedule' && <ToSchedule />}
       {shown === 'workers' && <Workers />}
+      {shown === 'vehicles' && <Vehicles />}
       {(shown === 'settings' || shown === 'archive') && <Settings key={shown} openArchive={shown === 'archive'} />}
       <BottomNav active={shown} onChange={setTab} voice={voice} />
     </div>

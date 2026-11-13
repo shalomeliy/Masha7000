@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GapContext } from './gaps'
 import { swapOn } from './moveAdvice'
-import { datesForPinned, pinnedOf } from './pinnedDates'
+import { datesForPinned, nearestDates, pinnedOf } from './pinnedDates'
 import { autoAssign } from './planner'
 import type { Constraint, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
@@ -54,6 +54,28 @@ describe('datesForPinned', () => {
     const gone = { ...worker('gone'), status: 'inactive' as const }
     expect(datesForPinned(shift('new', '2026-11-08'), ['gone'], '2026-11-08', ctx([gone]))).toEqual([])
     expect(datesForPinned(shift('new', '2026-11-08'), ['nobody'], '2026-11-08', ctx([worker('a')]))).toEqual([])
+  })
+})
+
+describe('nearestDates ("בחירה אוטומטית")', () => {
+  it('offers the nearest days every place can be filled, and more of them on "עוד 3"', () => {
+    const a = worker('a', ['climber'], [off('2026-11-08', '2026-11-09')])
+    const b = worker('b', ['climber'])
+    const job = shift('new', '2026-11-08', { staffing: slots('climber', 'climber') })
+    const c = ctx([a, b])
+    expect(nearestDates(job, '2026-11-08', c).map((o) => o.date)).toEqual(['2026-11-10', '2026-11-11', '2026-11-12'])
+    expect(nearestDates(job, '2026-11-08', c, 6).map((o) => o.date)).toEqual(['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15'])
+    expect(nearestDates(job, '2026-11-08', c)[0].addedIds.sort()).toEqual(['a', 'b'])
+  })
+
+  it('keeps the workers who must be in it, and finds nothing when nobody fits', () => {
+    const a = worker('a', ['climber'], [off('2026-11-10')])
+    const b = worker('b', ['climber'])
+    const job = shift('new', '2026-11-08', { staffing: slots('climber'), crew: [{ workerId: 'a' }], pinnedIds: ['a'] })
+    const got = nearestDates(job, '2026-11-10', ctx([a, b]), 1)
+    expect(got[0].date).toBe('2026-11-11')
+    expect(got[0].shift.crew).toEqual([{ workerId: 'a' }])
+    expect(nearestDates(shift('new', '2026-11-08', { staffing: slots('elec') }), '2026-11-08', ctx([b]))).toEqual([])
   })
 })
 

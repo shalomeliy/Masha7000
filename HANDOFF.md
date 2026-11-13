@@ -468,3 +468,12 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - User decisions: no defined consumer yet (generic JSON); read and write; personal details only with a key marked "כולל פרטים אישיים". No deletes; closing night jobs stays in the app.
 - Settings > נתונים וגוגל > "גישת API" (owner, server mode): create (read / read+write, personal), key shown once, revoke, last 20 calls. 21 new texts in all 15 languages.
 - Tests: `api/_lib/v1.test.ts` (fake store + fake Drive, 23 tests), `src/lib/apiNormalize.test.ts`.
+
+## Done: "לשיבוץ" tab removed, automatic job date, vehicles (2026-11-13)
+
+- The bottom tab "לשיבוץ" is gone (user request). Jobs already waiting in `pending_jobs.json` are kept and show in a collapsible amber box at the top of "יומן" (`WaitingJobs` in `src/pages/ToSchedule.tsx`; it renders nothing when none wait). Postpone reasons stay in Settings. The voice assistant's "open לשיבוץ" opens the calendar.
+- New job in the calendar: checkbox "בחירה אוטומטית" next to the date (new, non-urgent jobs only). It dims the date and shows, after staffing, the 3 nearest days every place can be filled (`nearestDates` in `src/lib/pinnedDates.ts`, the same search as "מצא יום שכולם פנויים", pinned workers optional), with "עוד 3". Picking a day sets the date and the crew. Saving with the box on and no day picked is refused. `src/pages/calendar/AutoDate.tsx`.
+- New bottom tab "רכבים" (right of הגדרות): `src/pages/Vehicles.tsx`. List with search, add, tap a card to edit (the vehicle card), "בחירה" mode for multi-select and deleting several. Date fields that passed or end within 30 days show a warning on the card.
+- Vehicle card fields are a list in Settings, topic "רכבים" (`vehicle_fields.json`, `src/pages/settings/VehicleFieldsSection.tsx`), 10 starters; licence plate and type (ids `plate`, `type`) can be renamed but not deleted. Rules in `src/lib/vehicles.ts`. Both files are in the backup.
+- Job forms (calendar and waiting job) have "סוג רכב" + "רישוי" selects from the vehicles (`VehiclePick`); a plate brings its type, a type narrows the plates. Saved as `vehicleId` / `vehicleType` on the job, carried from a waiting job into its shift, shown on cards as "רכב: ...".
+- Not done: the voice assistant does not know vehicles yet.

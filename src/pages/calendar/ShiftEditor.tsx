@@ -15,9 +15,12 @@ import { dayName, isNightShift, pendingAfterShiftSave, showDate, shiftRecordErro
 import type { ShiftRecord, Worker } from '../../types/models'
 import { WorkerDial } from '../workers/common'
 import { PinnedField } from './PinnedField'
+import { AutoDate } from './AutoDate'
+import type { DateOption } from '../../lib/pinnedDates'
 import { PullConfirm } from './PullConfirm'
 import { ShiftDefField } from './ShiftDefField'
 import { StaffingField } from './StaffingField'
+import { VehiclePick } from './VehiclePick'
 import { WorkKindField } from './WorkKindField'
 import { toggleKind } from '../../lib/workKinds'
 import { asTaskList } from '../../lib/taskList'
@@ -73,6 +76,17 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
   const [moveAsked, setMoveAsked] = useState<string[]>([])
   const [asking, setAsking] = useState<{ worker: Worker; other: ShiftRecord; apply: () => void } | null>(null)
   const exists = shifts.items.some((s) => s.id === shift.id)
+  // "בחירה אוטומטית" (new planned jobs only): the day is picked from the nearest days that can be fully staffed.
+  const canAuto = !exists && !shift.urgent
+  const [autoDate, setAutoDate] = useState(false)
+  const [autoPicked, setAutoPicked] = useState<string | null>(null)
+  const pickDate = (o: DateOption) => {
+    setDraft((d) => ({ ...d, date: o.date, crew: o.shift.crew }))
+    setDatesValid((v) => ({ ...v, date: true }))
+    setAutoPicked(o.date)
+    setPlanNote(null)
+    setError(null)
+  }
 
   const thenJob = !draft.urgent && !!defs.items.find((d) => d.id === draft.shiftDefinitionId)?.thenJob
   const nextJob = draft.nextJob ?? { location: '', jobDescription: '' }
@@ -131,7 +145,9 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       pinnedIds: pinnedOf(draft).length ? pinnedOf(draft) : undefined,
     }
     const err =
-      !datesValid.date || !datesValid.end
+      autoDate && !autoPicked
+        ? tx('בחר אחד מהתאריכים שהמערכת הציעה, או בטל את הבחירה האוטומטית')
+        : !datesValid.date || !datesValid.end
         ? tx('יש תאריך לא תקין')
         : clean.closure && !isNightShift(clean, defs.items)
           ? tx('העבודה הזו כבר נסגרה, ולכן היא נשארת עבודת לילה. כדי לשנות, קודם פתח מחדש את הסגירה.')
@@ -222,7 +238,21 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         </div>
       ) : (
         <>
-          <DateField label={tx('תאריך')} value={draft.date} required onChange={(date, ok) => (set('date', date), setDatesValid((v) => ({ ...v, date: ok })))} />
+          <DateField label={tx('תאריך')} value={draft.date} required disabled={autoDate} onChange={(date, ok) => (set('date', date), setDatesValid((v) => ({ ...v, date: ok })))} />
+          {canAuto && (
+            <label className="flex min-h-11 items-center gap-3 text-sm text-slate-200">
+              <input
+                type="checkbox"
+                checked={autoDate}
+                onChange={(e) => (setAutoDate(e.target.checked), setAutoPicked(null), setError(null))}
+                className="size-5 accent-sky-500"
+              />
+              <span>
+                {tx('בחירה אוטומטית')}
+                <span className="block text-xs text-slate-400">{tx('המערכת תציע את התאריכים הקרובים שיש בהם מספיק עובדים, אחרי שתמלא כמה אנשים צריך')}</span>
+              </span>
+            </label>
+          )}
           <ShiftDefField value={draft.shiftDefinitionId} onChange={(id) => set('shiftDefinitionId', id)} />
         </>
       )}
@@ -244,8 +274,10 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         </div>
       )}
       <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind) }))} />
+      <VehiclePick value={draft} onChange={(v) => setDraft((d) => ({ ...d, ...v }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => set('staffing', staffing)} />
-      {workers.items.length > 0 && <PinnedField draft={draft} ctx={gapCtx} onChange={(next) => (setDraft((d) => ({ ...d, ...next })), setPlanNote(null), setError(null))} />}
+      {workers.items.length > 0 && <PinnedField draft={draft} ctx={gapCtx} noSearch={autoDate} onChange={(next) => (setDraft((d) => ({ ...d, ...next })), setPlanNote(null), setError(null))} />}
+      {autoDate && <AutoDate draft={draft} ctx={gapCtx} picked={autoPicked} onPick={pickDate} />}
 
       <div className="space-y-2">
         <span className="text-sm text-slate-300">
@@ -404,7 +436,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         onSave={save}
         onCancel={onDone}
         onDelete={exists ? remove : undefined}
-        deleteWarning={tx('לבטל את העבודה? היא תימחק מהיומן{v}.', { v: shift.fromJobId ? tx(' ותחזור ללשונית "לשיבוץ"') : '' })}
+        deleteWarning={tx('לבטל את העבודה? היא תימחק מהיומן{v}.', { v: shift.fromJobId ? tx(' ותחזור לרשימת העבודות שמחכות ליום') : '' })}
         deleteLabel={tx('ביטול עבודה')}
         confirmLabel={tx('כן, לבטל')}
         busy={busy}

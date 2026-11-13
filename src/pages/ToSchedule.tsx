@@ -1,6 +1,6 @@
 import { tx } from '../i18n'
 import { useState } from 'react'
-import { CalendarPlus, Loader2, Trash2 } from 'lucide-react'
+import { CalendarPlus, Trash2 } from 'lucide-react'
 import { DictationField } from '../components/DictationField'
 import { DriveError } from '../components/DriveError'
 import { Field, inputClass, Sheet, SheetActions } from '../components/Sheet'
@@ -17,92 +17,39 @@ import { OUTCOMES } from './calendar/outcomes'
 import { ShiftSheet } from './calendar/ShiftEditor'
 import { ShiftDefField } from './calendar/ShiftDefField'
 import { StaffingField } from './calendar/StaffingField'
+import { VehiclePick } from './calendar/VehiclePick'
 import { WorkKindField } from './calendar/WorkKindField'
 import { toggleKind } from '../lib/workKinds'
 import { AddButton, EditMark, EmptyState } from './workers/common'
 import { asTaskList } from '../lib/taskList'
+import { jobVehicleText } from '../lib/vehicles'
 
-// "לשיבוץ": jobs that still need a shift (left over from partial or postponed night jobs, or added
-// by hand), and the manager's list of postpone reasons.
+// Jobs that still need a day (left over from partial or postponed night jobs), shown at the top of the
+// calendar, and the manager's list of postpone reasons (Settings). Until 2026-11-13 they had their own
+// bottom tab, "לשיבוץ"; the user removed it, and the jobs kept in the file show in the calendar.
 
-type Section = 'jobs' | 'reasons'
-
-export function ToSchedule() {
-  const [section, setSection] = useState<Section>('jobs')
-  const lists = [
-    useDriveList('pendingJobs'),
-    useDriveList('postponeReasons'),
-    useDriveList('shifts'),
-    useDriveList('shiftDefinitions'),
-    useDriveList('workers'),
-    useDriveList('certifications'),
-  ]
-  const loading = lists.some((l) => l.query.isPending)
-  const failed = lists.find((l) => l.query.isError)
-
-  return (
-    <section className="space-y-4 px-4 pt-6">
-      <h1 className="text-2xl font-bold">{tx('לשיבוץ')}</h1>
-      <div role="tablist" aria-label={tx('מה להציג')} className="grid grid-cols-2 rounded-xl bg-slate-900 p-1">
-        {(
-          [
-            ['jobs', tx('עבודות שממתינות')],
-            ['reasons', tx('סיבות דחייה')],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={section === id}
-            onClick={() => setSection(id)}
-            className={`min-h-11 rounded-lg text-sm font-medium ${section === id ? 'bg-slate-700 text-slate-50' : 'text-slate-400'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {failed ? (
-        <DriveError error={failed.query.error} action="load" onRetry={() => lists.forEach((l) => l.query.isError && l.query.refetch())} />
-      ) : loading ? (
-        <p className="flex items-center gap-2 text-slate-400">
-          <Loader2 className="animate-spin" size={18} aria-hidden />
-          {tx('טוען מגוגל דרייב...')}
-        </p>
-      ) : (
-        <div role="tabpanel">{section === 'jobs' ? <JobsSection /> : <ReasonsSection />}</div>
-      )}
-    </section>
-  )
-}
-
-const blankJob = (): PendingJob => ({ id: newId(), location: '', jobDescription: '', staffing: [], reasonIds: [], createdAt: new Date().toISOString() })
-
-function JobsSection() {
+export function WaitingJobs() {
   const jobs = useDriveList('pendingJobs')
   const workers = useDriveList('workers')
   const reasons = useDriveList('postponeReasons')
   const shifts = useDriveList('shifts')
   const certs = useDriveList('certifications')
   const defs = useDriveList('shiftDefinitions')
+  const vehicles = useDriveList('vehicles')
   // Newest first: the job added last is on top.
   const waiting = jobs.items.filter((j) => isWaiting(j, shifts.items)).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
   const [editing, setEditing] = useState<PendingJob | null>(null)
   const [scheduling, setScheduling] = useState<ShiftRecord | null>(null)
 
+  if (!waiting.length) return null
   return (
     <>
-      {waiting.length === 0 ? (
-        <EmptyState
-          text={tx('אין עבודות שממתינות. עבודת לילה שנסגרה כ\'בוצע חלקית\' או \'נדחה\' תופיע כאן, ואפשר גם להוסיף עבודה ביד.')}
-          addLabel={tx('הוספת עבודה')}
-          onAdd={() => setEditing(blankJob())}
-        />
-      ) : (
-        <>
-          <AddButton label={tx('הוספת עבודה')} onClick={() => setEditing(blankJob())} />
-          <ul className="mt-3 space-y-2">
+      <details className="rounded-2xl border border-amber-500/50 bg-amber-500/10">
+        <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-4 font-semibold text-amber-200">
+          <CalendarPlus size={18} aria-hidden />
+          {waiting.length === 1 ? tx('עבודה אחת מחכה ליום') : tx('{n} עבודות מחכות ליום', { n: waiting.length })}
+        </summary>
+        <ul className="space-y-2 px-3 pb-3">
             {waiting.map((j) => {
               const outcome = OUTCOMES.find((o) => o.id === j.outcome)
               const why = [tagNames(j.reasonIds, reasons.items).join(', '), j.note].filter(Boolean).join(' · ')
@@ -128,6 +75,7 @@ function JobsSection() {
                         {tx('חייבים להיות: {v}', { v: fullNames(j.pinnedIds, workers.items).join(', ') })}
                       </span>
                     )}
+                    {(j.vehicleId || j.vehicleType) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(j, vehicles.items) })}</span>}
                     <span className="block text-sm text-slate-400">
                       {tx('צריך {v}', { v: staffingText(staffingFor(j.staffing, certs.items.map((c) => c.id)), certs.items) })}</span>
                   </button>
@@ -136,9 +84,8 @@ function JobsSection() {
                 </li>
               )
             })}
-          </ul>
-        </>
-      )}
+        </ul>
+      </details>
 
       <Sheet open={editing !== null} title={editing && jobs.items.some((j) => j.id === editing.id) ? tx('עריכת עבודה') : tx('עבודה חדשה')} onClose={() => setEditing(null)} locked={jobs.saving}>
         {editing && <JobForm job={editing} onDone={() => setEditing(null)} onSchedule={setScheduling} />}
@@ -307,6 +254,7 @@ function JobForm({ job, onDone, onSchedule }: { job: PendingJob; onDone: () => v
       <DictationField label={tx('מהות העבודה')} value={draft.jobDescription} tasks onChange={(v) => setDraft((d) => ({ ...d, jobDescription: v }))} />
       <Suggestions list="jobTypes" value={draft.jobDescription} onPick={(jobDescription) => setDraft((d) => ({ ...d, jobDescription }))} />
       <WorkKindField value={draft.workKindIds} onToggle={(kind) => setDraft((d) => ({ ...d, ...toggleKind(d, kind) }))} />
+      <VehiclePick value={draft} onChange={(v) => setDraft((d) => ({ ...d, ...v }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => setDraft((d) => ({ ...d, staffing }))} />
       {workers.items.length > 0 && (
         <PinnedField draft={pinnedShift} ctx={ctx} onChange={(next) => setDraft((d) => ({ ...d, pinnedIds: next.pinnedIds }))} onPick={(o) => void scheduleOn(o.shift)} />

@@ -21,11 +21,13 @@ export function PinnedField({
   onChange,
   ctx,
   onPick,
+  noSearch,
 }: {
   draft: ShiftRecord
   onChange: (next: Pick<ShiftRecord, 'crew' | 'pinnedIds'> & { date?: string }) => void
   ctx: GapContext
   onPick?: (o: DateOption) => void
+  noSearch?: boolean // the day is picked by "בחירה אוטומטית", which already keeps them in
 }) {
   const pinned = pinnedOf(draft)
   const [options, setOptions] = useState<DateOption[] | null>(null)
@@ -88,7 +90,7 @@ export function PinnedField({
           ))}
         </select>
       )}
-      {pinned.length > 0 && !draft.urgent && (
+      {pinned.length > 0 && !draft.urgent && !noSearch && (
         <button
           type="button"
           onClick={search}

@@ -51,7 +51,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       if (next.pending !== pending.items) await pending.save(next.pending)
       onDone()
     } catch (e) {
-      if (shiftSaved) setError(tx('הסגירה נשמרה, אבל רשימת "לשיבוץ" עוד לא עודכנה. לחץ שוב על הכפתור כדי להשלים.'))
+      if (shiftSaved) setError(tx('הסגירה נשמרה, אבל רשימת העבודות שמחכות ליום עוד לא עודכנה. לחץ שוב על הכפתור כדי להשלים.'))
       setSaveError(e)
     } finally {
       setBusy(false)
@@ -102,7 +102,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           {reasons.items.length ? (
             <Chips options={reasons.items} selected={reasonIds} onToggle={(id) => setReasonIds((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]))} />
           ) : (
-            <p className="text-sm text-amber-300">{tx('עוד אין רשימת סיבות. אפשר להוסיף אותה בלשונית "לשיבוץ", או לכתוב את הסיבה כאן למטה.')}</p>
+            <p className="text-sm text-amber-300">{tx('עוד אין רשימת סיבות. אפשר להוסיף אותה בהגדרות, תחת "עבודות ושיבוץ", או לכתוב את הסיבה כאן למטה.')}</p>
           )}
         </div>
       )}
@@ -113,7 +113,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
             <span className="text-sm text-slate-300">{tx('מה קורה עם מה שנשאר?')}</span>
             {(
               [
-                ['reopen', tx('לפתוח מחדש את אותה משימה'), tx('המשימה חוזרת ללשונית "לשיבוץ" כמו שהיא.')],
+                ['reopen', tx('לפתוח מחדש את אותה משימה'), tx('המשימה חוזרת כמו שהיא לרשימת העבודות שמחכות ליום, בראש היומן.')],
                 ['followUp', tx('לסגור ולפתוח משימת המשך'), tx('המשימה הזו נסגרת. אתה כותב מה נשאר, וזו משימה חדשה שמקושרת אליה.')],
               ] as const
             ).map(([id, title, explain]) => (
@@ -143,7 +143,7 @@ function CloseForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         </>
       )}
       {outcome === 'postponed' && <DictationField label={tx('פרטים נוספים (לא חובה אם בחרת סיבה)')} value={note} onChange={setNote} />}
-      {outcome && outcome !== 'done' && <p className="text-sm text-slate-400">{tx('העבודה תופיע בלשונית "לשיבוץ" עד שתשבץ אותה ביומן.')}</p>}
+      {outcome && outcome !== 'done' && <p className="text-sm text-slate-400">{tx('העבודה תופיע בראש היומן, ברשימת העבודות שמחכות ליום, עד שתשבץ אותה.')}</p>}
 
       <SheetActions
         onSave={save}

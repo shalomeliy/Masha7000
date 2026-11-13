@@ -43,6 +43,22 @@ export function datesForPinned(shift: ShiftRecord, pinnedIds: string[], from: st
   const byId = (id: string) => ctx.workers.find((w) => w.id === id)
   const pinned: CrewMember[] = pinnedIds.flatMap((id) => (byId(id) ? [{ workerId: id }] : []))
   if (!pinned.length || pinned.length < pinnedIds.length) return []
+  return findDates(shift, pinnedIds, from, ctx, max)
+}
+
+/**
+ * "בחירה אוטומטית" of a new job's day (the user's request, 2026-11-13): the nearest days from `from` on,
+ * within ADVICE_DAYS, where every place can be filled. Workers the job must have, if any, must be free.
+ */
+export function nearestDates(shift: ShiftRecord, from: string, ctx: GapContext, max = MAX_DATE_OPTIONS): DateOption[] {
+  const pinnedIds = (shift.pinnedIds ?? []).filter((id) => shift.crew.some((c) => c.workerId === id))
+  if (pinnedIds.some((id) => !ctx.workers.some((w) => w.id === id))) return []
+  return findDates(shift, pinnedIds, from, ctx, max)
+}
+
+function findDates(shift: ShiftRecord, pinnedIds: string[], from: string, ctx: GapContext, max: number): DateOption[] {
+  const byId = (id: string) => ctx.workers.find((w) => w.id === id)
+  const pinned: CrewMember[] = pinnedIds.map((id) => ({ workerId: id }))
   const staffing = staffingFor(shift.staffing, ctx.certifications.map((c) => c.id))
   const out: DateOption[] = []
   for (let i = 0; i < ADVICE_DAYS && out.length < max; i++) {

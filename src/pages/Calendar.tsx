@@ -18,6 +18,8 @@ import { ShareSheet } from './calendar/ShareSheet'
 import { ShiftSheet } from './calendar/ShiftEditor'
 import { WeekPlanSheet } from './calendar/WeekPlanSheet'
 import { EditMark, WorkerDial } from './workers/common'
+import { WaitingJobs } from './ToSchedule'
+import { jobVehicleText } from '../lib/vehicles'
 import { dayNames, tx } from '../i18n'
 
 const SHORT_DAYS = dayNames('short')
@@ -30,7 +32,7 @@ export function Calendar() {
   // The cards and sheets read these too (names, certifications, reasons), so everything loads together.
   const workers = useDriveList('workers')
   const certs = useDriveList('certifications')
-  const lists = [shifts, defs, workers, certs, useDriveList('pendingJobs'), useDriveList('postponeReasons')]
+  const lists = [shifts, defs, workers, certs, useDriveList('pendingJobs'), useDriveList('postponeReasons'), useDriveList('vehicles')]
   const loading = lists.some((l) => l.query.isPending)
   const failed = lists.find((l) => l.query.isError)
   const today = todayIso()
@@ -115,6 +117,9 @@ export function Calendar() {
               {tx('עבודה חדשה')}
             </button>
           </div>
+
+          {/* Jobs still waiting for a day (until 2026-11-13 the "לשיבוץ" tab). */}
+          <WaitingJobs />
 
           <div className="flex items-center justify-between rounded-xl bg-slate-900 p-1">
             <button type="button" aria-label={tx('השבוע הקודם')} onClick={() => changeWeek(addDays(week.start, -7))} className="flex size-11 items-center justify-center text-slate-300">
@@ -290,6 +295,7 @@ function ShiftCard({
   const workers = useDriveList('workers')
   const certs = useDriveList('certifications')
   const reasons = useDriveList('postponeReasons')
+  const vehicles = useDriveList('vehicles')
   const def = defs.items.find((d) => d.id === r.shiftDefinitionId)
   const night = isNightShift(r, defs.items)
   const outcome = OUTCOMES.find((o) => o.id === r.closure?.outcome)
@@ -334,6 +340,7 @@ function ShiftCard({
         </span>
         {r.location && <span className="block font-semibold">{r.location}</span>}
         {r.jobDescription && <span className="block whitespace-pre-line text-sm text-slate-300">{r.jobDescription}</span>}
+        {(r.vehicleId || r.vehicleType) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(r, vehicles.items) })}</span>}
         {nextJobText(r) && <span className="block text-sm text-violet-300">{tx('אחרי הלילה: {v}', { v: nextJobText(r) })}</span>}
         {missing && (
           <span className="block space-y-0.5 text-xs text-red-300">

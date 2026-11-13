@@ -242,7 +242,7 @@ function ArchiveCard({ shift: r, today }: { shift: ShiftRecord; today: string })
 
       {prev && <p className="text-xs text-sky-300">{tx('המשך של עבודה מיום {weekday} {v2}', { weekday: dayName(prev.date), v2: fullDate(prev.date) })}</p>}
       {left && r.closure && r.closure.outcome !== 'done' && (
-        <p className="text-xs text-sky-300">{next ? tx('ההמשך שובץ ליום {weekday} {v2}', { weekday: dayName(next.date), v2: fullDate(next.date) }) : tx('ההמשך עדיין מחכה בלשונית "לשיבוץ"')}</p>
+        <p className="text-xs text-sky-300">{next ? tx('ההמשך שובץ ליום {weekday} {v2}', { weekday: dayName(next.date), v2: fullDate(next.date) }) : tx('ההמשך עדיין מחכה ליום, בראש היומן')}</p>
       )}
     </article>
   )
