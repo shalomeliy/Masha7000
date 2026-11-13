@@ -37,3 +37,13 @@ export const addAccess = (email: string) => call<AccessList>({ action: 'add', em
 export const removeAccess = (email: string) => call<AccessList>({ action: 'remove', email })
 export const setAssistant = (email: string, on: boolean) => call<AccessList>({ action: 'assistant', email, on })
 export const disconnectDrive = () => call<{ ok: true }>({ action: 'disconnect' })
+
+/** One line of the server's security log (api/_lib/audit.ts). */
+export interface AuditEntry {
+  at: string
+  event: string
+  email?: string
+  target?: string
+  ip?: string
+}
+export const loadAudit = () => call<{ entries: AuditEntry[] }>({ action: 'audit' })

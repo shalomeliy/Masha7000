@@ -19,6 +19,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # ISO 27001 A.8.8: a known high or critical hole in a package the app ships fails the build.
+      - run: npm audit --omit=dev --audit-level=high
       # The spikes' live tests read .env.local and skip without a key; CI has none and must never spend one.
       - run: touch .env.local
       - run: npm run verify

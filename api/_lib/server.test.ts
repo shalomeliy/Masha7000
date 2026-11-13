@@ -42,6 +42,9 @@ function fakeFetch(input: string | URL | Request, init?: RequestInit) {
       case 'SREM': { const s = set(); s.delete(rest[0]); store.set(key, s); return reply({ result: 1 }) }
       case 'INCR': { const n = Number(store.get(key) ?? 0) + 1; store.set(key, String(n)); return reply({ result: n }) }
       case 'EXPIRE': return reply({ result: 1 })
+      case 'LPUSH': { const l = (store.get(key) as unknown as string[]) ?? []; l.unshift(rest[0]); store.set(key, l as never); return reply({ result: l.length }) }
+      case 'LTRIM': { const l = (store.get(key) as unknown as string[]) ?? []; store.set(key, l.slice(Number(rest[0]), Number(rest[1]) + 1) as never); return reply({ result: 'OK' }) }
+      case 'LRANGE': { const l = (store.get(key) as unknown as string[]) ?? []; return reply({ result: l.slice(Number(rest[0]), Number(rest[1]) + 1) }) }
     }
   }
   if (url === 'https://oauth2.googleapis.com/token') {
@@ -680,5 +683,92 @@ describe('assistant budget cap', () => {
     const res = await post(assistant, s, { messages: [{ role: 'user', content: 'מי עובד מחר' }], context: {} })
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('no-key')
+  })
+})
+
+describe('security log (ISO 27001 A.8.15)', () => {
+  it('records sign-ins, refusals, wrong codes and owner changes; only the owner reads it', async () => {
+    store.set('allowed', new Set(['deputy@example.com']))
+    store.set('owner:refresh', await seal(KEY, 'refresh-1'))
+    await signInAs('stranger@example.com')
+    const deputy = await managerSession('deputy@example.com')
+    const half = cookieValue(await signInAs('deputy@example.com'), '__Host-session')!
+    await post(mfa, half, { action: 'verify', code: '000000' })
+    const boss = await managerSession(OWNER)
+    await post(owner, boss, { action: 'add', email: 'new@example.com' })
+
+    expect((await post(owner, deputy, { action: 'audit' })).status).toBe(403)
+    const { entries } = (await (await post(owner, boss, { action: 'audit' })).json()) as { entries: { event: string; email?: string; target?: string; ip?: string }[] }
+    const events = entries.map((e) => e.event).reverse()
+    expect(events).toEqual(['signin-refused', 'signin', 'mfa-enrolled', 'signin', 'mfa-wrong', 'signin', 'mfa-enrolled', 'access-add'])
+    expect(entries[0]).toMatchObject({ event: 'access-add', email: OWNER, target: 'new@example.com' })
+    // Sealed: the store holds no email in the clear, and no code ever.
+    const raw = (store.get('audit-log') as unknown as string[]).join('\n')
+    expect(raw).not.toContain('example.com')
+    expect(JSON.stringify(entries)).not.toContain('000000')
+  })
+
+  it('keeps addresses short', async () => {
+    const { shortIp } = await import('./audit.js')
+    expect(shortIp('203.0.113.57')).toBe('203.0.113.x')
+    expect(shortIp('2001:db8:85a3:8d3:1319:8a2e:370:7348')).toBe('2001:db8:85a3:8d3::x')
+    expect(shortIp('unknown')).toBe('unknown')
+  })
+})
+
+describe('sign-in hardening', () => {
+  it('refuses an email Google has not verified', async () => {
+    store.set('allowed', new Set(['deputy@example.com']))
+    const s = await start(new Request(`${ORIGIN}/api/auth/start`))
+    const state = new URL(s.headers.get('location')!).searchParams.get('state')!
+    google.tokenAnswer = { id_token: ['x', Buffer.from(JSON.stringify({ email: 'deputy@example.com' })).toString('base64url'), 'sig'].join('.') }
+    const res = await callback(
+      new Request(`${ORIGIN}/api/auth/callback?state=${state}&code=c`, { headers: { cookie: `__Host-oauth=${cookieValue(s, '__Host-oauth')}` } }),
+    )
+    expect(res.headers.get('location')).toBe('/?signin=failed')
+  })
+
+  it('once the owner has two-step, linking Drive again needs a verified device', async () => {
+    store.set('owner:refresh', await seal(KEY, 'refresh-1'))
+    await managerSession(OWNER)
+    store.delete('owner:refresh') // disconnected
+    const res = await signInAs(OWNER)
+    expect(res.headers.get('location')).toBe('/') // a code first, not straight to Google
+    const half = cookieValue(res, '__Host-session')!
+    const s = await start(new Request(`${ORIGIN}/api/auth/start?mode=owner`))
+    const state = new URL(s.headers.get('location')!).searchParams.get('state')!
+    google.tokenAnswer = { id_token: idToken(OWNER), refresh_token: 'attacker', scope: OWNER_SCOPES }
+    const grant = await callback(
+      new Request(`${ORIGIN}/api/auth/callback?state=${state}&code=c`, {
+        headers: { cookie: `__Host-oauth=${cookieValue(s, '__Host-oauth')}; __Host-session=${half}` },
+      }),
+    )
+    expect(grant.headers.get('location')).toBe('/?signin=failed')
+    expect(store.has('owner:refresh')).toBe(false)
+  })
+})
+
+describe('changing SESSION_KEY (ISO 27001 A.8.24)', () => {
+  const NEW_KEY = Buffer.alloc(32, 9).toString('base64')
+
+  it('old values still open with SESSION_KEY_PREVIOUS, and nothing opens without it', async () => {
+    const old = await seal(KEY, { a: 1 })
+    expect(await open(NEW_KEY, old)).toBeNull()
+    vi.stubEnv('SESSION_KEY_PREVIOUS', KEY)
+    expect(await open(NEW_KEY, old)).toEqual({ a: 1 })
+  })
+
+  it('managers stay set up: two-step and backup codes work across the change, Drive is sealed again', async () => {
+    store.set('allowed', new Set(['deputy@example.com']))
+    store.set('owner:refresh', await seal(KEY, 'refresh-1'))
+    await managerSession('deputy@example.com')
+    vi.stubEnv('SESSION_KEY', NEW_KEY)
+    vi.stubEnv('SESSION_KEY_PREVIOUS', KEY)
+    const s = await managerSession('deputy@example.com') // a backup code given out under the old key
+    google.tokenAnswer = { access_token: 'fresh', expires_in: 3600 }
+    expect((await post(token, s)).status).toBe(200)
+    expect(await open(NEW_KEY, store.get('owner:refresh') as string)).toBe('refresh-1')
+    vi.stubEnv('SESSION_KEY_PREVIOUS', '')
+    expect(await open(NEW_KEY, store.get('owner:refresh') as string)).toBe('refresh-1')
   })
 })

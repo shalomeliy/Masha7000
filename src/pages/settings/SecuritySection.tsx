@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { mfaStatus, logoutEverywhere, newRecoveryCodes } from '../../lib/google/mfa'
 import { useAuth } from '../../store/auth'
 import { RecoveryCodes } from '../../components/RecoveryCodes'
+import { AuditLog } from './AuditLog'
 
 // Server mode: the person's own two-step backup codes, and signing out on every device at once
 // (for a lost or stolen phone or computer).
@@ -24,6 +25,7 @@ export function SecuritySection() {
     onSuccess: () => useAuth.setState({ status: 'signedOut', who: null }),
   })
   const error = (fresh.error ?? everywhere.error) as Error | null
+  const isOwner = useAuth((a) => a.who?.isOwner === true)
 
   return (
     <div className="space-y-3">
@@ -64,6 +66,7 @@ export function SecuritySection() {
           {error.message}
         </p>
       )}
+      {isOwner && <AuditLog />}
       <p className="text-sm">
         <a href="/privacy.html" className="text-sky-300 underline">
           {tx('מדיניות פרטיות')}

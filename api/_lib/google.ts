@@ -68,7 +68,8 @@ export function emailOf(idToken: string | undefined): string | null {
       email?: string
       email_verified?: boolean
     }
-    return claims.email && claims.email_verified !== false ? claims.email.toLowerCase() : null
+    // Only an address Google itself has verified: an unverified one could belong to someone else.
+    return claims.email && claims.email_verified === true ? claims.email.toLowerCase() : null
   } catch {
     return null
   }

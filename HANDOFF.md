@@ -477,3 +477,12 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Vehicle card fields are a list in Settings, topic "רכבים" (`vehicle_fields.json`, `src/pages/settings/VehicleFieldsSection.tsx`), 10 starters; licence plate and model (ids `plate`, `model`) can be renamed but not deleted. Rules in `src/lib/vehicles.ts`. Both files are in the backup.
 - Job forms (calendar and waiting job) have "דגם רכב" + "רישוי" selects from the vehicles (`VehiclePick`; the user switched it from type to model the same day); a plate brings its model, a model narrows the plates. Saved as `vehicleId` / `vehicleModel` on the job, carried from a waiting job into its shift, shown on cards as "רכב: ...".
 - Not done: the voice assistant does not know vehicles yet.
+
+## Done: ISO 27001 / 27017 gap analysis (2026-11-13)
+
+- Docs in `docs/compliance/` (Hebrew drafts, need the owner's approval): README (what was done, what only the owner can do), scope + policy, risk register, assets, suppliers + shared responsibility, access control, key management, logging, incident response, backup + continuity, secure development, SoA (all 93 Annex A controls + 7 ISO 27017 cloud controls).
+- Security log: `api/_lib/audit.ts`, sealed list `audit-log` in Redis, newest 1000. Written from callback, mfa, owner (and api-keys through owner). Owner reads it via `POST /api/owner {action:'audit'}`, shown in Settings > אבטחה (`src/pages/settings/AuditLog.tsx`). Any new sensitive action should call `audit()`.
+- Key change: `SESSION_KEY_PREVIOUS` opens old sealed values (`crypto.ts`), backup codes hash under both keys, the Drive refresh token is resealed on first use. Procedure in `docs/compliance/key-management.md`.
+- Sign-in: only `email_verified === true`; once the owner has two-step, linking Drive (also after a disconnect) needs a verified device, and the owner's identity sign-in goes to `/` (code first) instead of straight to the Drive grant.
+- Sentry: breadcrumb and request URLs lose their query/hash (`stripQuery` in `src/lib/monitoring.ts`).
+- CI: `npm audit --omit=dev --audit-level=high`; `.github/dependabot.yml` weekly. `public/.well-known/security.txt` (expires 2027-11-13, renew yearly); `.well-known/` excluded from the SPA rewrite.

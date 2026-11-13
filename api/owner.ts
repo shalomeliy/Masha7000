@@ -1,4 +1,5 @@
 import { apiKeysAction } from './_lib/apiKeysRoute.js'
+import { audit, readAudit } from './_lib/audit.js'
 import { open } from './_lib/crypto.js'
 import { readEnv } from './_lib/env.js'
 import { revoke } from './_lib/google.js'
@@ -9,7 +10,8 @@ import { endAllSessions, isOwner, normalizeEmail, requireManager } from './_lib/
 
 // POST /api/owner { action }: the owner's controls. 'list' | 'add' | 'remove' manage who may sign in;
 // 'assistant' { email, on } opens or closes the voice assistant to one of them (the owner's budget)
-// (the owner is implicit and never stored); 'disconnect' revokes the app's access to the owner's Drive.
+// (the owner is implicit and never stored); 'disconnect' revokes the app's access to the owner's Drive;
+// 'audit' reads the security log (api/_lib/audit.ts). Every change here is written to that log.
 // POST /api/owner?scope=api-keys { action }: the outside-API keys (api/_lib/apiKeysRoute.ts), same owner-only checks.
 
 export const POST = guarded(async (req: Request) => {
@@ -24,11 +26,19 @@ export const POST = guarded(async (req: Request) => {
 
   const body = await readJson(req)
   if (!body) return json({ reason: keys ? 'bad-request' : 'bad-body' }, 400)
-  if (keys) return apiKeysAction(env, body)
+  const me = gate.session.email
+  if (keys) {
+    const answer = await apiKeysAction(env, body)
+    if (answer.ok && (body.action === 'create' || body.action === 'revoke'))
+      await audit(env, req, body.action === 'create' ? 'apikey-create' : 'apikey-revoke', { email: me, target: String(body.name ?? body.id ?? '').slice(0, 80) })
+    return answer
+  }
+  if (body.action === 'audit') return json({ entries: await readAudit(env) })
   if (body.action === 'disconnect') {
     const refresh = await open<string>(env.sessionKey, await kv.get(env, KEYS.refresh))
     if (refresh) await revoke(refresh)
     await kv.del(env, KEYS.refresh, KEYS.access)
+    await audit(env, req, 'drive-disconnect', { email: me })
     return json({ ok: true })
   }
   if (body.action === 'assistant') {
@@ -36,10 +46,12 @@ export const POST = guarded(async (req: Request) => {
     if (!email || !(await kv.isMember(env, KEYS.allowed, email))) return json({ reason: 'bad-email' }, 400)
     if (body.on === true) await kv.add(env, KEYS.assistant, email)
     else await kv.remove(env, KEYS.assistant, email)
+    await audit(env, req, 'assistant-access', { email: me, target: `${email} ${body.on === true ? 'on' : 'off'}` })
   } else if (body.action === 'add' || body.action === 'remove') {
     const email = normalizeEmail(body.email)
     if (!email) return json({ reason: 'bad-email' }, 400)
     if (email === env.ownerEmail) return json({ reason: 'owner-implicit' }, 400)
+    await audit(env, req, body.action === 'add' ? 'access-add' : 'access-remove', { email: me, target: email })
     if (body.action === 'add') await kv.add(env, KEYS.allowed, email)
     else {
       // Out of the list: signed out everywhere now, and a fresh two-step setup if ever added back.

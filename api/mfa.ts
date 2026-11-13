@@ -1,4 +1,5 @@
-import { open, seal, sha256url } from './_lib/crypto.js'
+import { audit } from './_lib/audit.js'
+import { open, previousKey, seal, sha256url } from './_lib/crypto.js'
 import { readEnv, type Env } from './_lib/env.js'
 import { clearCookie, clientIp, guarded, json, readJson, sameOrigin, SESSION_COOKIE } from './_lib/http.js'
 import { KEYS, kv } from './_lib/kv.js'
@@ -27,7 +28,7 @@ interface Secret {
 const RECOVERY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // no 0/O, 1/I
 const RECOVERY_COUNT = 10
 
-const recoveryHash = (env: Env, code: string) => sha256url(`${env.sessionKey}|rc|${code.toUpperCase().replace(/[\s-]/g, '')}`)
+const recoveryHash = (env: Env, code: string, key = env.sessionKey) => sha256url(`${key}|rc|${code.toUpperCase().replace(/[\s-]/g, '')}`)
 
 async function newRecovery(env: Env) {
   const codes = Array.from({ length: RECOVERY_COUNT }, () => {
@@ -60,8 +61,15 @@ export const POST = guarded(async (req: Request) => {
     if (!session) return json({ reason: 'no-session' }, 401)
     if (!(await isAllowed(env, session.email))) return json({ reason: 'not-allowed' }, 403)
     if (body.action === 'setup') return setup(env, req, session)
-    if (await codeTryRefused(env, req, session.email)) return tooMany()
-    return body.action === 'enable' ? enable(env, session, code) : verify(env, session, code)
+    if (await codeTryRefused(env, req, session.email)) {
+      await audit(env, req, 'mfa-locked', { email: session.email })
+      return tooMany()
+    }
+    const answer = body.action === 'enable' ? await enable(env, session, code) : await verify(env, session, code)
+    if (answer.status === 400) await audit(env, req, 'mfa-wrong', { email: session.email })
+    else if (answer.ok) await audit(env, req, body.action === 'enable' ? 'mfa-enrolled' : answer.headers.get('x-recovery') ? 'recovery-used' : 'mfa-ok', { email: session.email })
+    answer.headers.delete('x-recovery')
+    return answer
   }
 
   const gate = await requireManager(env, req)
@@ -77,10 +85,12 @@ export const POST = guarded(async (req: Request) => {
       if (!s) return json({ reason: 'not-enrolled' }, 409)
       const { codes, hashes } = await newRecovery(env)
       await saveSecret(env, session.email, { ...s, recovery: hashes })
+      await audit(env, req, 'recovery-new', { email: session.email })
       return json({ recoveryCodes: codes })
     }
     case 'logout-all':
       await endAllSessions(env, session.email)
+      await audit(env, req, 'logout-all', { email: session.email })
       return json({ ok: true }, 200, [clearCookie(SESSION_COOKIE)])
     case 'reset': {
       if (!isOwner(env, session.email)) return json({ reason: 'not-owner' }, 403)
@@ -89,6 +99,7 @@ export const POST = guarded(async (req: Request) => {
       if (email === env.ownerEmail) return json({ reason: 'owner-self' }, 400)
       await kv.del(env, KEYS.mfa(email), KEYS.mfaSetup(email))
       await endAllSessions(env, email)
+      await audit(env, req, 'mfa-reset', { email: session.email, target: email })
       return json({ ok: true })
     }
     default:
@@ -129,13 +140,18 @@ async function verify(env: Env, session: Session, code: string) {
     if (!(await kv.claim(env, KEYS.mfaUsed(session.email, `s${step}`), 120))) return json({ reason: 'wrong-code' }, 400)
     await saveSecret(env, session.email, { ...s, usedStep: step })
   } else {
-    const hash = await recoveryHash(env, code)
-    if (code.length < 8 || !s.recovery.includes(hash)) return json({ reason: 'wrong-code' }, 400)
+    // While SESSION_KEY is being replaced, codes given out under the old key still work.
+    const old = previousKey()
+    const hashes = [await recoveryHash(env, code), ...(old ? [await recoveryHash(env, code, old)] : [])]
+    const hash = hashes.find((h) => s.recovery.includes(h))
+    if (code.length < 8 || !hash) return json({ reason: 'wrong-code' }, 400)
     if (!(await kv.claim(env, KEYS.mfaUsed(session.email, hash), 400 * 86_400))) return json({ reason: 'wrong-code' }, 400)
     const latest = (await readSecret(env, session.email)) ?? s
     await saveSecret(env, session.email, { ...latest, recovery: latest.recovery.filter((h) => h !== hash) })
   }
   await markVerified(env, session)
-  return json({ ok: true, recoveryLeft: step !== null ? s.recovery.length : s.recovery.length - 1 })
+  const done = json({ ok: true, recoveryLeft: step !== null ? s.recovery.length : s.recovery.length - 1 })
+  if (step === null) done.headers.set('x-recovery', '1') // for the security log only; removed before it is sent
+  return done
 }
 

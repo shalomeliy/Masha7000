@@ -1,6 +1,10 @@
 // AES-256-GCM for everything the server hands out or stores: session cookies, the sign-in state
 // cookie and the owner's Google tokens. A changed or foreign value opens to null.
-// The "v1." prefix is the key version: a new SESSION_KEY makes every old value unreadable.
+// The "v1." prefix is the key version.
+// Replacing the key (ISO 27001 A.8.24, see docs/compliance/key-management.md): put the old key in
+// SESSION_KEY_PREVIOUS and a new one in SESSION_KEY. New values are sealed with the new key; old ones
+// still open with the previous one, and are sealed again with the new key the next time they are saved.
+// Once everything has been saved again (sessions last 180 days at most), delete SESSION_KEY_PREVIOUS.
 
 const VERSION = 'v1.'
 
@@ -17,7 +21,17 @@ export async function seal(keyB64: string, value: unknown): Promise<string> {
   return VERSION + Buffer.concat([iv, sealed]).toString('base64url')
 }
 
+/** The key being replaced, while a key change is under way; null otherwise. */
+export const previousKey = (): string | null => (process.env.SESSION_KEY_PREVIOUS ?? '').trim() || null
+
 export async function open<T>(keyB64: string, text: string | null | undefined): Promise<T | null> {
+  const value = await openWith<T>(keyB64, text)
+  const old = value === null ? previousKey() : null
+  return old && old !== keyB64 ? openWith<T>(old, text) : value
+}
+
+/** Opens with this one key only (no previous key). */
+export async function openWith<T>(keyB64: string, text: string | null | undefined): Promise<T | null> {
   if (!text?.startsWith(VERSION)) return null
   try {
     const bytes = Buffer.from(text.slice(VERSION.length), 'base64url')

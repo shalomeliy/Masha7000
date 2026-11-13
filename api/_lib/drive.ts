@@ -1,4 +1,4 @@
-import { open, seal } from './crypto.js'
+import { open, openWith, previousKey, seal } from './crypto.js'
 import type { Env } from './env.js'
 import { refreshAccess } from './google.js'
 import { KEYS, kv } from './kv.js'
@@ -27,8 +27,11 @@ export type OwnerToken = { token: string; expiresIn: number } | { reason: 'owner
 export async function ownerToken(env: Env, stale = false): Promise<OwnerToken> {
   const cached = stale ? null : await open<Cached>(env.sessionKey, await kv.get(env, KEYS.access))
   if (cached && cached.exp - Date.now() > 120_000) return { token: cached.token, expiresIn: Math.floor((cached.exp - Date.now()) / 1000) }
-  const refresh = await open<string>(env.sessionKey, await kv.get(env, KEYS.refresh))
+  const sealedRefresh = await kv.get(env, KEYS.refresh)
+  const refresh = await open<string>(env.sessionKey, sealedRefresh)
   if (!refresh) return { reason: 'owner-disconnected' }
+  // During a key change (crypto.ts) it opened with the previous key: seal it again with the new one.
+  if (previousKey() && !(await openWith<string>(env.sessionKey, sealedRefresh))) await kv.set(env, KEYS.refresh, await seal(env.sessionKey, refresh))
   const { ok, data } = await refreshAccess(env, refresh)
   if (!ok || !data.access_token) {
     if (data.error === 'invalid_grant') {
