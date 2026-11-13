@@ -277,7 +277,11 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       <VehiclePick value={draft} onChange={(v) => setDraft((d) => ({ ...d, ...v }))} />
       <StaffingField value={draft.staffing} onChange={(staffing) => set('staffing', staffing)} />
       {workers.items.length > 0 && <PinnedField draft={draft} ctx={gapCtx} noSearch={autoDate} onChange={(next) => (setDraft((d) => ({ ...d, ...next })), setPlanNote(null), setError(null))} />}
-      {autoDate && <AutoDate draft={draft} ctx={gapCtx} picked={autoPicked} onPick={pickDate} />}
+      {autoDate && (
+        <div data-auto-date>
+          <AutoDate draft={draft} ctx={gapCtx} picked={autoPicked} onPick={pickDate} />
+        </div>
+      )}
 
       <div className="space-y-2">
         <span className="text-sm text-slate-300">
@@ -418,7 +422,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
       </div>
 
       {listedBusy.length > 0 && (
-        <ul className="space-y-2" aria-label={tx('עובדים שכבר משובצים בעבודה אחרת')}>
+        <ul data-busy-list className="space-y-2" aria-label={tx('עובדים שכבר משובצים בעבודה אחרת')}>
           {listedBusy.map((b) => (
             <li key={b.worker.id} className="space-y-2 rounded-xl border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-100">
               <p>{busyText([b])}</p>
@@ -441,6 +445,8 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
         confirmLabel={tx('כן, לבטל')}
         busy={busy}
         error={error}
+        // Notes that name no field: the day to pick, or the workers busy elsewhere.
+        errorTarget={autoDate && !autoPicked ? '[data-auto-date]' : listedBusy.length ? '[data-busy-list]' : undefined}
         saveError={saveError}
       />
     </>

@@ -1,6 +1,7 @@
 import { tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode, TouchEvent } from 'react'
+import { ArrowUp } from 'lucide-react'
 import { holdBack } from './backStack'
 import { DriveError } from './DriveError'
 
@@ -175,6 +176,7 @@ export function SheetActions({
   saveLabel = tx('שמירה'),
   busy,
   error,
+  errorTarget,
   saveError,
 }: {
   onSave: () => void
@@ -186,16 +188,25 @@ export function SheetActions({
   saveLabel?: string
   busy: boolean
   error: string | null // validation
+  errorTarget?: string // CSS selector of what the error is about, when the error's words do not name a field
   saveError: unknown
 }) {
   const [confirming, setConfirming] = useState(false)
 
+
   return (
     <div className="space-y-3">
       {error && (
-        <p role="alert" className="text-sm text-red-300">
+        // A tap takes the manager to the field the note is about (the user's request, 2026-11-13).
+        <button
+          type="button"
+          role="alert"
+          onClick={(e) => goToField(e.currentTarget, error, errorTarget)}
+          className="flex w-full items-start gap-1 text-start text-sm text-red-300 underline decoration-red-300/40 underline-offset-4"
+        >
+          <ArrowUp size={16} aria-hidden className="mt-0.5 shrink-0" />
           {error}
-        </p>
+        </button>
       )}
       {saveError != null && <DriveError error={saveError} action="save" />}
       {confirming ? (
@@ -227,4 +238,45 @@ export function SheetActions({
       )}
     </div>
   )
+}
+
+const FIELDS = 'input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
+
+/**
+ * Scrolls the form to what a validation note is about and puts the cursor there: `target` when given,
+ * else a field marked invalid, else the field whose label the note names ("צריך למלא מיקום..." -> "מיקום"),
+ * else the first field of the form.
+ */
+function goToField(from: HTMLElement, error: string, target?: string) {
+  const root = from.closest('dialog') ?? from.closest('form') ?? document.body
+  const inForm = (el: Element) => !from.parentElement?.contains(el)
+  const named = () => {
+    let best: { el: Element; at: number; len: number } | null = null
+    for (const el of root.querySelectorAll('label > span, legend, label, p, span')) {
+      if (!inForm(el) || el.children.length) continue
+      const text = el.textContent?.trim() ?? ''
+      if (text.length < 2 || text.length > 40) continue
+      const at = error.indexOf(text)
+      if (at < 0) continue
+      // A whole word only: "תאריך" is not in "מהתאריכים".
+      const before = error[at - 1]
+      const after = error[at + text.length]
+      if ((before && /[\p{L}]/u.test(before)) || (after && /[\p{L}]/u.test(after))) continue
+      if (!best || at < best.at || (at === best.at && text.length > best.len)) best = { el, at, len: text.length }
+    }
+    return best?.el.closest('label, fieldset, .space-y-1, .space-y-2') ?? best?.el ?? null
+  }
+  const spot =
+    (target ? root.querySelector(target) : null) ??
+    [...root.querySelectorAll('[aria-invalid="true"]')].find(inForm) ??
+    named() ??
+    [...root.querySelectorAll(FIELDS)].find(inForm) ??
+    null
+  if (!spot) return
+  spot.scrollIntoView({ block: 'center' })
+  const field = spot.matches(FIELDS) ? spot : spot.querySelector(FIELDS)
+  ;(field as HTMLElement | null)?.focus({ preventScroll: true })
+  // A short ring, so the eye finds it.
+  spot.classList.add('ring-2', 'ring-red-400', 'rounded-xl')
+  setTimeout(() => spot.classList.remove('ring-2', 'ring-red-400', 'rounded-xl'), 1600)
 }
