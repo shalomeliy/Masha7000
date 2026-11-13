@@ -8,8 +8,9 @@ export type Tab = 'voice' | 'calendar' | 'workers' | 'vehicles' | 'archive' | 's
 // (the user removed the "לשיבוץ" button, 2026-11-13). "רכבים" sits right of "הגדרות".
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'calendar', label: tx('יומן'), icon: CalendarDays },
-  { id: 'voice', label: 'Shaly', icon: Mic },
   { id: 'workers', label: tx('עובדים'), icon: Users },
+  // In the middle of the five (the user, 2026-11-13).
+  { id: 'voice', label: 'Shaly', icon: Mic },
   { id: 'vehicles', label: tx('רכבים'), icon: Car },
   { id: 'settings', label: tx('הגדרות'), icon: Settings },
 ]
