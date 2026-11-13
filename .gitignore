@@ -25,3 +25,6 @@ dist-ssr
 
 # cloud-tts spike audio (local only)
 spikes/cloud-tts/out/
+
+# Claude Code saves approved commands here, sometimes with secrets inside
+.claude/settings.local.json
