@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# cloud-tts spike audio (local only)
+spikes/cloud-tts/out/
