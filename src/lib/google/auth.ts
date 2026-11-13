@@ -27,6 +27,8 @@ export class OfflineError extends Error {}
 export interface Who {
   email: string
   isOwner: boolean
+  /** May use the voice assistant: the owner, or a manager the owner opened it to. */
+  assistant: boolean
 }
 
 const TOKEN_KEY = 'shiftsmart.token'
@@ -77,7 +79,7 @@ export function rememberedAccount(): Account | null {
 // ---- Server mode ----
 
 type ServerAnswer =
-  | { kind: 'token'; accessToken: string; expiresIn: number; email: string; isOwner: boolean }
+  | { kind: 'token'; accessToken: string; expiresIn: number; email: string; isOwner: boolean; assistant?: boolean }
   | { kind: 'refused'; reason: AuthReason; who?: Who; enrolled?: boolean }
   | { kind: 'no-server' }
   | { kind: 'failed' }
@@ -110,7 +112,7 @@ async function askServer(stale = false): Promise<ServerAnswer> {
   if (res.ok && typeof body.accessToken === 'string') return { kind: 'token', ...(body as Omit<Extract<ServerAnswer, { kind: 'token' }>, 'kind'>) }
   const reason = body.reason as string
   if (reason === 'no-session' || reason === 'not-allowed' || reason === 'owner-disconnected' || reason === 'mfa-required') {
-    const w = typeof body.email === 'string' ? { email: body.email, isOwner: body.isOwner === true } : undefined
+    const w = typeof body.email === 'string' ? { email: body.email, isOwner: body.isOwner === true, assistant: body.assistant === true || body.isOwner === true } : undefined
     return { kind: 'refused', reason, who: w, enrolled: body.enrolled === true }
   }
   return { kind: 'failed' }
@@ -138,7 +140,7 @@ function renew(stale = false): Promise<string> {
     try {
       const answer = await askServer(stale)
       if (answer.kind === 'token') {
-        who = { email: answer.email, isOwner: answer.isOwner }
+        who = { email: answer.email, isOwner: answer.isOwner, assistant: answer.assistant === true || answer.isOwner }
         setToken({ value: answer.accessToken, expiresAt: Date.now() + (answer.expiresIn - 60) * 1000 })
         return answer.accessToken
       }
@@ -173,7 +175,7 @@ export async function resume(): Promise<ResumeResult> {
   if (answer.kind === 'failed') return { status: 'failed' }
   enterServerMode()
   if (answer.kind === 'token') {
-    who = { email: answer.email, isOwner: answer.isOwner }
+    who = { email: answer.email, isOwner: answer.isOwner, assistant: answer.assistant === true || answer.isOwner }
     setToken({ value: answer.accessToken, expiresAt: Date.now() + (answer.expiresIn - 60) * 1000 })
     return { status: 'signedIn', who }
   }

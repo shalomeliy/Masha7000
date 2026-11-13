@@ -7,7 +7,8 @@ import { KEYS, kv } from './_lib/kv.js'
 import { overLimit } from './_lib/rate.js'
 import { endAllSessions, isOwner, normalizeEmail, requireManager } from './_lib/session.js'
 
-// POST /api/owner { action }: the owner's controls. 'list' | 'add' | 'remove' manage who may sign in
+// POST /api/owner { action }: the owner's controls. 'list' | 'add' | 'remove' manage who may sign in;
+// 'assistant' { email, on } opens or closes the voice assistant to one of them (the owner's budget)
 // (the owner is implicit and never stored); 'disconnect' revokes the app's access to the owner's Drive.
 // POST /api/owner?scope=api-keys { action }: the outside-API keys (api/_lib/apiKeysRoute.ts), same owner-only checks.
 
@@ -30,7 +31,12 @@ export const POST = guarded(async (req: Request) => {
     await kv.del(env, KEYS.refresh, KEYS.access)
     return json({ ok: true })
   }
-  if (body.action === 'add' || body.action === 'remove') {
+  if (body.action === 'assistant') {
+    const email = normalizeEmail(body.email)
+    if (!email || !(await kv.isMember(env, KEYS.allowed, email))) return json({ reason: 'bad-email' }, 400)
+    if (body.on === true) await kv.add(env, KEYS.assistant, email)
+    else await kv.remove(env, KEYS.assistant, email)
+  } else if (body.action === 'add' || body.action === 'remove') {
     const email = normalizeEmail(body.email)
     if (!email) return json({ reason: 'bad-email' }, 400)
     if (email === env.ownerEmail) return json({ reason: 'owner-implicit' }, 400)
@@ -38,6 +44,7 @@ export const POST = guarded(async (req: Request) => {
     else {
       // Out of the list: signed out everywhere now, and a fresh two-step setup if ever added back.
       await kv.remove(env, KEYS.allowed, email)
+      await kv.remove(env, KEYS.assistant, email)
       await endAllSessions(env, email)
       await kv.del(env, KEYS.mfa(email), KEYS.mfaSetup(email))
     }
@@ -45,5 +52,6 @@ export const POST = guarded(async (req: Request) => {
     return json({ reason: 'bad-action' }, 400)
   }
   const emails = (await kv.members(env, KEYS.allowed)).sort()
-  return json({ owner: env.ownerEmail, emails })
+  const assistant = (await kv.members(env, KEYS.assistant)).filter((e) => emails.includes(e)).sort()
+  return json({ owner: env.ownerEmail, emails, assistant })
 })

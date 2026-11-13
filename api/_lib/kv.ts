@@ -11,6 +11,8 @@ export const KEYS = {
   refresh: 'owner:refresh',
   access: 'owner:access',
   allowed: 'allowed',
+  /** Allowed managers the owner also opened the voice assistant to (it spends the owner's monthly budget). */
+  assistant: 'assistant',
   joinForm: 'join:form',
   joinSubs: 'join:subs',
   joinSent: 'join:sent',

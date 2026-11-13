@@ -45,9 +45,14 @@ describe('resume', () => {
   it('is signed in through the server with no click', async () => {
     stubFetch(() => json({ accessToken: 'owner-token', expiresIn: 3600, email: 'deputy@x.com', isOwner: false }))
     const auth = await load()
-    expect(await auth.resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false } })
+    expect(await auth.resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: false } })
     expect(auth.authMode()).toBe('server')
     expect(auth.getAccessToken()).toBe('owner-token')
+  })
+
+  it('knows a deputy the owner opened the voice assistant to', async () => {
+    stubFetch(() => json({ accessToken: 't', expiresIn: 3600, email: 'deputy@x.com', isOwner: false, assistant: true }))
+    expect(await (await load()).resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: true } })
   })
 
   it('tells apart a removed email and a disconnected owner', async () => {
@@ -55,7 +60,7 @@ describe('resume', () => {
     expect((await (await load()).resume()).status).toBe('notAllowed')
     vi.resetModules()
     stubFetch(() => json({ reason: 'owner-disconnected', email: 'boss@x.com', isOwner: true }, 409))
-    expect(await (await load()).resume()).toEqual({ status: 'ownerDisconnected', who: { email: 'boss@x.com', isOwner: true } })
+    expect(await (await load()).resume()).toEqual({ status: 'ownerDisconnected', who: { email: 'boss@x.com', isOwner: true, assistant: true } })
   })
 })
 

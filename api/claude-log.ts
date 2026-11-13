@@ -2,20 +2,20 @@ import { addToLog, clearStoredLog, logEntry, readLog, tokenMatches } from './_li
 import { readEnv, type Env } from './_lib/env.js'
 import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
-import { isOwner, requireManager } from './_lib/session.js'
+import { canUseAssistant, isOwner, requireManager } from './_lib/session.js'
 
-// The "what went to Claude" log of the voice assistant (api/_lib/claudeLog.ts). Owner only, like the
-// assistant itself.
+// The "what went to Claude" log of the voice assistant (api/_lib/claudeLog.ts). Read and emptied by the
+// owner only; written by anyone allowed the assistant, so the owner sees every conversation.
 // POST { entry }: add one conversation, or update it (same id).
 // GET: the whole log, oldest first. Also open to a development session with the CLAUDE_LOG_TOKEN key
 //   (scripts/claude-log.mjs), so the log can be read without pasting.
 // DELETE: empty it.
 
-async function ownerGate(req: Request, env: Env): Promise<Response | null> {
+async function ownerGate(req: Request, env: Env, allow = isOwner as (env: Env, email: string) => boolean | Promise<boolean>): Promise<Response | null> {
   if (req.method !== 'GET' && !sameOrigin(req, env.appOrigin)) return json({ reason: 'bad-origin' }, 403)
   const gate = await requireManager(env, req)
   if ('refuse' in gate) return gate.refuse
-  if (!isOwner(env, gate.session.email)) return json({ reason: 'not-owner' }, 403)
+  if (!(await allow(env, gate.session.email))) return json({ reason: 'not-owner' }, 403)
   return null
 }
 
@@ -39,7 +39,7 @@ export const GET = guarded(async (req: Request) => {
 export const POST = guarded(async (req: Request) => {
   const s = await start(req)
   if ('refuse' in s) return s.refuse
-  const refused = await ownerGate(req, s.env)
+  const refused = await ownerGate(req, s.env, canUseAssistant)
   if (refused) return refused
   const entry = logEntry((await readJson(req, 30_000))?.entry)
   if (!entry) return json({ reason: 'bad-body' }, 400)

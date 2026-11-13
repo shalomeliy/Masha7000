@@ -271,10 +271,10 @@ describe('owner controls', () => {
 
     const boss = await managerSession(OWNER)
     const added = await post(owner, boss, { action: 'add', email: ' New@Example.com ' })
-    expect(await added.json()).toEqual({ owner: OWNER, emails: ['deputy@example.com', 'new@example.com'] })
+    expect(await added.json()).toEqual({ owner: OWNER, emails: ['deputy@example.com', 'new@example.com'], assistant: [] })
     expect((await post(owner, boss, { action: 'add', email: 'not an email' })).status).toBe(400)
     await post(owner, boss, { action: 'remove', email: 'deputy@example.com' })
-    expect(await (await post(owner, boss, { action: 'list' })).json()).toEqual({ owner: OWNER, emails: ['new@example.com'] })
+    expect(await (await post(owner, boss, { action: 'list' })).json()).toEqual({ owner: OWNER, emails: ['new@example.com'], assistant: [] })
   })
 
   it('disconnect revokes the Drive token at Google', async () => {
@@ -629,6 +629,35 @@ describe('weekly constraints form', () => {
     expect((await list(s)).answered).toEqual([])
     await post(cons, s, { action: 'close' })
     expect((await post(cons, null, { action: 'submit', code, phone: '0501234567', days })).status).toBe(404)
+  })
+})
+
+describe('voice assistant for another manager', () => {
+  it('is closed to a manager until the owner opens it, and closes again when turned off or removed', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+    store.set('allowed', new Set(['deputy@example.com']))
+    store.set('owner:refresh', await seal(KEY, 'refresh-1'))
+    google.tokenAnswer = { access_token: 'owner-access', expires_in: 3600 }
+    const turn = { messages: [{ role: 'user', content: 'מי עובד מחר' }], context: {} }
+    const deputy = await managerSession('deputy@example.com')
+    expect((await post(assistant, deputy, turn)).status).toBe(403)
+    expect(await (await post(token, deputy)).json()).toMatchObject({ isOwner: false, assistant: false })
+    // Only the owner opens it, and only to someone on the list.
+    expect((await post(owner, deputy, { action: 'assistant', email: 'deputy@example.com', on: true })).status).toBe(403)
+    const boss = await managerSession(OWNER)
+    expect((await post(owner, boss, { action: 'assistant', email: 'stranger@example.com', on: true })).status).toBe(400)
+    const opened = await post(owner, boss, { action: 'assistant', email: 'deputy@example.com', on: true })
+    expect(await opened.json()).toEqual({ owner: OWNER, emails: ['deputy@example.com'], assistant: ['deputy@example.com'] })
+    expect(await (await post(token, deputy)).json()).toMatchObject({ assistant: true })
+    // Same gate and same monthly budget as the owner (refused before any paid call outside Vercel).
+    const res = await post(assistant, deputy, turn)
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('no-key')
+    await post(owner, boss, { action: 'assistant', email: 'deputy@example.com', on: false })
+    expect((await post(assistant, deputy, turn)).status).toBe(403)
+    await post(owner, boss, { action: 'assistant', email: 'deputy@example.com', on: true })
+    await post(owner, boss, { action: 'remove', email: 'deputy@example.com' })
+    expect([...((store.get('assistant') as Set<string> | undefined) ?? [])]).toEqual([])
   })
 })
 

@@ -67,6 +67,11 @@ export async function isAllowed(env: Env, email: string) {
   return isOwner(env, email) || kv.isMember(env, KEYS.allowed, email)
 }
 
+/** The owner, or an allowed manager the owner opened the voice assistant to (same monthly budget). */
+export async function canUseAssistant(env: Env, email: string) {
+  return isOwner(env, email) || ((await isAllowed(env, email)) && kv.isMember(env, KEYS.assistant, email))
+}
+
 export const hasMfa = async (env: Env, email: string) => (await kv.get(env, KEYS.mfa(email))) !== null
 
 /**
@@ -78,7 +83,7 @@ export async function requireManager(env: Env, req: Request): Promise<{ session:
   if (!session) return { refuse: json({ reason: 'no-session' }, 401) }
   if (!(await isAllowed(env, session.email))) return { refuse: json({ reason: 'not-allowed' }, 403) }
   if (!session.mfa) {
-    const who = { email: session.email, isOwner: isOwner(env, session.email) }
+    const who = { email: session.email, isOwner: isOwner(env, session.email), assistant: await canUseAssistant(env, session.email) }
     return { refuse: json({ reason: 'mfa-required', enrolled: await hasMfa(env, session.email), ...who }, 401) }
   }
   return { session }

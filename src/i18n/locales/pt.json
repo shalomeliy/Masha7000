@@ -1158,5 +1158,7 @@
  "שם המפתח": "Nome da chave",
  "שם המפתח, למשל \"דוחות שכר\"": "Nome da chave, ex.: \"Relatórios de folha\"",
  "ת.ז, טלפונים, כתובת והערות יוצאים רק במפתח כזה. תן אותו רק למערכת שחייבת אותם.": "Números de identidade, telefones, endereço e notas só saem com uma chave assim. Dê-a só a um sistema que precise deles.",
- "הטלפון לא הצליח להשמיע את זה ({v}). נסה לכתוב את זה אחרת.": "O celular não conseguiu reproduzir isto ({v}). Tente escrever de outro jeito."
+ "הטלפון לא הצליח להשמיע את זה ({v}). נסה לכתוב את זה אחרת.": "O celular não conseguiu reproduzir isto ({v}). Tente escrever de outro jeito.",
+ "עוזר קולי": "Assistente de voz",
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Assistente de voz: quem estiver marcado em amarelo pode falar com a Shaly. Todos usam o mesmo orçamento mensal seu."
 }

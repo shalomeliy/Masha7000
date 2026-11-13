@@ -1,9 +1,9 @@
 import { tx } from '../../i18n'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, RotateCcw, Trash2 } from 'lucide-react'
+import { Loader2, Mic, RotateCcw, Trash2 } from 'lucide-react'
 import { inputClass } from '../../components/Sheet'
-import { addAccess, disconnectDrive, listAccess, removeAccess } from '../../lib/google/owner'
+import { addAccess, disconnectDrive, listAccess, removeAccess, setAssistant } from '../../lib/google/owner'
 import type { AccessList } from '../../lib/google/owner'
 import { resetMfaOf } from '../../lib/google/mfa'
 import { useAuth } from '../../store/auth'
@@ -24,6 +24,11 @@ export function AccessSection() {
       setConfirm(null)
       if (action === 'add') setEmail('')
     },
+  })
+  // The voice assistant, per manager: it spends the owner's one monthly budget.
+  const voice = useMutation({
+    mutationFn: ({ email, on }: { email: string; on: boolean }) => setAssistant(email, on),
+    onSuccess: (list: AccessList) => qc.setQueryData(['access'], list),
   })
   const reset = useMutation({
     mutationFn: resetMfaOf,
@@ -66,6 +71,21 @@ export function AccessSection() {
               <span className="min-w-0 flex-1 truncate" dir="ltr">
                 {e}
               </span>
+              {(() => {
+                const on = access.data.assistant?.includes(e) === true
+                return (
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    disabled={voice.isPending}
+                    onClick={() => voice.mutate({ email: e, on: !on })}
+                    className={`flex min-h-11 items-center gap-1 rounded-lg px-3 ${on ? 'bg-amber-400/20 text-amber-200' : 'text-slate-400'}`}
+                  >
+                    <Mic size={16} aria-hidden />
+                    {tx('עוזר קולי')}
+                  </button>
+                )
+              })()}
               <button
                 type="button"
                 disabled={reset.isPending}
@@ -111,10 +131,16 @@ export function AccessSection() {
           {tx('הוספה')}
         </button>
       </form>
+      <p className="text-xs text-slate-500">{tx('עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.')}</p>
       <p className="text-xs text-slate-500">{tx('איפוס אימות: למי שאיבד את הטלפון. הוא ינותק מכל המכשירים, ובכניסה הבאה יגדיר את אפליקציית האימות מחדש.')}</p>
       {reset.isError && (
         <p role="alert" className="text-sm text-red-400">
           {(reset.error as Error).message}
+        </p>
+      )}
+      {voice.isError && (
+        <p role="alert" className="text-sm text-red-400">
+          {(voice.error as Error).message}
         </p>
       )}
       {change.isError && (

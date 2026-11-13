@@ -3,14 +3,15 @@ import { readBudget, recordSpend } from './_lib/budget.js'
 import { readEnv, type Env } from './_lib/env.js'
 import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
-import { isOwner, requireManager } from './_lib/session.js'
+import { canUseAssistant, requireManager } from './_lib/session.js'
 
-// POST /api/assistant { messages, context }: one turn of the voice assistant, for the owner only,
+// POST /api/assistant { messages, context }: one turn of the voice assistant, for the owner and the
+// managers the owner opened it to in Settings (canUseAssistant), all on the owner's one monthly budget,
 // answered as JSON lines (an early spoken part, then the whole reply)
-// (the user's rule: only the owner's account may spend the Anthropic credit). The key stays here.
+// (the user's rule: only accounts the owner chose may spend the Anthropic credit). The key stays here.
 // GET /api/assistant: how much of this month's budget the assistant has used (budget.ts).
 
-// Configured, not too many, signed in as the owner. (A same-site GET carries no Origin header,
+// Configured, not too many, signed in as someone allowed the assistant. (A same-site GET carries no Origin header,
 // so only the POST, which spends money, also checks it.)
 async function ownerGate(req: Request): Promise<{ env: Env } | { refuse: Response }> {
   const env = readEnv()
@@ -19,7 +20,7 @@ async function ownerGate(req: Request): Promise<{ env: Env } | { refuse: Respons
   if (await overLimit(env, 'assistant', clientIp(req))) return { refuse: json({ reason: 'too-many' }, 429) }
   const gate = await requireManager(env, req)
   if ('refuse' in gate) return gate
-  if (!isOwner(env, gate.session.email)) return { refuse: json({ reason: 'not-owner' }, 403) }
+  if (!(await canUseAssistant(env, gate.session.email))) return { refuse: json({ reason: 'not-owner' }, 403) }
   return { env }
 }
 

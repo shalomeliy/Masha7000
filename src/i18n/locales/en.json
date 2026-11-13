@@ -1158,5 +1158,7 @@
  "שם המפתח": "Key name",
  "שם המפתח, למשל \"דוחות שכר\"": "Key name, e.g. \"Payroll reports\"",
  "ת.ז, טלפונים, כתובת והערות יוצאים רק במפתח כזה. תן אותו רק למערכת שחייבת אותם.": "ID numbers, phones, address and notes are sent only with such a key. Give it only to a system that needs them.",
- "הטלפון לא הצליח להשמיע את זה ({v}). נסה לכתוב את זה אחרת.": "The phone could not play this ({v}). Try writing it differently."
+ "הטלפון לא הצליח להשמיע את זה ({v}). נסה לכתוב את זה אחרת.": "The phone could not play this ({v}). Try writing it differently.",
+ "עוזר קולי": "Voice assistant",
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Voice assistant: anyone marked in yellow can talk to Shaly. Everyone uses the same monthly budget of yours."
 }

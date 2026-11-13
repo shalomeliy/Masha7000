@@ -27,8 +27,9 @@ export default function App() {
   const status = useAuth((s) => s.status)
   const check = useAuth((s) => s.check)
   const who = useAuth((s) => s.who)
-  // The voice assistant is the owner's main screen (only the owner may use it); locally it is always on.
-  const voice = who?.isOwner === true || import.meta.env.DEV
+  // The voice assistant is the main screen of whoever may use it (the owner, and managers the owner
+  // opened it to in Settings); locally it is always on.
+  const voice = who?.assistant === true || who?.isOwner === true || import.meta.env.DEV
   const [tab, setTab] = useState<Tab | null>(null)
   const shown: Tab = tab ?? (voice ? 'voice' : 'calendar')
 
