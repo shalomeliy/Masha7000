@@ -3,7 +3,7 @@
 // Writes out/<voice>/<n>.mp3 and out/index.html to listen and compare against the phone's own voice.
 // Run: node spikes/cloud-tts/spike.mjs            (all he-IL Chirp3-HD voices)
 //      node spikes/cloud-tts/spike.mjs Charon Kore (only these)
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -50,7 +50,10 @@ const ITEMS = [...SENTENCES, ...NAMES];
 const voicesRes = await fetch(`${API}/voices?languageCode=he-IL`, { headers });
 if (!voicesRes.ok) { console.error('voices.list failed', voicesRes.status, await voicesRes.text()); process.exit(1); }
 const all = (await voicesRes.json()).voices ?? [];
-const want = process.argv.slice(2);
+// --sample: only the first 2 sentences (every voice, to pick favourites). Quota is 20 requests a minute: pace 3.2 s.
+const sample = process.argv.includes('--sample');
+const want = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const voices = all.filter((v) => v.name.includes('Chirp3-HD') && (!want.length || want.some((w) => v.name.endsWith(`-${w}`))));
 console.log(`he-IL voices total ${all.length}, Chirp3-HD picked ${voices.length}`);
 if (!voices.length) process.exit(1);
@@ -62,7 +65,9 @@ for (const v of voices) {
   const short = v.name.split('-').pop();
   mkdirSync(join(out, short), { recursive: true });
   const times = [];
-  for (let i = 0; i < ITEMS.length; i++) {
+  for (let i = 0; i < (sample ? 2 : ITEMS.length); i++) {
+    if (existsSync(join(out, short, `${i}.mp3`))) continue;
+    await sleep(3200);
     const t0 = performance.now();
     const r = await fetch(`${API}/text:synthesize`, {
       method: 'POST', headers,
@@ -82,14 +87,20 @@ for (const v of voices) {
 }
 console.log(`characters used: ${chars} (free tier 1,000,000 a month)`);
 
+const prevPath = join(out, 'results.json');
+const prev = existsSync(prevPath) ? JSON.parse(readFileSync(prevPath, 'utf8')).rows ?? [] : [];
+for (const r of prev) if (!rows.some((x) => x.short === r.short) && r.ok) rows.push(r);
+for (const r of rows) if (!r.ok) { const p0 = prev.find((x) => x.short === r.short); if (p0) Object.assign(r, p0); }
+const allVoices = all.filter((v) => v.name.includes('Chirp3-HD')).map((v) => ({ short: v.name.split('-').pop(), gender: v.ssmlGender }));
+const cols = allVoices.filter((v) => existsSync(join(out, v.short, '0.mp3'))).map((v) => ({ ...v, ...(rows.find((r) => r.short === v.short) ?? {}) }));
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const head = rows.map((r) => `<th>${r.short}<br><small>${r.gender === 'MALE' ? 'גבר' : 'אישה'} · ${r.median}ms</small></th>`).join('');
-const body = ITEMS.map((t, i) => `<tr${i === SENTENCES.length ? ' class="sep"' : ''}><td class="t">${esc(t)}</td><td><button onclick="dev(${i})">טלפון</button></td>${rows.map((r) => `<td><button onclick="play('${r.short}/${i}.mp3')">▶</button></td>`).join('')}</tr>`).join('\n');
+const head = cols.map((r) => `<th>${r.short}<br><small>${r.gender === 'MALE' ? 'גבר' : 'אישה'}${r.median ? ` · ${r.median}ms` : ''}</small></th>`).join('');
+const body = ITEMS.map((t, i) => `<tr${i === SENTENCES.length ? ' class="sep"' : ''}><td class="t">${esc(t)}</td><td><button onclick="dev(${i})">טלפון</button></td>${cols.map((r) => existsSync(join(out, r.short, `${i}.mp3`)) ? `<td><button onclick="play('${r.short}/${i}.mp3')">▶</button></td>` : '<td></td>').join('')}</tr>`).join('\n');
 writeFileSync(join(out, 'index.html'), `<!doctype html><html lang="he" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>קולות ענן לשאלי</title><style>body{font-family:system-ui;margin:16px}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:6px;text-align:center}td.t{text-align:right;max-width:420px}tr.sep td{border-top:3px solid #333}button{font-size:16px;padding:4px 10px}</style>
 <h1>קולות ענן לשאלי</h1><p>כל שורה: "טלפון" = הקול של המכשיר, ▶ = קול ענן. המספר בכותרת = זמן תגובה ממוצע.</p>
 <table><tr><th>מה נאמר</th><th>מכשיר</th>${head}</tr>${body}</table>
 <script>const items=${JSON.stringify(ITEMS)};const a=new Audio();function play(u){speechSynthesis.cancel();a.src=u;a.play()}
 function dev(i){a.pause();speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(items[i]);u.lang='he-IL';const v=speechSynthesis.getVoices().find(v=>/^(he|iw)/i.test(v.lang));if(v)u.voice=v;speechSynthesis.speak(u)}</script></html>`);
-writeFileSync(join(out, 'results.json'), JSON.stringify({ chars, rows }, null, 2));
+writeFileSync(prevPath, JSON.stringify({ chars, rows: rows.filter((r) => r.ok) }, null, 2));
 console.log('open spikes/cloud-tts/out/index.html');
