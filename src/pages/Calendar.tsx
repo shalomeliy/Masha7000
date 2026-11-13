@@ -340,7 +340,7 @@ function ShiftCard({
         </span>
         {r.location && <span className="block font-semibold">{r.location}</span>}
         {r.jobDescription && <span className="block whitespace-pre-line text-sm text-slate-300">{r.jobDescription}</span>}
-        {(r.vehicleId || r.vehicleType) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(r, vehicles.items) })}</span>}
+        {(r.vehicleId || r.vehicleModel) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(r, vehicles.items) })}</span>}
         {nextJobText(r) && <span className="block text-sm text-violet-300">{tx('אחרי הלילה: {v}', { v: nextJobText(r) })}</span>}
         {missing && (
           <span className="block space-y-0.5 text-xs text-red-300">

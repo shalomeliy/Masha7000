@@ -8,7 +8,7 @@ import { isFixedField } from '../../lib/vehicles'
 import type { VehicleField } from '../../types/models'
 import { AddButton, EditMark } from '../workers/common'
 
-// The fields of the vehicle card ("רכבים"). Licence plate and vehicle type cannot be deleted: a job
+// The fields of the vehicle card ("רכבים"). Licence plate and model cannot be deleted: a job
 // picks its vehicle by them. A deleted field stops showing; the values typed in it stay in the file.
 
 const KINDS: { id: NonNullable<VehicleField['kind']>; name: string }[] = [
@@ -24,7 +24,7 @@ export function VehicleFieldsSection() {
 
   return (
     <>
-      <p className="text-sm text-slate-400">{tx('מה רושמים על כל רכב בכרטיס הרכב. מספר רישוי וסוג רכב תמיד קיימים, כי לפיהם בוחרים רכב לעבודה.')}</p>
+      <p className="text-sm text-slate-400">{tx('מה רושמים על כל רכב בכרטיס הרכב. מספר רישוי ודגם תמיד קיימים, כי לפיהם בוחרים רכב לעבודה.')}</p>
       <ul className="space-y-2">
         {fields.items.map((f) => (
           <li key={f.id}>

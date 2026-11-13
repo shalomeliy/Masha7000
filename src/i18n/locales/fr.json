@@ -1227,5 +1227,7 @@
  "תוקף ביטוח": "Assurance valable jusqu'au",
  "תוקף טסט": "Contrôle technique valable jusqu'au",
  "עוזר קולי": "Assistant vocal",
- "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Assistant vocal : les personnes marquées en jaune peuvent parler à Shaly. Tous utilisent ton même budget mensuel."
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Assistant vocal : les personnes marquées en jaune peuvent parler à Shaly. Tous utilisent ton même budget mensuel.",
+ "דגם רכב": "Modèle du véhicule",
+ "מה רושמים על כל רכב בכרטיס הרכב. מספר רישוי ודגם תמיד קיימים, כי לפיהם בוחרים רכב לעבודה.": "Ce qu'on note sur chaque véhicule dans sa fiche. L'immatriculation et le modèle sont toujours là, car c'est par eux qu'on choisit le véhicule d'un travail."
 }

@@ -3,10 +3,12 @@ import type { Vehicle, VehicleField } from '../types/models'
 
 // "רכבים" (the user's request, 2026-11-13): the vehicles the jobs go out with. Each vehicle is a card of
 // values; which values the card has is a list the manager edits in Settings. Two fields always exist,
-// because a job picks its vehicle by them: the licence plate and the vehicle type. Pure rules, no I/O.
+// because a job picks its vehicle by them: the licence plate and the model (the user switched the job's
+// field from type to model, 2026-11-13). Pure rules, no I/O.
 
 export const PLATE = 'plate'
 export const TYPE = 'type'
+export const MODEL = 'model'
 
 /** The card's fields when the manager has not changed the list yet. */
 export const STARTER_VEHICLE_FIELDS: VehicleField[] = [
@@ -23,16 +25,17 @@ export const STARTER_VEHICLE_FIELDS: VehicleField[] = [
 ]
 
 /** Fields that cannot be deleted: a job picks its vehicle by them. */
-export const isFixedField = (id: string) => id === PLATE || id === TYPE
+export const isFixedField = (id: string) => id === PLATE || id === MODEL
 
-/** The list as read: the plate and type fields are always first, even if a file lost them. */
+/** The list as read: the plate and model fields are always first, even if a file lost them. */
 export function withFixedFields(list: VehicleField[]): VehicleField[] {
-  const fixed = [PLATE, TYPE].map((id) => list.find((f) => f.id === id) ?? STARTER_VEHICLE_FIELDS.find((f) => f.id === id)!)
+  const fixed = [PLATE, MODEL].map((id) => list.find((f) => f.id === id) ?? STARTER_VEHICLE_FIELDS.find((f) => f.id === id)!)
   return [...fixed, ...list.filter((f) => !isFixedField(f.id))]
 }
 
 export const plateOf = (v: Vehicle | undefined) => v?.values[PLATE]?.trim() ?? ''
 export const typeOf = (v: Vehicle | undefined) => v?.values[TYPE]?.trim() ?? ''
+export const modelOf = (v: Vehicle | undefined) => v?.values[MODEL]?.trim() ?? ''
 
 /** Plates are compared by their digits and letters only: "12-345-67" is "1234567". */
 const plateKey = (s: string) => s.replace(/[^\p{L}\p{N}]/gu, '').toLocaleLowerCase()
@@ -52,33 +55,35 @@ export function cleanVehicle(v: Vehicle): Vehicle {
   return { ...v, values }
 }
 
-/** "12-345-67 · טנדר" */
-export const vehicleLabel = (v: Vehicle | undefined) => (v ? [plateOf(v), typeOf(v)].filter(Boolean).join(' · ') : tx('רכב שנמחק'))
+/** "12-345-67 · הילוקס" */
+export const vehicleLabel = (v: Vehicle | undefined) => (v ? [plateOf(v), modelOf(v)].filter(Boolean).join(' · ') : tx('רכב שנמחק'))
 
-/** Every vehicle type in use, A to Z. */
-export function vehicleTypes(vehicles: Vehicle[]): string[] {
-  return [...new Set(vehicles.map(typeOf).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he'))
+/** Every vehicle model in use, A to Z. */
+export function vehicleModels(vehicles: Vehicle[]): string[] {
+  return [...new Set(vehicles.map(modelOf).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he'))
 }
 
-/** Vehicles of `type` (all when empty), by plate. */
-export function vehiclesOfType(vehicles: Vehicle[], type: string | undefined): Vehicle[] {
-  return vehicles.filter((v) => !type || typeOf(v) === type).sort((a, b) => plateOf(a).localeCompare(plateOf(b), 'he'))
+/** Vehicles of `model` (all when empty), by plate. */
+export function vehiclesOfModel(vehicles: Vehicle[], model: string | undefined): Vehicle[] {
+  return vehicles.filter((v) => !model || modelOf(v) === model).sort((a, b) => plateOf(a).localeCompare(plateOf(b), 'he'))
 }
 
-/** A job's vehicle after the manager picks a type: a vehicle of another type is let go. */
-export function pickType(job: { vehicleId?: string }, type: string, vehicles: Vehicle[]): { vehicleId?: string; vehicleType?: string } {
+type JobVehicle = { vehicleId?: string; vehicleModel?: string }
+
+/** A job's vehicle after the manager picks a model: a vehicle of another model is let go. */
+export function pickModel(job: { vehicleId?: string }, model: string, vehicles: Vehicle[]): JobVehicle {
   const v = vehicles.find((x) => x.id === job.vehicleId)
-  return { vehicleType: type || undefined, vehicleId: v && type && typeOf(v) !== type ? undefined : job.vehicleId }
+  return { vehicleModel: model || undefined, vehicleId: v && model && modelOf(v) !== model ? undefined : job.vehicleId }
 }
 
-/** A job's vehicle after the manager picks one: its type comes with it. */
-export function pickVehicle(id: string, vehicles: Vehicle[], currentType?: string): { vehicleId?: string; vehicleType?: string } {
+/** A job's vehicle after the manager picks one: its model comes with it. */
+export function pickVehicle(id: string, vehicles: Vehicle[], currentModel?: string): JobVehicle {
   const v = vehicles.find((x) => x.id === id)
-  return { vehicleId: v ? id : undefined, vehicleType: v ? typeOf(v) || currentType : currentType }
+  return { vehicleId: v ? id : undefined, vehicleModel: v ? modelOf(v) || currentModel : currentModel }
 }
 
-/** The job's vehicle line for a card: "רכב: 12-345-67 · טנדר", or the type alone. */
-export function jobVehicleText(job: { vehicleId?: string; vehicleType?: string }, vehicles: Vehicle[]): string {
+/** The job's vehicle line for a card: "רכב: 12-345-67 · הילוקס", or the model alone. */
+export function jobVehicleText(job: JobVehicle, vehicles: Vehicle[]): string {
   if (job.vehicleId) return vehicleLabel(vehicles.find((v) => v.id === job.vehicleId))
-  return job.vehicleType ?? ''
+  return job.vehicleModel ?? ''
 }

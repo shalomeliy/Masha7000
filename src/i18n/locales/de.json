@@ -1227,5 +1227,7 @@
  "תוקף ביטוח": "Versicherung gültig bis",
  "תוקף טסט": "TÜV gültig bis",
  "עוזר קולי": "Sprachassistent",
- "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Sprachassistent: Wer gelb markiert ist, kann mit Shaly sprechen. Alle nutzen dasselbe Monatsbudget von dir."
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly. כולם משתמשים באותו תקציב חודשי שלך.": "Sprachassistent: Wer gelb markiert ist, kann mit Shaly sprechen. Alle nutzen dasselbe Monatsbudget von dir.",
+ "דגם רכב": "Fahrzeugmodell",
+ "מה רושמים על כל רכב בכרטיס הרכב. מספר רישוי ודגם תמיד קיימים, כי לפיהם בוחרים רכב לעבודה.": "Was auf der Karte jedes Fahrzeugs steht. Kennzeichen und Modell gibt es immer, weil Aufträge danach ihr Fahrzeug wählen."
 }

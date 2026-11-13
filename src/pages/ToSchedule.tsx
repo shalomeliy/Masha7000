@@ -75,7 +75,7 @@ export function WaitingJobs() {
                         {tx('חייבים להיות: {v}', { v: fullNames(j.pinnedIds, workers.items).join(', ') })}
                       </span>
                     )}
-                    {(j.vehicleId || j.vehicleType) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(j, vehicles.items) })}</span>}
+                    {(j.vehicleId || j.vehicleModel) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(j, vehicles.items) })}</span>}
                     <span className="block text-sm text-slate-400">
                       {tx('צריך {v}', { v: staffingText(staffingFor(j.staffing, certs.items.map((c) => c.id)), certs.items) })}</span>
                   </button>
