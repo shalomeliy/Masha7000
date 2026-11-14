@@ -86,7 +86,7 @@ export function TwoStep() {
       {enrolled ? (
         <>
           <p className="text-slate-300">
-            {backup ? tx('הקלד אחד מקודי הגיבוי ששמרת. כל קוד עובד פעם אחת בלבד.') : tx('פתח את אפליקציית האימות בטלפון והקלד את הקוד של Shaly (אם הוספת אותו לפני שינוי השם, הוא מופיע שם בשם ShiftSmart).')}
+            {backup ? tx('הקלד אחד מקודי הגיבוי ששמרת. כל קוד עובד פעם אחת בלבד.') : tx('פתח את אפליקציית האימות בטלפון והקלד את הקוד של Shali (אם הוספת אותו לפני שינוי השם, הוא מופיע שם בשם Shaly / ShiftSmart).')}
           </p>
           {codeField(verify)}
           <button
@@ -111,7 +111,7 @@ export function TwoStep() {
             <li>
               {tx('מתקינים בטלפון אפליקציית אימות חינמית:')}{' '}<b>Google Authenticator</b> {tx('או')}{' '}<b>Microsoft Authenticator</b>.
             </li>
-            <li>{tx('לוחצים כאן "הכנת קוד" ומוסיפים את Shaly לאפליקציה.')}</li>
+            <li>{tx('לוחצים כאן "הכנת קוד" ומוסיפים את Shali לאפליקציה.')}</li>
             <li>{tx('מקלידים כאן את 6 הספרות שהאפליקציה מראה.')}</li>
           </ol>
           <button type="button" onClick={begin} disabled={busy} className="min-h-12 w-full rounded-xl bg-sky-500 font-semibold text-slate-950 disabled:opacity-50">
