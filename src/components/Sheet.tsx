@@ -4,6 +4,7 @@ import type { ReactNode, TouchEvent } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { holdBack } from './backStack'
 import { DriveError } from './DriveError'
+import { fitToKeyboard } from './keyboardFit'
 
 // Bottom sheet on a native <dialog>: focus trap, Escape and the backdrop come from the browser.
 // `locked` keeps it open while a save is in flight, so a failed save can still show its error.
@@ -43,11 +44,16 @@ export function Sheet({
     d.style.transform = ''
     d.style.transition = ''
     if (!open) return
-    return holdBack(() => {
+    const stopFit = fitToKeyboard(d)
+    const stopBack = holdBack(() => {
       if (latest.current.locked) return true
       latest.current.onClose()
       return false
     })
+    return () => {
+      stopFit()
+      stopBack()
+    }
   }, [open])
 
   const slide = (x: number, animate: boolean) => {
@@ -104,7 +110,7 @@ export function Sheet({
         slide(0, true)
       }}
       aria-labelledby="sheet-title"
-      className="mx-auto mt-auto mb-0 max-h-[90dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-slate-800 bg-slate-900 p-0 text-slate-100 backdrop:bg-black/60"
+      className="mx-auto mt-auto mb-0 max-h-[calc(var(--sheet-vh,100dvh)*0.9)] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-2xl border border-slate-800 bg-slate-900 p-0 text-slate-100 backdrop:bg-black/60"
     >
       {open && (
         <div className="space-y-4 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
