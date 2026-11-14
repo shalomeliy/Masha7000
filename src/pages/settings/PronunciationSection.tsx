@@ -4,7 +4,7 @@ import { DriveError } from '../../components/DriveError'
 import { inputClass } from '../../components/Sheet'
 import { newId } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
-import { BUILT_IN, pronunciationError, reviewQueue } from '../../lib/pronounce'
+import { BUILT_IN, NAME, NAME_TRIES, nameSay, pronunciationError, reviewQueue } from '../../lib/pronounce'
 import { canSpeak, speak } from '../../lib/speech'
 import { tx } from '../../i18n'
 
@@ -100,6 +100,41 @@ export function PronunciationSection() {
           lastWord={last && done.has(last) ? last : null}
           onUndo={() => void undo()}
         />
+      )}
+
+      {canSpeak && fixed.query.isSuccess && (
+        <section className="space-y-2">
+          <h2 className="font-semibold">{tx('איך אומרים את השם Shali')}</h2>
+          <p className="text-sm text-slate-400">{tx('שומעים כל כתיב, ובוחרים את זה שנשמע שָׁאלִי, עם הדגש בסוף. מכאן והלאה השם ייאמר כך.')}</p>
+          <ul className="space-y-2">
+            {NAME_TRIES.map((say) => {
+              const chosen = nameSay(fixed.items) === say
+              return (
+                <li key={say} className="flex min-h-14 items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-2">
+                  <button type="button" onClick={() => speak(say)} aria-label={tx('שמע')} className="flex size-11 items-center justify-center rounded-xl text-slate-300">
+                    <Volume2 size={18} aria-hidden />
+                  </button>
+                  <span dir="auto" className="min-w-0 flex-1 text-slate-200">{say}</span>
+                  {chosen ? (
+                    <span className="flex items-center gap-1 text-sm text-emerald-300">
+                      <Check size={16} aria-hidden />
+                      {tx('נבחר')}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void run([fixed.save([...fixed.items.filter((p) => p.word !== NAME), { id: newId(), word: NAME, say }])])}
+                      disabled={fixed.saving}
+                      className="min-h-11 rounded-xl border border-emerald-600 px-3 text-sm font-semibold text-emerald-200 disabled:opacity-40"
+                    >
+                      {tx('נשמע נכון')}
+                    </button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
       )}
 
       {fixed.items.length > 0 && (

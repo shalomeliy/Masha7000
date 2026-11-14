@@ -4,11 +4,6 @@ import { rankVoices, shortVoiceName, speakable, speaksLanguage } from './speakab
 const v = (name: string, lang = 'he-IL') => ({ name, lang, localService: true, voiceURI: name })
 
 describe('speakable', () => {
-  it('says the name Shali with the stress at the end, also the old spelling', () => {
-    expect(speakable('את זה Shali עוד לא למד', 'he-IL')).toBe('את זה Shalee עוד לא למד')
-    expect(speakable('דבר עם Shaly', 'he-IL')).toBe('דבר עם Shalee')
-    expect(speakable('Shalibi', 'he-IL')).toBe('Shalibi')
-  })
   it('reads a short date as day and month name', () => {
     expect(speakable('רשום חולה עד 15.11.', 'he-IL')).toBe('רשום חולה עד 15 בנובמבר.')
     expect(speakable('ב-3/12 יש עבודה', 'he-IL')).toBe('ב-3 בדצמבר יש עבודה')

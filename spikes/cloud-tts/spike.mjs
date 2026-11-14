@@ -72,7 +72,7 @@ for (const v of voices) {
     const t0 = performance.now();
     const r = await fetch(`${API}/text:synthesize`, {
       method: 'POST', headers,
-      body: JSON.stringify({ input: { text: ITEMS[i].replace(/\bShal[iy]\b/g, 'Shalee') /* name stressed at the end, as in speakable.ts */ }, voice: { languageCode: 'he-IL', name: v.name }, audioConfig: { audioEncoding: 'MP3' } }),
+      body: JSON.stringify({ input: { text: ITEMS[i].replace(/\bShal[iy]\b/g, 'Shaali') /* the name, stressed at the end: the owner picks the spelling by ear (NAME_TRIES in src/lib/pronounce.ts) */ }, voice: { languageCode: 'he-IL', name: v.name }, audioConfig: { audioEncoding: 'MP3' } }),
     });
     const ms = Math.round(performance.now() - t0);
     if (!r.ok) { console.error(v.name, i, r.status, (await r.text()).slice(0, 300)); continue; }

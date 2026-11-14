@@ -16,6 +16,11 @@ describe('pronounce', () => {
   it('keeps a Hebrew replacement glued to its letters', () => {
     expect(pronounce('ראיתי את השלי', [{ word: 'שלי', say: 'שאלי' }])).toBe('ראיתי את השאלי')
   })
+  it('says the name the way the owner picked, also the old spelling, only as a whole word', () => {
+    expect(pronounce('את זה Shali עוד לא למד', [])).toBe('את זה Shaali עוד לא למד')
+    expect(pronounce('דבר עם Shaly', [{ word: 'Shali', say: 'שאלי' }])).toBe('דבר עם שאלי')
+    expect(pronounce('Shalibi', [])).toBe('Shalibi')
+  })
   it('leaves words that only look alike', () => {
     expect(pronounce('אטפסן')).toBe('אטפסן')
     expect(pronounce('טפסני')).toBe('טפסני')
