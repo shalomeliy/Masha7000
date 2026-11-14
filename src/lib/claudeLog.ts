@@ -90,7 +90,7 @@ export async function clearLog(): Promise<boolean> {
 
 /** The log as plain text, to paste into a development conversation. */
 export function logText(entries: ClaudeLogEntry[]): string {
-  const head = `Shaly voice assistant: what went to Claude (${entries.length} conversations, oldest first)`
+  const head = `Shali voice assistant: what went to Claude (${entries.length} conversations, oldest first)`
   const body = entries.map((e, i) =>
     [
       `#${i + 1} ${e.at.slice(0, 16).replace('T', ' ')} UTC | lang ${e.lang} | ${e.outcome}${e.outcome === 'confirmed' ? ` | learned: ${e.learned || 'nothing (not a learnable action)'}` : ''}`,

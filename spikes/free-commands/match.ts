@@ -1,4 +1,4 @@
-// Spike: can Shaly recognize simple, common voice commands by itself (free, instant) and send only the
+// Spike: can Shali recognize simple, common voice commands by itself (free, instant) and send only the
 // rest to Claude (paid)? Throwaway. The rule: a sentence is handled here only when ALL of it matches a
 // known command; anything extra (a name, a place, a problem, a second request) goes to Claude, because
 // a wrong action is worse than a cent.

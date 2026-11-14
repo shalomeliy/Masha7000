@@ -7,7 +7,7 @@ import { canUseAssistant, isOwner, requireManager } from './_lib/session.js'
 
 // POST /api/assistant { messages, context }: one turn of the voice assistant, for the owner only,
 // answered as JSON lines (an early spoken part, then the whole reply)
-// (the user's rule: the budget is the owner's alone; a manager the owner opened Shaly to in Settings
+// (the user's rule: the budget is the owner's alone; a manager the owner opened Shali to in Settings
 // uses only the free commands, and is told 'free-only'). The key stays here.
 // GET /api/assistant: how much of this month's budget the assistant has used (budget.ts).
 

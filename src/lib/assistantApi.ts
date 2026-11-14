@@ -44,7 +44,7 @@ export async function fetchBudget(): Promise<Budget | null> {
 
 const REASONS: Record<string, string> = {
   'not-owner': tx('העוזר הקולי פתוח רק לחשבון של המנהל.'),
-  'free-only': tx('את זה Shaly עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.'),
+  'free-only': tx('את זה Shali עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.'),
   'no-session': tx('החיבור במכשיר הזה נגמר. צריך להתחבר שוב.'),
   'mfa-required': tx('צריך להתחבר שוב עם הקוד מאפליקציית האימות.'),
   'no-key': tx('העוזר הקולי עוד לא מחובר. צריך להוסיף את מפתח Anthropic בהגדרות של Vercel.'),

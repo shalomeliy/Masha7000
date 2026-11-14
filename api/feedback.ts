@@ -22,7 +22,7 @@ export const POST = guarded(async (req: Request) => {
   const text = feedbackText(body?.text)
   if (!text) return json({ reason: 'bad-body' }, 400)
   const to = (process.env.FEEDBACK_TO ?? '').trim() || FEEDBACK_TO_DEFAULT
-  const from = (process.env.FEEDBACK_FROM ?? '').trim() || 'Shaly <onboarding@resend.dev>'
+  const from = (process.env.FEEDBACK_FROM ?? '').trim() || 'Shali <onboarding@resend.dev>'
   const sent = await sendFeedback(apiKey, feedbackMail(text, gate.session.email, to, from))
   return sent ? json({ ok: true }) : json({ reason: 'send-failed' }, 502)
 })

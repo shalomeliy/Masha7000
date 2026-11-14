@@ -1,10 +1,10 @@
 # Goal: the voice assistant runs almost free
 
-Set 2026-11-08 at the owner's request. Every session that touches the voice assistant (Shaly) works toward this.
+Set 2026-11-08 at the owner's request. Every session that touches the voice assistant (Shali) works toward this.
 
 ## The goal in one sentence
 
-Shaly keeps learning actions until almost every request is done by local code, for free, and Claude is called only for what is truly new or unclear.
+Shali keeps learning actions until almost every request is done by local code, for free, and Claude is called only for what is truly new or unclear.
 
 ## Why
 
@@ -45,7 +45,7 @@ The last line beats every other: a free path that does the wrong thing is worse 
 
 ## The loop
 
-1. The owner talks to Shaly.
+1. The owner talks to Shali.
 2. The free path tries first. What it cannot do goes to Claude and into the log with the reason.
 3. On the owner's yes, the example is kept and its words are learned.
 4. Once a week (or when the owner says "it went to Claude again"), a session reads the log and runs the skill `free-commands`: cheapest fix first (a split word, an alias, one unknown word), a new action type only last, and only for shapes seen at least twice.

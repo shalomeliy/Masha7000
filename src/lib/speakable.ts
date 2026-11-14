@@ -50,6 +50,11 @@ export function shortVoiceName(v: VoiceLike): string {
  * Text as it should be read aloud: dates as "15 בנובמבר" instead of "15 נקודה 11", "07:00" as "7:00",
  * and no symbols or emojis that the voice would spell out.
  */
+// The assistant's name is Shali, said with the stress on the last syllable (Sha-LEE, מלרע; owner's
+// choice 2026-11-14). Written "Shali" the voice may stress the first syllable, so it is read as "Shalee",
+// on the phone's voice and on the cloud voice alike. The old name "Shaly" is read the same way.
+export const NAME_SAID = 'Shalee'
+
 export function speakable(text: string, locale: string): string {
   const month = (d: number, m: number, y?: number) =>
     new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', ...(y ? { year: 'numeric' } : {}), timeZone: 'UTC' }).format(
@@ -68,6 +73,7 @@ export function speakable(text: string, locale: string): string {
       })
       // 07:00 -> 7:00
       .replace(/(?<![\d:])0(\d):(\d{2})(?!\d)/g, (_, h, mm) => `${h}:${mm}`)
+      .replace(/\bShal[iy]\b/g, NAME_SAID)
       .replace(/\s*(?:->|→|←|=>)\s*/g, ', ')
       .replace(/[*#_`~|<>[\]{}]/g, '')
       .replace(/\p{Extended_Pictographic}️?/gu, '')

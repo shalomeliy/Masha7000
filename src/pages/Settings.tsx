@@ -59,7 +59,7 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
       const start = new Date(Date.now() + 60 * 60 * 1000)
       const end = new Date(start.getTime() + 30 * 60 * 1000)
       const ev = await upsertEvent(calendarId, {
-        summary: tx('בדיקת חיבור Shaly'),
+        summary: tx('בדיקת חיבור Shali'),
         description: JSON.stringify({ check: true }),
         start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
         end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
@@ -141,7 +141,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
   {
     id: 'pronunciations',
     title: tx('אימון הגייה'),
-    explain: tx('שומעים מילים ששלי אומר, ומאשרים או מתקנים'),
+    explain: tx('שומעים מילים ש-Shali אומר, ומאשרים או מתקנים'),
   },
 ]
 
@@ -236,7 +236,7 @@ function groups(isOwner: boolean, server: boolean): Group[] {
         { href: '/terms.html', title: tx('תנאי שימוש'), explain: tx('הכללים לשימוש באפליקציה, ומי אחראי על מה') },
         { href: '/accessibility.html', title: tx('הצהרת נגישות'), explain: tx('מה נגיש, מה עוד לא, ואיך מדווחים על בעיה') },
         {
-          href: 'mailto:shalom.eliy@gmail.com?subject=Shaly',
+          href: 'mailto:shalom.eliy@gmail.com?subject=Shali',
           title: tx('פנייה בנושא פרטיות או נגישות'),
           explain: tx('בקשה לראות, לתקן או למחוק מידע, או דיווח על בעיית נגישות'),
         },
@@ -253,7 +253,7 @@ function groups(isOwner: boolean, server: boolean): Group[] {
     {
       id: 'assistant',
       title: tx('העוזר הקולי'),
-      explain: tx('איך שלי מבטא מילים, ומה הלך ל-Claude'),
+      explain: tx('איך Shali מבטא מילים, ומה הלך ל-Claude'),
       icon: Mic,
       // The assistant is the owner's only (the dev server has no sign-in).
       items: (isOwner && server) || import.meta.env.DEV ? [listItem('pronunciations'), panelItem('claudeLog')] : [],

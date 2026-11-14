@@ -1,6 +1,6 @@
 ---
 name: free-commands
-description: Teach the Masha7000 (Shaly) voice assistant to do one more kind of request by itself, free and without Claude, by learning it from what Claude did and the manager confirmed. Use when the user asks that a voice action stop costing money, says "it went to Claude again", or asks to make another action free (leave, constraints, assign a named worker, move or close a job). Applies only to the voice assistant (src/lib/freeCommands.ts, src/pages/Voice.tsx).
+description: Teach the Masha7000 (Shali) voice assistant to do one more kind of request by itself, free and without Claude, by learning it from what Claude did and the manager confirmed. Use when the user asks that a voice action stop costing money, says "it went to Claude again", or asks to make another action free (leave, constraints, assign a named worker, move or close a job). Applies only to the voice assistant (src/lib/freeCommands.ts, src/pages/Voice.tsx).
 ---
 
 # Free commands: learn from Claude, then do it free

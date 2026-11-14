@@ -636,7 +636,7 @@ describe('weekly constraints form', () => {
 })
 
 describe('voice assistant for another manager', () => {
-  it('shows Shaly to a manager the owner opened it to, free commands only, and closes again when turned off or removed', async () => {
+  it('shows Shali to a manager the owner opened it to, free commands only, and closes again when turned off or removed', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
     store.set('allowed', new Set(['deputy@example.com']))
     store.set('owner:refresh', await seal(KEY, 'refresh-1'))

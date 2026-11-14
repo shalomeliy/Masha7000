@@ -22,7 +22,7 @@ export function SignIn() {
   return (
     <main className="mx-auto flex min-h-full max-w-md flex-col justify-center gap-6 px-6">
       <div>
-        <h1 className="text-3xl font-bold">Shaly</h1>
+        <h1 className="text-3xl font-bold">Shali</h1>
         <p className="mt-2 text-slate-400">
           {tx('סידור עבודה 24/7, כוננות ואילוצי עובדים.{v}{v2}', { v: ' ', v2: server ? tx('הנתונים נשמרים בגוגל דרייב של המנהל.') : tx('הנתונים נשמרים בחשבון הגוגל שלך בלבד.') })}</p>
       </div>

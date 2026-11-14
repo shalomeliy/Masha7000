@@ -8,9 +8,9 @@ import { BUILT_IN, pronunciationError, reviewQueue } from '../../lib/pronounce'
 import { canSpeak, speak } from '../../lib/speech'
 import { tx } from '../../i18n'
 
-// "אימון הגייה": the manager hears the words Shaly says, one at a time, and says whether each sounds
+// "אימון הגייה": the manager hears the words Shali says, one at a time, and says whether each sounds
 // right. A word that sounds right stays as it is; a word he fixes is said his way from then on. The
-// first round is the starting list (src/lib/pronunciationSeed.ts); after it, every word Shaly says that
+// first round is the starting list (src/lib/pronunciationSeed.ts); after it, every word Shali says that
 // was not heard yet waits here (src/App.tsx, NewWords).
 
 // How long after a word ends the manager has to tap "תיקון" before the next word is said.
@@ -83,7 +83,7 @@ export function PronunciationSection() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-400">
-        {tx('שומעים מילה אחת בכל פעם, כמו ששלי אומר אותה. אם היא נשמעת נכון מאשרים, ואם לא, כותבים איך אומרים אותה (בעברית אחרת או באותיות באנגלית) ושומעים שוב עד שזה נכון. מילה חדשה ששלי יגיד ועוד לא שמעת תופיע כאן לבד.')}
+        {tx('שומעים מילה אחת בכל פעם, כמו ש-Shali אומר אותה. אם היא נשמעת נכון מאשרים, ואם לא, כותבים איך אומרים אותה (בעברית אחרת או באותיות באנגלית) ושומעים שוב עד שזה נכון. מילה חדשה ש-Shali יגיד ועוד לא שמעת תופיע כאן לבד.')}
       </p>
       {saveError != null && <DriveError error={saveError} action="save" />}
       {!ready ? (
@@ -114,7 +114,7 @@ export function PronunciationSection() {
                   <span dir="auto" className="text-slate-200">{p.say}</span>
                 </span>
                 {canSpeak && (
-                  <button type="button" onClick={() => speak(p.word)} aria-label={tx('שמע איך שלי אומר את {v}', { v: p.word })} className="flex size-11 items-center justify-center rounded-xl text-slate-300">
+                  <button type="button" onClick={() => speak(p.word)} aria-label={tx('שמע איך Shali אומר את {v}', { v: p.word })} className="flex size-11 items-center justify-center rounded-xl text-slate-300">
                     <Volume2 size={18} aria-hidden />
                   </button>
                 )}
@@ -209,14 +209,14 @@ function Trainer({
     return (
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 text-center">
         <p className="font-semibold">{tx('שמעת את כל המילים.')}</p>
-        <p className="text-sm text-slate-400">{tx('מילים חדשות ששלי יגיד יופיעו כאן.')}</p>
+        <p className="text-sm text-slate-400">{tx('מילים חדשות ש-Shali יגיד יופיעו כאן.')}</p>
       </section>
     )
 
   const progress = (
     <p className="text-sm text-slate-400">
       {tx('נשארו {v} מילים', { v: queue.length })}
-      {newCount > 0 ? tx(', מהן {v} חדשות ששלי אמר', { v: newCount }) : ''}
+      {newCount > 0 ? tx(', מהן {v} חדשות ש-Shali אמר', { v: newCount }) : ''}
       {tx('. כבר שמעת {v}.', { v: heardCount })}
     </p>
   )
@@ -235,7 +235,7 @@ function Trainer({
         >
           {tx('הקרא לי ברצף')}
         </button>
-        <p className="text-xs text-slate-500">{tx('שלי מקריא מילה אחרי מילה. אם שמעת טעות, לוחצים "תיקון". מילה שעברה בלי לחיצה נחשבת נכונה.')}</p>
+        <p className="text-xs text-slate-500">{tx('Shali מקריא מילה אחרי מילה. אם שמעת טעות, לוחצים "תיקון". מילה שעברה בלי לחיצה נחשבת נכונה.')}</p>
         <button type="button" onClick={() => setStarted(true)} className="min-h-11 w-full rounded-xl border border-slate-700 px-4 text-slate-200">
           {tx('מילה אחת בכל פעם')}
         </button>

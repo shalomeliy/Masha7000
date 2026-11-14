@@ -1,4 +1,4 @@
-// Spike: Google Cloud Text-to-Speech, Chirp 3 HD Hebrew voices, for Shaly's spoken replies.
+// Spike: Google Cloud Text-to-Speech, Chirp 3 HD Hebrew voices, for Shali's spoken replies.
 // Throwaway. Reads GOOGLE_TTS_API_KEY from .env.local (Google's key, free tier; never the Anthropic key).
 // Writes out/<voice>/<n>.mp3 and out/index.html to listen and compare against the phone's own voice.
 // Run: node spikes/cloud-tts/spike.mjs            (all he-IL Chirp3-HD voices)
@@ -17,9 +17,10 @@ if (!KEY) { console.error('GOOGLE_TTS_API_KEY missing in .env.local'); process.e
 const API = 'https://texttospeech.googleapis.com/v1';
 const headers = { 'Content-Type': 'application/json', 'X-Goog-Api-Key': KEY };
 
-// Replies Shaly really says (fixed phrases from Voice.tsx and typical read-backs).
+// Replies Shali really says (fixed phrases from Voice.tsx and typical read-backs).
 const SENTENCES = [
-  'שלי כאן. מה צריך?',
+  'Shali כאן. מה צריך?',
+  'את זה Shali עוד לא למד לעשות לבד.',
   'הבנתי: עבודה חדשה באילת, אתר 123, ביום שלישי 18 בנובמבר, משמרת לילה. צריך 2 טפסנים וטכנאי מצלמות אחד. לאשר, או שיש עוד תיקון?',
   'לא מצאתי עובד בשם הזה. תגיד שוב את השם?',
   'למי התכוונת: יוסי כהן או יוסי לוי?',
@@ -71,7 +72,7 @@ for (const v of voices) {
     const t0 = performance.now();
     const r = await fetch(`${API}/text:synthesize`, {
       method: 'POST', headers,
-      body: JSON.stringify({ input: { text: ITEMS[i] }, voice: { languageCode: 'he-IL', name: v.name }, audioConfig: { audioEncoding: 'MP3' } }),
+      body: JSON.stringify({ input: { text: ITEMS[i].replace(/\bShal[iy]\b/g, 'Shalee') /* name stressed at the end, as in speakable.ts */ }, voice: { languageCode: 'he-IL', name: v.name }, audioConfig: { audioEncoding: 'MP3' } }),
     });
     const ms = Math.round(performance.now() - t0);
     if (!r.ok) { console.error(v.name, i, r.status, (await r.text()).slice(0, 300)); continue; }

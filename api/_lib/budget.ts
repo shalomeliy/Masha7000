@@ -3,7 +3,7 @@ import type { Env } from './env.js'
 import { kv } from './kv.js'
 
 // How much of the month's Anthropic budget the voice assistant has used (the user's request,
-// 2026-11-07: show what is left on Shaly's screen). A regular API key cannot read the account's
+// 2026-11-07: show what is left on Shali's screen). A regular API key cannot read the account's
 // balance, so the server counts it itself: after every paid answer, the tokens it used times the
 // model's price, added up per calendar month (UTC, like Anthropic's monthly limit). It only sees
 // what this app spent since counting started; the Console's number is the exact one.

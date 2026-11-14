@@ -1,7 +1,7 @@
-// Spike: can Shaly learn from what Claude did (a confirmed proposal) how to do the same kind of action
+// Spike: can Shali learn from what Claude did (a confirmed proposal) how to do the same kind of action
 // alone next time, with other details? Throwaway. Only "new job" is tried: the hardest common action.
 //
-// Idea: in every sentence Shaly can already find the things it knows by name (days, kinds of job,
+// Idea: in every sentence Shali can already find the things it knows by name (days, kinds of job,
 // places, roles with a count, workers), because they are in its own lists. What is left are the
 // "action words" ("תפתח עבודה", "תשבץ"). From each confirmed example it keeps:
 //   - the action words of that request (what makes it a "new job" request),
@@ -157,7 +157,7 @@ export function learn(examples: Example[], lists: Lists, now: Date): Learned {
   for (const ex of examples) {
     const f = find(ex.said, lists, learned.aliases, now)
     let rest = f.rest
-    // A role Claude put in the job that Shaly did not find: the leftover word before/after a count is its name.
+    // A role Claude put in the job that Shali did not find: the leftover word before/after a count is its name.
     for (const s of ex.job.staffing) {
       if (f.staffing.some((x) => x.roleId === s.roleId)) continue
       const ws = words(ex.said)

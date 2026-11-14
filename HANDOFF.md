@@ -355,7 +355,7 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 
 ## Done: app languages (2026-11-07)
 
-- Settings has a "שפה · Language" picker at the top: Hebrew + the 14 most spoken languages (en ar ru es fr de pt zh hi bn ur id ja tr). Hebrew, Arabic and Urdu are right-to-left; the others left-to-right (chevrons flip by CSS). The app name "Shaly" stays in English. The choice is per device (`localStorage app.language`) and reloads the app.
+- Settings has a "שפה · Language" picker at the top: Hebrew + the 14 most spoken languages (en ar ru es fr de pt zh hi bn ur id ja tr). Hebrew, Arabic and Urdu are right-to-left; the others left-to-right (chevrons flip by CSS). The app name "Shali" stays in English. The choice is per device (`localStorage app.language`) and reloads the app.
 - Every UI text is Hebrew in the code, wrapped as `tx('עברית', { param })` from `src/i18n`. Translations live in `src/i18n/locales/<code>.json` (Hebrew -> translation), lazy-loaded before the app modules (`src/main.tsx` -> `src/boot.tsx`). A missing text falls back to English, then Hebrew. Day/month names come from `Intl` (`dayNames`, `monthNames`).
 - Rule from the user: every new UI text must be wrapped in `tx()` and translated into all 14 languages in the same change. The test `src/i18n/i18n.test.ts` fails when a language file misses a text or a `{placeholder}`. `node scripts/i18n-keys.mjs` lists all texts. Translations are written by Claude in the session, never through the app's API key.
 - Voice assistant: listens and speaks in the picked language; the server tells the model to answer in it (`languageNote` in `api/_lib/assistant.ts`, whitelist of names). "Yes" is recognized in every language. The model still reads the data and its instructions in Hebrew.
@@ -397,7 +397,7 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 
 ## Done: budget left on the assistant screen (2026-11-07)
 
-- User request: show on Shaly's screen how much of the monthly Anthropic budget is left. A regular API key cannot read the account's balance, so the server counts it itself (no new key): after every paid answer `api/assistant.ts` adds the cost (`api/_lib/budget.ts`: usage tokens x the model's price, cache writes 1.25x, cache reads 0.1x, Haiku's long-prompt price above 100K) to `spend:YYYY-MM` in the store (UTC calendar month, in millionths of a dollar), and the first day counted to `spend-since:YYYY-MM`. Cap: Vercel env `ASSISTANT_BUDGET_USD`, default 5.
+- User request: show on Shali's screen how much of the monthly Anthropic budget is left. A regular API key cannot read the account's balance, so the server counts it itself (no new key): after every paid answer `api/assistant.ts` adds the cost (`api/_lib/budget.ts`: usage tokens x the model's price, cache writes 1.25x, cache reads 0.1x, Haiku's long-prompt price above 100K) to `spend:YYYY-MM` in the store (UTC calendar month, in millionths of a dollar), and the first day counted to `spend-since:YYYY-MM`. Cap: Vercel env `ASSISTANT_BUDGET_USD`, default 5.
 - `GET /api/assistant` (owner only) returns `{ budget: { spentUsd, limitUsd, since } }`; each POST's last line carries the new total too. The screen shows "נשאר מהתקציב החודש: $x מתוך $5" with a bar under the talk button (amber under 20%), and "נספר מ-<date>" when counting started after the 1st (spending before it is unknown).
 - Limits: it sees only this app's calls since 2026-11-07; spending on the same Anthropic account from elsewhere is not counted. The exact match to the Console would need the Admin API (an `sk-ant-admin` key, cost report endpoint, server only): offered to the user, not built.
 - Local: the dev server answers GET and the stand-in stream with a made-up budget marked "בדיקה מקומית: מספר דמה" (`mockBudget` in `api/_lib/assistantMock.ts`).
@@ -415,7 +415,7 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 ## Done: a job's description as a numbered task list (2026-11-08)
 
 - `src/lib/taskList.ts`: free, local split (no Claude). Splits at a task word joined with "ו" ("וניקוי", "ולנקות"), a task word right after another task, "ואז"/"בנוסף"/"וגם", new lines, and a comma or full stop only when a task word follows ("מבנה A, קומה 2" stays one). The manager's words are kept as said (said "ניקוי עדשה" stays "עדשה"); only the split, numbers and the joining "ו" change.
-- Saved as `1. ...\n2. ...` when there are 2+ tasks, else as written. Applied on save in לשיבוץ, the calendar job form (also the "לינה" next job), the follow-up task when closing a job, and Shaly (`applyProposal`, editJobs). `DictationField tasks` also formats when dictation stops or the field is left, so the manager sees the list before saving.
+- Saved as `1. ...\n2. ...` when there are 2+ tasks, else as written. Applied on save in לשיבוץ, the calendar job form (also the "לינה" next job), the follow-up task when closing a job, and Shali (`applyProposal`, editJobs). `DictationField tasks` also formats when dictation stops or the field is left, so the manager sees the list before saving.
 - Shown with `whitespace-pre-line`; where it sits inside a title or a spoken sentence, `oneLine()` joins the tasks with commas.
 - To add a task word: `TASK_NOUNS` / `TASK_VERBS` in `taskList.ts`, plus a case in `taskList.test.ts`.
 

@@ -1,11 +1,11 @@
 # Spike: learn actions from Claude, to do them free next time (2026-11-07)
 
-**User request.** When Claude once handled a request (for example opening a job, with a conversation to complete the details), Shaly should learn what the action needs and, the next time, do it alone and free, after one or a few times. For every action where possible.
+**User request.** When Claude once handled a request (for example opening a job, with a conversation to complete the details), Shali should learn what the action needs and, the next time, do it alone and free, after one or a few times. For every action where possible.
 
-**Riskiest assumption.** From one or two confirmed conversations Shaly can learn enough to handle new requests of the same kind with other details and another word order, and never take a different request for that action.
+**Riskiest assumption.** From one or two confirmed conversations Shali can learn enough to handle new requests of the same kind with other details and another word order, and never take a different request for that action.
 
 **What was built.** `spikes/learn-actions/learn.ts`, for "new job" (the hardest common action):
-- Shaly finds by itself everything its own lists explain: days (היום, מחר, ראשון הקרוב, ביום שלישי), kinds (יום, לילה, כולל לינה), places, roles with a count (שני מטפסים, טכנאי מצלמות אחד), known job types.
+- Shali finds by itself everything its own lists explain: days (היום, מחר, ראשון הקרוב, ביום שלישי), kinds (יום, לילה, כולל לינה), places, roles with a count (שני מטפסים, טכנאי מצלמות אחד), known job types.
 - From each confirmed example it keeps the action words (what is left: "תפתח עבודה", "ותשבץ לי מישהו" = also assign), new words Claude understood that the lists lack (learned alias: "מטפסים" = role טפסן), and which fields the action needs (the ones every example filled).
 - A new sentence is done alone only when every action word of a learned example is said and nothing is left unexplained except the description. Missing fields become a question ("באיזה יום?"). A worker's name, another verb, or unexplained words: Claude.
 

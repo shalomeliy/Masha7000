@@ -64,5 +64,5 @@ export async function matchStep(secret: Uint8Array<ArrayBuffer>, code: string, u
   return null
 }
 
-export const otpauthUri = (secretB32: string, account: string, issuer = 'Shaly') =>
+export const otpauthUri = (secretB32: string, account: string, issuer = 'Shali') =>
   `otpauth://totp/${encodeURIComponent(`${issuer}:${account}`)}?secret=${secretB32}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=${STEP_SECONDS}`

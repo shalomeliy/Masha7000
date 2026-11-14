@@ -10,7 +10,7 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'calendar', label: tx('יומן'), icon: CalendarDays },
   { id: 'workers', label: tx('עובדים'), icon: Users },
   // In the middle of the five (the user, 2026-11-13).
-  { id: 'voice', label: 'Shaly', icon: Mic },
+  { id: 'voice', label: 'Shali', icon: Mic },
   { id: 'vehicles', label: tx('רכבים'), icon: Car },
   { id: 'settings', label: tx('הגדרות'), icon: Settings },
 ]

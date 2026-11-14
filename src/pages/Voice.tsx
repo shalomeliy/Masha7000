@@ -541,7 +541,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           onClick={toggleMic}
           disabled={busy}
           aria-pressed={phase === 'listening'}
-          aria-label={phase === 'listening' ? tx('עצירת ההקשבה') : tx('דבר עם Shaly')}
+          aria-label={phase === 'listening' ? tx('עצירת ההקשבה') : tx('דבר עם Shali')}
           className={`flex size-44 items-center justify-center rounded-full border-4 shadow-xl transition active:scale-95 disabled:opacity-50 ${
             phase === 'listening' ? 'animate-pulse border-red-400 bg-red-500/20 text-red-100' : 'border-sky-400 bg-sky-500/15 text-sky-100'
           }`}
@@ -681,7 +681,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
               onClick={() => {
                 const v = nextRate()
                 setRate(v)
-                speak(tx('ככה אני מדבר בקצב {v}', { v: rateName(v) }))
+                // Starts with the name, so the owner can hear how it is said (the same in every language).
+                speak(`Shali. ${tx('ככה אני מדבר בקצב {v}', { v: rateName(v) })}`)
               }}
               aria-label={tx('מהירות הדיבור: {v}. לחיצה משנה', { v: rateName(rate) })}
               className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200"
@@ -696,7 +697,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
               onClick={() => {
                 const v = nextVoice()
                 setVoice(v)
-                speak(tx('ככה נשמע הקול הזה'))
+                speak(`Shali. ${tx('ככה נשמע הקול הזה')}`)
               }}
               aria-label={tx('קול הדיבור: {v}. לחיצה מחליפה לקול אחר', { v: voiceName(voice) })}
               className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200"

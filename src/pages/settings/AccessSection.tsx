@@ -25,7 +25,7 @@ export function AccessSection() {
       if (action === 'add') setEmail('')
     },
   })
-  // Shaly per manager: free commands only; Claude (and its budget) stays the owner's.
+  // Shali per manager: free commands only; Claude (and its budget) stays the owner's.
   const voice = useMutation({
     mutationFn: ({ email, on }: { email: string; on: boolean }) => setAssistant(email, on),
     onSuccess: (list: AccessList) => qc.setQueryData(['access'], list),
@@ -131,7 +131,7 @@ export function AccessSection() {
           {tx('הוספה')}
         </button>
       </form>
-      <p className="text-xs text-slate-500">{tx('עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shaly, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.')}</p>
+      <p className="text-xs text-slate-500">{tx('עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shali, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.')}</p>
       <p className="text-xs text-slate-500">{tx('איפוס אימות: למי שאיבד את הטלפון. הוא ינותק מכל המכשירים, ובכניסה הבאה יגדיר את אפליקציית האימות מחדש.')}</p>
       {reset.isError && (
         <p role="alert" className="text-sm text-red-400">

@@ -1,10 +1,10 @@
-# Spike: Google Cloud TTS (Chirp 3 HD, Hebrew) as Shaly's voice
+# Spike: Google Cloud TTS (Chirp 3 HD, Hebrew) as Shali's voice
 
 Date: 2026-11-13. Code: `spikes/cloud-tts/spike.mjs`. Listening page (local, not in git): `spikes/cloud-tts/out/index.html`.
 
 ## Setup facts (checked in the owner's console)
 - Project: existing `masha7000` (org `shalom-eliy-org`). A new project was blocked by the project limit, and the billing account is already Paid, so the trial-closure risk that motivated a separate project is gone.
-- Key: API key "Shaly voice", restricted to Cloud Text-to-Speech API, header `X-Goog-Api-Key`. In `.env.local` as `GOOGLE_TTS_API_KEY`; owner adds the same in Vercel.
+- Key: API key "Shali voice", restricted to Cloud Text-to-Speech API, header `X-Goog-Api-Key`. In `.env.local` as `GOOGLE_TTS_API_KEY`; owner adds the same in Vercel.
 - Quota: Chirp3-HD requests per minute lowered 200 -> 20 (seen working: 429 RESOURCE_EXHAUSTED after 20).
 - Google "Budgets & caps" enforced spend caps cover only Cloud Run, Cloud Run Functions, Gemini API, Vertex AI. Not TTS. So the hard stop is our own monthly character counter. Existing ₪10 monthly alert stays.
 

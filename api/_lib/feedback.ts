@@ -27,7 +27,7 @@ export function feedbackMail(text: string, sender: string, to: string, from: str
     from,
     to: [to],
     reply_to: sender,
-    subject: `Shaly - בקשת תכונה: ${first}`,
+    subject: `Shali - בקשת תכונה: ${first}`,
     text: `${text}\n\n---\nנשלח מהאפליקציה על ידי ${sender}\n${when.toISOString()}`,
   }
 }
