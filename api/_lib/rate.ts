@@ -24,6 +24,7 @@ export const LIMITS = {
   consSubmit: { max: 60, windowSeconds: 3600 },
   consManage: { max: 300, windowSeconds: 600 },
   assistant: { max: 60, windowSeconds: 600 },
+  tts: { max: 300, windowSeconds: 600 }, // one sentence per request
   feedbackIp: { max: 30, windowSeconds: 3600 },
   claudeLog: { max: 300, windowSeconds: 600 },
   feedbackEmail: { max: 10, windowSeconds: 3600 },

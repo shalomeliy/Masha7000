@@ -25,6 +25,9 @@ function quality(v: VoiceLike): number {
   if (/online/.test(n)) s += 20
   if (/google/.test(n)) s += 15
   if (/compact|eloquence/.test(n)) s -= 20
+  // Shali is a man (owner, 2026-11-14): a voice known to be male goes first among equals. Browsers do not
+  // say a voice's gender, so only names known to be men's (Windows "Avri", Apple "Asaf"), or saying so, count.
+  if (/(avri|asaf|male|man)|זכר|גבר/.test(n)) s += 25
   return s
 }
 

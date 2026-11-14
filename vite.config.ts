@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 
-// Local only: /api/claude-log in memory, and /api/assistant with no sign-in checks (there is no sign-in server locally). By default it
+// Local only: /api/claude-log in memory, /api/assistant?tts straight to Google (cloud voice), and /api/assistant with no sign-in checks (there is no sign-in server locally). By default it
 // answers with a fixed stand-in (api/_lib/assistantMock.ts) and never calls Anthropic. Only when the
 // owner turns on the switch on the assistant screen (header X-Dev-Real-Assistant, src/dev/realAssistant.ts)
 // and .env.local has ANTHROPIC_API_KEY does it really ask Claude: that is the owner's own manual test
@@ -44,6 +44,22 @@ function localAssistant(): Plugin {
         }
         let raw = ''
         for await (const chunk of req) raw += chunk
+        // The cloud voice: Google's key in .env.local (free monthly amount, not the Anthropic key), no counter here.
+        if (req.url?.includes('tts')) {
+          const tts = (await server.ssrLoadModule('/api/_lib/tts.ts')) as typeof import('./api/_lib/tts.ts')
+          const ask = tts.readTtsRequest(JSON.parse(raw || '{}'))
+          const gkey = (env.GOOGLE_TTS_API_KEY ?? '').trim()
+          res.setHeader('Content-Type', 'application/json')
+          if (!gkey) return ((res.statusCode = 503), res.end(JSON.stringify({ reason: 'no-key' })))
+          if (!ask) return ((res.statusCode = 400), res.end(JSON.stringify({ reason: 'bad-body' })))
+          try {
+            const bytes = await tts.synthesize(gkey, ask)
+            res.setHeader('Content-Type', 'audio/mpeg')
+            return res.end(Buffer.from(bytes))
+          } catch {
+            return ((res.statusCode = 502), res.end(JSON.stringify({ reason: 'tts-failed' })))
+          }
+        }
         const body = JSON.parse(raw || '{}') as { messages?: unknown; context?: unknown }
         const real = req.headers['x-dev-real-assistant'] === '1'
         if (real && !key) {

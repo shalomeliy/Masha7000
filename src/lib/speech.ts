@@ -1,10 +1,12 @@
 import { language, tx } from '../i18n'
 import { joinTranscripts } from './dictation'
+import { CLOUD_VOICES, cloudOff, speakCloud, stopCloud, type CloudVoice } from './cloudVoice'
 import { pronounce } from './pronounce'
 import { rankVoices, shortVoiceName, speakable } from './speakable'
 
 // Speech in and out in the app's language, for the voice assistant. In: the browser's speech recognition,
-// as in DictationField. Out: the browser's speech synthesis, free and on the phone itself.
+// as in DictationField. Out: in Hebrew, Shali's cloud voice (cloudVoice.ts) by default; else, and whenever the
+// cloud cannot speak, the browser's speech synthesis, free and on the phone itself.
 
 interface Recognition {
   lang: string
@@ -74,14 +76,29 @@ export function listen(onText: (text: string) => void, onEnd: (text: string, err
   return { stop: () => r.stop() }
 }
 
-// The voice: the one the manager picked on this phone (assistant screen), else the best-sounding one
-// the phone has for the app's language. Voices may load a moment after the page, so the list is read
-// each time rather than kept.
+// The voice: the one the manager picked on this phone (assistant screen), else, in Hebrew, the first cloud
+// voice, else the best-sounding one the phone has for the app's language (a male one first: the owner
+// wants a man's voice, 2026-11-14). Voices may load a moment after the page, so the list is read each time.
 const VOICE_KEY = 'assistant.voice'
+const CLOUD = 'cloud:'
 
-/** This phone's voices for the app's language, best-sounding first. */
-export function voices(): SpeechSynthesisVoice[] {
+/** A voice to pick: one of Shali's cloud voices, or one of this phone's. */
+export interface VoiceOption {
+  id: string
+  cloud?: CloudVoice
+  device?: SpeechSynthesisVoice
+}
+
+const cloudOptions = (): VoiceOption[] => (language().code === 'he' ? CLOUD_VOICES.map((c) => ({ id: CLOUD + c, cloud: c })) : [])
+
+/** The phone's voices for the app's language, best-sounding first. */
+function deviceVoices(): SpeechSynthesisVoice[] {
   return canSpeak ? rankVoices(speechSynthesis.getVoices(), language().code) : []
+}
+
+/** Every voice to pick from: the cloud ones (Hebrew), then this phone's. */
+export function voices(): VoiceOption[] {
+  return [...cloudOptions(), ...deviceVoices().map((v) => ({ id: v.voiceURI, device: v }))]
 }
 
 function savedVoice(): string | null {
@@ -92,30 +109,34 @@ function savedVoice(): string | null {
   }
 }
 
-let picked: SpeechSynthesisVoice | null = null
+let picked: string | null = null
 
-export function currentVoice(): SpeechSynthesisVoice | null {
+export function currentVoice(): VoiceOption | null {
   const list = voices()
-  const id = picked?.voiceURI ?? savedVoice()
-  return list.find((v) => v.voiceURI === id) ?? list[0] ?? null
+  const id = picked ?? savedVoice()
+  return list.find((v) => v.id === id) ?? list[0] ?? null
 }
 
 /** The next voice in the list (after the last, back to the first), saved for next time. */
-export function nextVoice(): SpeechSynthesisVoice | null {
+export function nextVoice(): VoiceOption | null {
   const list = voices()
   if (!list.length) return null
-  const i = list.findIndex((v) => v.voiceURI === currentVoice()?.voiceURI)
+  const i = list.findIndex((v) => v.id === currentVoice()?.id)
   const v = list[(i + 1) % list.length]
   try {
-    localStorage.setItem(VOICE_KEY, v.voiceURI)
+    localStorage.setItem(VOICE_KEY, v.id)
   } catch {
     // private mode: the voice holds until the page reloads
   }
-  picked = v
+  picked = v.id
   return v
 }
 
-export const voiceName = (v: SpeechSynthesisVoice | null) => (v ? shortVoiceName(v) : '')
+export const voiceName = (v: VoiceOption | null) =>
+  !v ? '' : v.cloud ? tx('ענן {n}', { n: CLOUD_VOICES.indexOf(v.cloud) + 1 }) : v.device ? shortVoiceName(v.device) : ''
+
+/** The phone voice to fall back on: the picked one if it is the phone's, else its best. */
+const deviceVoice = (): SpeechSynthesisVoice | null => currentVoice()?.device ?? deviceVoices()[0] ?? null
 
 /** Calls `fn` when the phone's voices finish loading or change; returns a function to stop. */
 export function onVoicesChanged(fn: () => void): () => void {
@@ -174,17 +195,29 @@ const alive = new Set<SpeechSynthesisUtterance>()
  * browser's reason when the phone could not read it at all (not when another text cut it short).
  */
 export function speak(text: string, onDone?: () => void, onFail?: (reason: string) => void) {
-  if (!canSpeak || !text) {
+  const cloud = currentVoice()?.cloud
+  const useCloud = Boolean(cloud) && !cloudOff()
+  if ((!canSpeak && !useCloud) || !text) {
     onDone?.()
     return
   }
   heard.forEach((fn) => fn(text))
   const said = pronounce(speakable(text, language().speech))
+  if (useCloud && cloud) {
+    if (canSpeak) speechSynthesis.cancel()
+    return speakCloud(said, cloud, current ?? (current = speechRate()), () => onDone?.(), (rest) => (canSpeak ? speakDevice(rest, onDone, onFail) : onDone?.()))
+  }
+  stopCloud()
+  speakDevice(said, onDone, onFail)
+}
+
+/** The phone's own voice reads the text, already made speakable. */
+function speakDevice(said: string, onDone?: () => void, onFail?: (reason: string) => void) {
   const start = (withVoice: boolean) => {
     const u = new SpeechSynthesisUtterance(said)
     u.lang = language().speech
     u.rate = current ?? (current = speechRate())
-    const v = withVoice ? currentVoice() : null
+    const v = withVoice ? deviceVoice() : null
     if (v) {
       u.voice = v
       u.lang = v.lang
@@ -212,4 +245,7 @@ export function speak(text: string, onDone?: () => void, onFail?: (reason: strin
   } else start(true)
 }
 
-export const stopSpeaking = () => canSpeak && speechSynthesis.cancel()
+export const stopSpeaking = () => {
+  stopCloud()
+  if (canSpeak) speechSynthesis.cancel()
+}
