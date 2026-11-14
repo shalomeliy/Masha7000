@@ -1,6 +1,6 @@
 import { language, tx } from '../i18n'
 import { joinTranscripts } from './dictation'
-import { CLOUD_VOICES, cloudOff, speakCloud, stopCloud, type CloudVoice } from './cloudVoice'
+import { CLOUD_VOICES, cloudOff, prefetchCloud, speakCloud, stopCloud, type CloudVoice } from './cloudVoice'
 import { pronounce } from './pronounce'
 import { rankVoices, shortVoiceName, speakable } from './speakable'
 
@@ -195,6 +195,13 @@ const alive = new Set<SpeechSynthesisUtterance>()
  * browser's reason when the phone could not read it at all (not when another text cut it short).
  */
 export function speak(text: string, onDone?: () => void, onFail?: (reason: string) => void) {
+  // While the quick "one moment" is said, what comes next waits for it to end instead of cutting it off.
+  if (holding) {
+    prepare(text) // asked for now, so it is ready the moment "one moment" ends
+    const mine = holdTurn
+    holding.then(() => mine === holdTurn && speak(text, onDone, onFail))
+    return
+  }
   const cloud = currentVoice()?.cloud
   const useCloud = Boolean(cloud) && !cloudOff()
   if ((!canSpeak && !useCloud) || !text) {
@@ -245,7 +252,36 @@ function speakDevice(said: string, onDone?: () => void, onFail?: (reason: string
   } else start(true)
 }
 
+// The quick "one moment" said the moment the manager stops talking, while the answer is on its way
+// (owner, 2026-11-14: the cloud voice made Shali feel slow). Prepared ahead, so it starts at once.
+let holding: Promise<void> | null = null
+let holdTurn = 0
+
+/** Gets a phrase ready in the cloud voice, so `speakAtOnce` can say it with no wait. */
+export function prepare(text: string) {
+  const cloud = currentVoice()?.cloud
+  if (cloud && !cloudOff()) prefetchCloud(pronounce(speakable(text, language().speech)), cloud, current ?? (current = speechRate()))
+}
+
+/** Says a short prepared phrase now; anything spoken meanwhile waits for it (at most 3 s). */
+export function speakAtOnce(text: string) {
+  holding = null
+  const mine = ++holdTurn
+  let release = () => {}
+  const p = new Promise<void>((done) => (release = done))
+  const end = () => {
+    if (mine !== holdTurn) return
+    holding = null
+    release()
+  }
+  speak(text, end)
+  holding = p
+  setTimeout(end, 3000)
+}
+
 export const stopSpeaking = () => {
+  holding = null
+  holdTurn++
   stopCloud()
   if (canSpeak) speechSynthesis.cancel()
 }

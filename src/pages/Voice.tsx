@@ -12,7 +12,7 @@ import { claudePart, continueJob, continueWho, countTurn, exampleAction, handleF
 import { saveEntry, type ClaudeLogEntry, type LogOutcome } from '../lib/claudeLog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
-import { canListen, canSpeak, currentVoice, listen, nextRate, nextVoice, onVoicesChanged, rateName, speak, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
+import { canListen, canSpeak, currentVoice, listen, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -70,6 +70,9 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     setVoiceList(voices())
     setVoice(currentVoice())
   }), [])
+  // Said the moment a request goes to Claude, while the answer is on its way (owner, 2026-11-14), ready ahead.
+  const MOMENT = tx('רגע, בודק.')
+  useEffect(() => prepare(MOMENT), [MOMENT, voice, rate])
   const [realDev, setRealDev] = useState(realAssistantOn)
   const [used, setUsed] = useState(usage)
   const [budget, setBudget] = useState<Budget | null>(null)
@@ -144,6 +147,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   // One turn: send, then act on the tool call. Wrong proposals go back for fixing, quietly.
   const send = async (turn: Turn, fixes = 0) => {
     setPhase('thinking')
+    if (!fixes) speakAtOnce(MOMENT)
     setError(null)
     fromFree.current = false
     conversation.current = [...conversation.current, turn]

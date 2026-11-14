@@ -80,6 +80,12 @@ function fetchPiece(text: string, voice: CloudVoice, rate: number): Promise<Blob
   return p
 }
 
+/** Asks for a phrase ahead of time, so saying it later needs no wait ("רגע, בודק"). */
+export function prefetchCloud(text: string, voice: CloudVoice, rate: number) {
+  if (off) return
+  for (const piece of splitSentences(text)) fetchPiece(piece, voice, rate).catch(() => {})
+}
+
 function timeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, new Promise<T>((_, no) => setTimeout(() => no(new Error('slow')), ms))])
 }
