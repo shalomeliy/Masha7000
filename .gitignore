@@ -28,3 +28,7 @@ spikes/cloud-tts/out/
 
 # Claude Code saves approved commands here, sometimes with secrets inside
 .claude/settings.local.json
+
+# Playwright (npm run e2e)
+test-results/
+playwright-report/

@@ -6,4 +6,13 @@ startMonitoring()
 
 // The picked language's words are loaded first: the app's modules read their texts as they load.
 await initLanguage()
-await import('./boot')
+
+// Local testing with a fake Drive (see src/dev/mockDrive.ts), before any module reads the sign-in. Dropped from the build.
+if (import.meta.env.DEV && localStorage.getItem('dev.mockDrive')) await import('./dev/mockDrive')
+
+// Only the code of what this address opens is downloaded, all of it at once: a worker's form from
+// WhatsApp does not carry the manager's app, and the manager's app does not carry the forms.
+const path = window.location.pathname
+if (path.startsWith('/join/')) await import('./entries/join')
+else if (path.startsWith('/constraints/')) await import('./entries/constraints')
+else await import('./entries/app')

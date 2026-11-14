@@ -11,14 +11,32 @@ import { onSpoken } from './lib/speech'
 import { language } from './i18n'
 import { newId } from './lib/catalog'
 import { useDriveList } from './lib/data/useDriveList'
-import { Calendar } from './pages/Calendar'
-import { Settings } from './pages/Settings'
-import { Workers } from './pages/Workers'
 import { ConstraintAnswersSync } from './pages/workers/ConstraintFormSection'
 import { SignIn } from './pages/SignIn'
-import { Vehicles } from './pages/Vehicles'
-import { Voice } from './pages/Voice'
+import { CrashGuard } from './components/CrashGuard'
+import { ScreenLoading } from './components/Skeleton'
 import { useAuth } from './store/auth'
+
+// Each screen is its own download: the first screen comes down alone, the rest follow once the
+// phone is idle, so moving between tabs does not wait.
+const screens = {
+  calendar: () => import('./pages/Calendar'),
+  voice: () => import('./pages/Voice'),
+  workers: () => import('./pages/Workers'),
+  vehicles: () => import('./pages/Vehicles'),
+  settings: () => import('./pages/Settings'),
+}
+const Calendar = lazy(() => screens.calendar().then((m) => ({ default: m.Calendar })))
+const Voice = lazy(() => screens.voice().then((m) => ({ default: m.Voice })))
+const Workers = lazy(() => screens.workers().then((m) => ({ default: m.Workers })))
+const Vehicles = lazy(() => screens.vehicles().then((m) => ({ default: m.Vehicles })))
+const Settings = lazy(() => screens.settings().then((m) => ({ default: m.Settings })))
+
+function prefetchScreens() {
+  const all = () => Object.values(screens).forEach((load) => void load().catch(() => {}))
+  if ('requestIdleCallback' in window) requestIdleCallback(all, { timeout: 4000 })
+  else setTimeout(all, 1500)
+}
 
 // Shown once per device, after Google: kept out of the first download.
 const TwoStep = lazy(() => import('./pages/TwoStep').then((m) => ({ default: m.TwoStep })))
@@ -36,6 +54,11 @@ export default function App() {
   useEffect(() => {
     void check()
   }, [check])
+
+  const signedIn = status === 'signedIn'
+  useEffect(() => {
+    if (signedIn) prefetchScreens()
+  }, [signedIn])
 
   if (status === 'checking')
     return (
@@ -61,11 +84,16 @@ export default function App() {
       {/* Workers' answers to the weekly constraints form land in their constraints on any screen. */}
       <ConstraintAnswersSync />
       {/* "לשיבוץ" is no longer a screen: its waiting jobs are at the top of the calendar. */}
-      {shown === 'voice' && voice && <Voice onNavigate={(s) => setTab(s === 'toSchedule' ? 'calendar' : s)} />}
-      {shown === 'calendar' && <Calendar />}
-      {shown === 'workers' && <Workers />}
-      {shown === 'vehicles' && <Vehicles />}
-      {(shown === 'settings' || shown === 'archive') && <Settings key={shown} openArchive={shown === 'archive'} />}
+      {/* A screen that crashes shows a message in its place; the tabs below keep working. */}
+      <CrashGuard key={shown}>
+        <Suspense fallback={<ScreenLoading />}>
+          {shown === 'voice' && voice && <Voice onNavigate={(s) => setTab(s === 'toSchedule' ? 'calendar' : s)} />}
+          {shown === 'calendar' && <Calendar />}
+          {shown === 'workers' && <Workers />}
+          {shown === 'vehicles' && <Vehicles />}
+          {(shown === 'settings' || shown === 'archive') && <Settings key={shown} openArchive={shown === 'archive'} />}
+        </Suspense>
+      </CrashGuard>
       <BottomNav active={shown} onChange={setTab} voice={voice} />
     </div>
   )

@@ -80,7 +80,11 @@ export function useDriveList<K extends ListFile>(key: K) {
       if (key === 'shiftDefinitions') return withNightPlus(list as ShiftDefinition[]) as T[]
       return list
     },
-    staleTime: Infinity,
+    // Back to the app after a minute or more: read again, so a change another manager saved shows up
+    // (and the next save does not run into it). Not while a save of this list is still on its way.
+    staleTime: 60_000,
+    refetchOnWindowFocus: () => qc.isMutating({ mutationKey: ['drive', key] }) === 0,
+    refetchOnMount: false, // moving between tabs does not read again
   })
 
   const mutation = useMutation({

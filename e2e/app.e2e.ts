@@ -1,0 +1,81 @@
+import { expect, test, type Page } from '@playwright/test'
+
+// The manager's app on the fake Drive: every tab opens, nothing crashes, and opening the app lists
+// Drive once instead of searching for every file.
+
+async function openWithFakeDrive(page: Page) {
+  await page.goto('/')
+  await page.evaluate(() => {
+    sessionStorage.clear()
+    localStorage.setItem('dev.mockDrive', '1')
+  })
+  await page.reload()
+  await page.getByRole('navigation').waitFor()
+}
+
+// On a cold dev server Vite pre-bundles a package the first time a screen needs it, and the old copy
+// of that screen then fails to download; the app reloads once (CrashGuard), as it does after a new
+// version in production. A navigation that lands on that reload is simply tried again.
+async function reopen(page: Page) {
+  await page.waitForLoadState('networkidle')
+  try {
+    await page.goto('/')
+  } catch {
+    await page.goto('/')
+  }
+}
+
+const tab = (page: Page, name: string) => page.getByRole('navigation').getByRole('button', { name, exact: true })
+
+test('every tab opens without the crash message', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await openWithFakeDrive(page)
+
+  await tab(page, 'יומן').click()
+  await expect(page.getByRole('heading', { name: 'יומן עבודות' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'עבודה דחופה עכשיו' })).toBeVisible()
+
+  await tab(page, 'עובדים').click()
+  await expect(page.getByRole('heading', { name: 'עובדים' })).toBeVisible()
+  await expect(page.getByText('דני לוי')).toBeVisible()
+
+  await tab(page, 'רכבים').click()
+  await expect(page.getByRole('heading', { name: 'רכבים' })).toBeVisible()
+
+  await tab(page, 'הגדרות').click()
+  await expect(page.getByRole('heading', { name: 'הגדרות' })).toBeVisible()
+
+  await expect(page.getByText('משהו השתבש במסך הזה')).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+test('opening the calendar lists Drive once, not one search per file', async ({ page }) => {
+  const searches: string[] = []
+  page.on('request', (r) => {
+    const u = new URL(r.url())
+    if (u.hostname === 'www.googleapis.com' && u.pathname === '/drive/v3/files' && r.method() === 'GET') searches.push(u.searchParams.get('q') ?? '')
+  })
+  await openWithFakeDrive(page)
+  await tab(page, 'יומן').click()
+  await expect(page.getByRole('heading', { name: 'יומן עבודות' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'עבודה דחופה עכשיו' })).toBeVisible()
+  // Before: one search per list (about 16) and per month of shifts.
+  expect(searches.filter((q) => q.includes("name = '")).length).toBe(0)
+  expect(searches.length).toBeLessThanOrEqual(3)
+})
+
+test('a saved vehicle is still there after a reload', async ({ page }) => {
+  await openWithFakeDrive(page)
+  await tab(page, 'רכבים').click()
+  await expect(page.getByRole('heading', { name: 'רכבים' })).toBeVisible()
+  await page.getByRole('button', { name: 'הוספת רכב' }).first().click()
+  await page.getByLabel('מספר רישוי').fill('12-345-67')
+  await page.getByLabel('דגם').fill('E2E טנדר')
+  await page.getByRole('button', { name: 'שמירה' }).click()
+  await expect(page.getByText('E2E טנדר')).toBeVisible()
+
+  await reopen(page)
+  await tab(page, 'רכבים').click()
+  await expect(page.getByText('E2E טנדר')).toBeVisible()
+})

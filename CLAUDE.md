@@ -7,7 +7,7 @@ Reply to the user in Hebrew (masculine form), short and direct, no emojis.
 - Project name: `Masha7000`
 - Project type: **web app** for managing work shifts.
 - Stack: Vite + React + TypeScript + Tailwind CSS v4, Zustand, TanStack Query, dayjs, lucide-react, Vitest. Browser-only SPA, no backend; data lives in the manager's Google Drive appDataFolder and a `Smart Shifts` Google Calendar (see `docs/input/`). Hosting target: Vercel. Dev server: port 5180 (`.claude/launch.json`).
-- Verify command: `npm run verify` (lint + tests + typecheck + build).
+- Verify command: `npm run verify` (lint + tests + typecheck + build). Whole-app browser checks: `npm run e2e` (Playwright, dev server on the fake Drive, port 5181; CI runs it as its own job). Weak-network timing: `node scripts/slow-network.cjs <base-url>`.
 - Google OAuth Client ID goes in `.env.local` as `VITE_GOOGLE_CLIENT_ID` (gitignored; template in `.env.example`). Authorized JS origins must include `http://localhost:5180`.
 - Source specs from the user: `docs/input/01-product-ux-spec.md`, `docs/input/02-technical-spec.md`.
 - Performance budget: Google "Good" Core Web Vitals: LCP up to 2.5s, INP up to 200ms, CLS up to 0.1.

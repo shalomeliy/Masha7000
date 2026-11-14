@@ -34,7 +34,8 @@ vi.mock('../google/auth', () => ({
     const q = u.searchParams.get('q')!
     const exact = q.match(/name = '(.+?)'/)
     if (exact) return json({ files: files.has(exact[1]) ? [{ id: exact[1], version: '1' }] : [] })
-    const part = q.match(/name contains '(.+?)'/)![1]
+    const part = q.match(/name contains '(.+?)'/)?.[1]
+    if (!part) return json({ files: [...files.keys()].map((name) => ({ id: name, name, version: '1' })) })
     return json({ files: [...files.keys()].filter((n) => n.includes(part)).map((name) => ({ name })) })
   },
 }))

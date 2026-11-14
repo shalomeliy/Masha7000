@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarArrowUp, Check, ChevronLeft, ChevronRight, Loader2, MessageCircle, Plus, Wand2, Zap } from 'lucide-react'
+import { CalendarArrowUp, Check, ChevronLeft, ChevronRight, MessageCircle, Plus, Wand2, Zap } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
 import { fullName, tagNames, upsert } from '../lib/catalog'
 import { blockedCrew, constraintText } from '../lib/constraints'
@@ -21,6 +21,7 @@ import { EditMark, WorkerDial } from './workers/common'
 import { WaitingJobs } from './ToSchedule'
 import { jobVehicleText } from '../lib/vehicles'
 import { dayNames, tx } from '../i18n'
+import { CalendarSkeleton } from '../components/Skeleton'
 
 const SHORT_DAYS = dayNames('short')
 
@@ -91,10 +92,7 @@ export function Calendar() {
       {failed ? (
         <DriveError error={failed.query.error} action="load" onRetry={() => lists.forEach((l) => l.query.isError && l.query.refetch())} />
       ) : loading ? (
-        <p className="flex items-center gap-2 text-slate-400">
-          <Loader2 className="animate-spin" size={18} aria-hidden />
-          {tx('טוען מגוגל דרייב...')}
-        </p>
+        <CalendarSkeleton />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2">

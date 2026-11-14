@@ -7,5 +7,7 @@ describe('monitoring privacy', () => {
     expect(stripQuery('/join?c=abc')).toBe('/join')
     expect(stripQuery('/calendar')).toBe('/calendar')
     expect(stripQuery(42)).toBe(42)
+    expect(stripQuery('https://masha7000.vercel.app/join/AbC123xyz_-9')).toBe('https://masha7000.vercel.app/join/:code')
+    expect(stripQuery('/constraints/AbC123xyz?x=1')).toBe('/constraints/:code')
   })
 })

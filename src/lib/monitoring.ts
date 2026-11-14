@@ -7,14 +7,27 @@
 
 type Pending = { error: unknown }
 
-/** An address without its query and hash: `/c?c=abc&t=xyz#x` -> `/c`. Anything else is left alone. */
-export const stripQuery = (v: unknown) => (typeof v === 'string' ? v.replace(/[?#].*$/s, '') : v)
+/** An address without its query and hash, and with a form code in its path hidden:
+ * `/c?c=abc&t=xyz#x` -> `/c`, `/join/AbC123xyz` -> `/join/:code`. Anything else is left alone. */
+export const stripQuery = (v: unknown) =>
+  typeof v === 'string' ? v.replace(/[?#].*$/s, '').replace(/\/(join|constraints)\/[\w-]+/g, '/$1/:code') : v
+
+// Errors React caught on a screen (CrashGuard): they never reach the window, so they are handed over here.
+let send: ((error: unknown) => void) | null = null
+let waiting: Pending[] | null = null
+
+/** Sends an error the app caught itself to the monitoring (nothing without a DSN). */
+export function reportError(error: unknown): void {
+  if (send) send(error)
+  else waiting?.push({ error })
+}
 
 const DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined
 
 export function startMonitoring(): void {
   if (!import.meta.env.PROD || !DSN) return
   const early: Pending[] = []
+  waiting = early
   const onError = (e: ErrorEvent) => early.push({ error: e.error ?? e.message })
   const onRejection = (e: PromiseRejectionEvent) => early.push({ error: e.reason })
   window.addEventListener('error', onError)
@@ -28,10 +41,14 @@ export function startMonitoring(): void {
           environment: import.meta.env.MODE,
           release: (import.meta.env.VITE_RELEASE as string) || undefined, // the Vercel commit
           sendDefaultPii: false,
-          tracesSampleRate: 0,
+          // Speed as real phones feel it (LCP, INP, CLS): one page-load measurement per opening.
+          // No tracing headers go to any server (Google's APIs would refuse an unknown header).
+          tracesSampleRate: 1,
+          tracePropagationTargets: [],
           integrations: (defaults) => [
             ...defaults.filter((i) => i.name !== 'Breadcrumbs'),
             Sentry.breadcrumbsIntegration({ console: false, dom: true, fetch: true, history: true, xhr: true }),
+            Sentry.browserTracingIntegration({ instrumentNavigation: false, enableLongTask: false }),
           ],
           beforeBreadcrumb(crumb) {
             if (crumb.data) for (const k of ['url', 'from', 'to']) if (k in crumb.data) crumb.data[k] = stripQuery(crumb.data[k])
@@ -44,9 +61,21 @@ export function startMonitoring(): void {
             if (event.message) event.message = event.message.slice(0, 300)
             return event
           },
+          beforeSendTransaction(event) {
+            if (event.transaction) event.transaction = stripQuery(event.transaction) as string
+            if (event.request?.url) event.request.url = stripQuery(event.request.url) as string
+            if (event.request) delete event.request.query_string
+            for (const span of event.spans ?? []) {
+              span.description = stripQuery(span.description) as string | undefined
+              if (span.data) for (const k of ['url', 'http.url', 'url.full']) if (k in span.data) span.data[k] = stripQuery(span.data[k]) as string
+            }
+            return event
+          },
         })
         window.removeEventListener('error', onError)
         window.removeEventListener('unhandledrejection', onRejection)
+        send = (error) => Sentry.captureException(error)
+        waiting = null
         for (const p of early) Sentry.captureException(p.error)
       })
       .catch(() => {}) // monitoring must never break the app (blocked by an ad blocker, offline)

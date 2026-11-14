@@ -91,4 +91,7 @@ export default defineConfig({
   // The commit Vercel builds, as the Sentry release, so an error can be traced back to its exact code (scripts/sentry-issues.mjs).
   define: { 'import.meta.env.VITE_RELEASE': JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? '') },
   server: { port: 5180, strictPort: true },
+  // The local /api stand-ins load server code (api/_lib) that uses redis; it is never browser code. Left out
+  // of the browser's pre-bundling, so finding it does not reload the open page (it broke the e2e checks).
+  optimizeDeps: { exclude: ['redis'] },
 })

@@ -24,3 +24,17 @@ jobs:
       # The spikes' live tests read .env.local and skip without a key; CI has none and must never spend one.
       - run: touch .env.local
       - run: npm run verify
+
+  # The whole app in a real browser, on the fake Drive (no Google, no Anthropic): npm run e2e.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e

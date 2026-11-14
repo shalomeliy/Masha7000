@@ -35,6 +35,45 @@ async function findFile(name: string): Promise<FoundFile | null> {
   return data.files[0] ?? null
 }
 
+// All of the app's files in one listing, shared by the reads that start together (opening the app
+// reads about 16 lists and the months of shifts at once: one listing instead of one search each).
+// It is used only while fresh: an older listing could hold a version someone has changed since, and
+// that version is the baseline of the conflict check. Any write here drops it.
+const FRESH_MS = 5000
+let index: { at: number; files: Promise<Map<string, FoundFile & { name: string }>> } | null = null
+
+function listAll(): Promise<Map<string, FoundFile & { name: string }>> {
+  if (index && Date.now() - index.at < FRESH_MS) return index.files
+  const files = (async () => {
+    const q = encodeURIComponent('trashed = false')
+    const all = new Map<string, FoundFile & { name: string }>()
+    let pageToken = ''
+    do {
+      const res = await googleFetch(
+        `${FILES_API}?spaces=appDataFolder&q=${q}&orderBy=createdTime&pageSize=1000&fields=nextPageToken,files(id,name,version,md5Checksum)${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`,
+      )
+      const data: { files: (FoundFile & { name: string })[]; nextPageToken?: string } = await res.json()
+      // The oldest file of a name wins, as in findFile.
+      for (const f of data.files) if (!all.has(f.name)) all.set(f.name, f)
+      pageToken = data.nextPageToken ?? ''
+    } while (pageToken)
+    return all
+  })()
+  const entry = { at: Date.now(), files }
+  index = entry
+  files.catch(() => {
+    if (index === entry) index = null
+  })
+  return files
+}
+
+/** The next read lists the folder again (after this screen changed it). */
+const dropIndex = () => {
+  index = null
+}
+
+const listed = async (name: string): Promise<FoundFile | null> => (await listAll()).get(name) ?? null
+
 function remember(name: string, version: string | undefined, md5: string | undefined) {
   if (version) versions.set(name, version)
   else versions.delete(name) // unknown: the next write goes through without a check
@@ -43,7 +82,7 @@ function remember(name: string, version: string | undefined, md5: string | undef
 }
 
 export async function readJson<T>(name: string): Promise<T | null> {
-  const file = await findFile(name)
+  const file = await listed(name)
   versions.set(name, file?.version ?? 'none')
   checksums.delete(name)
   if (!file) return null
@@ -60,6 +99,7 @@ async function download(id: string): Promise<string> {
 
 export async function writeJson(name: string, data: unknown): Promise<void> {
   const body = JSON.stringify(data)
+  dropIndex()
   const file = await findFile(name)
   const known = versions.get(name)
   if (known !== undefined && (file?.version ?? 'none') !== known) {
@@ -87,28 +127,19 @@ export async function writeJson(name: string, data: unknown): Promise<void> {
     res = await googleFetch(`${UPLOAD_API}?uploadType=multipart&fields=version,md5Checksum`, { method: 'POST', body: form })
   }
   const { version, md5Checksum } = (await res.json().catch(() => ({}))) as { version?: string; md5Checksum?: string }
+  dropIndex()
   bodies.set(name, body)
   remember(name, version, md5Checksum)
 }
 
 /** Names of this app's files that match, for lists kept in several files (shifts by month). */
 export async function listNames(contains: string, match: RegExp): Promise<string[]> {
-  const q = encodeURIComponent(`name contains '${contains}' and trashed = false`)
-  const names: string[] = []
-  let pageToken = ''
-  do {
-    const res = await googleFetch(
-      `${FILES_API}?spaces=appDataFolder&q=${q}&pageSize=1000&fields=nextPageToken,files(name)${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`,
-    )
-    const data: { files: { name: string }[]; nextPageToken?: string } = await res.json()
-    names.push(...data.files.map((f) => f.name).filter((n) => match.test(n)))
-    pageToken = data.nextPageToken ?? ''
-  } while (pageToken)
-  return names
+  return [...(await listAll()).keys()].filter((n) => n.includes(contains) && match.test(n))
 }
 
 /** Gives a file another name, keeping its content; false when there was no such file. */
 export async function renameFile(name: string, to: string): Promise<boolean> {
+  dropIndex()
   const file = await findFile(name)
   if (!file) return false
   await googleFetch(`${FILES_API}/${file.id}?fields=id`, {
@@ -116,6 +147,7 @@ export async function renameFile(name: string, to: string): Promise<boolean> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: to }),
   })
+  dropIndex()
   forgetVersions([name])
   return true
 }
@@ -131,7 +163,7 @@ export interface DriveCopy {
 
 /** Reads a list without becoming this screen's baseline for the conflict check. */
 export async function peekJson<T>(name: string): Promise<T | null> {
-  const file = await findFile(name)
+  const file = await listed(name)
   return file ? (JSON.parse(await download(file.id)) as T) : null
 }
 
@@ -151,7 +183,9 @@ export async function createCopy(name: string, body: string, appProperties: Reco
     new Blob([JSON.stringify({ name, parents: ['appDataFolder'], appProperties })], { type: 'application/json' }),
   )
   form.append('file', new Blob([body], { type: 'application/json' }))
+  dropIndex()
   await googleFetch(`${UPLOAD_API}?uploadType=multipart&fields=id`, { method: 'POST', body: form })
+  dropIndex()
 }
 
 export const readCopy = (id: string) => download(id)
@@ -170,5 +204,7 @@ export function forgetVersions(names: string[]) {
 }
 
 export async function deleteCopy(id: string): Promise<void> {
+  dropIndex()
   await googleFetch(`${FILES_API}/${id}`, { method: 'DELETE' })
+  dropIndex()
 }
