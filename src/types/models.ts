@@ -161,14 +161,7 @@ export interface PendingJob {
   vehicleModel?: string
 }
 
-// A field on the vehicle card ("מספר רישוי", "תוקף טסט"); the manager edits the list in Settings.
-export interface VehicleField {
-  id: string
-  name: string
-  kind?: 'text' | 'number' | 'date'
-}
-
-// One vehicle: its values by field id.
+// One vehicle: its values by field id (plate, model, make: src/lib/vehicles.ts).
 export interface Vehicle {
   id: string
   values: Record<string, string>

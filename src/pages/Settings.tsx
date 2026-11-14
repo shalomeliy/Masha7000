@@ -1,7 +1,7 @@
 import { tx } from '../i18n'
 import { LanguagePicker } from './settings/LanguagePicker'
 import { useEffect, useState } from 'react'
-import { Archive as ArchiveIcon, Car, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
@@ -24,7 +24,6 @@ import { NameListSection } from './settings/NameListSection'
 import { WordsSection } from './settings/WordsSection'
 import { PronunciationSection } from './settings/PronunciationSection'
 import { ReasonsSection } from './ToSchedule'
-import { VehicleFieldsSection } from './settings/VehicleFieldsSection'
 import { ShiftsSection } from './workers/ShiftsSection'
 import { TagSection } from './workers/TagSection'
 import { WorkKindsSection } from './settings/WorkKindsSection'
@@ -90,7 +89,7 @@ async function runCheck(update: (i: number, s: StepState, detail?: string) => vo
 
 // Every list the manager can change, in one place. Each one is also where it is used (certifications in
 // "עובדים"); this screen opens the same editors.
-type ListId = 'vehicleFields' | 'certifications' | 'shiftDefinitions' | 'workKinds' | 'postponeReasons' | 'places' | 'jobTypes' | 'departments' | 'constraintWords' | 'pronunciations'
+type ListId = 'certifications' | 'shiftDefinitions' | 'workKinds' | 'postponeReasons' | 'places' | 'jobTypes' | 'departments' | 'constraintWords' | 'pronunciations'
 
 const LISTS: { id: ListId; title: string; explain: string }[] = [
   {
@@ -132,11 +131,6 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
     id: 'constraintWords',
     title: tx('מילים לקריאת אילוצים'),
     explain: tx('איך מבינים תשובה מוואטסאפ'),
-  },
-  {
-    id: 'vehicleFields',
-    title: tx('שדות בכרטיס רכב'),
-    explain: tx('מה רושמים על כל רכב: רישוי, סוג, טסט, ביטוח...'),
   },
   {
     id: 'pronunciations',
@@ -196,13 +190,6 @@ function groups(isOwner: boolean, server: boolean): Group[] {
       explain: tx('מה שמתארים לכל עובד במסך העובדים'),
       icon: Users,
       items: [listItem('certifications'), listItem('departments'), listItem('constraintWords')],
-    },
-    {
-      id: 'vehicles',
-      title: tx('רכבים'),
-      explain: tx('מה רושמים בכרטיס של כל רכב'),
-      icon: Car,
-      items: [listItem('vehicleFields')],
     },
     {
       id: 'archive',
@@ -304,7 +291,6 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
     departments: useDriveList('departments'),
     constraintWords: useDriveList('constraintWords'),
     pronunciations: useDriveList('pronunciations'),
-    vehicleFields: useDriveList('vehicleFields'),
     workers: useDriveList('workers'),
     shifts: useDriveList('shifts'),
     pendingJobs: useDriveList('pendingJobs'),
@@ -396,7 +382,6 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
         {current.id === 'departments' && <DepartmentsSection />}
         {current.id === 'constraintWords' && <WordsSection />}
         {current.id === 'pronunciations' && <PronunciationSection />}
-        {current.id === 'vehicleFields' && <VehicleFieldsSection />}
       </section>
     )
 
