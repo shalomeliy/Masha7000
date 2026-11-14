@@ -496,3 +496,5 @@ Google side: project `masha7000`, key "Shaly voice" restricted to the TTS API (`
 Vercel + `.env.local`), Chirp3-HD quota 20/min, ₪10 billing alert. Client: `src/lib/cloudVoice.ts` (sentences
 in parallel, 2.5 s wait, fallback to the phone's voice, cache). Spike: `docs/spikes/cloud-tts.md`.
 Open: the pronunciation list was tuned on the phone's voice; retune by ear with the cloud voice.
+Owner's rule (2026-11-14): Shali always answers this way: "רגע, בודק." said at once (prepared ahead) the moment a
+request goes to Claude, the answer's audio fetched meanwhile, first sentence cut at its first comma. Keep it.
