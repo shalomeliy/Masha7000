@@ -31,7 +31,23 @@ export function splitSentences(text: string): string[] {
     if (last !== undefined && last.length < MIN_PIECE && last.length + piece.length + 1 <= MAX_PIECE) out[out.length - 1] = `${last} ${piece}`
     else out.push(piece)
   }
-  return out
+  // A short last one ("לאשר?") goes with the one before it.
+  const tail = out[out.length - 1]
+  if (out.length > 2 && tail.length < MIN_PIECE && out[out.length - 2].length + tail.length + 1 <= MAX_PIECE) out.splice(-2, 2, `${out[out.length - 2]} ${tail}`)
+  return shortFirst(out)
+}
+
+// The first piece is what the manager waits for: Google answers a short one in about a third of the time
+// of a long one (owner, 2026-11-14: "Shali takes much longer to answer"). So a long first sentence is
+// cut at its first comma, or after a few words, and the rest follows while it plays.
+const FIRST_MAX = 60
+function shortFirst(pieces: string[]): string[] {
+  const [first, ...rest] = pieces
+  if (!first || first.length <= FIRST_MAX) return pieces
+  const comma = first.indexOf(', ')
+  const at = comma >= 12 && comma < FIRST_MAX ? comma + 1 : first.lastIndexOf(' ', 40)
+  if (at < 12) return pieces
+  return [first.slice(0, at).trim(), first.slice(at).trim(), ...rest]
 }
 
 // Why the cloud voice is off for now, after the server refused (no key, month used up, not allowed).

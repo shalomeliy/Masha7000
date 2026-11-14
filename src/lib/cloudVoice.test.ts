@@ -17,6 +17,14 @@ describe('cloud voice sentences', () => {
     expect(pieces.join(' ').replace(/\s+/g, ' ')).toBe(long)
   })
 
+  it('cuts a long first sentence at its first comma, so the first words come fast', () => {
+    expect(splitSentences('הבנתי: עבודה חדשה באילת, אתר 123, ביום שלישי 18 בנובמבר, משמרת לילה. לאשר?')).toEqual([
+      'הבנתי: עבודה חדשה באילת,',
+      'אתר 123, ביום שלישי 18 בנובמבר, משמרת לילה.',
+      'לאשר?',
+    ])
+  })
+
   it('returns nothing for empty text', () => {
     expect(splitSentences('  ')).toEqual([])
   })
