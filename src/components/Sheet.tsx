@@ -253,7 +253,7 @@ const FIELDS = 'input:not([type=hidden]):not([disabled]), select:not([disabled])
  * else a field marked invalid, else the field whose label the note names ("צריך למלא מיקום..." -> "מיקום"),
  * else the first field of the form.
  */
-function goToField(from: HTMLElement, error: string, target?: string) {
+export function goToField(from: HTMLElement, error: string, target?: string) {
   const root = from.closest('dialog') ?? from.closest('form') ?? document.body
   const inForm = (el: Element) => !from.parentElement?.contains(el)
   const named = () => {

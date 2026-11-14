@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cleanVehicle, jobVehicleText, pickModel, pickVehicle, STARTER_VEHICLE_FIELDS, vehicleError, vehicleModels, vehiclesOfModel, withFixedFields } from './vehicles'
+import { cleanVehicle, hasSamples, jobVehicleText, pickModel, pickVehicle, randomPlate, sampleVehicles, shownValue, STARTER_VEHICLE_FIELDS, vehicleError, vehicleExpiries, vehicleModels, vehiclesOfModel, withFixedFields, worstExpiry } from './vehicles'
 import type { Vehicle } from '../types/models'
 
 const v = (id: string, plate: string, model = ''): Vehicle => ({ id, values: { plate, ...(model ? { model } : {}) } })
@@ -28,5 +28,45 @@ describe('vehicles', () => {
     expect(jobVehicleText({ vehicleId: '1' }, fleet)).toBe('12-345-67 · הילוקס')
     expect(jobVehicleText({ vehicleId: 'gone' }, fleet)).toBe('רכב שנמחק')
     expect(jobVehicleText({ vehicleModel: 'אקטרוס' }, fleet)).toBe('אקטרוס')
+  })
+})
+
+describe('vehicle expiry and example vehicles', () => {
+  const fields = STARTER_VEHICLE_FIELDS
+  const today = '2026-11-14'
+  const car = (values: Record<string, string>): Vehicle => ({ id: 'c', values: { plate: '1', ...values } })
+
+  it('red for a passed or missing test/insurance date, orange within 30 days, nothing further out', () => {
+    expect(vehicleExpiries(car({ testUntil: '2026-11-13', insuranceUntil: '2027-05-01' }), fields, today).map((e) => [e.fieldId, e.state])).toEqual([['testUntil', 'expired']])
+    expect(vehicleExpiries(car({ insuranceUntil: '2027-05-01' }), fields, today).map((e) => e.state)).toEqual(['missing'])
+    const soon = vehicleExpiries(car({ testUntil: '2026-12-14', insuranceUntil: '2026-12-15' }), fields, today)
+    expect(soon.map((e) => [e.fieldId, e.state])).toEqual([['testUntil', 'soon']])
+    expect(worstExpiry(soon)).toBe('orange')
+    expect(worstExpiry([...soon, { fieldId: 'x', name: 'x', state: 'missing' }])).toBe('red')
+    expect(worstExpiry([])).toBeNull()
+  })
+
+  it('makes fourteen example vehicles with Israeli plates, new plates, the dates mix and workers as drivers', () => {
+    let seed = 7
+    const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646
+    const list = sampleVehicles(today, fleet, ['w1', 'w2'], rand)
+    expect(list).toHaveLength(14)
+    expect(hasSamples(list)).toBe(true)
+    expect(hasSamples(fleet)).toBe(false)
+    for (const x of list) expect(x.values.plate).toMatch(/^(\d{2}-\d{3}-\d{2}|\d{3}-\d{2}-\d{3})$/)
+    expect(new Set(list.map((x) => x.values.plate)).size).toBe(14)
+    const states = list.map((x) => worstExpiry(vehicleExpiries(x, fields, today)))
+    expect(states.filter((s) => s === 'red').length).toBeGreaterThanOrEqual(3)
+    expect(states.filter((s) => s === 'orange').length).toBeGreaterThanOrEqual(2)
+    expect(states.filter((s) => s === null).length).toBe(5)
+    expect(list.filter((x) => x.values.driver).every((x) => ['w1', 'w2'].includes(x.values.driver))).toBe(true)
+    expect(sampleVehicles(today, [], [], rand).some((x) => x.values.driver)).toBe(false)
+  })
+
+  it('shows the driver by the worker\'s full name, and an old typed name as is', () => {
+    const workers = [{ id: 'w1', firstName: 'דני', lastName: 'כהן' }]
+    expect(shownValue(car({ driver: 'w1' }), 'driver', workers)).toBe('דני כהן')
+    expect(shownValue(car({ driver: 'משה' }), 'driver', workers)).toBe('משה')
+    expect(randomPlate(() => 0.1)).toBe('11-111-11')
   })
 })

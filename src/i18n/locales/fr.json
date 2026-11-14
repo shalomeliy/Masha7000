@@ -1251,5 +1251,10 @@
  "כל כניסה, קוד שגוי ושינוי בהרשאות נרשמים כאן, עם השעה וכתובת מקוצרת. נשמרים 1000 האירועים האחרונים. כדאי לעבור על היומן פעם בחודש.": "Chaque connexion, code erroné et changement d’autorisations est enregistré ici, avec l’heure et une adresse abrégée. Les 1000 derniers événements sont conservés. Il est conseillé de parcourir le journal une fois par mois.",
  "הצגת יומן האבטחה": "Afficher le journal de sécurité",
  "עוד אין אירועים ביומן.": "Aucun événement dans le journal pour l’instant.",
- "נותק מכל המכשירים": "Déconnexion de tous les appareils"
+ "נותק מכל המכשירים": "Déconnexion de tous les appareils",
+ "{name}: חסר": "{name} : manquant",
+ "בלי נהג קבוע": "Pas de conducteur attitré",
+ "הוספת {n} רכבים לדוגמה": "Ajouter {n} véhicules d’exemple",
+ "מוסיף...": "Ajout...",
+ "רכבים עם תוקף טסט וביטוח שונים, כדי לראות את ההתראות. אפשר למחוק אותם אחר כך ב\"בחירה\".": "Des véhicules avec des dates de contrôle technique et d’assurance différentes, pour voir les alertes. Vous pourrez les supprimer ensuite avec « Sélection »."
 }

@@ -1251,5 +1251,10 @@
  "כל כניסה, קוד שגוי ושינוי בהרשאות נרשמים כאן, עם השעה וכתובת מקוצרת. נשמרים 1000 האירועים האחרונים. כדאי לעבור על היומן פעם בחודש.": "Setiap proses masuk, kode salah, dan perubahan izin dicatat di sini, dengan waktu dan alamat yang dipersingkat. 1000 peristiwa terakhir disimpan. Sebaiknya periksa log sebulan sekali.",
  "הצגת יומן האבטחה": "Tampilkan log keamanan",
  "עוד אין אירועים ביומן.": "Belum ada peristiwa di log.",
- "נותק מכל המכשירים": "Keluar dari semua perangkat"
+ "נותק מכל המכשירים": "Keluar dari semua perangkat",
+ "{name}: חסר": "{name}: belum diisi",
+ "בלי נהג קבוע": "Tanpa pengemudi tetap",
+ "הוספת {n} רכבים לדוגמה": "Tambahkan {n} kendaraan contoh",
+ "מוסיף...": "Menambahkan...",
+ "רכבים עם תוקף טסט וביטוח שונים, כדי לראות את ההתראות. אפשר למחוק אותם אחר כך ב\"בחירה\".": "Kendaraan dengan tanggal uji dan asuransi berbeda, agar peringatannya terlihat. Nanti bisa dihapus lewat \"Pilih\"."
 }

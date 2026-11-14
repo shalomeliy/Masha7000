@@ -1251,5 +1251,10 @@
  "כל כניסה, קוד שגוי ושינוי בהרשאות נרשמים כאן, עם השעה וכתובת מקוצרת. נשמרים 1000 האירועים האחרונים. כדאי לעבור על היומן פעם בחודש.": "Every sign-in, wrong code and permission change is recorded here, with the time and a shortened address. The last 1000 events are kept. It is worth going over the log once a month.",
  "הצגת יומן האבטחה": "Show the security log",
  "עוד אין אירועים ביומן.": "No events in the log yet.",
- "נותק מכל המכשירים": "Signed out of all devices"
+ "נותק מכל המכשירים": "Signed out of all devices",
+ "{name}: חסר": "{name}: missing",
+ "בלי נהג קבוע": "No regular driver",
+ "הוספת {n} רכבים לדוגמה": "Add {n} example vehicles",
+ "מוסיף...": "Adding...",
+ "רכבים עם תוקף טסט וביטוח שונים, כדי לראות את ההתראות. אפשר למחוק אותם אחר כך ב\"בחירה\".": "Vehicles with different test and insurance dates, so you can see the warnings. You can delete them later with \"Select\"."
 }

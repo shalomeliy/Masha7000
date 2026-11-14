@@ -1251,5 +1251,10 @@
  "כל כניסה, קוד שגוי ושינוי בהרשאות נרשמים כאן, עם השעה וכתובת מקוצרת. נשמרים 1000 האירועים האחרונים. כדאי לעבור על היומן פעם בחודש.": "Her giriş, yanlış kod ve izin değişikliği burada saat ve kısaltılmış adresle kaydedilir. Son 1000 olay saklanır. Günlüğü ayda bir gözden geçirmek iyi olur.",
  "הצגת יומן האבטחה": "Güvenlik günlüğünü göster",
  "עוד אין אירועים ביומן.": "Günlükte henüz olay yok.",
- "נותק מכל המכשירים": "Tüm cihazlardan çıkış yapıldı"
+ "נותק מכל המכשירים": "Tüm cihazlardan çıkış yapıldı",
+ "{name}: חסר": "{name}: eksik",
+ "בלי נהג קבוע": "Sabit sürücü yok",
+ "הוספת {n} רכבים לדוגמה": "{n} örnek araç ekle",
+ "מוסיף...": "Ekleniyor...",
+ "רכבים עם תוקף טסט וביטוח שונים, כדי לראות את ההתראות. אפשר למחוק אותם אחר כך ב\"בחירה\".": "Uyarıları görmek için farklı muayene ve sigorta tarihli araçlar. Daha sonra \"Seçim\" ile silebilirsiniz."
 }
