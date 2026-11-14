@@ -486,3 +486,13 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - Sign-in: only `email_verified === true`; once the owner has two-step, linking Drive (also after a disconnect) needs a verified device, and the owner's identity sign-in goes to `/` (code first) instead of straight to the Drive grant.
 - Sentry: breadcrumb and request URLs lose their query/hash (`stripQuery` in `src/lib/monitoring.ts`).
 - CI: `npm audit --omit=dev --audit-level=high`; `.github/dependabot.yml` weekly. `public/.well-known/security.txt` (expires 2027-11-13, renew yearly); `.well-known/` excluded from the SPA rewrite.
+
+## Cloud voice (2026-11-14)
+Shali speaks in a male Google Cloud TTS voice (Chirp 3 HD, he-IL; default Sadaltager, 6 male voices on the
+"קול" button, then the phone's). Server: `POST /api/assistant?tts` (inside assistant.ts: the Hobby plan's 12
+function files are all used), `api/_lib/tts.ts`. Hard stop = our monthly counter `tts-chars:YYYY-MM`
+(env TTS_MONTHLY_CHARS, default 900,000): Google has no monthly quota and its spend caps do not cover TTS.
+Google side: project `masha7000`, key "Shaly voice" restricted to the TTS API (`GOOGLE_TTS_API_KEY` in
+Vercel + `.env.local`), Chirp3-HD quota 20/min, ₪10 billing alert. Client: `src/lib/cloudVoice.ts` (sentences
+in parallel, 2.5 s wait, fallback to the phone's voice, cache). Spike: `docs/spikes/cloud-tts.md`.
+Open: the pronunciation list was tuned on the phone's voice; retune by ear with the cloud voice.
