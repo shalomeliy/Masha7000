@@ -68,7 +68,7 @@ export function Workers() {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`min-h-11 rounded-lg text-sm font-medium ${tab === t.id ? 'bg-slate-700 text-slate-50' : 'text-slate-400'}`}
+            className={`min-h-11 min-w-0 rounded-lg px-1 text-sm leading-tight font-medium [overflow-wrap:anywhere] ${tab === t.id ? 'bg-slate-700 text-slate-50' : 'text-slate-400'}`}
           >
             {t.label}
           </button>

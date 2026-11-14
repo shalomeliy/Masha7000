@@ -245,7 +245,7 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
                 type="checkbox"
                 checked={autoDate}
                 onChange={(e) => (setAutoDate(e.target.checked), setAutoPicked(null), setError(null))}
-                className="size-5 accent-sky-500"
+                className="size-5 shrink-0 accent-sky-500"
               />
               <span>
                 {tx('בחירה אוטומטית')}

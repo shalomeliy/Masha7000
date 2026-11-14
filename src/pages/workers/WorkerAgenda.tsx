@@ -88,7 +88,7 @@ export function WorkerAgenda({
   // Every day gets a row, an empty one too (the user's rule): "פנוי", or what started earlier and goes on.
   const row = (day: AgendaDay) => (
     <li key={day.date} className="flex items-start gap-3">
-      <span className="w-12 shrink-0 pt-0.5 text-center leading-tight">
+      <span className="w-14 shrink-0 pt-0.5 text-center leading-tight [overflow-wrap:anywhere]">
         <span className="block text-xs text-slate-400">{when(day.date)}</span>
         <span className="block text-sm font-semibold text-slate-100">{showDate(day.date)}</span>
       </span>

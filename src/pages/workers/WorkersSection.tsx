@@ -633,23 +633,23 @@ function WorkerForm({
 
       {/* Small on purpose: one line under the name, the department first and the status after it.
           A tap on either opens its own screen (department: the user's request, 2026-11-11). */}
-      <div className="-mt-3 flex flex-wrap items-center gap-x-4 text-xs text-slate-400">
-        <p className="min-w-0">
+      <div className="-my-3 flex flex-wrap items-center gap-x-4 text-xs text-slate-400">
+        <p className="min-w-0 flex items-center gap-1">
           {tx('מחלקה:')}{" "}
           <button
             type="button"
             onClick={() => setDepartmentOpen(true)}
-            className={`py-1 font-semibold ${departmentColor(draft.departmentId, departments.items)}`}
+            className={`inline-flex min-h-10 items-center font-semibold ${departmentColor(draft.departmentId, departments.items)}`}
           >
             {departments.items.find((d) => d.id === draft.departmentId)?.name ?? tx('בלי מחלקה')}
           </button>
         </p>
-        <p>
+        <p className="flex items-center gap-1">
           {tx('סטטוס:')}{" "}
           <button
             type="button"
             onClick={() => setStatusOpen(true)}
-            className={`py-1 font-semibold ${draftState.id === "fit" ? STATUS_COLOR.active : draftState.id === "inactive" ? STATUS_COLOR.inactive : STATUS_COLOR.sick}`}
+            className={`inline-flex min-h-10 items-center font-semibold ${draftState.id === "fit" ? STATUS_COLOR.active : draftState.id === "inactive" ? STATUS_COLOR.inactive : STATUS_COLOR.sick}`}
           >
             {draftState.label}
           </button>
@@ -805,7 +805,8 @@ function WorkerForm({
         />
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      {/* Two phones side by side only where a whole number fits (phones 390 wide and up). */}
+      <div className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2">
         {PHONES.map(([field, label]) => {
           const dial = telHref(draft[field]);
           return (
@@ -817,7 +818,7 @@ function WorkerForm({
                   inputMode="tel"
                   value={draft[field] ?? ""}
                   onChange={set(field)}
-                  className={`${inputClass} min-w-0 text-right`}
+                  className={`${inputClass} min-w-0 px-2.5! text-right`}
                 />
                 {/* Always shown so every phone field visibly has a call button; inactive until a number is typed. */}
                 {dial ? (
@@ -1003,7 +1004,7 @@ function StatusSheet({
                 role="tab"
                 aria-selected={mode === m.id}
                 onClick={() => setMode(m.id)}
-                className={`min-h-11 rounded-lg text-xs font-medium ${mode === m.id ? "bg-slate-700 text-slate-50" : "text-slate-400"}`}
+                className={`min-h-11 min-w-0 rounded-lg px-1 text-xs leading-tight font-medium [overflow-wrap:anywhere] ${mode === m.id ? "bg-slate-700 text-slate-50" : "text-slate-400"}`}
               >
                 {m.label}
               </button>

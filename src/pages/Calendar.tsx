@@ -102,18 +102,18 @@ export function Calendar() {
               type="button"
               data-hint="urgentNow"
               onClick={() => setEditing(urgentShift(new Date(), defs.items))}
-              className="flex min-h-14 items-center justify-center gap-2 rounded-xl bg-amber-500 font-semibold text-slate-950"
+              className="flex min-h-14 min-w-0 items-center justify-center gap-1.5 rounded-xl bg-amber-500 px-2 text-center leading-tight font-semibold text-slate-950 max-[379px]:text-[15px]"
             >
-              <Zap size={20} aria-hidden />
+              <Zap size={20} aria-hidden className="shrink-0" />
               {tx('עבודה דחופה עכשיו')}
             </button>
             <button
               type="button"
               data-hint="newJob"
               onClick={() => setEditing(blankShift(week.days.includes(today) ? today : week.start))}
-              className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-slate-700 font-semibold text-slate-200"
+              className="flex min-h-14 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-slate-700 px-2 text-center leading-tight font-semibold text-slate-200 max-[379px]:text-[15px]"
             >
-              <Plus size={20} aria-hidden />
+              <Plus size={20} aria-hidden className="shrink-0" />
               {tx('עבודה חדשה')}
             </button>
           </div>

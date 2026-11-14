@@ -22,7 +22,7 @@ export function BottomNav({ active, onChange, voice }: { active: Tab; onChange: 
     <nav className="fixed inset-x-0 bottom-0 border-t border-slate-800 bg-slate-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <ul className={`mx-auto grid max-w-md ${tabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4'}`}>
         {tabs.map(({ id, label, icon: Icon }) => (
-          <li key={id}>
+          <li key={id} className="min-w-0">
             {id === 'voice' ? (
               // The assistant stands out: a raised round button in the middle, with a bright ring.
               <button
@@ -45,12 +45,13 @@ export function BottomNav({ active, onChange, voice }: { active: Tab; onChange: 
               type="button"
               onClick={() => onChange(id)}
               aria-current={active === id || (id === 'settings' && active === 'archive') ? 'page' : undefined}
-              className={`flex w-full flex-col items-center gap-1 py-3 text-xs ${
+              className={`flex w-full min-w-0 flex-col items-center gap-1 py-3 text-xs ${
                 active === id || (id === 'settings' && active === 'archive') ? 'text-sky-400' : 'text-slate-400'
               }`}
             >
               <Icon size={22} aria-hidden />
-              {label}
+              {/* A long word (German "Einstellungen") stays inside its own fifth of the bar. */}
+              <span className="max-w-full truncate text-[11px] min-[380px]:text-xs">{label}</span>
             </button>
             )}
           </li>
