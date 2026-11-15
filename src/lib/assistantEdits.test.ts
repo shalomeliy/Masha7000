@@ -24,11 +24,12 @@ const data = (): AppData => ({
   assistantNotes: [],
   departments: [],
   assistantExamples: [],
+  vehicles: [],
 })
 
 const NOW = new Date('2026-11-06T20:00:00')
 const p = (e: Partial<Edits>): Proposal => ({ summary: '', jobs: [], assignShiftIds: [], workers: [], listItems: [], rememberNotes: [], lessons: [], forgetNoteIds: [], ...NO_EDITS, ...e })
-const edit = (over: Partial<EditJob>): EditJob => ({ id: 's1', date: '', shiftKindId: '', location: '', jobDescription: '', staffing: [], autoAssign: false, ...over })
+const edit = (over: Partial<EditJob>): EditJob => ({ id: 's1', date: '', shiftKindId: '', location: '', jobDescription: '', staffing: [], autoAssign: false, vehicleId: '', ...over })
 
 describe('editing jobs', () => {
   it('moves a job and changes only what was said', () => {

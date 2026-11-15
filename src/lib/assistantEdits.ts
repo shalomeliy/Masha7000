@@ -13,6 +13,8 @@ import type { AbsenceKind, Constraint, PendingJob, StaffSlot, Worker, WorkerStat
 import type { AppData } from './assistant'
 import { tx } from '../i18n'
 import { asTaskList, oneLine } from './taskList'
+import { carText } from './vehicleRef'
+import { pickVehicle } from './vehicles'
 
 export interface StaffLine {
   count: number
@@ -27,6 +29,7 @@ export interface EditJob {
   jobDescription: string // '' = unchanged
   staffing: StaffLine[] // [] = unchanged
   autoAssign: boolean
+  vehicleId?: string // '' = unchanged, 'none' = no vehicle
 }
 
 export interface Edits {
@@ -134,12 +137,22 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     if (j.date && !isRealDate(j.date)) errors.push(`${n}: תאריך לא תקין "${j.date}"`)
     if (j.shiftKindId && !has(d.shiftDefinitions, j.shiftKindId)) errors.push(`${n}: אין תבנית עבודה עם id "${j.shiftKindId}"`)
     lineErrors(j.staffing, n)
+    const carId = j.vehicleId && j.vehicleId !== 'none' ? j.vehicleId : ''
+    const car = carId ? d.vehicles.find((v) => v.id === carId) : undefined
+    if (carId && !car) errors.push(`${n}: אין רכב עם id "${carId}"`)
+    // Only the vehicle changes: the report says that alone ("הוספתי לעבודה בערד את רכב 678, ...").
+    const onlyCar = Boolean(j.vehicleId) && !j.date && !j.shiftKindId && !j.location.trim() && !j.jobDescription.trim() && !j.staffing.length && !j.autoAssign
+    const carReport = (r: { location: string; jobDescription: string }) => {
+      if (car) report.push(tx('הוספתי לעבודה ב{where} את רכב {car}', { where: where(r), car: carText(car) }))
+      else if (j.vehicleId === 'none') report.push(tx('הורדתי את הרכב מהעבודה ב{where}', { where: where(r) }))
+    }
     const fields = <T extends { location: string; jobDescription: string; staffing: StaffSlot[]; shiftDefinitionId?: string; workKindIds?: string[] }>(r: T): T => ({
       ...r,
       ...(j.location.trim() ? { location: j.location.trim() } : {}),
       ...(j.jobDescription.trim() ? { jobDescription: asTaskList(j.jobDescription) } : {}),
       ...(j.shiftKindId ? { shiftDefinitionId: j.shiftKindId } : {}),
       ...(j.staffing.length ? { staffing: linesToSlots(j.staffing), workKindIds: undefined } : {}),
+      ...(j.vehicleId === 'none' ? { vehicleId: undefined, vehicleModel: undefined } : car ? pickVehicle(car.id, d.vehicles) : {}),
     })
     const shift = d.shifts.find((s) => s.id === j.id)
     const job = d.pendingJobs.find((p) => p.id === j.id)
@@ -153,7 +166,8 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       changed.add('shifts').add('pendingJobs')
       touched.add(next.id)
       if (j.autoAssign) toAssign.push(next.id)
-      report.push(j.date && j.date !== shift.date ? tx('הזזתי את העבודה ב{v}', { v: where(next) }) : tx('עדכנתי את העבודה ב{v}', { v: where(next) }))
+      if (!onlyCar) report.push(j.date && j.date !== shift.date ? tx('הזזתי את העבודה ב{v}', { v: where(next) }) : tx('עדכנתי את העבודה ב{v}', { v: where(next) }))
+      carReport(next)
     } else if (job) {
       const edited: PendingJob = fields(job)
       if (j.date) {
@@ -167,8 +181,9 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
         d.pendingJobs = upsert(d.pendingJobs, edited)
         changed.add('pendingJobs')
         if (j.autoAssign) errors.push(`${n}: אפשר לשבץ עובדים רק לעבודה עם תאריך`)
-        report.push(tx('עדכנתי את העבודה הממתינה ב{v}', { v: where(edited) }))
+        if (!onlyCar) report.push(tx('עדכנתי את העבודה הממתינה ב{v}', { v: where(edited) }))
       }
+      carReport(edited)
     } else errors.push(`${n}: אין עבודה עם id "${j.id}"`)
   })
 

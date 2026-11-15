@@ -29,6 +29,7 @@ const data = (): AppData => ({
   assistantNotes: [],
   departments: [],
   assistantExamples: [],
+  vehicles: [],
 })
 const NOW = new Date('2026-11-06T20:00:00')
 const asProposal = (changes: Proposal['editJobs'] extends never ? never : typeof NO_EDITS): Proposal => ({

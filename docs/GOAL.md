@@ -19,6 +19,7 @@ Shali keeps learning actions until almost every request is done by local code, f
 | Free path, fixed core | `src/lib/freeCommands.ts` (`fixed`) | Open a screen, the five assistant buttons, "who works" on a day |
 | Free actions, built in | `freeCommands.ts` (`handleFree`) | New job in any phrasing (to לשיבוץ when no date), new worker, worker sick with replacement options from the planner, pinned workers and their nearest free days, a description with several tasks split into a numbered list (`src/lib/taskList.ts`) |
 | Free actions, learned | `exampleAction`, `learn()` | Every confirmed Claude proposal is kept as an example; its action words and aliases are learned, names/dates/places/counts become slots |
+| Vehicles by voice | `src/lib/vehicleRef.ts`, `carToJob` / `carFix` | Last 3 plate digits in any spoken form, make/model checked and corrected, read back with digits + make + model (2026-11-15) |
 | Name matching | `src/lib/nameMatch.ts` | Names by closeness; two close = "למי התכוונת"; none close = "לא מצאתי", never a guess |
 | Splitting long sentences | `splitFree` | Known parts done free, only the unknown part goes to Claude and to the log |
 | Local solver | `src/lib/solvers.ts` | Staffing options computed locally; the model only ranks and words them |

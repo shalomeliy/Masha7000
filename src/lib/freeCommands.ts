@@ -4,8 +4,10 @@ import type { Edits } from './assistantEdits'
 import { continueDates, freeDates } from './freeDates'
 import { HINTS, type Hint } from './hint'
 import { closeName, nameDistance, nameLimit } from './nameMatch'
+import { isWaiting } from './shifts'
 import { solve, type SolverOption } from './solvers'
-import type { AssistantExample, ExampleAction } from '../types/models'
+import type { AssistantExample, ExampleAction, Vehicle } from '../types/models'
+import { answerCar, CAR_WORD, carText, pickCar, plateDigits, readCar, type CarRef } from './vehicleRef'
 
 // Voice commands the app does by itself, free and instant, without asking Claude (the user's request,
 // 2026-11-07: spend the Anthropic credit only on what really needs it). Two kinds:
@@ -96,6 +98,7 @@ interface Found {
   // A name said that is about equally close to more than one worker: the app asks which one.
   unsure: { at: number; n: number; ids: string[] }[]
   description?: string
+  vehicle?: CarRef // "רכב 678", "רכב 345 דאצ'יה" (src/lib/vehicleRef.ts)
   rest: string[] // words not explained: action words, or things unknown
   restAt: number[] // their places in the sentence
 }
@@ -109,6 +112,9 @@ export function find(said: string, d: AppData, aliases: Record<string, string>, 
     for (let k = i; k < i + n; k++) used[k] = true
   }
   const isDayWord = (w: string) => /^(?:ב|ל)?יום$/.test(w)
+  // A vehicle first: its make or model is never read as a worker, a place or a certification.
+  const stop = (w: string) => FILLER.has(w) || COMMON.has(w) || JOB_VERBS.has(w) || protect.has(w) || DAYS.includes(w) || /^ו?[בל]?(?:עבודה|עבודת)$/.test(w)
+  out.vehicle = readCar(ws, used, d.vehicles ?? [], stop)
 
   // Places: all the words of a known place, in a row (the first maybe with ב/ל).
   // Places: the list, and every place a job was already at (said once, known from then on).
@@ -117,7 +123,7 @@ export function find(said: string, d: AppData, aliases: Record<string, string>, 
   for (const p of knownPlaces) {
     const pw = words(p.name)
     for (let i = 0; i + pw.length <= ws.length; i++) {
-      if (pw.every((w, k) => (k === 0 ? bare(ws[i]) === w || ws[i] === w : ws[i + k] === w))) {
+      if (pw.every((w, k) => !used[i + k] && (k === 0 ? bare(ws[i]) === w || ws[i] === w : ws[i + k] === w))) {
         if (!out.location || p.name.length > out.location.length) out.location = p.name
         take(i, pw.length)
       }
@@ -127,7 +133,7 @@ export function find(said: string, d: AppData, aliases: Record<string, string>, 
   if (!out.location) {
     for (let i = 0; i < ws.length; i++) {
       if (used[i]) continue
-      const hits = knownPlaces.filter((p) => {
+      const hits = used[i] ? [] : knownPlaces.filter((p) => {
         const first = words(p.name)[0]
         return words(p.name).length > 1 && /^(?:ו?[בל])/.test(ws[i]) && bare(ws[i]) === first
       })
@@ -369,8 +375,9 @@ const said = (examples: string[][], rest: string[]) => examples.some((ws) => ws.
 // ---- Handling a sentence ----
 
 export interface PendingJob {
-  job: { date: string; shiftKindId: string; location: string; jobDescription: string; staffing: { count: number; certificationIds?: string[] }[]; autoAssign: boolean }
+  job: { date: string; shiftKindId: string; location: string; jobDescription: string; staffing: { count: number; certificationIds?: string[] }[]; autoAssign: boolean; vehicleId?: string }
   missing: JobField[]
+  note?: string // said first in the read-back: a vehicle whose make or model was said wrong
   kindOpen?: boolean // the manager said he does not know the kind yet: it is not asked again
   pinned?: string[] // "מתי יוסי וניר פנויים" (src/lib/freeDates.ts): the answer leads to the days they are free
 }
@@ -382,7 +389,17 @@ export type Local =
   | { kind: 'advise'; spoken: string; options: SolverOption[]; extra: Edits; extraText: string }
   | { kind: 'ask'; question: string; pending: PendingJob }
   | { kind: 'which'; question: string; pending: PendingWho }
+  | { kind: 'whichCar'; question: string; pending: PendingCar }
   | null
+
+/** Vehicles that fit what was said about equally ("רכב 345" and two plates end with it): which one. */
+export interface PendingCar {
+  text: string // the sentence as said
+  at: number // where the vehicle is in it (words)
+  n: number // how many words it took
+  ids: string[] // the vehicles it may be
+  base?: Proposal // a correction of this proposal ("לא, רכב 345"), not a new request
+}
 
 /** A name said that is about equally close to more than one worker, waiting for the manager to say which. */
 export interface PendingWho {
@@ -431,7 +448,7 @@ function fixed(text: string, d: AppData, now: Date): Local {
   const who = /^(?:מי (?:עובד|עובדים|יוצא|יוצאים|בעבודה|משובץ|משובצים)|מה יש(?: לנו)?|איזה עבודות יש|אילו עבודות יש|מה העבודות|מה הסידור|מה מתוכנן|יש עבודות) (.+)$/.exec(s)
   if (who) {
     const f = find(who[1], d, {}, now)
-    if (f.date && !f.rest.length && !f.location && !f.workerIds.length && !f.unsure.length && !f.staffing.length) return { kind: 'say', text: whoWorks(f.date, d, now) }
+    if (f.date && !f.rest.length && !f.location && !f.workerIds.length && !f.unsure.length && !f.staffing.length && !f.vehicle) return { kind: 'say', text: whoWorks(f.date, d, now) }
   }
   return null
 }
@@ -461,7 +478,13 @@ export const QUESTIONS: Record<JobField, (d: AppData) => string> = {
   staffing: () => 'כמה אנשים צריך, ועם איזו הסמכה?',
 }
 
-function jobProposal(job: PendingJob['job'], d: AppData, now: Date): Proposal {
+/** " רכב 678, סיטרואן ברלינגו.": the vehicle as every read-back says it (the user's rule, 2026-11-15). */
+const carLine = (d: AppData, id: string | undefined) => {
+  const v = id ? (d.vehicles ?? []).find((x) => x.id === id) : undefined
+  return v ? ` רכב ${carText(v)}.` : ''
+}
+
+function jobProposal(job: PendingJob['job'], d: AppData, now: Date, note = ''): Proposal {
   const kind = d.shiftDefinitions.find((s) => s.id === job.shiftKindId)?.name ?? ''
   const staff = job.staffing.map((s) => {
     const cert = s.certificationIds?.length ? (d.certifications.find((c) => c.id === s.certificationIds![0])?.name ?? '') : ''
@@ -471,11 +494,11 @@ function jobProposal(job: PendingJob['job'], d: AppData, now: Date): Proposal {
   const when = job.date ? `${kind ? `${kind} ` : ''}${dayText(job.date, now)}` : `${kind ? `${kind}, ` : 'בלי סוג משמרת, '}בלי תאריך, לרשימת לשיבוץ`
   const parts = [when, job.location ? `ב${job.location}` : '', job.jobDescription].filter(Boolean)
   const need = staff.length ? ` צריך ${staff.join(' ו')}.` : ''
-  const summary = `עבודה חדשה: ${parts.join(', ')}.${need}${job.autoAssign ? ' ואשבץ אנשים.' : ''} לאשר, או שיש עוד תיקון?`
+  const summary = `${note ? `${note} ` : ''}עבודה חדשה: ${parts.join(', ')}.${need}${carLine(d, job.vehicleId)}${job.autoAssign ? ' ואשבץ אנשים.' : ''} לאשר, או שיש עוד תיקון?`
   return {
     ...normalizeProposal({}),
     summary,
-    jobs: [{ ...job, staffing: job.staffing.map((s) => ({ ...s, certificationIds: s.certificationIds ?? [] })), workKindIds: [], note: '', nextJob: { location: '', jobDescription: '' }, crew: [] }],
+    jobs: [{ ...job, staffing: job.staffing.map((s) => ({ ...s, certificationIds: s.certificationIds ?? [] })), workKindIds: [], note: '', nextJob: { location: '', jobDescription: '' }, crew: [], vehicleId: job.vehicleId ?? '' }],
   }
 }
 
@@ -506,6 +529,8 @@ function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
   const f = find(text, d, L.aliases, now, L.protect)
   if (f.workerIds.length || f.unsure.length) return null // naming workers is beyond what was learned
   if (!jobSaid(f, text, L)) return null
+  // "רכב" with no vehicle after it ("צריך רכב"): Claude.
+  if (f.rest.some((w) => CAR_WORD.test(w))) return null
   const rest = f.rest.map(bare)
   const unknownAt = f.restAt.filter((_, k) => !isJobWord(f.rest[k], rest[k], L))
   let description = f.description ?? ''
@@ -540,10 +565,25 @@ function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {
   }
   // With one kind of job only, that is the kind.
   const kind = f.shiftKindId ?? (d.shiftDefinitions.length === 1 ? d.shiftDefinitions[0].id : '')
-  const job = { date: f.date ?? '', shiftKindId: kind, location, jobDescription: description, staffing: f.staffing.map((x) => ({ count: x.count, ...(x.certId ? { certificationIds: [x.certId] } : {}) })), autoAssign: rest.some((w) => ASSIGN.test(w)) }
+  // The vehicle it goes out with: one, or the app asks which (or says there is none).
+  let car: { vehicle: Vehicle; note: string } | null = null
+  if (f.vehicle) {
+    const a = carAnswer(text, f.vehicle, d)
+    if (!isCar(a)) return a
+    car = a
+  }
+  const job = {
+    date: f.date ?? '',
+    shiftKindId: kind,
+    location,
+    jobDescription: description,
+    staffing: f.staffing.map((x) => ({ count: x.count, ...(x.certId ? { certificationIds: [x.certId] } : {}) })),
+    autoAssign: rest.some((w) => ASSIGN.test(w)),
+    ...(car ? { vehicleId: car.vehicle.id } : {}),
+  }
   const missing = missingOf(job)
-  if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing } }
-  return { kind: 'propose', proposal: jobProposal(job, d, now) }
+  if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing, ...(car?.note ? { note: car.note } : {}) } }
+  return { kind: 'propose', proposal: jobProposal(job, d, now, car?.note) }
 }
 
 // "לא יודע", "עוד לא ידוע", "תשאיר פתוח", "אין לי מושג": the manager does not know this detail yet.
@@ -562,6 +602,7 @@ export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned,
   const field = p.missing[0]
   const f = find(text, d, L.aliases, now, L.protect)
   const job = { ...p.job }
+  let note = p.note ?? ''
   let kindOpen = Boolean(p.kindOpen)
   if (f.workerIds.length || f.unsure.length) return null
   if (field === 'shiftKindId' && !job.date && isOpenAnswer(text)) {
@@ -569,7 +610,7 @@ export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned,
     kindOpen = true
   } else if (field === 'jobDescription' && !f.description) {
     const t = clean(text)
-    if (!t || f.date || f.location || f.staffing.length) return null
+    if (!t || f.date || f.location || f.staffing.length || f.vehicle) return null
     job.jobDescription = t
   } else {
     if (f.rest.length) return null // something more than the answer: Claude
@@ -578,19 +619,25 @@ export function continueJob(text: string, p: PendingJob, d: AppData, L: Learned,
     if (f.location) job.location = f.location
     if (f.description) job.jobDescription = f.description
     if (f.staffing.length) job.staffing = f.staffing.map((x) => ({ count: x.count, ...(x.certId ? { certificationIds: [x.certId] } : {}) }))
+    if (f.vehicle) {
+      const a = carAnswer(text, f.vehicle, d)
+      if (!isCar(a)) return null // a vehicle not clear in an answer: Claude, with all that was said
+      job.vehicleId = a.vehicle.id
+      note = a.note || note
+    }
   }
   const missing = missingOf(job, kindOpen)
   if (missing.length && missing[0] === field) return null // the answer did not answer: Claude
   if (p.pinned) return continueDates(job, missing, p.pinned, d, now)
-  if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing, kindOpen } }
-  return { kind: 'propose', proposal: jobProposal(job, d, now) }
+  if (missing.length) return { kind: 'ask', question: QUESTIONS[missing[0]](d), pending: { job, missing, kindOpen, ...(note ? { note } : {}) } }
+  return { kind: 'propose', proposal: jobProposal(job, d, now, note) }
 }
 
 /** "יוסי חולה היום", said the way a learned one was: mark sick, and offer a replacement when he is in a job. */
 /** "<worker> חולה <when>": the change to his card and how it is said, or null when the sentence is more than that. */
 export function sickPlan(text: string, d: AppData, L: Learned, now: Date): { workerId: string; extra: Edits; sickText: string; from: string; until: string } | null {
   const f = find(text, d, L.aliases, now, L.protect)
-  if (f.workerIds.length !== 1 || f.location || f.staffing.length || f.shiftKindId || f.description) return null
+  if (f.workerIds.length !== 1 || f.location || f.staffing.length || f.shiftKindId || f.description || f.vehicle) return null
   const rest = f.rest.map(bare)
   if (!said(L.sick.words, rest)) return null
   const action = new Set(L.sick.words.flat())
@@ -622,7 +669,7 @@ export function sickPlan(text: string, d: AppData, L: Learned, now: Date): { wor
  */
 function sickWho(text: string, d: AppData, L: Learned, now: Date): Local {
   const f = find(text, d, L.aliases, now, L.protect)
-  if (f.workerIds.length || f.location || f.staffing.length || f.shiftKindId || f.description || f.unsure.length > 1) return null
+  if (f.workerIds.length || f.location || f.staffing.length || f.shiftKindId || f.description || f.vehicle || f.unsure.length > 1) return null
   const rest = f.rest.map(bare)
   if (!said(L.sick.words, rest)) return null
   const action = new Set(L.sick.words.flat())
@@ -728,7 +775,7 @@ function newWorkerPlan(text: string, d: AppData, now: Date): { firstName: string
   if (ws.some((w) => /^(?:ו?ה?עובדים|ו?ה?עובדות|העובד|העובדת|לעובד|לעובדת)$/.test(w))) return null // several, or one that exists
   // Certifications only: no worker names, places or job types are read here (the name is new).
   const f = find(rest, { ...d, workers: [], places: [], jobTypes: [] }, {}, now)
-  if (f.date || f.shiftKindId || f.description || f.staffing.some((s) => s.count !== 1)) return null
+  if (f.date || f.shiftKindId || f.description || f.vehicle || f.staffing.some((s) => s.count !== 1)) return null
   const at = f.restAt.filter((_, k) => !WORKER_VERBS.has(f.rest[k]) && !WORKER_WORDS.test(f.rest[k]) && !COMMON.has(f.rest[k]))
   // The name: one to three words in a row, nothing else unexplained.
   if (!at.length || at.length > 3 || at.some((x, k) => k > 0 && x !== at[k - 1] + 1)) return null
@@ -750,7 +797,112 @@ function newWorker(text: string, d: AppData, now: Date): Local {
 
 /** The first sentence of a conversation: handled here, or null for Claude. */
 export function handleFree(text: string, d: AppData, L: Learned, now = new Date()): Local {
-  return fixed(text, d, now) ?? newWorker(text, d, now) ?? freeDates(text, d, L, now) ?? learnedSick(text, d, L, now) ?? learnedJob(text, d, L, now)
+  return fixed(text, d, now) ?? newWorker(text, d, now) ?? freeDates(text, d, L, now) ?? learnedSick(text, d, L, now) ?? carToJob(text, d, L, now) ?? learnedJob(text, d, L, now)
+}
+
+// ---- Vehicles: "תוסיף לעבודה בערד את רכב 678" (the user's request, 2026-11-15, built in) ----
+//
+// A vehicle is named by the last 3 digits of its plate, in digits or in words, maybe with its make or
+// model (src/lib/vehicleRef.ts). Every read-back says the 3 digits, make and model. A make or model that
+// is not that of the vehicle the digits name is corrected before the yes; two vehicles that fit: which.
+
+const CAR_VERBS = new Set([...JOB_VERBS, 'תצרף', 'צרף', 'לצרף', 'תקצה', 'הקצה', 'תחליף', 'החלף', 'להחליף', 'תעדכן', 'עדכן', 'תן', 'תיתן', 'תביא', 'הבא', 'שייך', 'תשייך'])
+// "לעבודה", "בעבודה", "העבודה": a job that exists.
+const CAR_JOB = /^ו?(?:[לב]ה?|ה)עבוד(?:ה|ת)$/
+// Words of a correction or of the request itself, with no value in them.
+const CAR_FIX = /^(?:לא|רגע|סליחה|בעצם|טעיתי|במקום|אופס|תתקן|תקן|אלא|ל|לה|את|שיהיה|יהיה|שיצא|יצא|יוצא|גם|שם|אליה|אותו|הזה|זה|נכון|כן|יותר|טוב)$/
+const carWordOk = (w: string, b: string) => CAR_VERBS.has(w) || CAR_VERBS.has(b) || CAR_JOB.test(w) || CAR_WORD.test(w) || CAR_FIX.test(w) || CAR_FIX.test(b)
+
+type CarAnswer = { vehicle: Vehicle; note: string } | Local
+const isCar = (a: CarAnswer): a is { vehicle: Vehicle; note: string } => Boolean(a && 'vehicle' in a)
+
+/** The vehicle said: one (with a correction when its make or model was said wrong), a question, or "לא מצאתי". */
+function carAnswer(text: string, ref: CarRef, d: AppData, base?: Proposal): CarAnswer {
+  const pick = pickCar(ref, d.vehicles ?? [])
+  if (pick.kind === 'none') return { kind: 'say', text: pick.text }
+  if (pick.kind === 'many') return { kind: 'whichCar', question: pick.question, pending: { text, at: ref.at, n: ref.n, ids: pick.vehicles.map((v) => v.id), ...(base ? { base } : {}) } }
+  return { vehicle: pick.vehicle, note: pick.note }
+}
+
+/** Putting a vehicle in a job that exists: what is changed and how it is said. */
+function carEdit(job: { id: string; location: string; jobDescription: string; date?: string; vehicleId?: string }, v: Vehicle, note: string, d: AppData, now: Date): Proposal {
+  const where = job.location || job.jobDescription.split('\n')[0].replace(/^\d+\.\s*/, '')
+  const when = job.date ? ` ${dayText(job.date, now)}` : ''
+  const old = job.vehicleId && job.vehicleId !== v.id ? (d.vehicles ?? []).find((x) => x.id === job.vehicleId) : undefined
+  return {
+    ...normalizeProposal({}),
+    summary: `${note ? `${note} ` : ''}לעבודה ב${where}${when} אוסיף את רכב ${carText(v)}${old ? `, במקום רכב ${carText(old)}` : ''}. לאשר, או שיש עוד תיקון?`,
+    editJobs: [{ id: job.id, date: '', shiftKindId: '', location: '', jobDescription: '', staffing: [], autoAssign: false, vehicleId: v.id }],
+  }
+}
+
+/** "תוסיף לעבודה בערד מחר את רכב 678": the one job that place and day name, from today on. */
+function carToJob(text: string, d: AppData, L: Learned, now: Date): Local {
+  const f = find(text, d, L.aliases, now, L.protect)
+  if (!f.vehicle || f.workerIds.length || f.unsure.length || f.staffing.length || f.description) return null
+  if (!words(text).some((w) => CAR_JOB.test(w))) return null
+  const rest = f.rest.map(bare)
+  if (!f.rest.some((w, k) => CAR_VERBS.has(w) || CAR_VERBS.has(rest[k]))) return null
+  if (!f.rest.every((w, k) => carWordOk(w, rest[k]))) return null
+  if (!f.location && !f.date) return null // which job: Claude knows the conversation
+  const today = plus(now, 0)
+  const fits = (r: { location: string; shiftDefinitionId?: string }) => (!f.location || r.location === f.location) && (!f.shiftKindId || r.shiftDefinitionId === f.shiftKindId)
+  const jobs = [
+    ...d.shifts.filter((s) => !s.closure && s.date >= today && (!f.date || s.date === f.date) && fits(s)),
+    ...(f.date ? [] : d.pendingJobs.filter((j) => isWaiting(j, d.shifts) && fits(j))),
+  ]
+  if (!jobs.length) {
+    const what = [f.location ? `ב${f.location}` : '', f.date ? dayText(f.date, now) : ''].filter(Boolean).join(' ')
+    return { kind: 'say', text: `לא מצאתי עבודה ${what}. אפשר לומר שוב עם המקום והיום של העבודה.` }
+  }
+  if (jobs.length > 1) return null
+  const a = carAnswer(text, f.vehicle, d)
+  if (!isCar(a)) return a
+  const job = jobs[0]
+  if (job.vehicleId === a.vehicle.id) return { kind: 'say', text: `${a.note ? `${a.note} ` : ''}רכב ${carText(a.vehicle)} כבר בעבודה הזו.` }
+  return { kind: 'propose', proposal: carEdit(job, a.vehicle, a.note, d, now) }
+}
+
+/**
+ * A vehicle said while a proposal made here waits for the yes ("לא, רכב 812", "תוסיף לעבודה את רכב 678"):
+ * the same proposal with that vehicle, read back again. Null when it is anything more, or the proposal
+ * is more than one job.
+ */
+export function carFix(text: string, p: Proposal, d: AppData, L: Learned, now = new Date()): Local {
+  const f = find(text, d, L.aliases, now, L.protect)
+  if (!f.vehicle || f.workerIds.length || f.unsure.length || f.staffing.length || f.description || f.date || f.location || f.shiftKindId) return null
+  const rest = f.rest.map(bare)
+  if (!f.rest.every((w, k) => carWordOk(w, rest[k]))) return null
+  const others = [p.assignShiftIds, p.workers, p.listItems, p.rememberNotes, p.forgetNoteIds, p.lessons, p.setCrews, p.closeJobs, p.deleteJobIds, p.editWorkers, p.addConstraints].some((x) => x.length)
+  if (others) return null
+  const j = p.jobs[0]
+  const e = p.editJobs[0]
+  const job = p.jobs.length === 1 && !p.editJobs.length && !j.crew.length && !j.workKindIds.length && !j.nextJob.location && !j.nextJob.jobDescription && !j.note ? j : null
+  const edit = !p.jobs.length && p.editJobs.length === 1 && !e.date && !e.shiftKindId && !e.location && !e.jobDescription && !e.staffing.length && !e.autoAssign ? e : null
+  const target = edit ? (d.shifts.find((s) => s.id === edit.id) ?? d.pendingJobs.find((x) => x.id === edit.id)) : undefined
+  if (!job && !target) return null
+  const a = carAnswer(text, f.vehicle, d, p)
+  // No such vehicle: said, and the proposal stays as it was.
+  if (isCar(a)) return carFixed(a, job, target, d, now)
+  if (a?.kind === 'say') return { kind: 'propose', proposal: { ...p, summary: `${a.text} ${p.summary}` } }
+  return a
+}
+
+function carFixed(a: { vehicle: Vehicle; note: string }, job: Proposal['jobs'][number] | null, target: { id: string; location: string; jobDescription: string; date?: string; vehicleId?: string } | undefined, d: AppData, now: Date): Local {
+  if (job) return { kind: 'propose', proposal: jobProposal({ date: job.date, shiftKindId: job.shiftKindId, location: job.location, jobDescription: job.jobDescription, staffing: job.staffing, autoAssign: job.autoAssign, vehicleId: a.vehicle.id }, d, now, a.note) }
+  return { kind: 'propose', proposal: carEdit(target!, a.vehicle, a.note, d, now) }
+}
+
+/** The answer to "איזה מהם?": the first sentence again with that vehicle's full plate, or null when it is not clear. */
+export function continueCar(text: string, p: PendingCar, d: AppData, L: Learned, now = new Date()): { text: string; local: Local } | null {
+  const options = p.ids.map((id) => (d.vehicles ?? []).find((v) => v.id === id)).filter((v): v is Vehicle => Boolean(v))
+  const ordinal = isYes(clean(text)) ? null : pickedOption(text, options.length)
+  const v = answerCar(text, words(text), options, ordinal)
+  if (!v) return null
+  const said1 = words(p.text)
+  const fixed1 = [...said1.slice(0, p.at), 'רכב', plateDigits(v), ...said1.slice(p.at + p.n)].join(' ')
+  const local = p.base ? carFix(fixed1, p.base, d, L, now) : handleFree(fixed1, d, L, now)
+  return local ? { text: fixed1, local } : null
 }
 
 // ---- One long sentence with several requests (the user's request, 2026-11-08) ----
@@ -910,6 +1062,7 @@ export function whyNotFree(text: string, d: AppData, L: Learned, now = new Date(
     f.shiftKindId ? `kind: ${d.shiftDefinitions.find((s) => s.id === f.shiftKindId)?.name ?? f.shiftKindId}` : '',
     f.staffing.length ? `certifications: ${f.staffing.map((s) => `${s.count} ${s.certId ? (d.certifications.find((c) => c.id === s.certId)?.name ?? s.certId) : 'any worker'}`).join(', ')}` : '',
     f.description ? `job type: ${f.description}` : '',
+    f.vehicle ? `vehicle: ${f.vehicle.digits || f.vehicle.said.join(' ')} (${f.vehicle.ids.length} fit${f.vehicle.wrong.length ? `, make/model said wrong: ${f.vehicle.wrong.join(' ')}` : ''})` : '',
     f.rest.length ? `not understood: ${q(f.rest)}` : '',
   ]
   const understood = parts.filter(Boolean).join('; ') || 'nothing'
@@ -931,6 +1084,7 @@ export function whyNotFree(text: string, d: AppData, L: Learned, now = new Date(
     if (L.sick.needsDate && !f.date) return out('sick: no date said')
     return out('sick: not understood')
   }
+  if (f.vehicle && words(text).some((w) => CAR_JOB.test(w))) return out('vehicle to a job that exists: needs a verb and a place or a day that match exactly one job, and no other words')
   if (words(text).some((w) => OTHER_JOB.test(w))) return out('job: speaks of a job that exists ("העבודה") or of several jobs: changing jobs is not learned yet')
   if (jobSaid(f, text, L)) {
     if (f.workerIds.length || f.unsure.length) return out('job: names a worker (assigning a named worker is not learned yet)')

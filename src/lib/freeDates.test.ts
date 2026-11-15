@@ -26,6 +26,7 @@ const data = (over: Partial<AppData> = {}): AppData => ({
   assistantNotes: [],
   departments: [],
   assistantExamples: [],
+  vehicles: [],
   ...over,
 })
 const run = (said: string, d = data()) => handleFree(said, d, learn(d.assistantExamples, d), NOW)

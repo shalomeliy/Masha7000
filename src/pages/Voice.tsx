@@ -2,13 +2,13 @@ import { language, tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, AudioLines, BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
-import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, snapshot, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
+import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, proposalVehicles, snapshot, summaryWith, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
 import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
 import { askAssistant, fetchBudget, userTurn, type AssistantAnswer, type Budget, type Turn } from '../lib/assistantApi'
 import { realAssistantOn, setRealAssistant } from '../dev/realAssistant'
-import { claudePart, continueJob, continueWho, countTurn, exampleAction, handleFree, knownResult, learn, mergeProposals, pickedOption, sickPlan, splitFree, usage, whyNotFree, type Local, type PendingJob, type PendingWho } from '../lib/freeCommands'
+import { carFix, claudePart, continueCar, continueJob, continueWho, countTurn, exampleAction, handleFree, knownResult, learn, mergeProposals, pickedOption, sickPlan, splitFree, usage, whyNotFree, type Local, type PendingCar, type PendingJob, type PendingWho } from '../lib/freeCommands'
 import { saveEntry, type ClaudeLogEntry, type LogOutcome } from '../lib/claudeLog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
@@ -51,6 +51,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     assistantNotes: useDriveList('assistantNotes'),
     departments: useDriveList('departments'),
     assistantExamples: useDriveList('assistantExamples'),
+    vehicles: useDriveList('vehicles'), // read only: the assistant names them by the last 3 digits of the plate
   }
   const loading = Object.values(lists).some((l) => l.query.isPending)
   const data = Object.fromEntries(Object.entries(lists).map(([k, l]) => [k, l.items])) as unknown as AppData
@@ -90,6 +91,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const last = useRef<AssistantAnswer | null>(null)
   const pendingJob = useRef<PendingJob | null>(null) // a job being opened here, free, waiting for a missing detail
   const pendingWho = useRef<PendingWho | null>(null) // a name close to two workers, waiting for "which one"
+  const pendingCar = useRef<PendingCar | null>(null) // two vehicles that fit what was said, waiting for "which one"
   const fromFree = useRef(false) // the open proposal was made here, not by Claude: nothing to learn from it
   // A long sentence whose known parts are done here: they join whatever Claude proposes for the rest.
   const localPart = useRef<{ texts: string[]; proposal: Proposal | null } | null>(null)
@@ -134,6 +136,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     asked.current = []
     pendingJob.current = null
     pendingWho.current = null
+    pendingCar.current = null
     fromFree.current = false
     localPart.current = null
     claudeProposal.current = null
@@ -256,6 +259,9 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       claudeProposal.current = p
       p = mergeProposals([localPart.current.proposal, p])
     }
+    // The vehicle of each job, with its last 3 digits, make and model, and a correction when the make
+    // or model said is not that vehicle's (worded by the app, the user's rule, 2026-11-15).
+    p = { ...p, summary: summaryWith(p.summary, proposalVehicles(p, data, language().code === 'he' ? asked.current.join(' ') : '')) }
     // Deletions first (worded by the app, not the model), then moves of busy workers.
     const moves = [...proposalDangers(p, data), ...proposalConflicts(p, data)]
     const asks = applyProposal(p, data).asksReturn
@@ -359,10 +365,17 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       // The answer to "למי התכוונת": the first sentence again, with the worker picked, as if said that way.
       const waitingWho = pendingWho.current
       const waitingJob = pendingJob.current
+      const waitingCar = pendingCar.current
       const who = waitingWho ? continueWho(text, waitingWho, data, learned, now) : null
       if (who) asked.current = [who.text]
-      const local = who ? who.local : waitingWho ? null : waitingJob ? continueJob(text, waitingJob, data, learned, now) : asked.current.length === 1 ? handleFree(text, data, learned, now) : null
+      // "איזה מהם?" about two vehicles: the sentence again with the one picked.
+      const car = waitingCar ? continueCar(text, waitingCar, data, learned, now) : null
+      if (car && !waitingCar?.base) asked.current = [car.text]
+      // A vehicle said while a proposal made here waits ("לא, רכב 812"): the same proposal with it, free.
+      const fix = !waitingCar && proposal && fromFree.current ? carFix(text, proposal, data, learned, now) : null
+      const local = who ? who.local : car ? car.local : fix ? fix : waitingWho || waitingCar ? null : waitingJob ? continueJob(text, waitingJob, data, learned, now) : asked.current.length === 1 ? handleFree(text, data, learned, now) : null
       pendingWho.current = null
+      pendingCar.current = null
       if (actFree(local)) return
       // One long sentence with several requests: the known ones here, free; only the rest to Claude.
       if (!local && !waitingWho && !waitingJob && asked.current.length === 1 && actSplit(text, learned, now)) return
@@ -370,6 +383,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       const why = whyNotFree(asked.current[0], data, learned, now)
       if (local?.kind === 'propose') logStart(`a free proposal failed the checks: ${proposalErrors(local.proposal, data).join('; ')}`, why.understood)
       else if (waitingWho) logStart('the answer to "which worker did you mean" was not understood', why.understood)
+      else if (waitingCar) logStart('the answer to "which vehicle" was not understood', why.understood)
       else if (waitingJob) logStart(`the answer to the free question about the job's ${waitingJob.missing[0]} was not understood`, why.understood)
       else if (asked.current.length > 1) logStart('a later sentence of a conversation that started free', why.understood)
       else logStart(why.reason, why.understood)
@@ -442,6 +456,12 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       reset()
     } else if (local.kind === 'which') {
       pendingWho.current = local.pending
+      setTalking(true)
+      say(local.question)
+    } else if (local.kind === 'whichCar') {
+      // A proposal being corrected waits in the question; the answer makes it again.
+      pendingCar.current = local.pending
+      setProposal(null)
       setTalking(true)
       say(local.question)
     } else if (local.kind === 'ask') {

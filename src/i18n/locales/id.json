@@ -1237,5 +1237,8 @@
  "שומעים כל כתיב, ובוחרים את זה שנשמע שָׁאלִי, עם הדגש בסוף. מכאן והלאה השם ייאמר כך.": "Dengarkan setiap ejaan dan pilih yang terdengar seperti \"sha-LI\", dengan tekanan di akhir. Mulai sekarang nama diucapkan seperti itu.",
  "משהו השתבש במסך הזה": "Terjadi kesalahan di layar ini",
  "המידע שלך שמור בגוגל דרייב. טעינה מחדש בדרך כלל פותרת את זה.": "Data Anda aman di Google Drive. Memuat ulang biasanya memperbaikinya.",
- "טען מחדש": "Muat ulang"
+ "טען מחדש": "Muat ulang",
+ "הוספתי לעבודה ב{where} את רכב {car}": "Kendaraan {car} ditambahkan ke pekerjaan di {where}",
+ "הורדתי את הרכב מהעבודה ב{where}": "Kendaraan dilepas dari pekerjaan di {where}",
+ "רכב לעבודה ב{where}: {car}.": "Kendaraan untuk pekerjaan di {where}: {car}."
 }

@@ -1237,5 +1237,8 @@
  "שומעים כל כתיב, ובוחרים את זה שנשמע שָׁאלִי, עם הדגש בסוף. מכאן והלאה השם ייאמר כך.": "Escucha cada forma de escribirlo y elige la que suena como «sha-LÍ», con el acento al final. A partir de ahora el nombre se dirá así.",
  "משהו השתבש במסך הזה": "Algo salió mal en esta pantalla",
  "המידע שלך שמור בגוגל דרייב. טעינה מחדש בדרך כלל פותרת את זה.": "Tus datos están guardados en Google Drive. Recargar suele solucionarlo.",
- "טען מחדש": "Recargar"
+ "טען מחדש": "Recargar",
+ "הוספתי לעבודה ב{where} את רכב {car}": "Añadí el vehículo {car} al trabajo en {where}",
+ "הורדתי את הרכב מהעבודה ב{where}": "Quité el vehículo del trabajo en {where}",
+ "רכב לעבודה ב{where}: {car}.": "Vehículo para el trabajo en {where}: {car}."
 }
