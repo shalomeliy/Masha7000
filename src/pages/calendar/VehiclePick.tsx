@@ -1,11 +1,11 @@
 import { tx } from '../../i18n'
-import { Field, inputClass } from '../../components/Sheet'
+import { ChoiceList, type Choice } from '../../components/ChoiceList'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { pickVehicle, vehicleLabel, vehicleOptionText, vehiclePickList } from '../../lib/vehicles'
 
-// The job's vehicle: one list of the vehicles in "רכבים", each shown as plate · model · make, sorted by
-// model and then by make (the owner's request, 2026-11-15; it replaced the separate "דגם רכב" and
-// "רישוי" fields). Not required.
+// The job's vehicle: one list of the vehicles in "רכבים", each shown as make · model · plate, A to Z by
+// make and then model (the owner's request, 2026-11-15; it replaced the separate "דגם רכב" and
+// "רישוי" fields). Drawn by the app so the round mark sits on the right in Hebrew. Not required.
 
 type Pick = { vehicleId?: string; vehicleModel?: string }
 
@@ -22,26 +22,22 @@ export function VehiclePick({ value, onChange }: { value: Pick; onChange: (next:
   const modelOnly = !value.vehicleId && value.vehicleModel
   const current = value.vehicleId ?? (modelOnly ? MODEL_ONLY : '')
 
+  const options: Choice[] = [
+    { value: '', label: tx('בלי') },
+    ...(gone ? [{ value: value.vehicleId!, label: vehicleLabel(undefined) }] : []),
+    ...(modelOnly ? [{ value: MODEL_ONLY, label: tx('{v}, בלי רישוי', { v: value.vehicleModel }) }] : []),
+    ...list.map((v) => ({ value: v.id, label: vehicleOptionText(v) })),
+  ]
+
   return (
-    <Field label={tx('רכב')}>
-      <select
-        value={current}
-        onChange={(e) => {
-          const id = e.target.value
-          if (id === MODEL_ONLY) return
-          onChange(id ? pickVehicle(id, vehicles.items) : { vehicleId: undefined, vehicleModel: undefined })
-        }}
-        className={inputClass}
-      >
-        <option value="">{tx('בלי')}</option>
-        {gone && <option value={value.vehicleId}>{vehicleLabel(undefined)}</option>}
-        {modelOnly && <option value={MODEL_ONLY}>{tx('{v}, בלי רישוי', { v: value.vehicleModel })}</option>}
-        {list.map((v) => (
-          <option key={v.id} value={v.id}>
-            {vehicleOptionText(v)}
-          </option>
-        ))}
-      </select>
-    </Field>
+    <ChoiceList
+      label={tx('רכב')}
+      value={current}
+      options={options}
+      onChange={(id) => {
+        if (id === MODEL_ONLY || id === value.vehicleId) return
+        onChange(id ? pickVehicle(id, vehicles.items) : { vehicleId: undefined, vehicleModel: undefined })
+      }}
+    />
   )
 }

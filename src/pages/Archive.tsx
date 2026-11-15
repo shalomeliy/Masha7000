@@ -15,6 +15,7 @@ import { defaultWeek, weekDates } from '../lib/weekReport'
 import type { ShiftRecord } from '../types/models'
 import { OUTCOMES } from './calendar/outcomes'
 import { MonthReport, WeekReport } from './archive/PeriodReport'
+import { ChoiceList } from '../components/ChoiceList'
 
 // The whole history of shifts: who worked, where, what the job was, how a night job ended and
 // who was swapped. Read-only; a shift is changed from "יומן".
@@ -109,29 +110,19 @@ export function Archive() {
               <DateField label={tx('מתאריך')} value={filter.from} max={filter.to || undefined} onChange={(from, ok) => ok && (setRange(''), set({ from }))} />
               <DateField label={tx('עד תאריך')} value={filter.to} min={filter.from || undefined} onChange={(to, ok) => ok && (setRange(''), set({ to }))} />
             </div>
-            <Field label={tx('עובד')}>
-              <select value={filter.workerId ?? NONE} onChange={(e) => set({ workerId: e.target.value })} className={inputClass}>
-                <option value={NONE} disabled hidden>
-                  {tx('בחר עובד')}
-                </option>
-                <option value="">{tx('כל העובדים')}</option>
-                {sortedWorkers.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {fullName(w)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={tx('מקום')}>
-              <select value={filter.location} onChange={(e) => set({ location: e.target.value })} className={inputClass}>
-                <option value="">{tx('כל המקומות')}</option>
-                {places.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <ChoiceList
+              label={tx('עובד')}
+              value={filter.workerId ?? NONE}
+              placeholder={tx('בחר עובד')}
+              onChange={(workerId) => set({ workerId })}
+              options={[{ value: '', label: tx('כל העובדים') }, ...sortedWorkers.map((w) => ({ value: w.id, label: fullName(w) }))]}
+            />
+            <ChoiceList
+              label={tx('מקום')}
+              value={filter.location ?? ''}
+              onChange={(location) => set({ location })}
+              options={[{ value: '', label: tx('כל המקומות') }, ...places.map((p) => ({ value: p, label: p }))]}
+            />
             <Field label={tx('חיפוש חופשי')}>
               <span className="relative block">
                 <Search size={16} aria-hidden className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-slate-500" />

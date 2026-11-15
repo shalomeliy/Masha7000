@@ -40,6 +40,7 @@ import { searchWorkers } from "../../lib/workerSearch";
 import { AverageStars, CertStarsField, RatingsSheet } from "./CertStars";
 import { keepHeldRatings } from "../../lib/certRatings";
 import { expiryCounts, expiryNote, expiryState, keepHeldExpiry } from "../../lib/certExpiry";
+import { ChoiceList } from '../../components/ChoiceList'
 
 const blankWorker = (): Worker => ({
   id: newId(),
@@ -744,11 +745,12 @@ function WorkerForm({
         />
         {certs.items.length ? (
           certs.items.some((c) => !draft.certificationIds.includes(c.id)) && (
-            <select
-              aria-label={tx('הוסף הסמכה')}
+            <ChoiceList
+              ariaLabel={tx('הוסף הסמכה')}
               value=""
-              onChange={(e) => {
-                const id = e.target.value
+              placeholder={tx('+ הוסף הסמכה')}
+              options={certs.items.filter((c) => !draft.certificationIds.includes(c.id)).map((c) => ({ value: c.id, label: c.name }))}
+              onChange={(id) => {
                 if (!id) return
                 setDraft((d) => ({
                   ...d,
@@ -756,17 +758,7 @@ function WorkerForm({
                   ...(!exists ? { certRatings: { ...d.certRatings, [id]: 0 } } : {}),
                 }))
               }}
-              className={`${inputClass} text-slate-300`}
-            >
-              <option value="">{tx('+ הוסף הסמכה')}</option>
-              {certs.items
-                .filter((c) => !draft.certificationIds.includes(c.id))
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
+            />
           )
         ) : (
           <p className="text-sm text-amber-300">
