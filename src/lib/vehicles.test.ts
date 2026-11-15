@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cleanVehicle, hasSamples, jobVehicleText, pickModel, pickVehicle, randomPlate, SAMPLE_COUNT, sampleVehicles, VEHICLE_FIELDS, vehicleError, vehicleModels, vehiclesOfModel } from './vehicles'
+import { cleanVehicle, hasSamples, jobVehicleText, pickModel, pickVehicle, randomPlate, SAMPLE_COUNT, sampleVehicles, VEHICLE_FIELDS, vehicleError, vehicleModels, vehicleOptionText, vehiclePickList, vehiclesOfModel } from './vehicles'
 import type { Vehicle } from '../types/models'
 
 const v = (id: string, plate: string, model = ''): Vehicle => ({ id, values: { plate, ...(model ? { model } : {}) } })
@@ -27,6 +27,15 @@ describe('vehicles', () => {
     expect(jobVehicleText({ vehicleId: '1' }, fleet)).toBe('12-345-67 · הילוקס')
     expect(jobVehicleText({ vehicleId: 'gone' }, fleet)).toBe('רכב שנמחק')
     expect(jobVehicleText({ vehicleModel: 'אקטרוס' }, fleet)).toBe('אקטרוס')
+  })
+
+  it("the job's one vehicle list shows plate, model and make, by model then make then plate", () => {
+    const car = (id: string, plate: string, model: string, make: string): Vehicle => ({ id, values: { plate, model, make } })
+    const cars = [car('a', '33', 'Caddy', 'Volkswagen'), car('b', '11', 'Hilux', 'Toyota'), car('c', '22', 'Caddy', 'Audi'), v('d', '44'), car('e', '10', 'Caddy', 'Audi')]
+    expect(vehiclePickList(cars).map((x) => x.id)).toEqual(['e', 'c', 'a', 'b', 'd'])
+    expect(vehicleOptionText(cars[0])).toBe('33 · Caddy · Volkswagen')
+    expect(vehicleOptionText(cars[3])).toBe('44')
+    expect(jobVehicleText({ vehicleId: 'a' }, cars)).toBe('33 · Caddy · Volkswagen')
   })
 })
 
