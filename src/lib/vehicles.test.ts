@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { cleanVehicle, hasSamples, jobVehicleText, pickModel, pickVehicle, randomPlate, SAMPLE_COUNT, sampleVehicles, VEHICLE_FIELDS, vehicleError, vehicleModels, vehicleOptionText, vehiclePickList, vehiclesOfModel } from './vehicles'
 import type { Vehicle } from '../types/models'
+import { apply } from '../i18n'
+import { languageOf } from '../i18n/languages'
 
 const v = (id: string, plate: string, model = ''): Vehicle => ({ id, values: { plate, ...(model ? { model } : {}) } })
 const fleet = [v('1', '12-345-67', 'הילוקס'), v('2', '22-222-22', 'אקטרוס'), v('3', '33-333-33', 'הילוקס')]
@@ -24,18 +26,23 @@ describe('vehicles', () => {
     expect(pickVehicle('2', fleet)).toEqual({ vehicleId: '2', vehicleModel: 'אקטרוס' })
     expect(pickModel({ vehicleId: '2' }, 'הילוקס', fleet)).toEqual({ vehicleModel: 'הילוקס', vehicleId: undefined })
     expect(pickModel({ vehicleId: '1' }, 'הילוקס', fleet)).toEqual({ vehicleModel: 'הילוקס', vehicleId: '1' })
-    expect(jobVehicleText({ vehicleId: '1' }, fleet)).toBe('12-345-67 · הילוקס')
+    expect(jobVehicleText({ vehicleId: '1' }, fleet)).toBe('הילוקס \u200F·\u200F 12-345-67')
     expect(jobVehicleText({ vehicleId: 'gone' }, fleet)).toBe('רכב שנמחק')
     expect(jobVehicleText({ vehicleModel: 'אקטרוס' }, fleet)).toBe('אקטרוס')
   })
 
-  it("the job's one vehicle list shows plate, model and make, by model then make then plate", () => {
+  it("the job's one vehicle list shows make, model and plate, by make then model then plate", () => {
     const car = (id: string, plate: string, model: string, make: string): Vehicle => ({ id, values: { plate, model, make } })
-    const cars = [car('a', '33', 'Caddy', 'Volkswagen'), car('b', '11', 'Hilux', 'Toyota'), car('c', '22', 'Caddy', 'Audi'), v('d', '44'), car('e', '10', 'Caddy', 'Audi')]
-    expect(vehiclePickList(cars).map((x) => x.id)).toEqual(['e', 'c', 'a', 'b', 'd'])
-    expect(vehicleOptionText(cars[0])).toBe('33 · Caddy · Volkswagen')
+    const cars = [car('a', '33', 'Caddy', 'Volkswagen'), car('b', '11', 'Hilux', 'Toyota'), car('c', '22', 'Q5', 'Audi'), v('d', '44'), car('e', '10', 'A4', 'Audi'), car('f', '55', 'Amarok', 'Volkswagen')]
+    expect(vehiclePickList(cars).map((x) => x.id)).toEqual(['e', 'c', 'b', 'f', 'a', 'd'])
+    // Hebrew is right to left: a right-to-left mark around each dot keeps the make on the right.
+    const rlm = (s: string) => s.replaceAll(' · ', ' \u200F·\u200F ')
+    expect(vehicleOptionText(cars[0])).toBe(rlm('Volkswagen · Caddy · 33'))
     expect(vehicleOptionText(cars[3])).toBe('44')
-    expect(jobVehicleText({ vehicleId: 'a' }, cars)).toBe('33 · Caddy · Volkswagen')
+    expect(jobVehicleText({ vehicleId: 'a' }, cars)).toBe(rlm('Volkswagen · Caddy · 33'))
+    apply(languageOf('en'))
+    expect(vehicleOptionText(cars[0])).toBe('Volkswagen · Caddy · 33')
+    apply(languageOf('he'))
   })
 })
 
