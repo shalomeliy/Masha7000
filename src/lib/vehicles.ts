@@ -1,4 +1,4 @@
-import { tx } from '../i18n'
+import { isRtl, tx } from '../i18n'
 import type { Vehicle } from '../types/models'
 
 // "רכבים" (the user's request, 2026-11-13): the vehicles the jobs go out with. On 2026-11-14 the owner
@@ -42,13 +42,22 @@ export function cleanVehicle(v: Vehicle): Vehicle {
 /** "12-345-67 · הילוקס" */
 export const vehicleLabel = (v: Vehicle | undefined) => (v ? [plateOf(v), modelOf(v)].filter(Boolean).join(' · ') : tx('רכב שנמחק'))
 
-/** "12-345-67 · Caddy · Volkswagen": one item of the job's vehicle list (the owner's request, 2026-11-15). */
-export const vehicleOptionText = (v: Vehicle) => [plateOf(v), modelOf(v), makeOf(v)].filter(Boolean).join(' · ')
+/**
+ * "Volkswagen · Caddy · 12-345-67": one item of the job's vehicle list and the job card's vehicle line
+ * (the owner's order, 2026-11-15: make, model, plate). In a right-to-left language each separator
+ * carries a right-to-left mark: without it the English make and model and the plate join into one
+ * left-to-right run and show in reverse order (the plate first, on the right).
+ */
+export function vehicleOptionText(v: Vehicle): string {
+  const sep = isRtl() ? ' \u200F·\u200F ' : ' · '
+  return [makeOf(v), modelOf(v), plateOf(v)].filter(Boolean).join(sep)
+}
 
-/** The job's vehicle list: by model, then by make, then by plate. Vehicles with no model or make come after. */
+/** The job's vehicle list, A to Z (א-ב): by make, then by model, then by plate. Vehicles with no make or model come after. */
 export function vehiclePickList(vehicles: Vehicle[]): Vehicle[] {
-  const cmp = (a: string, b: string) => (a && b ? a.localeCompare(b, 'he') : a ? -1 : b ? 1 : 0)
-  return [...vehicles].sort((a, b) => cmp(modelOf(a), modelOf(b)) || cmp(makeOf(a), makeOf(b)) || plateOf(a).localeCompare(plateOf(b), 'he'))
+  const abc = (a: string, b: string) => a.localeCompare(b, 'he', { sensitivity: 'base', numeric: true })
+  const cmp = (a: string, b: string) => (a && b ? abc(a, b) : a ? -1 : b ? 1 : 0)
+  return [...vehicles].sort((a, b) => cmp(makeOf(a), makeOf(b)) || cmp(modelOf(a), modelOf(b)) || abc(plateOf(a), plateOf(b)))
 }
 
 /** Every vehicle model in use, A to Z. */
@@ -75,7 +84,7 @@ export function pickVehicle(id: string, vehicles: Vehicle[], currentModel?: stri
   return { vehicleId: v ? id : undefined, vehicleModel: v ? modelOf(v) || currentModel : currentModel }
 }
 
-/** The job's vehicle line for a card: "רכב: 12-345-67 · הילוקס · טויוטה", or the model alone. */
+/** The job's vehicle line for a card: "רכב: טויוטה · הילוקס · 12-345-67", or the model alone. */
 export function jobVehicleText(job: JobVehicle, vehicles: Vehicle[]): string {
   if (job.vehicleId) {
     const v = vehicles.find((x) => x.id === job.vehicleId)
