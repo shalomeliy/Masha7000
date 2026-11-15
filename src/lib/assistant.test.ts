@@ -21,6 +21,7 @@ const data = (): AppData => ({
   assistantNotes: [{ id: 'n1', text: 'מטפס זה טפסן', createdAt: '2026-11-01T10:00:00Z' }],
   departments: [],
   assistantExamples: [],
+  vehicles: [],
 })
 
 const job = (over: Partial<ProposedJob> = {}): ProposedJob => ({

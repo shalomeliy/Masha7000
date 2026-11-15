@@ -24,11 +24,14 @@ import type {
   ShiftDefinition,
   ShiftRecord,
   StaffSlot,
+  Vehicle,
   WorkKind,
   Worker,
 } from '../types/models'
 import { tx } from '../i18n'
 import { asTaskList, oneLine } from './taskList'
+import { carText, last3, pickCar, readCar, saysCar } from './vehicleRef'
+import { makeOf, modelOf, plateOf } from './vehicles'
 
 export interface AppData {
   certifications: Certification[]
@@ -43,6 +46,7 @@ export interface AppData {
   assistantNotes: AssistantNote[]
   departments: Department[]
   assistantExamples: AssistantExample[]
+  vehicles: Vehicle[]
 }
 
 export type ListName = 'places' | 'jobTypes' | 'certifications' | 'postponeReasons'
@@ -59,6 +63,7 @@ export interface ProposedJob {
   autoAssign: boolean
   nextJob: { location: string; jobDescription: string } // "לינה" only: the job after the night; empty otherwise
   crew: { workerId: string }[] // workers the manager named for the new job; [] = none named
+  vehicleId?: string // the vehicle it goes out with ('' = none)
 }
 
 export interface Proposal extends Edits {
@@ -133,6 +138,10 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
   const past = d.shifts.filter((s) => s.date >= pastFrom && s.date <= today && s.crew.length)
   const where = (s: ShiftRecord) => s.location.trim() || s.jobDescription.trim()
   const open = (w: Worker) => w.constraints.filter((c) => !isOver(c, today))
+  const carOf = (id: string) => {
+    const v = d.vehicles.find((x) => x.id === id)
+    return v ? carText(v) : 'רכב שנמחק'
+  }
   return {
     today: `${today} (יום ${hebrewDayName(today)})`,
     days: Array.from({ length: CALENDAR_DAYS }, (_, i) => {
@@ -187,6 +196,8 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
         }
       }),
     },
+    // The manager names a vehicle by the last 3 digits of its plate ("רכב 678"), maybe with its make or model.
+    vehicles: d.vehicles.map((v) => ({ id: v.id, last3: last3(v), plate: plateOf(v), make: makeOf(v), model: modelOf(v) })),
     remembered: d.assistantNotes.map((n) => ({ id: n.id, text: n.text })),
     examples: relevantExamples(d.assistantExamples, said).map((e) => ({ said: e.said, did: e.did })),
     shifts: d.shifts
@@ -202,10 +213,11 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
         crew: s.crew.map((c) => workerName(c.workerId)),
         ...(s.nextJob ? { then: [s.nextJob.location, s.nextJob.jobDescription].filter(Boolean).join(' - ') } : {}),
         ...(s.closure ? { closed: s.closure.outcome } : {}),
+        ...(s.vehicleId ? { vehicle: carOf(s.vehicleId) } : {}),
       })),
     waitingJobs: d.pendingJobs
       .filter((j) => isWaiting(j, d.shifts))
-      .map((j) => ({ id: j.id, location: j.location, job: j.jobDescription, kind: name(j.shiftDefinitionId ?? '', d.shiftDefinitions), needs: staffingNames(j.staffing) })),
+      .map((j) => ({ id: j.id, location: j.location, job: j.jobDescription, kind: name(j.shiftDefinitionId ?? '', d.shiftDefinitions), needs: staffingNames(j.staffing), ...(j.vehicleId ? { vehicle: carOf(j.vehicleId) } : {}) })),
   }
 }
 
@@ -231,6 +243,7 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
       const w = d.workers.find((x) => x.id === m.workerId)
       if (!w) errors.push(`${n}: אין עובד עם id "${m.workerId}"`)
     }
+    if (j.vehicleId && !has(d.vehicles, j.vehicleId)) errors.push(`${n}: אין רכב עם id "${j.vehicleId}"`)
   })
   for (const id of p.forgetNoteIds) if (!has(d.assistantNotes, id)) errors.push(`אין הערה שמורה עם id "${id}"`)
   for (const id of p.assignShiftIds) if (!has(d.shifts, id)) errors.push(`אין עבודה ביומן עם id "${id}"`)
@@ -328,6 +341,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   let waiting = 0
   for (const j of p.jobs) {
     const { staffing, workKindIds } = jobStaffing(j, d)
+    const car = j.vehicleId ? d.vehicles.find((v) => v.id === j.vehicleId) : undefined
     const base = {
       id: newId(),
       location: j.location.trim(),
@@ -335,7 +349,9 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
       staffing,
       ...(j.shiftKindId ? { shiftDefinitionId: j.shiftKindId } : {}),
       ...(workKindIds.length ? { workKindIds } : {}),
+      ...(car ? { vehicleId: car.id, ...(modelOf(car) ? { vehicleModel: modelOf(car) } : {}) } : {}),
     }
+    if (car) report.push(tx('הוספתי לעבודה ב{where} את רכב {car}', { where: base.location || oneLine(base.jobDescription), car: carText(car) }))
     const kind = d.shiftDefinitions.find((s) => s.id === j.shiftKindId)
     const next = { location: j.nextJob.location.trim(), jobDescription: asTaskList(j.nextJob.jobDescription) }
     const hasNext = Boolean(kind?.thenJob && (next.location || next.jobDescription))
@@ -496,6 +512,45 @@ export function proposalDangers(p: Proposal, d: AppData): string[] {
   return out
 }
 
+/**
+ * The vehicle of every job in the proposal, worded here from the data and not by the model (the user's
+ * rule, 2026-11-15): the read-back always says its last 3 digits, make and model. A vehicle the summary
+ * already names that way is not said twice. `said` (Hebrew only): what the manager said; when the make
+ * or model in it is not that of the vehicle its digits name, he is corrected ("רכב 345 הוא איסוזו דימקס,
+ * לא דאצ'יה") before the yes.
+ */
+export function proposalVehicles(p: Proposal, d: AppData, said = ''): string[] {
+  const out: string[] = []
+  const car = (id: string | undefined) => (id ? d.vehicles.find((v) => v.id === id) : undefined)
+  const whereOf = (id: string) => {
+    const r = d.shifts.find((s) => s.id === id) ?? d.pendingJobs.find((x) => x.id === id)
+    return r ? r.location || oneLine(r.jobDescription) : ''
+  }
+  const cars = [
+    ...p.jobs.map((j) => ({ v: car(j.vehicleId), where: j.location.trim() || oneLine(j.jobDescription) })),
+    ...p.editJobs.map((j) => ({ v: car(j.vehicleId), where: j.location.trim() || whereOf(j.id) })),
+  ].filter((c): c is { v: Vehicle; where: string } => Boolean(c.v))
+  if (said) {
+    const ws = said.replace(/[?!.,״"׳:;]/g, ' ').split(/\s+/).filter(Boolean)
+    const ref = readCar(ws, new Array<boolean>(ws.length).fill(false), d.vehicles, () => false)
+    const pick = ref?.wrong.length ? pickCar(ref, d.vehicles) : null
+    // Said already, by the free path or by the model ("..., לא דאצ'יה"): not twice.
+    const told = (w: string) => p.summary.includes(`לא ${w}`) || p.summary.includes(`לא ${w.replace(/^(?:ו?[הבל]|ו)(?=.{3,})/, '')}`)
+    if (pick?.kind === 'one' && cars.some((c) => c.v.id === pick.vehicle.id) && !p.summary.includes(pick.note) && !ref!.wrong.some(told)) out.push(pick.note)
+  }
+  for (const c of cars) if (!saysCar(p.summary, c.v)) out.push(tx('רכב לעבודה ב{where}: {car}.', { where: c.where, car: carText(c.v) }))
+  return out
+}
+
+/** The summary with lines the app adds (proposalVehicles) said before the closing question. */
+export function summaryWith(summary: string, lines: string[]): string {
+  if (!lines.length) return summary
+  const ask = tx('לאשר, או שיש עוד תיקון?')
+  const at = summary.lastIndexOf(ask)
+  if (at < 0) return `${summary.trim()} ${lines.join(' ')}`
+  return `${summary.slice(0, at).trim()} ${lines.join(' ')} ${ask}`.trim()
+}
+
 /** The spoken proposal: the model's summary, with any move of a busy worker said before the question. */
 export function summaryWithConflicts(summary: string, conflicts: string[]): string {
   if (!conflicts.length) return summary
@@ -542,6 +597,7 @@ export function normalizeProposal(raw: unknown): Proposal {
         autoAssign: B(j.autoAssign),
         nextJob: { location: S(next.location), jobDescription: S(next.jobDescription) },
         crew: A(j.crew, (m) => ({ workerId: S(m.workerId) })).filter((m, k, list) => m.workerId && list.findIndex((x) => x.workerId === m.workerId) === k),
+        vehicleId: S(j.vehicleId),
       }
     }),
     assignShiftIds: SS(p.assignShiftIds),
@@ -558,6 +614,7 @@ export function normalizeProposal(raw: unknown): Proposal {
       jobDescription: S(j.jobDescription),
       staffing: lines(j.staffing),
       autoAssign: B(j.autoAssign),
+      vehicleId: S(j.vehicleId),
     })),
     setCrews: A(p.setCrews, (c) => ({ shiftId: S(c.shiftId), crew: A(c.crew, (m) => ({ workerId: S(m.workerId) })) })),
     closeJobs: A(p.closeJobs, (c) => ({ shiftId: S(c.shiftId), outcome: (OUTCOMES as readonly string[]).includes(S(c.outcome)) ? (c.outcome as (typeof OUTCOMES)[number]) : 'done', note: S(c.note) })),

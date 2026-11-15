@@ -1237,5 +1237,8 @@
  "שומעים כל כתיב, ובוחרים את זה שנשמע שָׁאלִי, עם הדגש בסוף. מכאן והלאה השם ייאמר כך.": "Listen to each spelling and pick the one that sounds like \"SHAH-lee\" with the stress at the end (sha-LEE). From now on the name is said that way.",
  "משהו השתבש במסך הזה": "Something went wrong on this screen",
  "המידע שלך שמור בגוגל דרייב. טעינה מחדש בדרך כלל פותרת את זה.": "Your data is safe in Google Drive. Reloading usually fixes this.",
- "טען מחדש": "Reload"
+ "טען מחדש": "Reload",
+ "הוספתי לעבודה ב{where} את רכב {car}": "Added vehicle {car} to the job in {where}",
+ "הורדתי את הרכב מהעבודה ב{where}": "Removed the vehicle from the job in {where}",
+ "רכב לעבודה ב{where}: {car}.": "Vehicle for the job in {where}: {car}."
 }

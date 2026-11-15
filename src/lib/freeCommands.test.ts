@@ -31,6 +31,7 @@ const base: AppData = {
   assistantNotes: [],
   departments: [],
   assistantExamples: [],
+  vehicles: [],
 }
 
 // Confirmed requests that Claude handled, as the app keeps them on a yes.

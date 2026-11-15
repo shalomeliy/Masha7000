@@ -61,6 +61,7 @@ const data: AppData = {
   postponeReasons: [],
   assistantNotes: [{ id: 'n1', text: 'יוסי לא עולה לגובה 40 בלי דני לידו', createdAt: '' }],
   assistantExamples: [],
+  vehicles: [],
   departments: [],
 }
 

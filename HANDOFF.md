@@ -476,7 +476,7 @@ Settings > "גיבוי" (`src/pages/settings/BackupSection.tsx`, logic in `src/l
 - New bottom tab "רכבים" (right of הגדרות): `src/pages/Vehicles.tsx`. List with search, add, tap a card to edit (the vehicle card), "בחירה" mode for multi-select and deleting several. Date fields that passed or end within 30 days show a warning on the card.
 - Vehicle card fields are a list in Settings, topic "רכבים" (`vehicle_fields.json`, `src/pages/settings/VehicleFieldsSection.tsx`), 10 starters; licence plate and model (ids `plate`, `model`) can be renamed but not deleted. Rules in `src/lib/vehicles.ts`. Both files are in the backup.
 - Job forms (calendar and waiting job) have "דגם רכב" + "רישוי" selects from the vehicles (`VehiclePick`; the user switched it from type to model the same day); a plate brings its model, a model narrows the plates. Saved as `vehicleId` / `vehicleModel` on the job, carried from a waiting job into its shift, shown on cards as "רכב: ...".
-- Not done: the voice assistant does not know vehicles yet.
+- Voice assistant and vehicles: done 2026-11-15, see "Voice: vehicles by the last 3 digits" below.
 
 ## Done: ISO 27001 / 27017 gap analysis (2026-11-13)
 
@@ -498,3 +498,23 @@ in parallel, 2.5 s wait, fallback to the phone's voice, cache). Spike: `docs/spi
 Open: the pronunciation list was tuned on the phone's voice; retune by ear with the cloud voice.
 Owner's rule (2026-11-14): Shali always answers this way: "רגע, בודק." said at once (prepared ahead) the moment a
 request goes to Claude, the answer's audio fetched meanwhile, first sentence cut at its first comma. Keep it.
+
+## Done: voice, vehicles by the last 3 digits (2026-11-15)
+
+Owner's rule: when he speaks of a vehicle, Shali identifies it by the last 3 digits of the plate, checks a make or
+model said with them, and every read-back says the 3 digits, make and model.
+- `src/lib/vehicleRef.ts`: digits in any form ("345", "ה-345", "3-4-5", "שלוש ארבע חמש", "שלוש מאות ארבעים וחמש",
+  a full plate), after "רכב/הרכב/ברכב/משאית/טנדר" or next to a make/model word. Makes/models are matched by sound
+  (nameMatch) and a Hebrew-English list (`CAR_NAMES`: Dacia = דאצ'יה, D-Max = דימקס...), since cards are often in English.
+  Two vehicles fit: "איזה מהם?" (`whichCar`, answered by make, model, digits or "השני"). None: "לא מצאתי רכב...".
+  Make/model said wrong: "שים לב, רכב 345 הוא Isuzu D-Max, לא דאצ'יה. רכב דאצ'יה אצלנו הוא 812." then the usual אשר/תקן.
+- Free (no Claude): a new job with a vehicle; "תוסיף לעבודה בערד/מחר את רכב 678" (one job by place/day, `carToJob`);
+  a vehicle said while a free proposal waits ("לא, רכב 812", "תוסיף לעבודה את רכב 678", `carFix`). Still to Claude:
+  "תוסיף לעבודה את רכב 678" as a first sentence (which job?), two jobs that fit, questions about vehicles.
+- Claude: snapshot has `vehicles` (id, last3, plate, make, model) and each job's `vehicle`; `jobs[].vehicleId` and
+  `editJobs[].vehicleId` ('none' removes); the rules are in the system prompt (Shali's permanent memory).
+- App-side read-back (`proposalVehicles` + `summaryWith` in `src/lib/assistant.ts`, used by `offer` in Voice.tsx): adds
+  "רכב לעבודה ב...: 678, סיטרואן ברלינגו." when the summary does not say it, and the make/model correction, for Claude's
+  proposals too. Saved with `vehicleModel`; report "הוספתי לעבודה ב... את רכב ...".
+- Tests: `src/lib/vehicleVoice.test.ts` (37). Checked in the dev server with the fake Drive: wrong make corrected,
+  "לא, רכב 812" fixed it, saved `vehicleId` in shifts-2026-11.json, both turns free.

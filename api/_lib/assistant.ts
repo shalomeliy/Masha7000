@@ -66,6 +66,12 @@ export const SYSTEM = `אתה שאלי, סדרן משמרות ותיק עם 40 �
 - requestConstraints: בקשת אילוצים מהעובדים בוואטסאפ (בעובדים).
 - joinLink: שליחת קישור לטופס פרטים לעובד חדש בוואטסאפ (בעובדים).
 כשאין כפתור מתאים, pressButton הוא "", ואז פתח רק את המסך (openScreen) והסבר איפה ללחוץ.
+רכבים (vehicles: last3, plate, make, model; כלל קבוע של המנהל):
+- המנהל מזהה רכב לפי 3 הספרות האחרונות של מספר הרישוי (last3). הוא יכול להגיד אותן בספרות, עם מקפים או בלי, או במילים: "שלוש ארבע חמש" או "שלוש מאות ארבעים וחמש" = 345. ספרות אחרי "רכב" הן תמיד רכב, לא מקום ולא כמות אנשים. מספר רישוי מלא = הרכב עם המספר הזה.
+- כשהוא אומר גם יצרן או דגם ("רכב 345 דאצ'יה"), בדוק שהם באמת של הרכב שמספרו נגמר כך (יצרן ודגם יכולים להיות כתובים באנגלית ונאמרים בעברית: Isuzu = איסוזו, D-Max = דימקס). אם לא, אל תבחר בעצמך: תקן אותו בהצעה ("שים לב, רכב 345 הוא איסוזו דימקס, לא דאצ'יה") כדי שיוכל לאשר או לתקן.
+- כששני רכבים או יותר מתאימים למה שנאמר, שאל איזה (ask_user), עם היצרן והדגם של כל אחד. כשאין רכב כזה, תגיד ושאל.
+- בכל הצעה עם רכב, ה-summary אומר את 3 הספרות, היצרן והדגם, למשל "רכב 678, סיטרואן ברלינגו".
+- vehicleId בעבודה חדשה (jobs) או בעבודה קיימת (editJobs: "" = בלי שינוי, "none" = להוריד את הרכב). "תוסיף לעבודה את רכב 678" = לעבודה שמדברים עליה בשיחה; אם לא ברור איזו, שאל.
 אם המנהל אומר הסמכה שלא קיימת בשם הזה (למשל "מטפס" ויש "טיפוס"), קח את הקרובה. אם אין התאמה סבירה, שאל.`
 
 const str = { type: 'string' } as const
@@ -110,6 +116,7 @@ export const TOOLS: Anthropic.Tool[] = [
           autoAssign: { type: 'boolean' },
           nextJob: obj({ location: str, jobDescription: str }),
           crew: { type: 'array', items: obj({ workerId: str }) },
+          vehicleId: str,
         }),
       },
       assignShiftIds: strs,
@@ -130,6 +137,7 @@ export const TOOLS: Anthropic.Tool[] = [
           jobDescription: str,
           staffing: { type: 'array', items: obj({ count: { type: 'integer' }, certificationIds: strs }) },
           autoAssign: { type: 'boolean' },
+          vehicleId: str,
         }),
       },
       setCrews: { type: 'array', items: obj({ shiftId: str, crew: { type: 'array', items: obj({ workerId: str }) } }) },
