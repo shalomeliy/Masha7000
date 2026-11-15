@@ -1242,5 +1242,6 @@
  "הורדתי את הרכב מהעבודה ב{where}": "Kendaraan dilepas dari pekerjaan di {where}",
  "רכב לעבודה ב{where}: {car}.": "Kendaraan untuk pekerjaan di {where}: {car}.",
  "רכב": "Kendaraan",
- "{v}, בלי רישוי": "{v}, tanpa pelat nomor"
+ "{v}, בלי רישוי": "{v}, tanpa pelat nomor",
+ "מי ייכנס במקום {v}": "Siapa yang menggantikan {v}"
 }

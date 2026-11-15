@@ -79,3 +79,28 @@ test('a saved vehicle is still there after a reload', async ({ page }) => {
   await tab(page, 'רכבים').click()
   await expect(page.getByText('E2E טנדר')).toBeVisible()
 })
+
+test("a job picks its vehicle from the app's own list: make, model, plate, mark on the right", async ({ page }) => {
+  await openWithFakeDrive(page)
+  await tab(page, 'רכבים').click()
+  for (const [plate, model, make] of [['55-555-55', 'Caddy', 'Volkswagen'], ['11-111-11', 'D-Max', 'Isuzu']]) {
+    await page.getByRole('button', { name: 'הוספת רכב' }).first().click()
+    await page.getByLabel('מספר רישוי').fill(plate)
+    await page.getByLabel('דגם').fill(model)
+    await page.getByLabel('יצרן').fill(make)
+    await page.getByRole('button', { name: 'שמירה' }).click()
+    await expect(page.getByText(plate)).toBeVisible()
+  }
+  await tab(page, 'יומן').click()
+  await page.getByRole('button', { name: 'עבודה חדשה' }).first().click()
+  await page.getByRole('button', { name: /^רכב /, exact: false }).first().click()
+  const items = page.getByRole('option')
+  await expect(items).toHaveText(['בלי', 'Isuzu ‏·‏ D-Max ‏·‏ 11-111-11', 'Volkswagen ‏·‏ Caddy ‏·‏ 55-555-55'])
+  // The round mark is on the right of the text, as the rest of the Hebrew screen.
+  const row = await items.nth(1).boundingBox()
+  const mark = await items.nth(1).locator('span').first().boundingBox()
+  expect(mark!.x).toBeGreaterThan(row!.x + row!.width / 2)
+  await items.nth(2).click()
+  await expect(page.getByRole('option')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Volkswagen/ })).toBeVisible()
+})

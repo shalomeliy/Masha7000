@@ -1,7 +1,6 @@
 import { tx } from '../../i18n'
 import { useState } from 'react'
 import { CalendarSearch, Lock, X } from 'lucide-react'
-import { inputClass } from '../../components/Sheet'
 import { fullName, isActive } from '../../lib/catalog'
 import { todayIso } from '../../lib/dates'
 import type { GapContext } from '../../lib/gaps'
@@ -10,6 +9,7 @@ import { NIGHT_LIMIT } from '../../lib/planner'
 import { datesForPinned, fullNames, pinnedOf, type DateOption } from '../../lib/pinnedDates'
 import { dayName, showDate } from '../../lib/shifts'
 import type { ShiftRecord } from '../../types/models'
+import { ChoiceList } from '../../components/ChoiceList'
 
 // "עובדים שחייבים להיות": the manager names the workers this job cannot go without, and the app finds
 // the nearest days all of them are free (HANDOFF.md, "pinned workers"). "שבץ" fills the other places
@@ -81,14 +81,13 @@ export function PinnedField({
         </ul>
       )}
       {others.length > 0 && (
-        <select aria-label={tx('הוספת עובד שחייב להיות בעבודה')} value="" onChange={(e) => add(e.target.value)} className={`${inputClass} text-slate-300`}>
-          <option value="">{tx('+ עובד שחייב להיות')}</option>
-          {others.map((w) => (
-            <option key={w.id} value={w.id}>
-              {fullName(w)}
-            </option>
-          ))}
-        </select>
+        <ChoiceList
+          ariaLabel={tx('הוספת עובד שחייב להיות בעבודה')}
+          value=""
+          placeholder={tx('+ עובד שחייב להיות')}
+          onChange={add}
+          options={others.map((w) => ({ value: w.id, label: fullName(w) }))}
+        />
       )}
       {pinned.length > 0 && !draft.urgent && !noSearch && (
         <button

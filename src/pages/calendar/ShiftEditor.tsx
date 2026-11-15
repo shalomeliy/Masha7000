@@ -24,6 +24,7 @@ import { VehiclePick } from './VehiclePick'
 import { WorkKindField } from './WorkKindField'
 import { toggleKind } from '../../lib/workKinds'
 import { asTaskList } from '../../lib/taskList'
+import { ChoiceList } from '../../components/ChoiceList'
 
 // Create or edit one shift. A new shift that came from "לשיבוץ" removes that job when saved.
 
@@ -340,27 +341,22 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
               )}
               {swapping === c.workerId &&
                 (swapOptions.length || busyOptions.length ? (
-                  <select
-                    aria-label={tx('במקום {v}', { v: w ? fullName(w) : tx('העובד') })}
-                    value=""
-                    onChange={(e) => choose(e.target.value, (id) => swap(i, id))}
-                    className={`${inputClass} mt-2 text-slate-300`}
-                  >
-                    <option value="">{tx('במקומו...')}</option>
-                    {swapOptions.map(({ worker: x, load: l }) => (
-                      <option key={x.id} value={x.id}>
-                        {pickLabel(x, l)}
-                      </option>
-                    ))}
-                    {busyOptions.length > 0 && (
-                      <optgroup label={tx('מתאימים, אבל בעבודה אחרת באותו זמן')}>
-                        {busyOptions.map(({ worker: x }) => (
-                          <option key={x.id} value={x.id}>
-                            {tx('{v} · בעבודה {v2}', { v: fullName(x), v2: otherText(x.id) })}</option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </select>
+                  <div className="mt-2">
+                    <ChoiceList
+                      ariaLabel={tx('במקום {v}', { v: w ? fullName(w) : tx('העובד') })}
+                      value=""
+                      placeholder={tx('במקומו...')}
+                      onChange={(id) => choose(id, (x) => swap(i, x))}
+                      options={[
+                        ...swapOptions.map(({ worker: x, load: l }) => ({ value: x.id, label: pickLabel(x, l) })),
+                        ...busyOptions.map(({ worker: x }) => ({
+                          value: x.id,
+                          label: tx('{v} · בעבודה {v2}', { v: fullName(x), v2: otherText(x.id) }),
+                          group: tx('מתאימים, אבל בעבודה אחרת באותו זמן'),
+                        })),
+                      ]}
+                    />
+                  </div>
                 ) : (
                   <p className="mt-2 ps-1 text-xs text-slate-400">{tx('אין עובד פנוי אחר עם ההסמכות של המקום הזה')}</p>
                 ))}
@@ -377,27 +373,16 @@ function ShiftForm({ shift, onDone }: { shift: ShiftRecord; onDone: () => void }
           />
         )}
         {draft.crew.length > 0 && available.length + others.length > 0 ? (
-          <select
-            aria-label={tx('הוספת עובד לעבודה')}
+          <ChoiceList
+            ariaLabel={tx('הוספת עובד לעבודה')}
             value=""
-            onChange={(e) => choose(e.target.value, addWorker)}
-            className={`${inputClass} text-slate-300`}
-          >
-            <option value="">{tx('+ הוספת עובד')}</option>
-            {available.map(({ worker: w, load }) => (
-              <option key={w.id} value={w.id}>
-                {pickLabel(w, load)}
-              </option>
-            ))}
-            {others.length > 0 && (
-              <optgroup label={tx('בעבודה אחרת באותו זמן')}>
-                {others.map(({ worker: w }) => (
-                  <option key={w.id} value={w.id}>
-                    {tx('{v} · בעבודה {v2}', { v: fullName(w), v2: otherText(w.id) })}</option>
-                ))}
-              </optgroup>
-            )}
-          </select>
+            placeholder={tx('+ הוספת עובד')}
+            onChange={(id) => choose(id, addWorker)}
+            options={[
+              ...available.map(({ worker: w, load }) => ({ value: w.id, label: pickLabel(w, load) })),
+              ...others.map(({ worker: w }) => ({ value: w.id, label: tx('{v} · בעבודה {v2}', { v: fullName(w), v2: otherText(w.id) }), group: tx('בעבודה אחרת באותו זמן') })),
+            ]}
+          />
         ) : (
           workers.items.length === 0 && <p className="text-sm text-amber-300">{tx('עוד אין עובדים. אפשר להוסיף אותם בלשונית "עובדים".')}</p>
         )}

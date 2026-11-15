@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { inputClass } from '../../components/Sheet'
 import { fullName } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { fillInsFor } from '../../lib/moveAdvice'
@@ -7,6 +6,7 @@ import { busyText } from '../../lib/planner'
 import { dayName, showDate } from '../../lib/shifts'
 import type { ShiftRecord, Worker } from '../../types/models'
 import { tx } from '../../i18n'
+import { ChoiceList } from '../../components/ChoiceList'
 
 // Asked before a worker busy in another job at the same time is put into this one: on yes, they
 // leave that job, and the manager picks who takes their place there so it is not left short.
@@ -63,28 +63,25 @@ export function PullConfirm({
   return (
     <div role="alertdialog" aria-label={tx('מי ייכנס במקומו')} className={box}>
       {pulls.map((p, i) => (
-        <label key={p.worker.id} className="block space-y-1">
+        <div key={p.worker.id} className="space-y-1">
           <span className="block font-semibold">
             {tx('מי ייכנס במקום {v} בעבודה ביום {weekday} {v3}{v4}?', { v: fullName(p.worker), weekday: dayName(p.other.date), v3: showDate(p.other.date), v4: p.other.location && ` (${p.other.location})` })}</span>
           {options[i].length ? (
-            <select
+            <ChoiceList
+              ariaLabel={tx('מי ייכנס במקום {v}', { v: fullName(p.worker) })}
               value={fillIns[p.worker.id] ?? ''}
-              onChange={(e) => setFillIns((f) => ({ ...f, [p.worker.id]: e.target.value }))}
-              className={`${inputClass} text-slate-200`}
-            >
-              {options[i]
-                .filter((w) => w.id === fillIns[p.worker.id] || !Object.values(fillIns).includes(w.id))
-                .map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {fullName(w)}
-                  </option>
-                ))}
-              <option value="">{tx('להשאיר את המקום ריק')}</option>
-            </select>
+              onChange={(v) => setFillIns((f) => ({ ...f, [p.worker.id]: v }))}
+              options={[
+                ...options[i]
+                  .filter((w) => w.id === fillIns[p.worker.id] || !Object.values(fillIns).includes(w.id))
+                  .map((w) => ({ value: w.id, label: fullName(w) })),
+                { value: '', label: tx('להשאיר את המקום ריק') },
+              ]}
+            />
           ) : (
             <span className="block text-orange-200">{tx('אין עובד פנוי עם ההסמכות של המקום הזה. המקום שם יישאר ריק.')}</span>
           )}
-        </label>
+        </div>
       ))}
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => onYes(Object.fromEntries(Object.entries(fillIns).filter(([, v]) => v)))} className={yes}>

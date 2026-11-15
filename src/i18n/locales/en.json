@@ -1242,5 +1242,6 @@
  "הורדתי את הרכב מהעבודה ב{where}": "Removed the vehicle from the job in {where}",
  "רכב לעבודה ב{where}: {car}.": "Vehicle for the job in {where}: {car}.",
  "רכב": "Vehicle",
- "{v}, בלי רישוי": "{v}, no plate"
+ "{v}, בלי רישוי": "{v}, no plate",
+ "מי ייכנס במקום {v}": "Who replaces {v}"
 }
