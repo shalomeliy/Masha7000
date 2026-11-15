@@ -1240,5 +1240,7 @@
  "טען מחדש": "Recharger",
  "הוספתי לעבודה ב{where} את רכב {car}": "J'ai ajouté le véhicule {car} au travail à {where}",
  "הורדתי את הרכב מהעבודה ב{where}": "J'ai retiré le véhicule du travail à {where}",
- "רכב לעבודה ב{where}: {car}.": "Véhicule pour le travail à {where} : {car}."
+ "רכב לעבודה ב{where}: {car}.": "Véhicule pour le travail à {where} : {car}.",
+ "רכב": "Véhicule",
+ "{v}, בלי רישוי": "{v}, sans immatriculation"
 }

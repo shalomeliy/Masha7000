@@ -42,6 +42,15 @@ export function cleanVehicle(v: Vehicle): Vehicle {
 /** "12-345-67 · הילוקס" */
 export const vehicleLabel = (v: Vehicle | undefined) => (v ? [plateOf(v), modelOf(v)].filter(Boolean).join(' · ') : tx('רכב שנמחק'))
 
+/** "12-345-67 · Caddy · Volkswagen": one item of the job's vehicle list (the owner's request, 2026-11-15). */
+export const vehicleOptionText = (v: Vehicle) => [plateOf(v), modelOf(v), makeOf(v)].filter(Boolean).join(' · ')
+
+/** The job's vehicle list: by model, then by make, then by plate. Vehicles with no model or make come after. */
+export function vehiclePickList(vehicles: Vehicle[]): Vehicle[] {
+  const cmp = (a: string, b: string) => (a && b ? a.localeCompare(b, 'he') : a ? -1 : b ? 1 : 0)
+  return [...vehicles].sort((a, b) => cmp(modelOf(a), modelOf(b)) || cmp(makeOf(a), makeOf(b)) || plateOf(a).localeCompare(plateOf(b), 'he'))
+}
+
 /** Every vehicle model in use, A to Z. */
 export function vehicleModels(vehicles: Vehicle[]): string[] {
   return [...new Set(vehicles.map(modelOf).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he'))
@@ -66,9 +75,12 @@ export function pickVehicle(id: string, vehicles: Vehicle[], currentModel?: stri
   return { vehicleId: v ? id : undefined, vehicleModel: v ? modelOf(v) || currentModel : currentModel }
 }
 
-/** The job's vehicle line for a card: "רכב: 12-345-67 · הילוקס", or the model alone. */
+/** The job's vehicle line for a card: "רכב: 12-345-67 · הילוקס · טויוטה", or the model alone. */
 export function jobVehicleText(job: JobVehicle, vehicles: Vehicle[]): string {
-  if (job.vehicleId) return vehicleLabel(vehicles.find((v) => v.id === job.vehicleId))
+  if (job.vehicleId) {
+    const v = vehicles.find((x) => x.id === job.vehicleId)
+    return v ? vehicleOptionText(v) : vehicleLabel(undefined)
+  }
   return job.vehicleModel ?? ''
 }
 

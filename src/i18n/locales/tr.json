@@ -1240,5 +1240,7 @@
  "טען מחדש": "Yeniden yükle",
  "הוספתי לעבודה ב{where} את רכב {car}": "{where} işine {car} aracını ekledim",
  "הורדתי את הרכב מהעבודה ב{where}": "{where} işinden aracı çıkardım",
- "רכב לעבודה ב{where}: {car}.": "{where} işi için araç: {car}."
+ "רכב לעבודה ב{where}: {car}.": "{where} işi için araç: {car}.",
+ "רכב": "Araç",
+ "{v}, בלי רישוי": "{v}, plakasız"
 }
