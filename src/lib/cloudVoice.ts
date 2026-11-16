@@ -1,3 +1,5 @@
+import { vlog } from './voiceLog.js'
+
 // Shali's cloud voice (Google Chirp 3 HD, Hebrew, male; server side in api/_lib/tts.ts). A reply is cut
 // into sentences, all asked for at once and played in order, so the first words are heard in about half
 // a second even when the whole reply would take a second and a half (spike, docs/spikes/cloud-tts.md).
@@ -71,6 +73,7 @@ function fetchPiece(text: string, voice: CloudVoice, rate: number): Promise<Blob
   }).then(async (res) => {
     if (res.ok && res.headers.get('Content-Type')?.includes('audio')) return res.blob()
     const reason = ((await res.json().catch(() => ({}))) as { reason?: string }).reason ?? String(res.status)
+    vlog(`cloud: refused ${reason}`)
     if (['no-key', 'over-budget', 'not-owner', 'not-configured', 'free-only'].includes(reason) || res.status === 401) off = reason
     throw new Error(reason)
   })
@@ -106,7 +109,10 @@ export function unlockCloud() {
   player.onended = null
   player.onerror = null
   player.src = SILENCE
-  player.play().catch(() => {})
+  player.play().then(
+    () => vlog('cloud: unlocked'),
+    (e: Error) => vlog(`cloud: unlock refused ${e.name}`),
+  )
 }
 
 /** Stops the cloud voice (a newer reply or the stop button). */
@@ -133,7 +139,8 @@ export function speakCloud(text: string, voice: CloudVoice, rate: number, onDone
     let blob: Blob
     try {
       blob = await timeout(asks[i], FIRST_WAIT_MS)
-    } catch {
+    } catch (e) {
+      vlog(`cloud: piece ${i} not ready (${(e as Error).message})`)
       return mine === turn ? fallback(rest(i)) : undefined
     }
     if (mine !== turn) return
@@ -147,14 +154,19 @@ export function speakCloud(text: string, voice: CloudVoice, rate: number, onDone
     }
     a.onended = next
     a.onerror = () => {
+      vlog(`cloud: audio error ${a.error?.code ?? ''}`)
       URL.revokeObjectURL(url)
       if (mine === turn) fallback(rest(i))
     }
     // The phone may refuse to play sound the person did not tap for (iPhone): its own voice reads it then.
-    a.play().catch(() => {
-      URL.revokeObjectURL(url)
-      if (mine === turn) fallback(rest(i))
-    })
+    a.play().then(
+      () => vlog(`cloud: playing piece ${i}`),
+      (e: Error) => {
+        vlog(`cloud: play refused ${e.name}`)
+        URL.revokeObjectURL(url)
+        if (mine === turn) fallback(rest(i))
+      },
+    )
   }
   play(0)
 }

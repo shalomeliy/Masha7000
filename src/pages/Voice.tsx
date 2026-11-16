@@ -1,6 +1,6 @@
 import { language, tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, AudioLines, BookMarked, Check, Gauge, Keyboard, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
+import { AlertTriangle, AudioLines, BookMarked, Check, Gauge, Keyboard, LifeBuoy, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
 import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, proposalVehicles, snapshot, summaryWith, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
@@ -12,6 +12,9 @@ import { carFix, claudePart, continueCar, continueJob, continueWho, countTurn, e
 import { saveEntry, type ClaudeLogEntry, type LogOutcome } from '../lib/claudeLog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
+import { reportMessage } from '../lib/monitoring'
+import { vlog, voiceReport } from '../lib/voiceLog'
+import { cloudOff } from '../lib/cloudVoice'
 import { canListen, canSpeak, currentVoice, iosHomeApp, listen, unlockSpeech, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
@@ -519,7 +522,19 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     handleSaid(tx('תעשה את פתרון {v}: {title}', { v: i + 1, title: o.title }))
   }
 
+  // "שליחת יומן תקלות": what listening and speaking did on this phone, to Sentry and to the clipboard.
+  const [logState, setLogState] = useState<string | null>(null)
+  const sendLog = () => {
+    const log = voiceReport({ canListen, iosHomeApp, voice: voiceName(voice), rate, cloudOff: cloudOff() ?? 'no', phase })
+    navigator.clipboard?.writeText(log).catch(() => {})
+    setLogState(tx('שולח...'))
+    void reportMessage('Voice log', log).then((id) =>
+      setLogState(id ? tx('נשלח. קוד: {id}', { id: id.slice(0, 8) }) : tx('לא נשלח. היומן הועתק, אפשר להדביק בוואטסאפ')),
+    )
+  }
+
   const toggleMic = () => {
+    vlog(`tap: mic (${phase})`)
     stopSpeaking()
     unlockSpeech() // inside the tap: the iPhone then lets the answer be heard
     if (listening.current) {
@@ -740,6 +755,10 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
               {tx('הקלדה')}
             </button>
           )}
+          <button type="button" onClick={sendLog} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
+            <LifeBuoy size={18} aria-hidden />
+            {logState ?? tx('שליחת יומן תקלות')}
+          </button>
           {data.assistantNotes.length > 0 && (
             <button type="button" onClick={() => setShowNotes((s) => !s)} aria-expanded={showNotes} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
               <BookMarked size={18} aria-hidden />

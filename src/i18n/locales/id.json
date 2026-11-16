@@ -1244,5 +1244,8 @@
  "רכב": "Kendaraan",
  "{v}, בלי רישוי": "{v}, tanpa pelat nomor",
  "מי ייכנס במקום {v}": "Siapa yang menggantikan {v}",
- "הקלד, או לחץ על המיקרופון במקלדת": "Ketik, atau ketuk mikrofon di keyboard"
+ "הקלד, או לחץ על המיקרופון במקלדת": "Ketik, atau ketuk mikrofon di keyboard",
+ "שליחת יומן תקלות": "Kirim log masalah",
+ "נשלח. קוד: {id}": "Terkirim. Kode: {id}",
+ "לא נשלח. היומן הועתק, אפשר להדביק בוואטסאפ": "Tidak terkirim. Log sudah disalin, bisa ditempel di WhatsApp"
 }

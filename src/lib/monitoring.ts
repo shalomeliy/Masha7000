@@ -6,6 +6,7 @@
 // their query and hash (the workers' form links carry a form code and an editing token there).
 
 type Pending = { error: unknown }
+type Message = { text: string; log: string; done: (id: string | null) => void }
 
 /** An address without its query and hash, and with a form code in its path hidden:
  * `/c?c=abc&t=xyz#x` -> `/c`, `/join/AbC123xyz` -> `/join/:code`. Anything else is left alone. */
@@ -15,6 +16,27 @@ export const stripQuery = (v: unknown) =>
 // Errors React caught on a screen (CrashGuard): they never reach the window, so they are handed over here.
 let send: ((error: unknown) => void) | null = null
 let waiting: Pending[] | null = null
+let sendMessage: ((m: Message) => void) | null = null
+let waitingMessages: Message[] = []
+
+/**
+ * Sends a report the person asked to send (the voice log), with a long text attached. Resolves with its
+ * Sentry id, or null when there is no monitoring here (local, no DSN, blocked) within 8 s.
+ */
+export function reportMessage(text: string, log: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    let settled = false
+    const done = (id: string | null) => {
+      if (settled) return
+      settled = true
+      resolve(id)
+    }
+    if (!import.meta.env.PROD || !DSN) return done(null)
+    if (sendMessage) sendMessage({ text, log, done })
+    else waitingMessages.push({ text, log, done })
+    setTimeout(() => done(null), 8000)
+  })
+}
 
 /** Sends an error the app caught itself to the monitoring (nothing without a DSN). */
 export function reportError(error: unknown): void {
@@ -75,7 +97,10 @@ export function startMonitoring(): void {
         window.removeEventListener('error', onError)
         window.removeEventListener('unhandledrejection', onRejection)
         send = (error) => Sentry.captureException(error)
+        sendMessage = (m) => m.done(Sentry.captureMessage(m.text, { level: 'info', extra: { log: m.log } }) || null)
         waiting = null
+        for (const m of waitingMessages) sendMessage(m)
+        waitingMessages = []
         for (const p of early) Sentry.captureException(p.error)
       })
       .catch(() => {}) // monitoring must never break the app (blocked by an ad blocker, offline)

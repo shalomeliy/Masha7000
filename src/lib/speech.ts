@@ -2,6 +2,7 @@ import { language, tx } from '../i18n'
 import { joinTranscripts } from './dictation'
 import { CLOUD_VOICES, cloudOff, prefetchCloud, speakCloud, stopCloud, unlockCloud, type CloudVoice } from './cloudVoice'
 import { pronounce } from './pronounce'
+import { vlog } from './voiceLog'
 import { rankVoices, shortVoiceName, speakable } from './speakable'
 
 // Speech in and out in the app's language, for the voice assistant. In: the browser's speech recognition,
@@ -61,6 +62,7 @@ let unlocked = false
  * comes seconds later: so the cloud voice and the phone's voice are both woken now, silently.
  */
 export function unlockSpeech() {
+  vlog('tap: unlock sound')
   unlockCloud()
   if (unlocked || !canSpeak) return
   unlocked = true
@@ -95,6 +97,7 @@ export function listen(onText: (text: string) => void, onEnd: (text: string, err
   let guard: ReturnType<typeof setTimeout> | undefined
   const finish = () => {
     if (ended) return
+    vlog(`listen: end, ${text.length} chars${error ? ', error' : ''}`)
     ended = true
     clearTimeout(timer)
     clearTimeout(guard)
@@ -108,13 +111,17 @@ export function listen(onText: (text: string) => void, onEnd: (text: string, err
       // already stopped
     }
     clearTimeout(guard)
-    guard = setTimeout(finish, 1500)
+    guard = setTimeout(() => {
+      if (!ended) vlog('listen: no end event after stop')
+      finish()
+    }, 1500)
   }
   const quietStop = () => {
     clearTimeout(timer)
     timer = setTimeout(stop, SILENCE_MS)
   }
   r.onresult = (e) => {
+    vlog(`listen: result ${e.results.length}`)
     const pieces: string[] = []
     for (let i = 0; i < e.results.length; i++) pieces.push(e.results[i][0].transcript)
     text = joinTranscripts(pieces)
@@ -122,10 +129,17 @@ export function listen(onText: (text: string) => void, onEnd: (text: string, err
     quietStop()
   }
   r.onerror = (e) => {
+    vlog(`listen: error ${e.error}`)
     if (e.error !== 'aborted' && !(e.error === 'no-speech' && text)) error = LISTEN_ERRORS[e.error] ?? tx('זיהוי הדיבור לא הצליח. אפשר להקליד במקום.')
   }
   r.onend = finish
-  r.start()
+  vlog(`listen: start ${r.lang} continuous=${r.continuous}`)
+  try {
+    r.start()
+  } catch (e) {
+    vlog(`listen: start threw ${(e as Error).name}`)
+    throw e
+  }
   timer = setTimeout(stop, 8000) // nothing said at all
   return { stop }
 }
@@ -259,12 +273,14 @@ export function speak(text: string, onDone?: () => void, onFail?: (reason: strin
   const cloud = currentVoice()?.cloud
   const useCloud = Boolean(cloud) && !cloudOff()
   if ((!canSpeak && !useCloud) || !text) {
+    vlog(`speak: skipped (canSpeak=${canSpeak}, cloud=${useCloud}, empty=${!text})`)
     onDone?.()
     return
   }
   heard.forEach((fn) => fn(text))
   audioSession('playback')
   const said = pronounce(speakable(text, language().speech))
+  vlog(`speak: ${useCloud ? `cloud ${cloud}` : 'device'}, ${said.length} chars${cloudOff() ? `, cloud off: ${cloudOff()}` : ''}`)
   if (useCloud && cloud) {
     if (canSpeak) speechSynthesis.cancel()
     return speakCloud(said, cloud, current ?? (current = speechRate()), () => onDone?.(), (rest) => (canSpeak ? speakDevice(rest, onDone, onFail) : onDone?.()))
@@ -284,11 +300,14 @@ function speakDevice(said: string, onDone?: () => void, onFail?: (reason: string
       u.voice = v
       u.lang = v.lang
     }
+    u.onstart = () => vlog('device: started')
     u.onend = () => {
+      vlog('device: ended')
       alive.delete(u)
       onDone?.()
     }
     u.onerror = (e) => {
+      vlog(`device: error ${e.error}`)
       alive.delete(u)
       if (e.error === 'interrupted' || e.error === 'canceled') return onDone?.()
       // Some voices refuse a text (often one in English letters): try once more with the phone's own.
