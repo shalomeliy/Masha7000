@@ -1244,5 +1244,8 @@
  "רכב": "Vehicle",
  "{v}, בלי רישוי": "{v}, no plate",
  "מי ייכנס במקום {v}": "Who replaces {v}",
- "הקלד, או לחץ על המיקרופון במקלדת": "Type, or tap the mic on the keyboard"
+ "הקלד, או לחץ על המיקרופון במקלדת": "Type, or tap the mic on the keyboard",
+ "שליחת יומן תקלות": "Send problem log",
+ "נשלח. קוד: {id}": "Sent. Code: {id}",
+ "לא נשלח. היומן הועתק, אפשר להדביק בוואטסאפ": "Not sent. The log was copied; you can paste it in WhatsApp"
 }

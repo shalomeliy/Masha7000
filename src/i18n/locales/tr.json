@@ -1244,5 +1244,8 @@
  "רכב": "Araç",
  "{v}, בלי רישוי": "{v}, plakasız",
  "מי ייכנס במקום {v}": "{v} yerine kim girecek",
- "הקלד, או לחץ על המיקרופון במקלדת": "Yazın veya klavyedeki mikrofona dokunun"
+ "הקלד, או לחץ על המיקרופון במקלדת": "Yazın veya klavyedeki mikrofona dokunun",
+ "שליחת יומן תקלות": "Sorun kaydını gönder",
+ "נשלח. קוד: {id}": "Gönderildi. Kod: {id}",
+ "לא נשלח. היומן הועתק, אפשר להדביק בוואטסאפ": "Gönderilemedi. Kayıt kopyalandı, WhatsApp'a yapıştırabilirsiniz"
 }

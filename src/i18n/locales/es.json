@@ -1244,5 +1244,8 @@
  "רכב": "Vehículo",
  "{v}, בלי רישוי": "{v}, sin matrícula",
  "מי ייכנס במקום {v}": "Quién reemplaza a {v}",
- "הקלד, או לחץ על המיקרופון במקלדת": "Escribe o toca el micrófono del teclado"
+ "הקלד, או לחץ על המיקרופון במקלדת": "Escribe o toca el micrófono del teclado",
+ "שליחת יומן תקלות": "Enviar registro de fallos",
+ "נשלח. קוד: {id}": "Enviado. Código: {id}",
+ "לא נשלח. היומן הועתק, אפשר להדביק בוואטסאפ": "No enviado. El registro se copió; puedes pegarlo en WhatsApp"
 }
