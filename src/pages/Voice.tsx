@@ -12,7 +12,7 @@ import { carFix, claudePart, continueCar, continueJob, continueWho, countTurn, e
 import { saveEntry, type ClaudeLogEntry, type LogOutcome } from '../lib/claudeLog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
-import { canListen, canSpeak, currentVoice, listen, unlockSpeech, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
+import { canListen, canSpeak, currentVoice, iosHomeApp, listen, unlockSpeech, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -536,7 +536,9 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       handleSaid(text)
     })
     if (!l) {
+      // No listening here (iPhone home-screen app): the typing line, so the keyboard's mic can be used.
       setTyping(true)
+      typedRef.current?.focus()
       return
     }
     listening.current = l
@@ -667,7 +669,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
             }}
             className="flex gap-2"
           >
-            <input ref={typedRef} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={tx('אפשר גם להקליד')} className={inputClass} disabled={busy} />
+            <input ref={typedRef} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={iosHomeApp ? tx('הקלד, או לחץ על המיקרופון במקלדת') : tx('אפשר גם להקליד')} className={inputClass} disabled={busy} />
             <button type="submit" disabled={busy || !typed.trim()} className="min-h-11 rounded-xl bg-sky-600 px-4 font-semibold text-white disabled:opacity-50">
               {tx('שלח')}
             </button>
