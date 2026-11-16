@@ -34,6 +34,8 @@ export interface Who {
 const TOKEN_KEY = 'shiftsmart.token'
 const ACCOUNT_KEY = 'shiftsmart.account'
 const MODE_KEY = 'shiftsmart.mode'
+// Who signed in, kept so a start with no signal still knows (e.g. still shows the assistant button).
+const WHO_KEY = 'shiftsmart.who'
 
 function readStored<T>(key: string): T | null {
   try {
@@ -60,7 +62,20 @@ interface Account {
 
 let mode: 'server' | 'popup' = readStored<string>(MODE_KEY) === 'server' ? 'server' : 'popup'
 let token: Token | null = mode === 'popup' ? readStored<Token>(TOKEN_KEY) : null
-let who: Who | null = null
+let who: Who | null = mode === 'server' ? readStored<Who>(WHO_KEY) : null
+const whoListeners = new Set<(w: Who | null) => void>()
+
+function setWho(next: Who | null) {
+  who = next
+  writeStored(WHO_KEY, next)
+  whoListeners.forEach((fn) => fn(next))
+}
+
+/** Called whenever the server tells us again who is signed in (e.g. a token renewed after a start offline). */
+export function onWhoChange(fn: (w: Who | null) => void) {
+  whoListeners.add(fn)
+  return () => void whoListeners.delete(fn)
+}
 let client: google.accounts.oauth2.TokenClient | null = null
 let pending: { resolve: (t: string) => void; reject: (e: Error) => void } | null = null
 
@@ -127,6 +142,7 @@ function enterServerMode() {
 function enterPopupMode() {
   mode = 'popup'
   writeStored(MODE_KEY, null)
+  setWho(null)
 }
 
 let renewing: Promise<string> | null = null
@@ -140,7 +156,7 @@ function renew(stale = false): Promise<string> {
     try {
       const answer = await askServer(stale)
       if (answer.kind === 'token') {
-        who = { email: answer.email, isOwner: answer.isOwner, assistant: answer.assistant === true || answer.isOwner }
+        setWho({ email: answer.email, isOwner: answer.isOwner, assistant: answer.assistant === true || answer.isOwner })
         setToken({ value: answer.accessToken, expiresAt: Date.now() + (answer.expiresIn - 60) * 1000 })
         return answer.accessToken
       }
@@ -175,11 +191,11 @@ export async function resume(): Promise<ResumeResult> {
   if (answer.kind === 'failed') return { status: 'failed' }
   enterServerMode()
   if (answer.kind === 'token') {
-    who = { email: answer.email, isOwner: answer.isOwner, assistant: answer.assistant === true || answer.isOwner }
+    setWho({ email: answer.email, isOwner: answer.isOwner, assistant: answer.assistant === true || answer.isOwner })
     setToken({ value: answer.accessToken, expiresAt: Date.now() + (answer.expiresIn - 60) * 1000 })
     return { status: 'signedIn', who }
   }
-  who = answer.who ?? null
+  setWho(answer.who ?? null)
   if (answer.reason === 'mfa-required') return { status: 'needsMfa', who: answer.who, enrolled: answer.enrolled === true }
   const status = answer.reason === 'not-allowed' ? 'notAllowed' : answer.reason === 'owner-disconnected' ? 'ownerDisconnected' : 'signedOut'
   return { status, who: answer.who }
@@ -278,7 +294,7 @@ export async function signOut() {
     google.accounts.oauth2.revoke(token.value)
   }
   setToken(null)
-  who = null
+  setWho(null)
   writeStored(ACCOUNT_KEY, null)
 }
 
