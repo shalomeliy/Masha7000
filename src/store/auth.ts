@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ownerReconnect, resume, signIn, signOut, type Who } from '../lib/google/auth'
+import { onWhoChange, ownerReconnect, resume, signIn, signOut, type Who } from '../lib/google/auth'
 
 export type AuthStatus = 'checking' | 'signedIn' | 'signedOut' | 'notAllowed' | 'ownerDisconnected' | 'failed' | 'needsMfa'
 
@@ -58,3 +58,9 @@ export const useAuth = create<AuthState>((set) => ({
     set({ status: 'signedOut', who: null })
   },
 }))
+
+// A renewed token can bring news (signal came back after an offline start, or the owner opened the
+// assistant to this manager): the bottom bar follows without a restart.
+onWhoChange((who) => {
+  if (useAuth.getState().status === 'signedIn') useAuth.setState({ who })
+})

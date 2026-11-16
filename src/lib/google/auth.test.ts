@@ -55,6 +55,17 @@ describe('resume', () => {
     expect(await (await load()).resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: true } })
   })
 
+  it('a start with no signal still knows a deputy with the voice assistant', async () => {
+    const store = new Map<string, string>()
+    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) }
+    vi.stubGlobal('localStorage', storage)
+    stubFetch(() => json({ accessToken: 't', expiresIn: 3600, email: 'deputy@x.com', isOwner: false, assistant: true }))
+    await (await load()).resume()
+    vi.resetModules()
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('offline'))))
+    expect(await (await load()).resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: true } })
+  })
+
   it('tells apart a removed email and a disconnected owner', async () => {
     stubFetch(() => json({ reason: 'not-allowed' }, 403))
     expect((await (await load()).resume()).status).toBe('notAllowed')
