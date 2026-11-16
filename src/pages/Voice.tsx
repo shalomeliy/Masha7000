@@ -12,7 +12,7 @@ import { carFix, claudePart, continueCar, continueJob, continueWho, countTurn, e
 import { saveEntry, type ClaudeLogEntry, type LogOutcome } from '../lib/claudeLog'
 import { useDriveList } from '../lib/data/useDriveList'
 import { HINTS, showHint, type Hint } from '../lib/hint'
-import { canListen, canSpeak, currentVoice, listen, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
+import { canListen, canSpeak, currentVoice, listen, unlockSpeech, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -521,6 +521,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
 
   const toggleMic = () => {
     stopSpeaking()
+    unlockSpeech() // inside the tap: the iPhone then lets the answer be heard
     if (listening.current) {
       listening.current.stop()
       return
@@ -660,6 +661,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           <form
             onSubmit={(e) => {
               e.preventDefault()
+              unlockSpeech()
               handleSaid(typed)
               setTyped('')
             }}
