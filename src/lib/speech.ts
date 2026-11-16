@@ -1,6 +1,6 @@
 import { language, tx } from '../i18n'
 import { joinTranscripts } from './dictation'
-import { CLOUD_VOICES, cloudOff, prefetchCloud, speakCloud, stopCloud, type CloudVoice } from './cloudVoice'
+import { CLOUD_VOICES, cloudOff, prefetchCloud, speakCloud, stopCloud, unlockCloud, type CloudVoice } from './cloudVoice'
 import { pronounce } from './pronounce'
 import { rankVoices, shortVoiceName, speakable } from './speakable'
 
@@ -33,6 +33,35 @@ export const LISTEN_ERRORS: Record<string, string> = {
   'no-speech': tx('לא נשמע דיבור. נסה שוב.'),
 }
 
+// iPhone (and iPad, which says it is a Mac): its listening and its sound need their own care below.
+const isIOS =
+  typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+
+// Safari's audio session: after the microphone, an iPhone may keep sound in "call" mode (quiet, or
+// none). 'playback' before speaking puts it back on the speaker; 'auto' before listening.
+function audioSession(type: 'auto' | 'playback') {
+  try {
+    const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession
+    if (s) s.type = type
+  } catch {
+    // older Safari or another browser: nothing to set
+  }
+}
+
+let unlocked = false
+/**
+ * Call inside the tap that starts listening. An iPhone plays sound only after a tap, and the answer
+ * comes seconds later: so the cloud voice and the phone's voice are both woken now, silently.
+ */
+export function unlockSpeech() {
+  unlockCloud()
+  if (unlocked || !canSpeak) return
+  unlocked = true
+  const u = new SpeechSynthesisUtterance(' ')
+  u.volume = 0
+  speechSynthesis.speak(u)
+}
+
 // A pause this long after the last words ends the listening, so the manager need not tap again.
 const SILENCE_MS = 2500
 
@@ -46,16 +75,37 @@ export interface Listening {
  */
 export function listen(onText: (text: string) => void, onEnd: (text: string, error?: string) => void): Listening | null {
   if (!Speech) return null
+  audioSession('auto')
   const r = new Speech()
   r.lang = language().speech
   r.interimResults = true
-  r.continuous = true
+  // iPhone's continuous listening is unreliable; it stops by itself after a pause instead.
+  r.continuous = !isIOS
   let text = ''
   let error: string | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
+  let ended = false
+  let guard: ReturnType<typeof setTimeout> | undefined
+  const finish = () => {
+    if (ended) return
+    ended = true
+    clearTimeout(timer)
+    clearTimeout(guard)
+    onEnd(text, error)
+  }
+  // Some phones (iPhone) may never say "ended" after stop: then the words so far go on anyway.
+  const stop = () => {
+    try {
+      r.stop()
+    } catch {
+      // already stopped
+    }
+    clearTimeout(guard)
+    guard = setTimeout(finish, 1500)
+  }
   const quietStop = () => {
     clearTimeout(timer)
-    timer = setTimeout(() => r.stop(), SILENCE_MS)
+    timer = setTimeout(stop, SILENCE_MS)
   }
   r.onresult = (e) => {
     const pieces: string[] = []
@@ -67,13 +117,10 @@ export function listen(onText: (text: string) => void, onEnd: (text: string, err
   r.onerror = (e) => {
     if (e.error !== 'aborted' && !(e.error === 'no-speech' && text)) error = LISTEN_ERRORS[e.error] ?? tx('זיהוי הדיבור לא הצליח. אפשר להקליד במקום.')
   }
-  r.onend = () => {
-    clearTimeout(timer)
-    onEnd(text, error)
-  }
+  r.onend = finish
   r.start()
-  timer = setTimeout(() => r.stop(), 8000) // nothing said at all
-  return { stop: () => r.stop() }
+  timer = setTimeout(stop, 8000) // nothing said at all
+  return { stop }
 }
 
 // The voice: the one the manager picked on this phone (assistant screen), else, in Hebrew, the first cloud
@@ -209,6 +256,7 @@ export function speak(text: string, onDone?: () => void, onFail?: (reason: strin
     return
   }
   heard.forEach((fn) => fn(text))
+  audioSession('playback')
   const said = pronounce(speakable(text, language().speech))
   if (useCloud && cloud) {
     if (canSpeak) speechSynthesis.cancel()

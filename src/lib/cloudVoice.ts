@@ -93,6 +93,22 @@ function timeout<T>(p: Promise<T>, ms: number): Promise<T> {
 let playing: HTMLAudioElement | null = null
 let turn = 0
 
+// An iPhone plays sound only from an element that first played during a tap. So one element is
+// "woken" on the mic tap (a moment of silence) and reused for every sentence after it, even the ones
+// that come seconds later with no tap (Dolik's iPhone heard nothing, 2026-11-16).
+let player: HTMLAudioElement | null = null
+const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='
+
+/** Call inside a tap: lets the cloud voice play later without one. */
+export function unlockCloud() {
+  if (typeof Audio === 'undefined') return
+  player ??= new Audio()
+  player.onended = null
+  player.onerror = null
+  player.src = SILENCE
+  player.play().catch(() => {})
+}
+
 /** Stops the cloud voice (a newer reply or the stop button). */
 export function stopCloud() {
   turn++
@@ -122,7 +138,8 @@ export function speakCloud(text: string, voice: CloudVoice, rate: number, onDone
     }
     if (mine !== turn) return
     const url = URL.createObjectURL(blob)
-    const a = new Audio(url)
+    const a = player ?? new Audio()
+    a.src = url
     playing = a
     const next = () => {
       URL.revokeObjectURL(url)
