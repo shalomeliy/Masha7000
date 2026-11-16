@@ -83,7 +83,7 @@ export interface Listening {
  * the final words (maybe empty), or an error message.
  */
 export function listen(onText: (text: string) => void, onEnd: (text: string, error?: string) => void): Listening | null {
-  if (!Speech) return null
+  if (!Speech || !canListen) return null
   audioSession('auto')
   const r = new Speech()
   r.lang = language().speech
