@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Download, MessageCircle } from 'lucide-react
 import { useDriveList } from '../../lib/data/useDriveList'
 import { COLUMNS, addMonths, csvFileName, monthCsv, monthLabel, monthReport, monthText } from '../../lib/monthReport'
 import type { PeriodReport as Counts } from '../../lib/monthReport'
-import { whatsappHref } from '../../lib/report'
+import { whatsappLink } from '../../lib/report'
 import { addDays, weekLabel, weekOf, weekReport, weekText } from '../../lib/weekReport'
 
 // Every worker's shifts in one month or one week (Sunday to Saturday), by kind. Tap a worker to
@@ -169,9 +169,7 @@ function PeriodReport({
 
           <div className="flex gap-2">
             <a
-              href={whatsappHref(text)}
-              target="_blank"
-              rel="noreferrer"
+              {...whatsappLink(text)}
               className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 font-semibold text-slate-950"
             >
               <MessageCircle size={18} aria-hidden />
