@@ -1243,5 +1243,6 @@
  "רכב לעבודה ב{where}: {car}.": "Vehículo para el trabajo en {where}: {car}.",
  "רכב": "Vehículo",
  "{v}, בלי רישוי": "{v}, sin matrícula",
- "מי ייכנס במקום {v}": "Quién reemplaza a {v}"
+ "מי ייכנס במקום {v}": "Quién reemplaza a {v}",
+ "הקלד, או לחץ על המיקרופון במקלדת": "Escribe o toca el micrófono del teclado"
 }

@@ -1243,5 +1243,6 @@
  "רכב לעבודה ב{where}: {car}.": "{where} işi için araç: {car}.",
  "רכב": "Araç",
  "{v}, בלי רישוי": "{v}, plakasız",
- "מי ייכנס במקום {v}": "{v} yerine kim girecek"
+ "מי ייכנס במקום {v}": "{v} yerine kim girecek",
+ "הקלד, או לחץ על המיקרופון במקלדת": "Yazın veya klavyedeki mikrofona dokunun"
 }

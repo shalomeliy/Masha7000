@@ -23,7 +23,17 @@ type RecognitionCtor = new () => Recognition
 const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor }
 const Speech = w.SpeechRecognition ?? w.webkitSpeechRecognition
 
-export const canListen = Boolean(Speech)
+// iPhone (and iPad, which says it is a Mac): its listening and its sound need their own care below.
+const isIOS =
+  typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
+
+// Installed on an iPhone's home screen, the page's speech recognition starts but never hears anything
+// (WebKit bug 225298; Dolik, 2026-11-16: stuck on "listening"). There the keyboard's own mic is used.
+export const iosHomeApp =
+  isIOS &&
+  ((navigator as unknown as { standalone?: boolean }).standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true)
+
+export const canListen = Boolean(Speech) && !iosHomeApp
 export const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window
 
 export const LISTEN_ERRORS: Record<string, string> = {
@@ -33,9 +43,6 @@ export const LISTEN_ERRORS: Record<string, string> = {
   'no-speech': tx('לא נשמע דיבור. נסה שוב.'),
 }
 
-// iPhone (and iPad, which says it is a Mac): its listening and its sound need their own care below.
-const isIOS =
-  typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
 // Safari's audio session: after the microphone, an iPhone may keep sound in "call" mode (quiet, or
 // none). 'playback' before speaking puts it back on the speaker; 'auto' before listening.

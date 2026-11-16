@@ -1243,5 +1243,6 @@
  "רכב לעבודה ב{where}: {car}.": "Kendaraan untuk pekerjaan di {where}: {car}.",
  "רכב": "Kendaraan",
  "{v}, בלי רישוי": "{v}, tanpa pelat nomor",
- "מי ייכנס במקום {v}": "Siapa yang menggantikan {v}"
+ "מי ייכנס במקום {v}": "Siapa yang menggantikan {v}",
+ "הקלד, או לחץ על המיקרופון במקלדת": "Ketik, atau ketuk mikrofon di keyboard"
 }
