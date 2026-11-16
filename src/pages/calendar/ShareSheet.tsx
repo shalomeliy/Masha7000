@@ -2,7 +2,7 @@ import { tx } from '../../i18n'
 import { useEffect, useState } from 'react'
 import { Copy, Image as ImageIcon, Loader2, MessageCircle } from 'lucide-react'
 import { Sheet } from '../../components/Sheet'
-import { reportText, whatsappHref } from '../../lib/report'
+import { reportText, whatsappLink } from '../../lib/report'
 import type { Report } from '../../lib/report'
 import { reportImage } from '../../lib/reportImage'
 
@@ -88,9 +88,7 @@ export function ShareSheet({ title, report, warning, onClose }: { title: string;
       </button>
       <div className="flex gap-2">
         <a
-          href={whatsappHref(text)}
-          target="_blank"
-          rel="noreferrer"
+          {...whatsappLink(text)}
           className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-500/50 text-sm text-emerald-300"
         >
           <MessageCircle size={18} aria-hidden />

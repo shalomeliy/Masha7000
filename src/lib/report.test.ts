@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayReport, nextJobText, weekData, weekReport, whatsappHref } from './report'
+import { dayReport, isIOS, nextJobText, weekData, weekReport, whatsappHref } from './report'
 import type { ReportContext } from './report'
 import type { ShiftRecord } from '../types/models'
 
@@ -78,7 +78,7 @@ describe('weekData', () => {
 })
 
 it('whatsappHref encodes Hebrew and line breaks', () => {
-  expect(whatsappHref('שלום\nעולם')).toBe('https://wa.me/?text=%D7%A9%D7%9C%D7%95%D7%9D%0A%D7%A2%D7%95%D7%9C%D7%9D')
+  expect(whatsappHref('שלום\nעולם', false)).toBe('https://wa.me/?text=%D7%A9%D7%9C%D7%95%D7%9D%0A%D7%A2%D7%95%D7%9C%D7%9D')
 })
 
 describe('לינה in the report', () => {
@@ -87,4 +87,15 @@ describe('לינה in the report', () => {
     expect(nextJobText({ nextJob: { location: '', jobDescription: '' } })).toBeUndefined()
     expect(nextJobText({})).toBeUndefined()
   })
+})
+
+it('whatsappHref opens the WhatsApp app directly on iPhone', () => {
+  expect(whatsappHref('שלום', true)).toBe('whatsapp://send?text=%D7%A9%D7%9C%D7%95%D7%9D')
+})
+
+it('isIOS spots iPhone and iPad, not Android', () => {
+  expect(isIOS({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' })).toBe(true)
+  expect(isIOS({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', maxTouchPoints: 5 })).toBe(true)
+  expect(isIOS({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', maxTouchPoints: 0 })).toBe(false)
+  expect(isIOS({ userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8)' })).toBe(false)
 })

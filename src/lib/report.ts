@@ -114,5 +114,22 @@ export function reportText(report: Report): string {
 export const dayReport = (date: string, ctx: ReportContext) => reportText(dayData(date, ctx))
 export const weekReport = (anyDay: string, ctx: ReportContext) => reportText(weekData(anyDay, ctx))
 
-/** Opens WhatsApp with the text ready; the manager picks the chat or group there. */
-export const whatsappHref = (text: string) => `https://wa.me/?text=${encodeURIComponent(text)}`
+/** True on iPhone and iPad (iPadOS says "Macintosh" but has a touch screen). */
+export const isIOS = (nav: { userAgent: string; maxTouchPoints?: number } = navigator) =>
+  /iPhone|iPad|iPod/.test(nav.userAgent) || (/Macintosh/.test(nav.userAgent) && (nav.maxTouchPoints ?? 0) > 1)
+
+/**
+ * Opens WhatsApp with the text ready; the manager picks the chat or group there.
+ * On iPhone the wa.me web link goes through WhatsApp's quick-send screen, whose Send button
+ * sometimes does nothing (2026-11-16). The app's own whatsapp:// link opens the chat itself with
+ * the text in the typing box, and the manager sends it from there.
+ */
+export const whatsappHref = (text: string, ios = typeof navigator !== 'undefined' && isIOS()) =>
+  ios ? `whatsapp://send?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`
+
+/** Link props for a "send in WhatsApp" button: a new tab for wa.me, the same page for the app link (a new tab would open blank on iPhone). */
+export const whatsappLink = (text: string, ios = typeof navigator !== 'undefined' && isIOS()) => ({
+  href: whatsappHref(text, ios),
+  target: ios ? undefined : '_blank',
+  rel: 'noreferrer',
+})

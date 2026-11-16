@@ -17,7 +17,7 @@ import {
   workerFromSubmission,
   type Submission,
 } from '../../lib/join'
-import { whatsappHref } from '../../lib/report'
+import { whatsappLink } from '../../lib/report'
 import type { Worker } from '../../types/models'
 import { tx } from '../../i18n'
 
@@ -112,9 +112,7 @@ function JoinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         <>
           <pre className="whitespace-pre-wrap break-all rounded-xl border border-slate-800 bg-slate-950 p-3 font-sans text-sm text-slate-200">{text}</pre>
           <a
-            href={whatsappHref(text)}
-            target="_blank"
-            rel="noreferrer"
+            {...whatsappLink(text)}
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 font-semibold text-slate-950"
           >
             <MessageCircle size={20} aria-hidden />
