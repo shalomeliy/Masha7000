@@ -54,6 +54,7 @@ Before calling it done:
 | Implementation plan | `docs/plans/<feature>-PLAN.md` | `architecture-plan` |
 | Solved-problem learnings | `docs/solutions/` | `ce-compound` |
 | Code scans (bugs, security, speed) | `docs/reviews/<date>-code-scan.md` | main session |
+| Usage and savings reports | `docs/reports/<date>-<topic>.md` | main session |
 
 ## Skill routing: which skill when
 
