@@ -288,6 +288,36 @@ describe('owner controls', () => {
     expect(store.has('owner:refresh')).toBe(false)
   })
 
+  it('a manager deleting their account loses only their own access', async () => {
+    store.set('allowed', new Set(['deputy@example.com', 'other@example.com']))
+    store.set('assistant', new Set(['deputy@example.com']))
+    store.set('owner:refresh', await seal(KEY, 'refresh-1'))
+    const deputy = await managerSession('deputy@example.com')
+    expect((await post(logout, null, { action: 'delete-account' })).status).toBe(401)
+    const res = await post(logout, deputy, { action: 'delete-account' })
+    expect(res.status).toBe(200)
+    expect(res.headers.getSetCookie()[0]).toMatch(/^__Host-session=; Max-Age=0/)
+    expect([...(store.get('allowed') as Set<string>)]).toEqual(['other@example.com'])
+    expect((store.get('assistant') as Set<string>).size).toBe(0)
+    expect(store.has('mfa:deputy@example.com')).toBe(false)
+    expect(store.has('owner:refresh')).toBe(true)
+    expect(google.revoked).toEqual([])
+    expect((await post(token, deputy)).status).toBe(401)
+  })
+
+  it('the owner deleting the account removes what the server keeps for the app', async () => {
+    store.set('allowed', new Set(['deputy@example.com']))
+    store.set('owner:refresh', await seal(KEY, 'refresh-1'))
+    const deputy = await managerSession('deputy@example.com')
+    const boss = await managerSession(OWNER)
+    store.set('claude-log', 'sealed')
+    expect((await post(logout, boss, { action: 'delete-account' })).status).toBe(200)
+    expect(google.revoked).toEqual(['refresh-1'])
+    for (const key of ['owner:refresh', 'allowed', 'claude-log', `mfa:${OWNER}`, 'mfa:deputy@example.com']) expect(store.has(key), key).toBe(false)
+    expect((await post(token, deputy)).status).toBe(401)
+    expect((await post(token, boss)).status).toBe(401)
+  })
+
   it('logout clears only the session cookie', async () => {
     const res = await post(logout, null)
     expect(res.headers.getSetCookie()[0]).toMatch(/^__Host-session=; Max-Age=0/)

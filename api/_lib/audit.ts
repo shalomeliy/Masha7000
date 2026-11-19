@@ -28,6 +28,7 @@ export type AuditEvent =
   | 'drive-disconnect'
   | 'apikey-create'
   | 'apikey-revoke'
+  | 'account-delete'
 
 export interface AuditEntry {
   at: string

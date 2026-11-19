@@ -1,5 +1,6 @@
 import { language, tx } from '../i18n'
 import { realAssistantOn } from '../dev/realAssistant'
+import { hasAiConsent } from './aiConsent'
 // Talking to /api/assistant. The conversation is kept here in the shape the Claude API wants
 // (user and assistant turns in order, the assistant's blocks sent back unchanged), and is sent
 // whole each turn: the server keeps nothing.
@@ -42,6 +43,9 @@ export async function fetchBudget(): Promise<Budget | null> {
   }
 }
 
+/** Asked Claude before the manager agreed to send to an outside AI (src/lib/aiConsent.ts). */
+export class NoAiConsentError extends Error {}
+
 const REASONS: Record<string, string> = {
   'not-owner': tx('העוזר הקולי פתוח רק לחשבון של המנהל.'),
   'free-only': tx('את זה Shali עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.'),
@@ -73,6 +77,8 @@ export async function askAssistant(
   onEarly?: (text: string) => void,
   onBudget?: (budget: Budget) => void,
 ): Promise<AssistantAnswer> {
+  // Nothing goes to Claude before the manager agreed (Voice.tsx asks first; this is the safety net).
+  if (!hasAiConsent()) throw new NoAiConsentError(tx('בלי האישור שלך Shali עושה רק את מה שהוא יודע לבד, בלי Claude.'))
   let res: Response
   try {
     res = await fetch('/api/assistant', {

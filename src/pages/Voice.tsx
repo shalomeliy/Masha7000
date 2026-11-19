@@ -15,6 +15,8 @@ import { HINTS, showHint, type Hint } from '../lib/hint'
 import { reportMessage } from '../lib/monitoring'
 import { vlog, voiceReport } from '../lib/voiceLog'
 import { cloudOff } from '../lib/cloudVoice'
+import { hasAiConsent, setAiConsent } from '../lib/aiConsent'
+import { AiConsentCard } from '../components/AiConsentCard'
 import { canListen, canSpeak, currentVoice, iosHomeApp, listen, unlockSpeech, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
@@ -67,6 +69,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [typing, setTyping] = useState(!canListen)
   const [typed, setTyped] = useState('')
   const [rate, setRate] = useState(speechRate)
+  // A turn for Claude held back until the manager agrees to send to an outside AI (src/lib/aiConsent.ts).
+  const [consentFor, setConsentFor] = useState<{ turn: Turn; fixes: number } | null>(null)
   // The phone's voices for the app's language; they may load a moment after the screen opens.
   const [voiceList, setVoiceList] = useState(voices)
   const [voice, setVoice] = useState(currentVoice)
@@ -134,6 +138,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   }
 
   const reset = () => {
+    setConsentFor(null)
     conversation.current = []
     last.current = null
     asked.current = []
@@ -152,6 +157,12 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
 
   // One turn: send, then act on the tool call. Wrong proposals go back for fixing, quietly.
   const send = async (turn: Turn, fixes = 0) => {
+    if (!hasAiConsent()) {
+      setConsentFor({ turn, fixes })
+      setPhase('idle')
+      say(tx('לפני שאני שואל את Claude, צריך את האישור שלך. הפרטים על המסך.'))
+      return
+    }
     setPhase('thinking')
     if (!fixes) speakAtOnce(MOMENT)
     setError(null)
@@ -604,6 +615,21 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         )}
         {budget && <BudgetLine budget={budget} />}
         {heard && <p className="max-w-sm text-center text-slate-100">{heard}</p>}
+        {consentFor && phase === 'idle' && (
+          <AiConsentCard
+            onAgree={() => {
+              const held = consentFor
+              setConsentFor(null)
+              setAiConsent(true)
+              void send(held.turn, held.fixes)
+            }}
+            onDecline={() => {
+              setConsentFor(null)
+              setError(tx('בלי האישור שלך Shali עושה רק את מה שהוא יודע לבד, בלי Claude.'))
+              offerLocalPart()
+            }}
+          />
+        )}
         {error && (
           <p role="alert" className="max-w-sm text-center text-amber-300">
             {error}

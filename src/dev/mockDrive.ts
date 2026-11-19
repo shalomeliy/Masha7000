@@ -68,5 +68,10 @@ window.fetch = async (input, init = {}) => {
     return reply(meta(f))
   }
   if (u.pathname.startsWith('/drive/v3/files/') && method === 'PATCH' && byId) return reply(meta(byId))
+  if (u.pathname.startsWith('/drive/v3/files/') && method === 'DELETE' && byId) {
+    files.delete(byId.name)
+    persist()
+    return new Response(null, { status: 204 })
+  }
   return reply({ error: 'mock: not handled' }, 404)
 }

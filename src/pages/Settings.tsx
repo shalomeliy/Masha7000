@@ -14,6 +14,7 @@ import { authMode } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
 import { Archive } from './Archive'
 import { AccessSection } from './settings/AccessSection'
+import { AccountSection } from './settings/AccountSection'
 import { ApiSection } from './settings/ApiSection'
 import { BackupSection } from './settings/BackupSection'
 import { SecuritySection } from './settings/SecuritySection'
@@ -163,7 +164,7 @@ const PANELS: Record<PanelId, { title: string; explain: string }> = {
   security: { title: tx('אימות דו-שלבי'), explain: tx('קוד מהטלפון בכל כניסה, וקודי גיבוי') },
   backup: { title: tx('גיבוי ושחזור'), explain: tx('שמירת עותק של כל הנתונים והחזרה שלו') },
   connection: { title: tx('בדיקת חיבור לגוגל'), explain: tx('בודקת שהשמירה בדרייב והיומן עובדים') },
-  account: { title: tx('החשבון שלי'), explain: tx('עם איזה מייל נכנסת, והתנתקות') },
+  account: { title: tx('החשבון שלי'), explain: tx('עם איזה מייל נכנסת, התנתקות, שליחה ל-AI ומחיקת החשבון') },
   feedback: { title: tx('בקשת תכונות חדשות'), explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח') },
   api: { title: tx('גישת API'), explain: tx('מפתחות למערכות אחרות שקוראות וכותבות את הנתונים') },
   claudeLog: { title: tx('מה הלך ל-Claude'), explain: tx('בקשות שלא בוצעו בחינם, למה, ומה Claude עשה. עם כפתור העתקה') },
@@ -222,6 +223,7 @@ function groups(isOwner: boolean, server: boolean): Group[] {
         { href: '/privacy.html', title: tx('מדיניות פרטיות'), explain: tx('איזה מידע נשמר, איפה, מי רואה אותו, והזכויות שלך') },
         { href: '/terms.html', title: tx('תנאי שימוש'), explain: tx('הכללים לשימוש באפליקציה, ומי אחראי על מה') },
         { href: '/accessibility.html', title: tx('הצהרת נגישות'), explain: tx('מה נגיש, מה עוד לא, ואיך מדווחים על בעיה') },
+        { href: '/delete-account.html', title: tx('מחיקת חשבון ונתונים'), explain: tx('מה נמחק ואיך, גם בלי להיכנס לאפליקציה') },
         {
           href: 'mailto:shalom.eliy@gmail.com?subject=Shali',
           title: tx('פנייה בנושא פרטיות או נגישות'),
@@ -248,7 +250,7 @@ function groups(isOwner: boolean, server: boolean): Group[] {
     {
       id: 'account',
       title: tx('החשבון שלי'),
-      explain: tx('עם איזה מייל נכנסת, והתנתקות'),
+      explain: tx('עם איזה מייל נכנסת, התנתקות, שליחה ל-AI ומחיקת החשבון'),
       icon: UserCircle,
       items: [panelItem('account')],
     },
@@ -274,7 +276,6 @@ function useBackTo(open: boolean, close: () => void) {
 
 // The archive lives here too (the user's choice, 2026-11-06): the bottom bar keeps five buttons.
 export function Settings({ openArchive = false }: { openArchive?: boolean }) {
-  const logout = useAuth((s) => s.logout)
   const who = useAuth((s) => s.who)
   const [groupId, setGroupId] = useState<string | null>(null)
   const [open, setOpen] = useState<ItemId | null>(openArchive ? 'archive' : null)
@@ -350,20 +351,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
         {open === 'feedback' && <FeatureRequestSection />}
         {open === 'claudeLog' && <ClaudeLogSection />}
         {open === 'api' && <ApiSection />}
-        {open === 'account' && (
-          <div className="space-y-3">
-            <h1 className="text-2xl font-bold">{tx('החשבון שלי')}</h1>
-            {who && (
-              <p className="text-sm text-slate-400">
-                {tx('מחובר כ-')}<span dir="ltr">{who.email}</span>
-              </p>
-            )}
-            <button type="button" onClick={logout} className="w-full rounded-xl border border-slate-700 py-3 text-slate-300">
-              {tx('התנתקות')}
-            </button>
-            {authMode() === 'server' && <p className="text-xs text-slate-500">{tx('מנתק רק את המכשיר הזה. שאר המכשירים נשארים מחוברים.')}</p>}
-          </div>
-        )}
+        {open === 'account' && <AccountSection />}
       </section>
     )
 

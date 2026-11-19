@@ -25,6 +25,7 @@ const LABEL: Record<string, string> = {
   'drive-disconnect': tx('Drive נותק'),
   'apikey-create': tx('נוצר מפתח API'),
   'apikey-revoke': tx('בוטל מפתח API'),
+  'account-delete': tx('חשבון נמחק'),
 }
 
 const WARN = new Set(['signin-refused', 'mfa-wrong', 'mfa-locked', 'recovery-used'])

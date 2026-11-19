@@ -1,4 +1,5 @@
 import { vlog } from './voiceLog.js'
+import { hasAiConsent } from './aiConsent.js'
 
 // Shali's cloud voice (Google Chirp 3 HD, Hebrew, male; server side in api/_lib/tts.ts). A reply is cut
 // into sentences, all asked for at once and played in order, so the first words are heard in about half
@@ -65,6 +66,8 @@ function fetchPiece(text: string, voice: CloudVoice, rate: number): Promise<Blob
   const key = `${voice}|${rate}|${text}`
   const hit = cache.get(key)
   if (hit) return hit
+  // Without the manager's yes nothing goes to Google's voice: the phone's own voice reads it.
+  if (!hasAiConsent()) return Promise.reject(new Error('no-consent'))
   const p = fetch('/api/assistant?tts', {
     method: 'POST',
     credentials: 'same-origin',

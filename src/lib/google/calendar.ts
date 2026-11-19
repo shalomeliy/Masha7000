@@ -74,3 +74,15 @@ export async function deleteEvent(calendarId: string, eventId: string): Promise<
     { method: 'DELETE' },
   )
 }
+
+/** Deletes the "Smart Shifts" calendar the app made, if there is one (account deletion). */
+export async function deleteShiftsCalendar(): Promise<void> {
+  const settings = (await readJson<AppSettings>(DRIVE_FILES.settings)) ?? {}
+  if (!settings.calendarId) return
+  try {
+    await googleFetch(`${CAL_API}/calendars/${encodeURIComponent(settings.calendarId)}`, { method: 'DELETE' })
+  } catch (e) {
+    // Already deleted by hand: nothing left to do.
+    if (!/Google API (404|410)/.test((e as Error).message)) throw e
+  }
+}

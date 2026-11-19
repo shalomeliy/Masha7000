@@ -208,3 +208,24 @@ export async function deleteCopy(id: string): Promise<void> {
   await googleFetch(`${FILES_API}/${id}`, { method: 'DELETE' })
   dropIndex()
 }
+
+/** Deletes every file of the app in this Drive (account deletion, src/lib/deleteAccount.ts). Returns how many. */
+export async function deleteAllAppFiles(): Promise<number> {
+  dropIndex()
+  const all = new Set<string>()
+  let pageToken = ''
+  do {
+    const res = await googleFetch(
+      `${FILES_API}?spaces=appDataFolder&pageSize=1000&fields=nextPageToken,files(id)${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`,
+    )
+    const data: { files: { id: string }[]; nextPageToken?: string } = await res.json()
+    for (const f of data.files) all.add(f.id)
+    pageToken = data.nextPageToken ?? ''
+  } while (pageToken)
+  for (const id of all) await googleFetch(`${FILES_API}/${id}`, { method: 'DELETE' })
+  versions.clear()
+  checksums.clear()
+  bodies.clear()
+  dropIndex()
+  return all.size
+}
