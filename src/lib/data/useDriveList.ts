@@ -6,7 +6,7 @@ import { readShifts, saveShifts, windowStart } from './shiftMonths'
 import { todayIso } from '../dates'
 import { normalizeShift, normalizeWorker, STARTER_DEPARTMENTS, withoutGeneralCert, withNightPlus } from '../catalog'
 import { normalizePendingJob, normalizeShiftRecord } from '../shifts'
-import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certification, Department, JobType, WorkKind, PendingJob, Place, PostponeReason, Pronunciation, ShiftDefinition, ShiftRecord, Vehicle, Worker, WordGroupSetting } from '../../types/models'
+import type { ApprovedWord, NewWord, AssistantExample, AssistantNote, Certification, Department, JobType, JournalEntry, WorkKind, PendingJob, Place, PostponeReason, Pronunciation, ShiftDefinition, ShiftRecord, Vehicle, Worker, WordGroupSetting } from '../../types/models'
 
 // One Drive appData JSON file = one list (shifts: one file per month). A missing file is an empty list.
 // Saves write the whole list, optimistically, and roll back if Drive refuses.
@@ -31,6 +31,7 @@ type ListOf = {
   approvedWords: ApprovedWord
   newWords: NewWord
   vehicles: Vehicle
+  journal: JournalEntry
 }
 type ListFile = keyof ListOf
 

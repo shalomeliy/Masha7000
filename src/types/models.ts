@@ -161,6 +161,16 @@ export interface PendingJob {
   vehicleModel?: string
 }
 
+// One entry of the manager's personal log ("יומן אישי", the user's request, 2026-11-20): what he did and
+// from when to when. Start and end are required; the text is free.
+export interface JournalEntry {
+  id: string
+  date: string // YYYY-MM-DD, the day it started
+  start: string // HH:mm
+  end: string // HH:mm; earlier than `start` means it ended the next day
+  text: string
+}
+
 // One vehicle: its values by field id (plate, model, make: src/lib/vehicles.ts).
 export interface Vehicle {
   id: string

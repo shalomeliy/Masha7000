@@ -27,6 +27,13 @@ async function reopen(page: Page) {
 
 const tab = (page: Page, name: string) => page.getByRole('navigation').getByRole('button', { name, exact: true })
 
+// The vehicles list lives in Settings since 2026-11-20 (its bottom button became "יומן אישי").
+async function openVehicles(page: Page) {
+  await tab(page, 'הגדרות').click()
+  await page.getByRole('button', { name: /^רכבים/ }).click()
+  await expect(page.getByRole('heading', { name: 'רכבים' })).toBeVisible()
+}
+
 test('every tab opens without the crash message', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
@@ -40,8 +47,10 @@ test('every tab opens without the crash message', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'עובדים' })).toBeVisible()
   await expect(page.getByText('דני לוי')).toBeVisible()
 
-  await tab(page, 'רכבים').click()
-  await expect(page.getByRole('heading', { name: 'רכבים' })).toBeVisible()
+  await tab(page, 'יומן אישי').click()
+  await expect(page.getByRole('heading', { name: 'יומן אישי' })).toBeVisible()
+
+  await openVehicles(page)
 
   await tab(page, 'הגדרות').click()
   await expect(page.getByRole('heading', { name: 'הגדרות' })).toBeVisible()
@@ -67,8 +76,7 @@ test('opening the calendar lists Drive once, not one search per file', async ({ 
 
 test('a saved vehicle is still there after a reload', async ({ page }) => {
   await openWithFakeDrive(page)
-  await tab(page, 'רכבים').click()
-  await expect(page.getByRole('heading', { name: 'רכבים' })).toBeVisible()
+  await openVehicles(page)
   await page.getByRole('button', { name: 'הוספת רכב' }).first().click()
   await page.getByLabel('מספר רישוי').fill('12-345-67')
   await page.getByLabel('דגם').fill('E2E טנדר')
@@ -76,13 +84,33 @@ test('a saved vehicle is still there after a reload', async ({ page }) => {
   await expect(page.getByText('E2E טנדר')).toBeVisible()
 
   await reopen(page)
-  await tab(page, 'רכבים').click()
+  await openVehicles(page)
   await expect(page.getByText('E2E טנדר')).toBeVisible()
+})
+
+test('a personal log entry needs start and end times, and stays after a reload', async ({ page }) => {
+  await openWithFakeDrive(page)
+  await tab(page, 'יומן אישי').click()
+  await page.getByRole('button', { name: 'הוספת רישום' }).first().click()
+  await page.getByLabel('מה עשיתי').fill('E2E סיור בערד')
+  await page.getByRole('button', { name: 'שמירה' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'צריך למלא שעת התחלה' })).toBeVisible()
+  await page.getByLabel('שעת התחלה').fill('08:30')
+  await page.getByRole('button', { name: 'שמירה' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'צריך למלא שעת סיום' })).toBeVisible()
+  await page.getByLabel('שעת סיום').fill('12:00')
+  await page.getByRole('button', { name: 'שמירה' }).click()
+  await expect(page.getByText('E2E סיור בערד')).toBeVisible()
+  await expect(page.getByText('08:30–12:00')).toBeVisible()
+
+  await reopen(page)
+  await tab(page, 'יומן אישי').click()
+  await expect(page.getByText('E2E סיור בערד')).toBeVisible()
 })
 
 test("a job picks its vehicle from the app's own list: make, model, plate, mark on the right", async ({ page }) => {
   await openWithFakeDrive(page)
-  await tab(page, 'רכבים').click()
+  await openVehicles(page)
   for (const [plate, model, make] of [['55-555-55', 'Caddy', 'Volkswagen'], ['11-111-11', 'D-Max', 'Isuzu']]) {
     await page.getByRole('button', { name: 'הוספת רכב' }).first().click()
     await page.getByLabel('מספר רישוי').fill(plate)

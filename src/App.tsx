@@ -23,13 +23,13 @@ const screens = {
   calendar: () => import('./pages/Calendar'),
   voice: () => import('./pages/Voice'),
   workers: () => import('./pages/Workers'),
-  vehicles: () => import('./pages/Vehicles'),
+  journal: () => import('./pages/Journal'),
   settings: () => import('./pages/Settings'),
 }
 const Calendar = lazy(() => screens.calendar().then((m) => ({ default: m.Calendar })))
 const Voice = lazy(() => screens.voice().then((m) => ({ default: m.Voice })))
 const Workers = lazy(() => screens.workers().then((m) => ({ default: m.Workers })))
-const Vehicles = lazy(() => screens.vehicles().then((m) => ({ default: m.Vehicles })))
+const Journal = lazy(() => screens.journal().then((m) => ({ default: m.Journal })))
 const Settings = lazy(() => screens.settings().then((m) => ({ default: m.Settings })))
 
 function prefetchScreens() {
@@ -58,6 +58,12 @@ export default function App() {
   const voice = !iosHomeApp && (who?.assistant === true || who?.isOwner === true || import.meta.env.DEV)
   const [tab, setTab] = useState<Tab | null>(null)
   const shown: Tab = tab ?? (voice ? 'voice' : 'calendar')
+  // "הגדרות" tapped again from inside one of its screens (vehicles, archive...) goes back to its first screen.
+  const [settingsRound, setSettingsRound] = useState(0)
+  const go = (next: Tab) => {
+    if (next === 'settings' && (shown === 'settings' || shown === 'archive')) setSettingsRound((n) => n + 1)
+    setTab(next)
+  }
 
   useEffect(() => {
     void check()
@@ -98,11 +104,11 @@ export default function App() {
           {shown === 'voice' && voice && <Voice onNavigate={(s) => setTab(s === 'toSchedule' ? 'calendar' : s)} />}
           {shown === 'calendar' && <Calendar />}
           {shown === 'workers' && <Workers />}
-          {shown === 'vehicles' && <Vehicles />}
-          {(shown === 'settings' || shown === 'archive') && <Settings key={shown} openArchive={shown === 'archive'} />}
+          {shown === 'journal' && <Journal />}
+          {(shown === 'settings' || shown === 'archive') && <Settings key={`${shown}-${settingsRound}`} openArchive={shown === 'archive'} />}
         </Suspense>
       </CrashGuard>
-      <BottomNav active={shown} onChange={setTab} voice={voice} />
+      <BottomNav active={shown} onChange={go} voice={voice} />
     </div>
   )
 }

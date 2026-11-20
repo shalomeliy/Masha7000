@@ -1,7 +1,7 @@
 import { tx } from '../i18n'
 import { LanguagePicker } from './settings/LanguagePicker'
 import { useEffect, useState } from 'react'
-import { Archive as ArchiveIcon, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, Car, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
@@ -13,6 +13,7 @@ import { TIME_ZONE } from '../lib/google/config'
 import { authMode } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
 import { Archive } from './Archive'
+import { Vehicles } from './Vehicles'
 import { AccessSection } from './settings/AccessSection'
 import { AccountSection } from './settings/AccountSection'
 import { ApiSection } from './settings/ApiSection'
@@ -141,7 +142,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog' | 'api'
+type PanelId = 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog' | 'api'
 type ItemId = ListId | PanelId
 
 // A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
@@ -160,6 +161,7 @@ interface Group {
 
 const PANELS: Record<PanelId, { title: string; explain: string }> = {
   archive: { title: tx('ארכיון ודוחות'), explain: tx('כל העבודות שהיו: מי עבד, איפה, ודוחות שבועיים וחודשיים') },
+  vehicles: { title: tx('רכבים'), explain: tx('רשימת הרכבים: הוספה, חיפוש ומחיקה. בוחרים מהם בעבודה ביומן') },
   access: { title: tx('מי יכול להיכנס'), explain: tx('הוספה והסרה של אנשים שמשתמשים באפליקציה') },
   security: { title: tx('אימות דו-שלבי'), explain: tx('קוד מהטלפון בכל כניסה, וקודי גיבוי') },
   backup: { title: tx('גיבוי ושחזור'), explain: tx('שמירת עותק של כל הנתונים והחזרה שלו') },
@@ -184,6 +186,14 @@ function groups(isOwner: boolean, server: boolean): Group[] {
       explain: tx('מה שבוחרים כשפותחים עבודה ביומן'),
       icon: ClipboardList,
       items: [listItem('workKinds'), listItem('shiftDefinitions'), listItem('places'), listItem('jobTypes'), listItem('postponeReasons')],
+    },
+    {
+      // Moved here from the bottom bar (the user, 2026-11-20): the list is still where vehicles are added.
+      id: 'vehicles',
+      title: tx('רכבים'),
+      explain: tx('רשימת הרכבים: הוספה, חיפוש ומחיקה. בוחרים מהם בעבודה ביומן'),
+      icon: Car,
+      items: [panelItem('vehicles')],
     },
     {
       id: 'workers',
@@ -329,6 +339,14 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
       <>
         <div className="px-4 pt-4">{back}</div>
         <Archive />
+      </>
+    )
+
+  if (open === 'vehicles')
+    return (
+      <>
+        <div className="px-4 pt-4">{back}</div>
+        <Vehicles />
       </>
     )
 

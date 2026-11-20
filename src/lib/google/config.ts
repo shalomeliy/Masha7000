@@ -29,4 +29,5 @@ export const DRIVE_FILES = {
   approvedWords: 'approved_words.json',
   newWords: 'new_words.json',
   vehicles: 'vehicles.json',
+  journal: 'journal.json',
 } as const

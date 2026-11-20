@@ -34,7 +34,9 @@ const ERRORS: Record<string, string> = {
   'no-speech': tx('לא נשמע דיבור. נסה שוב.'),
 }
 
-export function DictationField({ label, value, onChange, placeholder, tasks }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; tasks?: boolean }) {
+// `onDone` gets the whole text when dictation stops (the personal log reads the times said in it).
+// `micLabel` names the mic button where the manager calls it otherwise ("הקראה" in the personal log).
+export function DictationField({ label, value, onChange, placeholder, tasks, onDone, micLabel }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; tasks?: boolean; onDone?: (text: string) => void; micLabel?: string }) {
   const [listening, setListening] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const rec = useRef<Recognition | null>(null)
@@ -62,6 +64,7 @@ export function DictationField({ label, value, onChange, placeholder, tasks }: {
     r.onerror = (e) => e.error !== 'aborted' && setError(ERRORS[e.error] ?? tx('ההכתבה לא הצליחה. אפשר להקליד במקום.'))
     r.onend = () => {
       if (tasks && said) onChange(asTaskList(said))
+      if (said) onDone?.(said)
       rec.current = null
       setListening(false)
     }
@@ -90,7 +93,7 @@ export function DictationField({ label, value, onChange, placeholder, tasks }: {
           }`}
         >
           {listening ? <Square size={16} aria-hidden /> : <Mic size={18} aria-hidden />}
-          {listening ? tx('מקשיב... לחץ לעצירה') : tx('הכתבה בקול')}
+          {listening ? tx('מקשיב... לחץ לעצירה') : (micLabel ?? tx('הכתבה בקול'))}
         </button>
       )}
       {error && (

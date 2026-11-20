@@ -1,17 +1,18 @@
 import { tx } from '../i18n'
-import { CalendarDays, Car, Mic, Settings, Users } from 'lucide-react'
+import { CalendarDays, Mic, NotebookPen, Settings, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-export type Tab = 'voice' | 'calendar' | 'workers' | 'vehicles' | 'archive' | 'settings'
+export type Tab = 'voice' | 'calendar' | 'workers' | 'journal' | 'archive' | 'settings'
 
 // 'archive' has no button of its own: it opens inside "הגדרות". Jobs waiting for a day are in the calendar
-// (the user removed the "לשיבוץ" button, 2026-11-13). "רכבים" sits right of "הגדרות".
+// (the user removed the "לשיבוץ" button, 2026-11-13). "יומן אישי" sits right of "הגדרות", where "רכבים" was;
+// the vehicles list moved into "הגדרות" (the user, 2026-11-20).
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'calendar', label: tx('יומן'), icon: CalendarDays },
   { id: 'workers', label: tx('עובדים'), icon: Users },
   // In the middle of the five (the user, 2026-11-13).
   { id: 'voice', label: 'Shali', icon: Mic },
-  { id: 'vehicles', label: tx('רכבים'), icon: Car },
+  { id: 'journal', label: tx('יומן אישי'), icon: NotebookPen },
   { id: 'settings', label: tx('הגדרות'), icon: Settings },
 ]
 
