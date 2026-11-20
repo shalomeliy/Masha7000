@@ -34,9 +34,10 @@ const ERRORS: Record<string, string> = {
   'no-speech': tx('לא נשמע דיבור. נסה שוב.'),
 }
 
-// `onDone` gets the whole text when dictation stops (the personal log reads the times said in it).
+// `onDictate` gets the whole text on every word heard, in place of `onChange` (the personal log reads the
+// times said in it while the manager is still talking).
 // `micLabel` names the mic button where the manager calls it otherwise ("הקראה" in the personal log).
-export function DictationField({ label, value, onChange, placeholder, tasks, onDone, micLabel }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; tasks?: boolean; onDone?: (text: string) => void; micLabel?: string }) {
+export function DictationField({ label, value, onChange, placeholder, tasks, onDictate, micLabel }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; tasks?: boolean; onDictate?: (text: string) => void; micLabel?: string }) {
   const [listening, setListening] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const rec = useRef<Recognition | null>(null)
@@ -59,12 +60,11 @@ export function DictationField({ label, value, onChange, placeholder, tasks, onD
       const pieces: string[] = []
       for (let i = 0; i < e.results.length; i++) pieces.push(e.results[i][0].transcript)
       said = base + joinTranscripts(pieces)
-      onChange(said)
+      ;(onDictate ?? onChange)(said)
     }
     r.onerror = (e) => e.error !== 'aborted' && setError(ERRORS[e.error] ?? tx('ההכתבה לא הצליחה. אפשר להקליד במקום.'))
     r.onend = () => {
       if (tasks && said) onChange(asTaskList(said))
-      if (said) onDone?.(said)
       rec.current = null
       setListening(false)
     }

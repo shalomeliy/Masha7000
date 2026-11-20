@@ -108,6 +108,36 @@ test('a personal log entry needs start and end times, and stays after a reload',
   await expect(page.getByText('E2E סיור בערד')).toBeVisible()
 })
 
+test('dictating "שעת התחלה ... שעת סיום ... בערב" fills the time fields while still listening', async ({ page }) => {
+  // A stand-in for the phone's speech recognition: says one sentence and keeps listening (never ends).
+  await page.addInitScript(() => {
+    class FakeRecognition {
+      lang = ''
+      interimResults = false
+      continuous = false
+      onresult: ((e: unknown) => void) | null = null
+      onerror = null
+      onend = null
+      start() {
+        setTimeout(() => this.onresult?.({ results: [[{ transcript: 'שעת התחלה 8:30 שעת סיום 5:30 בערב התקנו שתי תרנים בערד' }]] }), 50)
+      }
+      stop() {}
+    }
+    const w = globalThis as unknown as { SpeechRecognition: unknown; webkitSpeechRecognition: unknown }
+    w.SpeechRecognition = FakeRecognition
+    w.webkitSpeechRecognition = FakeRecognition
+  })
+  await openWithFakeDrive(page)
+  await tab(page, 'יומן אישי').click()
+  await page.getByRole('button', { name: 'הוספת רישום' }).first().click()
+  await page.getByRole('button', { name: 'הקראה' }).click()
+  await expect(page.getByLabel('שעת התחלה')).toHaveValue('08:30')
+  await expect(page.getByLabel('שעת סיום')).toHaveValue('17:30')
+  await expect(page.getByLabel('מה עשיתי')).toHaveValue('התקנו שתי תרנים בערד')
+  await page.getByRole('button', { name: 'שמירה' }).click()
+  await expect(page.getByText('08:30–17:30')).toBeVisible()
+})
+
 test("a job picks its vehicle from the app's own list: make, model, plate, mark on the right", async ({ page }) => {
   await openWithFakeDrive(page)
   await openVehicles(page)

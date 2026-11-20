@@ -50,6 +50,18 @@ export function byDay(list: JournalEntry[]): { date: string; total: number; entr
 }
 
 
+/** One day of the log as a WhatsApp message (the user's request, 2026-11-20): each entry's times and text, then the day total. */
+export function dayMessage(title: string, entries: JournalEntry[]): string {
+  const lines = [`*${tx('יומן אישי')} · ${title}*`]
+  for (const e of [...entries].sort((a, b) => a.start.localeCompare(b.start))) {
+    const h = hoursText(durationOf(e))
+    lines.push('', `${e.start}–${e.end} (${endsNextDay(e) ? tx('{h} שעות, עד למחרת', { h }) : tx('{h} שעות', { h })})`)
+    if (e.text) lines.push(e.text)
+  }
+  lines.push('', tx('סה"כ {h} שעות', { h: hoursText(entries.reduce((n, e) => n + durationOf(e), 0)) }))
+  return lines.join('\n')
+}
+
 // ---- Times said while dictating (the user's request, 2026-11-20) ----
 // "שעת התחלה 8:30 וגם שעת סיום 12:00 בדקתי את הגנרטור": the times go into their fields and leave the text,
 // read here in the app, free. The entry is not saved: the manager checks it and presses Save.
@@ -81,6 +93,7 @@ function toTime(hour: number, minute: number, part?: string): string | null {
 /** The start and end said in the text (when said), and the text without them. */
 export function spokenTimes(said: string): { start?: string; end?: string; text: string } {
   const out: { start?: string; end?: string; text: string } = { text: said }
+  let endSaidPart = false
   out.text = said.replace(SPOKEN, (whole, kind: string, h?: string, m1?: string, m2?: string, packed?: string, word?: string, part?: string, late?: string) => {
     let time: string | null = null
     if (h) time = toTime(Number(h), Number(m1 ?? m2 ?? 0), late)
@@ -88,9 +101,17 @@ export function spokenTimes(said: string): { start?: string; end?: string; text:
     else if (word) time = toTime(HOUR_WORDS.find(([w]) => w === word)![1], part ? PARTS[part] : 0, late)
     if (!time) return whole
     if (kind === 'התחלה') out.start = time
-    else out.end = time
+    else {
+      out.end = time
+      endSaidPart = Boolean(late)
+    }
     return ' '
   })
+  // "התחלה 8:30, סיום 5:30" with no time of day: an end before the start is the afternoon, not 5:30 the next morning.
+  if (out.start && out.end && !endSaidPart && out.end < out.start) {
+    const pm = `${two(Number(out.end.slice(0, 2)) + 12)}${out.end.slice(2)}`
+    if (Number(out.end.slice(0, 2)) < 12 && pm > out.start) out.end = pm
+  }
   out.text = out.text.replace(/\s+([,.])/g, '$1').replace(/^[\s,.]+/, '').replace(/\s{2,}/g, ' ').trim()
   return out
 }

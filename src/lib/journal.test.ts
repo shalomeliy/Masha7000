@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { byDay, durationOf, endsNextDay, hoursText, journalError, newestFirst, spokenTimes } from './journal'
+import { byDay, dayMessage, durationOf, endsNextDay, hoursText, journalError, newestFirst, spokenTimes } from './journal'
 import type { JournalEntry } from '../types/models'
 
 const e = (over: Partial<JournalEntry> = {}): JournalEntry => ({ id: 'a', date: '2026-11-20', start: '08:00', end: '12:30', text: '', ...over })
@@ -29,6 +29,13 @@ describe('journal', () => {
 
 })
 
+describe('a day as a WhatsApp message', () => {
+  it('lists the day\'s entries from the earliest, with hours and the day total', () => {
+    const msg = dayMessage('שישי 20.11.2026', [e({ id: '2', start: '13:00', end: '14:00', text: 'ישיבה' }), e({ id: '1', text: 'סיור בערד' })])
+    expect(msg).toBe('*יומן אישי · שישי 20.11.2026*\n\n08:00–12:30 (4:30 שעות)\nסיור בערד\n\n13:00–14:00 (1:00 שעות)\nישיבה\n\nסה"כ 5:30 שעות')
+  })
+})
+
 describe('times said while dictating', () => {
   it('takes "שעת התחלה" and "שעת סיום" into their fields and out of the text', () => {
     expect(spokenTimes('שעת התחלה 08:30 וגם שעת סיום 12:00 בדקתי את הגנרטור')).toEqual({ start: '08:30', end: '12:00', text: 'בדקתי את הגנרטור' })
@@ -39,6 +46,13 @@ describe('times said while dictating', () => {
   it('reads hours said in words, with half, quarter and the time of day', () => {
     expect(spokenTimes('שעת התחלה שמונה וחצי שעת סיום ארבע בערב ישיבה')).toEqual({ start: '08:30', end: '16:00', text: 'ישיבה' })
     expect(spokenTimes('שעת התחלה עשר בלילה ושעת סיום שתיים')).toEqual({ start: '22:00', end: '02:00', text: '' })
+  })
+
+  it('the user\'s own words: "5:30 בערב" is 17:30, and an end before the start without a time of day is the afternoon', () => {
+    expect(spokenTimes('שעת התחלה 8:30 שעת סיום 5:30 בערב אנחנו בעצם הלכנו')).toEqual({ start: '08:30', end: '17:30', text: 'אנחנו בעצם הלכנו' })
+    expect(spokenTimes('שעת התחלה 8:30 שעת סיום 5:30 התקנו תרנים')).toEqual({ start: '08:30', end: '17:30', text: 'התקנו תרנים' })
+    expect(spokenTimes('שעת התחלה 22:00 שעת סיום 6:00')).toEqual({ start: '22:00', end: '06:00', text: '' })
+    expect(spokenTimes('שעת התחלה 7 בבוקר שעת סיום שלוש אחר הצהריים')).toEqual({ start: '07:00', end: '15:00', text: '' })
   })
 
   it('leaves the text alone when no time follows', () => {
