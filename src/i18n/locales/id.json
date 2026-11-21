@@ -1291,5 +1291,14 @@
  "רשימת הרכבים: הוספה, חיפוש ומחיקה. בוחרים מהם בעבודה ביומן": "Daftar kendaraan: tambah, cari, dan hapus. Dipilih di pekerjaan pada kalender",
  "שעת התחלה": "Jam mulai",
  "שעת סיום": "Jam selesai",
- "שעת סיום לא יכולה להיות כמו שעת התחלה": "Jam selesai tidak boleh sama dengan jam mulai"
+ "שעת סיום לא יכולה להיות כמו שעת התחלה": "Jam selesai tidak boleh sama dengan jam mulai",
+ "בדיקת הקלטה": "Uji rekaman",
+ "בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה": "Memeriksa apakah mikrofon merekam di ponsel ini: 5 detik, lalu diputar",
+ "מקליטה 5 שניות ומשמיעה אותן. שום דבר לא נשלח. בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "Merekam 5 detik lalu memutarnya. Tidak ada yang dikirim. Pertama kali, ponsel akan meminta izin mikrofon: izinkan.",
+ "מקליט... עוד {v} שניות. דבר עכשיו": "Merekam... sisa {v} detik. Bicaralah sekarang",
+ "הקלט 5 שניות": "Rekam 5 detik",
+ "ההקלטה ריקה: לא נקלט שום דבר.": "Rekaman kosong: tidak ada yang tertangkap.",
+ "יש קובץ, אבל נשמע שקט. אם דיברת, ייתכן שהמיקרופון לא נקלט.": "Ada file, tetapi terdengar senyap. Jika Anda berbicara, mungkin mikrofon tidak tertangkap.",
+ "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "Rekaman berhasil. Tekan putar untuk mendengarnya.",
+ "העתק תוצאות": "Salin hasil"
 }

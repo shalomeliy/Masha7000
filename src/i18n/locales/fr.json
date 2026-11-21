@@ -1291,5 +1291,14 @@
  "רשימת הרכבים: הוספה, חיפוש ומחיקה. בוחרים מהם בעבודה ביומן": "La liste des véhicules : ajout, recherche et suppression. On les choisit dans un travail du calendrier",
  "שעת התחלה": "Heure de début",
  "שעת סיום": "Heure de fin",
- "שעת סיום לא יכולה להיות כמו שעת התחלה": "L'heure de fin ne peut pas être identique à l'heure de début"
+ "שעת סיום לא יכולה להיות כמו שעת התחלה": "L'heure de fin ne peut pas être identique à l'heure de début",
+ "בדיקת הקלטה": "Test d'enregistrement",
+ "בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה": "Vérifie que le micro enregistre sur ce téléphone : 5 secondes, puis lecture",
+ "מקליטה 5 שניות ומשמיעה אותן. שום דבר לא נשלח. בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "Enregistre 5 secondes et les fait écouter. Rien n'est envoyé. La première fois, le téléphone demandera l'accès au micro : il faut l'autoriser.",
+ "מקליט... עוד {v} שניות. דבר עכשיו": "Enregistrement... encore {v} secondes. Parlez maintenant",
+ "הקלט 5 שניות": "Enregistrer 5 secondes",
+ "ההקלטה ריקה: לא נקלט שום דבר.": "L'enregistrement est vide : rien n'a été capté.",
+ "יש קובץ, אבל נשמע שקט. אם דיברת, ייתכן שהמיקרופון לא נקלט.": "Il y a un fichier, mais il semble silencieux. Si vous avez parlé, le micro n'a peut-être pas été capté.",
+ "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "L'enregistrement a fonctionné. Appuyez sur lecture pour l'écouter.",
+ "העתק תוצאות": "Copier les résultats"
 }

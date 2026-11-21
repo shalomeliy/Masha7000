@@ -29,6 +29,7 @@ import { ReasonsSection } from './ToSchedule'
 import { ShiftsSection } from './workers/ShiftsSection'
 import { TagSection } from './workers/TagSection'
 import { WorkKindsSection } from './settings/WorkKindsSection'
+import { MicTestSection } from './settings/MicTestSection'
 
 type StepState = 'idle' | 'running' | 'ok' | 'fail'
 interface Step {
@@ -142,7 +143,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog' | 'api'
+type PanelId = 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog' | 'api' | 'micTest'
 type ItemId = ListId | PanelId
 
 // A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
@@ -169,6 +170,7 @@ const PANELS: Record<PanelId, { title: string; explain: string }> = {
   account: { title: tx('החשבון שלי'), explain: tx('עם איזה מייל נכנסת, התנתקות, שליחה ל-AI ומחיקת החשבון') },
   feedback: { title: tx('בקשת תכונות חדשות'), explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח') },
   api: { title: tx('גישת API'), explain: tx('מפתחות למערכות אחרות שקוראות וכותבות את הנתונים') },
+  micTest: { title: tx('בדיקת הקלטה'), explain: tx('בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה') },
   claudeLog: { title: tx('מה הלך ל-Claude'), explain: tx('בקשות שלא בוצעו בחינם, למה, ומה Claude עשה. עם כפתור העתקה') },
 }
 
@@ -221,7 +223,8 @@ function groups(isOwner: boolean, server: boolean): Group[] {
       title: tx('נתונים וגוגל'),
       explain: tx('גיבוי, ובדיקה שהחיבור לגוגל עובד'),
       icon: HardDrive,
-      items: [panelItem('backup'), panelItem('connection'), ...(isOwner && server ? [panelItem('api')] : [])],
+      // micTest: stage 0 of the speech-to-text upgrade (2026-11-21), for everyone, so a test account on an iPhone sees it.
+      items: [panelItem('backup'), panelItem('connection'), panelItem('micTest'), ...(isOwner && server ? [panelItem('api')] : [])],
     },
     {
       id: 'legal',
@@ -366,6 +369,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
             <BackupSection canRestore={authMode() === 'popup' || who?.isOwner === true} />
           ))}
         {open === 'connection' && <ConnectionCheck />}
+        {open === 'micTest' && <MicTestSection />}
         {open === 'feedback' && <FeatureRequestSection />}
         {open === 'claudeLog' && <ClaudeLogSection />}
         {open === 'api' && <ApiSection />}
