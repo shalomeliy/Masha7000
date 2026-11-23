@@ -29,6 +29,7 @@ import { ReasonsSection } from './ToSchedule'
 import { ShiftsSection } from './workers/ShiftsSection'
 import { TagSection } from './workers/TagSection'
 import { WorkKindsSection } from './settings/WorkKindsSection'
+import { VoiceSection } from './settings/VoiceSection'
 import { MicTestSection } from './settings/MicTestSection'
 
 type StepState = 'idle' | 'running' | 'ok' | 'fail'
@@ -143,7 +144,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog' | 'api' | 'micTest'
+type PanelId = 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog' | 'api' | 'micTest' | 'voice'
 type ItemId = ListId | PanelId
 
 // A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
@@ -170,6 +171,7 @@ const PANELS: Record<PanelId, { title: string; explain: string }> = {
   account: { title: tx('החשבון שלי'), explain: tx('עם איזה מייל נכנסת, התנתקות, שליחה ל-AI ומחיקת החשבון') },
   feedback: { title: tx('בקשת תכונות חדשות'), explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח') },
   api: { title: tx('גישת API'), explain: tx('מפתחות למערכות אחרות שקוראות וכותבות את הנתונים') },
+  voice: { title: tx('קול של Shali'), explain: tx('באיזה קול Shali מדבר בטלפון הזה') },
   micTest: { title: tx('בדיקת הקלטה'), explain: tx('בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה') },
   claudeLog: { title: tx('מה הלך ל-Claude'), explain: tx('בקשות שלא בוצעו בחינם, למה, ומה Claude עשה. עם כפתור העתקה') },
 }
@@ -255,10 +257,10 @@ function groups(isOwner: boolean, server: boolean): Group[] {
     {
       id: 'assistant',
       title: tx('העוזר הקולי'),
-      explain: tx('איך Shali מבטא מילים, ומה הלך ל-Claude'),
+      explain: tx('הקול של Shali, איך הוא מבטא מילים, ומה הלך ל-Claude'),
       icon: Mic,
-      // The assistant is the owner's only (the dev server has no sign-in).
-      items: (isOwner && server) || import.meta.env.DEV ? [listItem('pronunciations'), panelItem('claudeLog')] : [],
+      // The voice for everyone who may use Shali (owner, 2026-11-23); the rest is the owner's only (the dev server has no sign-in).
+      items: [panelItem('voice'), ...((isOwner && server) || import.meta.env.DEV ? [listItem('pronunciations'), panelItem('claudeLog')] : [])],
     },
     {
       id: 'account',
@@ -370,6 +372,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
           ))}
         {open === 'connection' && <ConnectionCheck />}
         {open === 'micTest' && <MicTestSection />}
+        {open === 'voice' && <VoiceSection />}
         {open === 'feedback' && <FeatureRequestSection />}
         {open === 'claudeLog' && <ClaudeLogSection />}
         {open === 'api' && <ApiSection />}

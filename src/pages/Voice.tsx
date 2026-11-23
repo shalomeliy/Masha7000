@@ -1,6 +1,6 @@
 import { language, tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, AudioLines, BookMarked, Check, Gauge, Keyboard, LifeBuoy, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
+import { AlertTriangle, BookMarked, Check, Keyboard, LifeBuoy, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
 import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, proposalVehicles, snapshot, summaryWith, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
@@ -17,7 +17,7 @@ import { vlog, voiceReport } from '../lib/voiceLog'
 import { cloudOff } from '../lib/cloudVoice'
 import { hasAiConsent, setAiConsent } from '../lib/aiConsent'
 import { AiConsentCard } from '../components/AiConsentCard'
-import { canListen, canSpeak, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
+import { canListen, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, onVoicesChanged, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -72,20 +72,16 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
   const [showNotes, setShowNotes] = useState(false)
   const [typing, setTyping] = useState(!canListen)
   const [typed, setTyped] = useState('')
-  const [rate, setRate] = useState(speechRate)
   // A turn for Claude held back until the manager agrees to send to an outside AI (src/lib/aiConsent.ts).
   // What waits for the consent: a turn for Claude, or (iPhone home-screen app) the listening itself.
   const [consentFor, setConsentFor] = useState<{ turn: Turn; fixes: number } | { mic: true } | null>(null)
   // The phone's voices for the app's language; they may load a moment after the screen opens.
-  const [voiceList, setVoiceList] = useState(voices)
+  // The voice is picked in Settings > העוזר הקולי (owner, 2026-11-23); here only for the trouble log.
   const [voice, setVoice] = useState(currentVoice)
-  useEffect(() => onVoicesChanged(() => {
-    setVoiceList(voices())
-    setVoice(currentVoice())
-  }), [])
+  useEffect(() => onVoicesChanged(() => setVoice(currentVoice())), [])
   // Said the moment a request goes to Claude, while the answer is on its way (owner, 2026-11-14), ready ahead.
   const MOMENT = tx('רגע, בודק.')
-  useEffect(() => prepare(MOMENT), [MOMENT, voice, rate])
+  useEffect(() => prepare(MOMENT), [MOMENT, voice])
   const [realDev, setRealDev] = useState(realAssistantOn)
   const [used, setUsed] = useState(usage)
   const [budget, setBudget] = useState<Budget | null>(null)
@@ -579,7 +575,7 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
   // "שליחת יומן תקלות": what listening and speaking did on this phone, to Sentry and to the clipboard.
   const [logState, setLogState] = useState<string | null>(null)
   const sendLog = () => {
-    const log = voiceReport({ canListen, iosHomeApp, voice: voiceName(voice), rate, cloudOff: cloudOff() ?? 'no', phase })
+    const log = voiceReport({ canListen, iosHomeApp, voice: voiceName(voice), cloudOff: cloudOff() ?? 'no', phase })
     navigator.clipboard?.writeText(log).catch(() => {})
     setLogState(tx('שולח...'))
     void reportMessage('Voice log', log).then((id) =>
@@ -798,37 +794,6 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
             <button type="button" onClick={() => setShowText((s) => !s)} aria-expanded={showText} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
               <MessageSquareText size={18} aria-hidden />
               {showText ? tx('הסתר טקסט') : tx('הצג טקסט')}
-            </button>
-          )}
-          {canSpeak && (
-            <button
-              type="button"
-              onClick={() => {
-                const v = nextRate()
-                setRate(v)
-                // Starts with the name, so the owner can hear how it is said (the same in every language).
-                speak(`Shali. ${tx('ככה אני מדבר בקצב {v}', { v: rateName(v) })}`)
-              }}
-              aria-label={tx('מהירות הדיבור: {v}. לחיצה משנה', { v: rateName(rate) })}
-              className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200"
-            >
-              <Gauge size={18} aria-hidden />
-              {tx('קצב: {v}', { v: rateName(rate) })}
-            </button>
-          )}
-          {canSpeak && voiceList.length > 1 && (
-            <button
-              type="button"
-              onClick={() => {
-                const v = nextVoice()
-                setVoice(v)
-                speak(`Shali. ${tx('ככה נשמע הקול הזה')}`)
-              }}
-              aria-label={tx('קול הדיבור: {v}. לחיצה מחליפה לקול אחר', { v: voiceName(voice) })}
-              className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200"
-            >
-              <AudioLines size={18} aria-hidden />
-              {tx('קול: {v}', { v: voiceName(voice) })}
             </button>
           )}
           {canListen && (

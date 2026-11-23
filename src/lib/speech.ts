@@ -153,10 +153,12 @@ export function listen(onText: (text: string) => void, onEnd: (text: string, err
   return { stop }
 }
 
-// The voice: the one the manager picked on this phone (assistant screen), else, in Hebrew, the first cloud
-// voice, else the best-sounding one the phone has for the app's language (a male one first: the owner
+// The voice: the one the manager picked on this phone (Settings > העוזר הקולי), else, in Hebrew, cloud
+// voice 6, else the best-sounding one the phone has for the app's language (a male one first: the owner
 // wants a man's voice, 2026-11-14). Voices may load a moment after the page, so the list is read each time.
-const VOICE_KEY = 'assistant.voice'
+// A new key on 2026-11-23: the owner made ענן 6 the default for everyone, so earlier picks start over.
+const VOICE_KEY = 'assistant.voice.2'
+const DEFAULT_CLOUD = 'Algieba' // ענן 6, the owner's pick (2026-11-23)
 const CLOUD = 'cloud:'
 
 /** A voice to pick: one of Shali's cloud voices, or one of this phone's. */
@@ -191,15 +193,13 @@ let picked: string | null = null
 export function currentVoice(): VoiceOption | null {
   const list = voices()
   const id = picked ?? savedVoice()
-  return list.find((v) => v.id === id) ?? list[0] ?? null
+  return list.find((v) => v.id === id) ?? list.find((v) => v.cloud === DEFAULT_CLOUD) ?? list[0] ?? null
 }
 
-/** The next voice in the list (after the last, back to the first), saved for next time. */
-export function nextVoice(): VoiceOption | null {
-  const list = voices()
-  if (!list.length) return null
-  const i = list.findIndex((v) => v.id === currentVoice()?.id)
-  const v = list[(i + 1) % list.length]
+/** Makes `id` (one of voices()) the voice on this phone, saved for next time (Settings > העוזר הקולי). */
+export function pickVoice(id: string): VoiceOption | null {
+  const v = voices().find((o) => o.id === id)
+  if (!v) return null
   try {
     localStorage.setItem(VOICE_KEY, v.id)
   } catch {
@@ -222,38 +222,8 @@ export function onVoicesChanged(fn: () => void): () => void {
   return () => speechSynthesis.removeEventListener('voiceschanged', fn)
 }
 
-// How fast replies are read, chosen on the assistant screen and kept on this phone.
-export const RATES = [
-  { value: 0.8, name: tx('איטי') },
-  { value: 1, name: tx('רגיל') },
-  { value: 1.25, name: tx('מהיר') },
-  { value: 1.5, name: tx('מהיר מאוד') },
-] as const
-const RATE_KEY = 'assistant.rate'
-let current: number | undefined
-
-export function speechRate(): number {
-  try {
-    const v = Number(localStorage.getItem(RATE_KEY))
-    return RATES.some((r) => r.value === v) ? v : 1
-  } catch {
-    return 1
-  }
-}
-
-/** The next rate in RATES (after the fastest, back to the slowest), saved for next time. */
-export function nextRate(): number {
-  const i = RATES.findIndex((r) => r.value === speechRate())
-  const v = RATES[(i + 1) % RATES.length].value
-  try {
-    localStorage.setItem(RATE_KEY, String(v))
-  } catch {
-    // private mode: the rate holds until the page reloads
-  }
-  current = v
-  return v
-}
-export const rateName = (v: number) => RATES.find((r) => r.value === v)?.name ?? tx('רגיל')
+// One speed for every voice: the owner removed the speed button (2026-11-23), since Gemini ignores it.
+const RATE = 1
 
 // Who wants to know what was said (new words go to "אימון הגייה", src/App.tsx).
 const heard = new Set<(text: string) => void>()
@@ -292,7 +262,7 @@ export function speak(text: string, onDone?: () => void, onFail?: (reason: strin
   vlog(`speak: ${useCloud ? `cloud ${cloud}` : 'device'}, ${said.length} chars${cloudOff() ? `, cloud off: ${cloudOff()}` : ''}`)
   if (useCloud && cloud) {
     if (canSpeak) speechSynthesis.cancel()
-    return speakCloud(said, cloud, current ?? (current = speechRate()), () => onDone?.(), (rest) => (canSpeak ? speakDevice(rest, onDone, onFail) : onDone?.()))
+    return speakCloud(said, cloud, RATE, () => onDone?.(), (rest) => (canSpeak ? speakDevice(rest, onDone, onFail) : onDone?.()))
   }
   stopCloud()
   speakDevice(said, onDone, onFail)
@@ -303,7 +273,7 @@ function speakDevice(said: string, onDone?: () => void, onFail?: (reason: string
   const start = (withVoice: boolean) => {
     const u = new SpeechSynthesisUtterance(said)
     u.lang = language().speech
-    u.rate = current ?? (current = speechRate())
+    u.rate = RATE
     const v = withVoice ? deviceVoice() : null
     if (v) {
       u.voice = v
@@ -343,7 +313,7 @@ let holdTurn = 0
 /** Gets a phrase ready in the cloud voice, so `speakAtOnce` can say it with no wait. */
 export function prepare(text: string) {
   const cloud = currentVoice()?.cloud
-  if (cloud && !cloudOff()) prefetchCloud(pronounce(speakable(text, language().speech)), cloud, current ?? (current = speechRate()))
+  if (cloud && !cloudOff()) prefetchCloud(pronounce(speakable(text, language().speech)), cloud, RATE)
 }
 
 /** Says a short prepared phrase now; anything spoken meanwhile waits for it (at most 3 s). */
