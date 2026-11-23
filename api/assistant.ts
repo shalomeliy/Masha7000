@@ -6,7 +6,6 @@ import { overLimit } from './_lib/rate.js'
 import { canUseAssistant, canUseClaude, isOwner, requireManager } from './_lib/session.js'
 import { readSttRequest, sttKey, sttProvider, takeSeconds, transcribe } from './_lib/stt.js'
 import { cacheTarget, keepVoice, mp3, readCachedVoice, readTtsRequest, speakBest, takeChars, voiceEngine } from './_lib/tts.js'
-import { compareVoice, listVoices, readCompareRequest } from './_lib/voiceCompare.js'
 
 // POST /api/assistant { messages, context }: one turn of the voice assistant, for the owner only,
 // answered as JSON lines (an early spoken part, then the whole reply)
@@ -16,7 +15,6 @@ import { compareVoice, listVoices, readCompareRequest } from './_lib/voiceCompar
 // or Chirp as MP3; tts.ts speakBest), for
 // the owner and the managers he opened Shali to (it costs nothing within Google's free monthly amount).
 // POST /api/assistant?stt { audio }: a WAV recording as text, Google or OpenAI by STT_PROVIDER (stt.ts).
-// POST /api/assistant?voicecompare { text, engine, nikud }: the owner's voice-compare spike (voiceCompare.ts).
 // GET /api/assistant: how much of this month's budget the assistant has used (budget.ts).
 
 // Configured, not too many, signed in as the owner. (A same-site GET carries no Origin header,
@@ -76,38 +74,6 @@ async function speakSentence(req: Request): Promise<Response> {
   }
 }
 
-// The voice-compare spike (Settings, owner only): one sentence, Chirp or Gemini, with or without niqqud.
-// Its characters count in the same monthly cap as Shali's voice.
-async function compareSentence(req: Request): Promise<Response> {
-  const env = readEnv()
-  if (!env) return json({ reason: 'not-configured' }, 503)
-  if (!sameOrigin(req, env.appOrigin)) return json({ reason: 'bad-origin' }, 403)
-  if (await overLimit(env, 'tts', clientIp(req))) return json({ reason: 'too-many' }, 429)
-  const gate = await requireManager(env, req)
-  if ('refuse' in gate) return gate.refuse
-  if (!isOwner(env, gate.session.email)) return json({ reason: 'not-owner' }, 403)
-  const tts = (process.env.GOOGLE_TTS_API_KEY ?? '').trim()
-  if (!tts) return json({ reason: 'no-key' }, 503)
-  const geminiKey = (process.env.GEMINI_API_KEY ?? '').trim()
-  if (new URL(req.url).searchParams.has('voices')) {
-    try {
-      return json({ voices: geminiKey ? await listVoices(geminiKey) : [] })
-    } catch (e) {
-      return json({ reason: 'failed', detail: (e as Error).message?.slice(0, 600) ?? '' }, 502)
-    }
-  }
-  const ask = readCompareRequest(await readJson(req, 4_000))
-  if (!ask) return json({ reason: 'bad-body' }, 400)
-  if (!(await takeChars(env, ask.text.length * (ask.nikud ? 2 : 1)))) return json({ reason: 'over-budget' }, 402)
-  try {
-    return json(await compareVoice(ask, { tts, gemini: geminiKey }))
-  } catch (e) {
-    const detail = (e as Error).message?.slice(0, 600) ?? ''
-    console.error('voice compare failed', detail)
-    return json({ reason: 'failed', detail }, 502)
-  }
-}
-
 // Speech to text for the iPhone home-screen app (stt.ts): the same people as the cloud voice.
 async function hearRecording(req: Request): Promise<Response> {
   const env = readEnv()
@@ -138,7 +104,6 @@ async function hearRecording(req: Request): Promise<Response> {
 export const POST = guarded(async (req: Request) => {
   if (new URL(req.url).searchParams.has('tts')) return speakSentence(req)
   if (new URL(req.url).searchParams.has('stt')) return hearRecording(req)
-  if (new URL(req.url).searchParams.has('voicecompare')) return compareSentence(req)
   const gate = await ownerGate(req)
   if ('refuse' in gate) return gate.refuse
   const { env } = gate

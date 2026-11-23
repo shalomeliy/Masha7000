@@ -1308,13 +1308,5 @@
  "מזהה...": "Reconhecendo...",
  "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "No app da tela inicial do iPhone, a gravação do que você diz ao Shali é enviada ao Google para virar texto.",
  "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Sem o seu consentimento, você pode digitar ou tocar no microfone do teclado.",
- "גם Claude": "Também Claude",
- "{name} + ניקוד": "{name} + nikud",
- "אותו משפט ב-4 קולות: הקול של היום, עם ניקוד, ו-Gemini. מקשיבים ובוחרים": "A mesma frase em 4 vozes: a voz atual, com nikud e Gemini. Ouça e escolha",
- "הכי טוב": "A melhor",
- "השוואת קולות": "Comparar vozes",
- "כל לחיצה שולחת את המשפט לגוגל (ולניקוד של דיקטה) ועולה סנטים בודדים. לחיצה שנייה משמיעה שוב בלי לשלוח.": "Cada toque envia a frase ao Google (e à Dicta para o nikud) e custa alguns centavos. Um segundo toque reproduz sem enviar.",
- "משפט משלך": "Sua própria frase",
- "נכשל: {why}": "Falhou: {why}",
- "קול של Gemini": "Voz do Gemini"
+ "גם Claude": "Também Claude"
 }

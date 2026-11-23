@@ -1308,13 +1308,5 @@
  "מזהה...": "Tanınıyor...",
  "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "iPhone ana ekranındaki uygulamada, Shali’ye söylediklerinizin kaydı metne dönüşmesi için Google’a gönderilir.",
  "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Onayınız olmadan yazabilir veya klavyedeki mikrofona dokunabilirsiniz.",
- "גם Claude": "Claude da",
- "{name} + ניקוד": "{name} + nikud",
- "אותו משפט ב-4 קולות: הקול של היום, עם ניקוד, ו-Gemini. מקשיבים ובוחרים": "Aynı cümle 4 seste: bugünkü ses, nikudlu ve Gemini. Dinleyin ve seçin",
- "הכי טוב": "En iyi",
- "השוואת קולות": "Ses karşılaştırma",
- "כל לחיצה שולחת את המשפט לגוגל (ולניקוד של דיקטה) ועולה סנטים בודדים. לחיצה שנייה משמיעה שוב בלי לשלוח.": "Her dokunuş cümleyi Google'a (nikud için Dicta'ya) gönderir ve birkaç sent tutar. İkinci dokunuş göndermeden yeniden çalar.",
- "משפט משלך": "Kendi cümleniz",
- "נכשל: {why}": "Başarısız: {why}",
- "קול של Gemini": "Gemini sesi"
+ "גם Claude": "Claude da"
 }

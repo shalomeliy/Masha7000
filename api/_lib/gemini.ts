@@ -1,30 +1,7 @@
-// Shali's Gemini voice (the owner's pick, 2026-11-23, after the voice-compare spike): Dicta's Nakdan adds
-// niqqud, then Gemini 3.8 Flash-Lite TTS reads it. A Hebrew TTS bake-off (2026-11-18) found every voice
-// that passed did so only with niqqud. The owner chose Dicta's free Nakdan over hosting a model (the
-// sentence, names too, goes to Dicta). The key is GEMINI_API_KEY from Google AI Studio.
-
-const NAKDAN = 'https://nakdan-2-0.loadbalancer.dicta.org.il/api'
-type NakdanWord = { word?: unknown; sep?: unknown; options?: unknown }
-
-/** The text with niqqud from Dicta's Nakdan: each word's first option, separators as they are. */
-export async function addNikud(text: string, fetchFn: typeof fetch = fetch, ms = 6000): Promise<string> {
-  const res = await fetchFn(NAKDAN, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ task: 'nakdan', genre: 'modern', data: text, addmorph: false, keepqq: false }),
-    signal: AbortSignal.timeout(ms),
-  })
-  if (!res.ok) throw new Error(`nakdan ${res.status}`)
-  const words = (await res.json()) as NakdanWord[]
-  if (!Array.isArray(words)) throw new Error('nakdan shape')
-  return words
-    .map((w) => {
-      const word = typeof w.word === 'string' ? w.word : ''
-      if (w.sep === true || !Array.isArray(w.options) || typeof w.options[0] !== 'string') return word
-      return (w.options[0] as string).replace(/\|/g, '')
-    })
-    .join('')
-}
+// Shali's Gemini voice (the owner's pick by ear, 2026-11-23, after a voice-compare spike): Gemini 3.8
+// Flash-Lite TTS, voice Sadaltager, reading the plain text. The spike also tried Chirp 3 HD and Dicta's
+// niqqud; with billing on, the owner heard plain Gemini as best, so niqqud was dropped and the spike
+// removed. The key is GEMINI_API_KEY from Google AI Studio (project "Gemini API", prepaid).
 
 /** 16-bit mono PCM (Gemini API's output) wrapped as a WAV file. */
 export function pcmToWav(pcm: Uint8Array, rate = 24_000): Uint8Array {
@@ -50,32 +27,8 @@ export function pcmToWav(pcm: Uint8Array, rate = 24_000): Uint8Array {
 
 // Gemini 3.8 TTS reads the text field word for word, so the style goes in speech_metadata (owner,
 // 2026-11-23: the old prompt-in-text was read aloud). The accent comes from the voice itself, not the
-// style: Google's own advice is to pick a regional voice from its Voice Library (listVoices below).
+// style: Google's own advice is to pick a regional voice from its Voice Library.
 const STYLE = 'calm, friendly, professional; casual everyday Israeli speech'
-
-/** Hebrew male voices from Gemini's Voice Library (free to list): id, name, accent, description. */
-export async function listVoices(geminiKey: string, fetchFn: typeof fetch = fetch): Promise<{ id: string; name: string; info: string }[]> {
-  const male = await askVoices(geminiKey, { language_code: 'he-IL', gender: 'male' }, fetchFn)
-  return male.length ? male : askVoices(geminiKey, { region_code: 'IL' }, fetchFn)
-}
-
-async function askVoices(geminiKey: string, filter: Record<string, string>, fetchFn: typeof fetch): Promise<{ id: string; name: string; info: string }[]> {
-  const q = new URLSearchParams({ ...filter, page_size: '100' })
-  const res = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/voices?${q}`, {
-    headers: { 'x-goog-api-key': geminiKey },
-    signal: AbortSignal.timeout(8000),
-  })
-  if (!res.ok) throw new Error(`voices ${res.status} ${(await res.text()).slice(0, 300)}`)
-  const data = (await res.json()) as { voices?: Record<string, unknown>[] }
-  const str = (v: unknown) => (typeof v === 'string' ? v : '')
-  return (data.voices ?? [])
-    .map((v) => ({
-      id: str(v.id) || str(v.name),
-      name: str(v.displayName) || str(v.display_name) || str(v.id),
-      info: [str(v.accent), str(v.persona), str(v.description)].filter(Boolean).join(' · ').slice(0, 160),
-    }))
-    .filter((v) => v.id)
-}
 
 const isWav = (b: Uint8Array) => b.length > 12 && String.fromCharCode(...b.subarray(0, 4)) === 'RIFF'
 
