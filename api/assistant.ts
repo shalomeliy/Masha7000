@@ -12,7 +12,7 @@ import { compareVoice, listVoices, readCompareRequest } from './_lib/voiceCompar
 // answered as JSON lines (an early spoken part, then the whole reply)
 // (the user's rule: the budget is the owner's alone; a manager the owner opened Shali to in Settings
 // uses only the free commands, and is told 'free-only'). The key stays here.
-// POST /api/assistant?tts { text, voice, rate }: one sentence in Shali's cloud voice (Gemini + niqqud as WAV,
+// POST /api/assistant?tts { text, voice, rate }: one sentence in Shali's cloud voice (Gemini as WAV,
 // or Chirp as MP3; tts.ts speakBest), for
 // the owner and the managers he opened Shali to (it costs nothing within Google's free monthly amount).
 // POST /api/assistant?stt { audio }: a WAV recording as text, Google or OpenAI by STT_PROVIDER (stt.ts).

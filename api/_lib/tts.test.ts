@@ -45,14 +45,13 @@ describe('cloud voice (server)', () => {
   })
 })
 
-describe('Shali speaks with Gemini + niqqud, Chirp when it cannot', () => {
+describe('Shali speaks with Gemini, Chirp when it cannot', () => {
   const req = { text: 'שלום', voice: 'Charon' as const, rate: 1 }
   const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(20)]).toString('base64')
-  const fake = (gemini: 'ok' | 'fail', nikud: 'ok' | 'fail' = 'ok') => {
+  const fake = (gemini: 'ok' | 'fail') => {
     const seen: string[] = []
     const f = (async (url: string, init: RequestInit) => {
       seen.push(url)
-      if (url.includes('dicta')) return nikud === 'ok' ? new Response(JSON.stringify([{ word: 'שלום', options: ['שָׁלוֹם'] }])) : new Response('', { status: 500 })
       if (url.includes('generativelanguage')) {
         if (gemini === 'fail') return new Response('quota', { status: 429 })
         const text = (JSON.parse(String(init.body)) as { contents: { parts: { text: string }[] }[] }).contents[0].parts[0].text
@@ -72,17 +71,12 @@ describe('Shali speaks with Gemini + niqqud, Chirp when it cannot', () => {
     expect(voiceEngine({ GEMINI_API_KEY: 'g', TTS_ENGINE: 'chirp' })).toBeNull()
   })
 
-  it('reads the niqqud text with Gemini as WAV', async () => {
+  it('reads the plain text with Gemini as WAV, without asking Dicta for niqqud (owner, 2026-11-23)', async () => {
     const { f, seen } = fake('ok')
     const r = await speakBest('k', req, g, f)
     expect(r).toMatchObject({ engine: 'gemini', type: 'audio/wav' })
-    expect(seen).toContain('said:שָׁלוֹם')
-  })
-
-  it('lets Gemini read the plain text when niqqud fails', async () => {
-    const { f, seen } = fake('ok', 'fail')
-    expect((await speakBest('k', req, g, f)).engine).toBe('gemini')
     expect(seen).toContain('said:שלום')
+    expect(seen.some((u) => u.includes('dicta'))).toBe(false)
   })
 
   it('falls back to Chirp (MP3) when Gemini refuses, and uses Chirp alone without a Gemini key', async () => {

@@ -1,6 +1,6 @@
 import type { Env } from './env.js'
 import { kv } from './kv.js'
-import { addNikud, geminiSpeak } from './gemini.js'
+import { geminiSpeak } from './gemini.js'
 import { open, seal, sha256url } from './crypto.js'
 
 // Shali's cloud voice (the owner's choice, 2026-11-13/14): Google Cloud Text-to-Speech, Chirp 3 HD
@@ -77,12 +77,12 @@ export const mp3 = (bytes: Uint8Array<ArrayBuffer>, type = 'audio/mpeg') =>
   new Response(bytes, { headers: { 'Content-Type': type, 'Cache-Control': 'private, max-age=86400' } })
 
 // Since 2026-11-23 (the owner's pick by ear): with GEMINI_API_KEY set, Shali speaks with Gemini TTS
-// given Dicta's niqqud (gemini.ts); TTS_ENGINE=chirp turns it back to Chirp alone. Gemini takes ~2.5 s a
-// sentence against Chirp's ~0.8 s, so it gets GEMINI_BUDGET_MS in all (niqqud included); anything slower
-// or failing (the free tier's 429, Dicta down) is read by Chirp in the same request, so Shali never waits
-// long or goes silent. Niqqud failing alone still lets Gemini read the plain text.
+// (gemini.ts); TTS_ENGINE=chirp turns it back to Chirp alone. The plain text, no niqqud: with billing on,
+// the owner heard plain Gemini as better than Gemini given Dicta's niqqud (2026-11-23), and it saves the
+// Dicta round trip. Gemini takes ~2.5 s a sentence against Chirp's ~0.8 s, so it gets GEMINI_BUDGET_MS;
+// anything slower or failing (429, outage) is read by Chirp in the same request, so Shali never waits
+// long or goes silent.
 const GEMINI_BUDGET_MS = 4500
-const NIKUD_MS = 1500
 
 export function voiceEngine(e: NodeJS.ProcessEnv = process.env): { geminiKey: string; geminiVoice: string } | null {
   const key = (e.GEMINI_API_KEY ?? '').trim()
@@ -91,7 +91,7 @@ export function voiceEngine(e: NodeJS.ProcessEnv = process.env): { geminiKey: st
   return { geminiKey: key, geminiVoice: /^[\w.:/-]{1,120}$/.test(v) ? v : 'Sadaltager' }
 }
 
-/** One sentence as audio: Gemini with niqqud when configured, else (or on any trouble) Chirp. */
+/** One sentence as audio: Gemini when configured, else (or on any trouble) Chirp. */
 export async function speakBest(
   apiKey: string,
   req: TtsRequest,
@@ -102,14 +102,8 @@ export async function speakBest(
   if (gemini) {
     const start = now()
     try {
-      let said = req.text
-      try {
-        said = await addNikud(req.text, fetchFn, NIKUD_MS)
-      } catch (e) {
-        console.error('nikud failed', (e as Error).message?.slice(0, 200))
-      }
       const left = Math.max(1000, GEMINI_BUDGET_MS - (now() - start))
-      const { bytes } = await geminiSpeak(said, gemini.geminiVoice, gemini.geminiKey, fetchFn, left)
+      const { bytes } = await geminiSpeak(req.text, gemini.geminiVoice, gemini.geminiKey, fetchFn, left)
       return { bytes: new Uint8Array(bytes), type: 'audio/wav', engine: 'gemini' }
     } catch (e) {
       console.error('gemini tts failed, Chirp instead', (e as Error).message?.slice(0, 200))
@@ -130,7 +124,7 @@ const CACHE_DAYS = 30
 const CACHE_MAX_BYTES = 600_000
 
 export function cacheTarget(req: TtsRequest, gemini: { geminiVoice: string } | null): string {
-  return gemini ? `gemini|${gemini.geminiVoice}` : `chirp|${req.voice}|${req.rate}`
+  return gemini ? `gemini-plain|${gemini.geminiVoice}` : `chirp|${req.voice}|${req.rate}`
 }
 
 const cacheKey = async (env: Env, target: string, text: string) => `tts-cache:${await sha256url(`${env.sessionKey}|${target}|${text}`)}`
