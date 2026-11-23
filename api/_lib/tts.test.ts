@@ -56,18 +56,18 @@ describe('Shali speaks with Gemini, Chirp when it cannot', () => {
         if (gemini === 'fail') return new Response('quota', { status: 429 })
         const text = (JSON.parse(String(init.body)) as { contents: { parts: { text: string }[] }[] }).contents[0].parts[0].text
         seen.push(`said:${text}`)
+        seen.push(`voice:${JSON.stringify((JSON.parse(String(init.body)) as { generationConfig: unknown }).generationConfig)}`)
         return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: wav } }] } }] }))
       }
       return new Response(JSON.stringify({ audioContent: Buffer.from('mp3').toString('base64') }))
     }) as unknown as typeof fetch
     return { f, seen }
   }
-  const g = { geminiKey: 'g', geminiVoice: 'Sadaltager' }
+  const g = { geminiKey: 'g' }
 
   it('is on only with a Gemini key, and TTS_ENGINE=chirp turns it off', () => {
     expect(voiceEngine({})).toBeNull()
     expect(voiceEngine({ GEMINI_API_KEY: 'g' })).toEqual(g)
-    expect(voiceEngine({ GEMINI_API_KEY: 'g', GEMINI_VOICE: 'voice_x' })?.geminiVoice).toBe('voice_x')
     expect(voiceEngine({ GEMINI_API_KEY: 'g', TTS_ENGINE: 'chirp' })).toBeNull()
   })
 
@@ -76,6 +76,7 @@ describe('Shali speaks with Gemini, Chirp when it cannot', () => {
     const r = await speakBest('k', req, g, f)
     expect(r).toMatchObject({ engine: 'gemini', type: 'audio/wav' })
     expect(seen).toContain('said:שלום')
+    expect(seen.some((x) => x.startsWith('voice:') && x.includes('Charon'))).toBe(true) // the "ענן" voice the manager picked
     expect(seen.some((u) => u.includes('dicta'))).toBe(false)
   })
 
@@ -97,7 +98,7 @@ describe('a sentence said before is not paid for again', () => {
     vi.spyOn(kv, 'get').mockImplementation(async (_e, k) => store.get(k) ?? null)
     vi.spyOn(kv, 'set').mockImplementation(async (_e, k, v) => void store.set(k, v) as never)
     const expire = vi.spyOn(kv, 'expire').mockResolvedValue(undefined as never)
-    const target = cacheTarget(req, { geminiVoice: 'Sadaltager' })
+    const target = cacheTarget(req, {})
     expect(await readCachedVoice(env, req, target)).toBeNull()
     await keepVoice(env, req, target, { ...audio, engine: 'gemini' })
     expect([...store.values()][0]).not.toContain('רגע')
@@ -105,14 +106,14 @@ describe('a sentence said before is not paid for again', () => {
     expect(back?.type).toBe('audio/wav')
     expect([...(back?.bytes ?? [])]).toEqual([...audio.bytes])
     expect(expire).toHaveBeenCalledWith(env, expect.stringMatching(/^tts-cache:/), 30 * 86_400)
-    expect(await readCachedVoice(env, req, cacheTarget(req, { geminiVoice: 'Charon' }))).toBeNull()
+    expect(await readCachedVoice(env, req, cacheTarget({ ...req, voice: 'Achird' }, {}))).toBeNull()
     expect(await readCachedVoice(env, { ...req, text: 'אחר' }, target)).toBeNull()
     vi.restoreAllMocks()
   })
 
   it('does not keep a Chirp fallback when Gemini should speak, nor long sentences', async () => {
     const set = vi.spyOn(kv, 'set').mockResolvedValue(undefined as never)
-    const target = cacheTarget(req, { geminiVoice: 'Sadaltager' })
+    const target = cacheTarget(req, {})
     await keepVoice(env, req, target, { ...audio, engine: 'chirp' })
     await keepVoice(env, { ...req, text: 'א'.repeat(CACHE_MAX_CHARS + 1) }, target, { ...audio, engine: 'gemini' })
     expect(set).not.toHaveBeenCalled()

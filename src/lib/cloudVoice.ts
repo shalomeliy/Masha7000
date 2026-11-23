@@ -7,7 +7,7 @@ import { hasAiConsent } from './aiConsent.js'
 // Anything that goes wrong (no network, month's characters used up, a slow answer, the phone refusing
 // to play) hands the rest of the reply to the phone's own voice: Shali is never silent.
 
-/** Male Chirp 3 HD voices, as in api/_lib/tts.ts CLOUD_VOICES; the first is the default. */
+/** Male voices, as in api/_lib/tts.ts CLOUD_VOICES (Gemini and Chirp 3 HD share the names); the first is the default. */
 export const CLOUD_VOICES = ['Sadaltager', 'Achird', 'Charon', 'Umbriel', 'Iapetus', 'Algieba'] as const
 export type CloudVoice = (typeof CLOUD_VOICES)[number]
 

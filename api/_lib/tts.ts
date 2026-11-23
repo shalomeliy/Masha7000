@@ -84,18 +84,19 @@ export const mp3 = (bytes: Uint8Array<ArrayBuffer>, type = 'audio/mpeg') =>
 // long or goes silent.
 const GEMINI_BUDGET_MS = 4500
 
-export function voiceEngine(e: NodeJS.ProcessEnv = process.env): { geminiKey: string; geminiVoice: string } | null {
+// The voice is the one the manager picked with "קול: ענן N": all six names are Gemini voices too (owner,
+// 2026-11-23: "where is Google's voice?" when ענן 1..6 all sounded the same).
+export function voiceEngine(e: NodeJS.ProcessEnv = process.env): { geminiKey: string } | null {
   const key = (e.GEMINI_API_KEY ?? '').trim()
   if (!key || (e.TTS_ENGINE ?? '').trim().toLowerCase() === 'chirp') return null
-  const v = (e.GEMINI_VOICE ?? '').trim()
-  return { geminiKey: key, geminiVoice: /^[\w.:/-]{1,120}$/.test(v) ? v : 'Sadaltager' }
+  return { geminiKey: key }
 }
 
 /** One sentence as audio: Gemini when configured, else (or on any trouble) Chirp. */
 export async function speakBest(
   apiKey: string,
   req: TtsRequest,
-  gemini: { geminiKey: string; geminiVoice: string } | null,
+  gemini: { geminiKey: string } | null,
   fetchFn: typeof fetch = fetch,
   now: () => number = Date.now,
 ): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string; engine: 'gemini' | 'chirp' }> {
@@ -103,7 +104,7 @@ export async function speakBest(
     const start = now()
     try {
       const left = Math.max(1000, GEMINI_BUDGET_MS - (now() - start))
-      const { bytes } = await geminiSpeak(req.text, gemini.geminiVoice, gemini.geminiKey, fetchFn, left)
+      const { bytes } = await geminiSpeak(req.text, req.voice, gemini.geminiKey, fetchFn, left)
       return { bytes: new Uint8Array(bytes), type: 'audio/wav', engine: 'gemini' }
     } catch (e) {
       console.error('gemini tts failed, Chirp instead', (e as Error).message?.slice(0, 200))
@@ -123,8 +124,8 @@ export const CACHE_MAX_CHARS = 120
 const CACHE_DAYS = 30
 const CACHE_MAX_BYTES = 600_000
 
-export function cacheTarget(req: TtsRequest, gemini: { geminiVoice: string } | null): string {
-  return gemini ? `gemini-plain|${gemini.geminiVoice}` : `chirp|${req.voice}|${req.rate}`
+export function cacheTarget(req: TtsRequest, gemini: object | null): string {
+  return gemini ? `gemini-plain|${req.voice}` : `chirp|${req.voice}|${req.rate}`
 }
 
 const cacheKey = async (env: Env, target: string, text: string) => `tts-cache:${await sha256url(`${env.sessionKey}|${target}|${text}`)}`
