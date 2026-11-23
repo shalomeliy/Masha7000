@@ -71,3 +71,11 @@ Repeated request shapes become free. A truly new or unclear request will always 
 - Never spend the app's key for development (CLAUDE.md). Tests use the stand-in only.
 - Learned patterns keep only action words; values are slots (skill `free-commands`).
 - Every proposal is read back and done only after the owner's yes, free or paid.
+
+## The voice costs too (added 2026-11-23)
+
+Since 2026-11-23 Shali speaks with Gemini TTS given Dicta's niqqud (`api/_lib/gemini.ts`, `tts.ts` `speakBest`), Chirp 3 HD when Gemini fails. This is a second, separate cost: Claude is the thinking, the voice is the mouth. Teaching free commands lowers only the thinking; every sentence Shali says still costs voice characters, free path or not.
+
+- Gemini TTS is paid per audio second (Google AI Studio key `GEMINI_API_KEY`, not the $300 Google Cloud credit). Roughly $1-3 a month for one team; prices double on 2027-01-01.
+- The same rule applies: a sentence paid for once should not be paid for again. Shali repeats many sentences word for word ("רגע, בודק", "אשר או תקן", read-backs of free commands). Next step: keep the audio of each spoken sentence on the server and replay it, so a repeated sentence costs nothing and plays at once.
+- The weekly routine does not change: it reads the Claude log. A voice measure joins the table once the server counts voice characters by engine.
