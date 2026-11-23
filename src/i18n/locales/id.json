@@ -1308,5 +1308,12 @@
  "מזהה...": "Mengenali...",
  "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "Di aplikasi pada layar utama iPhone, rekaman ucapan Anda kepada Shali dikirim ke Google untuk diubah menjadi teks.",
  "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Tanpa persetujuan Anda, Anda bisa mengetik, atau mengetuk mikrofon di keyboard.",
- "גם Claude": "Juga Claude"
+ "גם Claude": "Juga Claude",
+ "{name} + ניקוד": "{name} + nikud",
+ "אותו משפט ב-4 קולות: הקול של היום, עם ניקוד, ו-Gemini. מקשיבים ובוחרים": "Kalimat yang sama dalam 4 suara: suara saat ini, dengan nikud, dan Gemini. Dengarkan dan pilih",
+ "הכי טוב": "Terbaik",
+ "השוואת קולות": "Perbandingan suara",
+ "כל לחיצה שולחת את המשפט לגוגל (ולניקוד של דיקטה) ועולה סנטים בודדים. לחיצה שנייה משמיעה שוב בלי לשלוח.": "Setiap ketukan mengirim kalimat ke Google (dan ke Dicta untuk nikud) dan biayanya beberapa sen. Ketukan kedua memutar ulang tanpa mengirim.",
+ "משפט משלך": "Kalimat Anda sendiri",
+ "נכשל: {why}": "Gagal: {why}"
 }
