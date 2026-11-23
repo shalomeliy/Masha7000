@@ -11,7 +11,12 @@ import { blobBase64, level, toWav } from './wav'
 const SILENCE_MS = 1500 // quiet this long after speaking: done
 const NOTHING_MS = 8000 // nothing said at all: give up
 const MAX_MS = 29_000 // the server takes up to 30 seconds
-const CALIBRATE = 3 // the first pieces (~85 ms each) measure the room's noise
+const WARMUP = 3 // the first pieces (~85 ms each): the iPhone's mic may click or rise as it starts
+const MIN_LOUD = 0.015 // speech is at least this loud, however quiet the room
+// The room's noise is the quiet end of what was heard so far (a low share of the pieces), not the loudest
+// moment at the start: on the owner's iPhone (2026-11-23) a start that took the first pieces as "noise"
+// set the bar above his voice, and two tries in a row ended with "nothing said".
+const QUIET_SHARE = 0.2
 
 export interface ServerListening {
   stop: () => void
@@ -43,8 +48,14 @@ export function listenViaServer(onText: (text: string) => void, onEnd: (text: st
   let ended = false
   let spoke = false
   let lastLoud = 0
-  let noise = 0
-  let calibrated = 0
+  let heard = 0 // pieces heard so far
+  let loudest = 0
+  const levels: number[] = []
+  const noiseFloor = () => {
+    if (!levels.length) return 0
+    const sorted = [...levels].sort((a, b) => a - b)
+    return sorted[Math.floor(sorted.length * QUIET_SHARE)]
+  }
   const started = Date.now()
   const timers: ReturnType<typeof setTimeout>[] = []
 
@@ -66,8 +77,9 @@ export function listenViaServer(onText: (text: string) => void, onEnd: (text: st
     stopped = true
     release()
     const seconds = pieces.reduce((n, p) => n + p.length, 0) / ctx.sampleRate
-    vlog(`server-listen: stop after ${seconds.toFixed(1)}s, spoke=${spoke}`)
-    if (!spoke || seconds < 0.3) return end('', tx('לא נשמע דיבור. נסה שוב.'))
+    vlog(`server-listen: stop after ${seconds.toFixed(1)}s, spoke=${spoke}, loudest ${loudest.toFixed(3)}, noise ${noiseFloor().toFixed(3)}`)
+    // Not sure it was speech, but something loud was heard: the server decides (a few seconds cost little).
+    if (seconds < 0.3 || (!spoke && loudest < MIN_LOUD)) return end('', tx('לא נשמע דיבור. נסה שוב.'))
     onText(tx('מזהה...'))
     void send(toWav(pieces, ctx.sampleRate)).then(
       (text) => end(text),
@@ -96,14 +108,14 @@ export function listenViaServer(onText: (text: string) => void, onEnd: (text: st
       const piece = new Float32Array(e.inputBuffer.getChannelData(0))
       pieces.push(piece)
       const l = level(piece)
-      if (calibrated < CALIBRATE) {
-        noise = Math.max(noise, l)
-        calibrated++
-        return
-      }
+      if (++heard <= WARMUP) return
+      levels.push(l)
+      loudest = Math.max(loudest, l)
       const now = Date.now()
-      if (l > Math.max(0.02, noise * 3)) {
-        if (!spoke) vlog(`server-listen: speech at ${((now - started) / 1000).toFixed(1)}s (noise ${noise.toFixed(3)})`)
+      const noise = noiseFloor()
+      // Capped, so a long stretch of talk with few pauses never lifts the bar above the voice itself.
+      if (l > Math.max(MIN_LOUD, Math.min(noise * 3, 0.04))) {
+        if (!spoke) vlog(`server-listen: speech at ${((now - started) / 1000).toFixed(1)}s (noise ${noise.toFixed(3)}, level ${l.toFixed(3)})`)
         spoke = true
         lastLoud = now
       } else if (spoke && now - lastLoud > SILENCE_MS) stop()
