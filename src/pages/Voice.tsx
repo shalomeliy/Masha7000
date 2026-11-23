@@ -17,7 +17,7 @@ import { vlog, voiceReport } from '../lib/voiceLog'
 import { cloudOff } from '../lib/cloudVoice'
 import { hasAiConsent, setAiConsent } from '../lib/aiConsent'
 import { AiConsentCard } from '../components/AiConsentCard'
-import { canListen, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, onSpeaking, onVoicesChanged, whenQuiet, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
+import { canListen, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, onSpeaking, onVoicesChanged, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -136,23 +136,20 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
     stopSpeaking()
   }, [])
 
-  // On another tab: nothing is heard or said there. What Shali answers meanwhile is said on return.
+  // On another tab nothing is heard (the mic stops), but Shali goes on talking there (owner, 2026-11-23:
+  // "can Shali speak in the background while I move between screens?"), answers that arrive meanwhile too.
   const shownNow = useRef(active)
   const leftAt = useRef(0)
-  const missed = useRef<string[]>([])
   useEffect(() => {
     shownNow.current = active
     if (!active) {
       leftAt.current = Date.now()
       listening.current?.stop()
-      stopSpeaking()
       return
     }
     if (!leftAt.current) return
     const away = Date.now() - leftAt.current
     leftAt.current = 0
-    const said = missed.current.join(' ')
-    missed.current = []
     if (away > KEEP_TALK_MS) {
       // Long gone: a fresh start, nothing half-said waits for a yes.
       if (logged.current) logEnd('cancelled')
@@ -163,21 +160,12 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
       setConflicts([])
       return
     }
-    if (said) speak(said)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on leaving and coming back only
   }, [active])
 
-  const talk = (text: string, onDone?: () => void) => {
-    if (shownNow.current) speak(text, onDone)
-    else {
-      missed.current.push(text)
-      onDone?.()
-    }
-  }
-
-  const say = (text: string, onDone?: () => void) => {
+  const say = (text: string) => {
     setLines((l) => [...l, { who: 'app', text }])
-    talk(text, onDone)
+    speak(text)
   }
 
   const reset = () => {
@@ -225,7 +213,7 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
       setError((e as Error).message)
       setPhase('idle')
       // Too slow: say it, so the manager is not left in silence waiting for an answer.
-      if (e instanceof AssistantTimeoutError) talk((e as Error).message)
+      if (e instanceof AssistantTimeoutError) speak((e as Error).message)
       offerLocalPart() // the parts the app knows are not lost
       return
     }
@@ -263,15 +251,12 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
       // A button only a tap may press (WhatsApp, sharing): open its screen and make it blink.
       const hint = call.input.pressButton as Hint | ''
       const screen = hint && hint in HINTS ? HINTS[hint] : (call.input.openScreen as Screen | '')
-      // The screen opens once the answer has been said: leaving this screen stops the voice, and the
-      // cloud voice takes 2-3 s to start (owner, 2026-11-23: "it said one moment, closed, nothing happened").
-      const go = () => {
-        if (!screen) return
+      // The screen opens at once; the answer goes on being said there (it used to be cut off, owner 2026-11-23).
+      if (text && text !== early) say(text)
+      if (screen) {
         onNavigate(screen)
         if (hint && hint in HINTS) showHint(hint)
       }
-      if (text && text !== early) say(text, () => whenQuiet(go))
-      else whenQuiet(go)
     } else if (call?.name === 'solve') {
       // The planner computes the options here, in milliseconds; the model then ranks and words them.
       const i = call.input as { kind: Problem['kind']; shiftId: string; workerIds: string[]; date: string }
