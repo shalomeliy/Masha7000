@@ -42,7 +42,11 @@ interface Line {
 // A proposal with wrong ids or dates goes back to the assistant at most this many times in a row.
 const MAX_FIXES = 2
 
-export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
+// The screen stays open behind the other tabs (App.tsx), so a conversation survives a look at the
+// calendar. Away longer than this, it starts fresh (user, 2026-11-23).
+export const KEEP_TALK_MS = 30 * 60 * 1000
+
+export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Screen) => void; active?: boolean }) {
   const lists = {
     certifications: useDriveList('certifications'),
     workers: useDriveList('workers'),
@@ -133,9 +137,45 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     stopSpeaking()
   }, [])
 
+  // On another tab: nothing is heard or said there. What Shali answers meanwhile is said on return.
+  const shownNow = useRef(active)
+  const leftAt = useRef(0)
+  const missed = useRef<string[]>([])
+  useEffect(() => {
+    shownNow.current = active
+    if (!active) {
+      leftAt.current = Date.now()
+      listening.current?.stop()
+      stopSpeaking()
+      return
+    }
+    if (!leftAt.current) return
+    const away = Date.now() - leftAt.current
+    leftAt.current = 0
+    const said = missed.current.join(' ')
+    missed.current = []
+    if (away > KEEP_TALK_MS) {
+      // Long gone: a fresh start, nothing half-said waits for a yes.
+      if (logged.current) logEnd('cancelled')
+      reset()
+      setLines([])
+      setError(null)
+      setHeard('')
+      setConflicts([])
+      return
+    }
+    if (said) speak(said)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on leaving and coming back only
+  }, [active])
+
+  const talk = (text: string) => {
+    if (shownNow.current) speak(text)
+    else missed.current.push(text)
+  }
+
   const say = (text: string) => {
     setLines((l) => [...l, { who: 'app', text }])
-    speak(text)
+    talk(text)
   }
 
   const reset = () => {
@@ -165,7 +205,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       return
     }
     setPhase('thinking')
-    if (!fixes) speakAtOnce(MOMENT)
+    if (!fixes && shownNow.current) speakAtOnce(MOMENT)
     setError(null)
     fromFree.current = false
     conversation.current = [...conversation.current, turn]
@@ -183,7 +223,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       setError((e as Error).message)
       setPhase('idle')
       // Too slow: say it, so the manager is not left in silence waiting for an answer.
-      if (e instanceof AssistantTimeoutError) speak((e as Error).message)
+      if (e instanceof AssistantTimeoutError) talk((e as Error).message)
       offerLocalPart() // the parts the app knows are not lost
       return
     }
@@ -565,6 +605,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       listening.current = null
       setHeard('')
       setPhase('idle')
+      // Stopped by leaving the screen: half a sentence is not acted on.
+      if (!shownNow.current) return
       if (err) setError(err)
       handleSaid(text)
     })
