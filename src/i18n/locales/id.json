@@ -343,6 +343,7 @@
  "העוזר הקולי עוד לא מחובר. צריך להוסיף את מפתח Anthropic בהגדרות של Vercel.": "Asisten suara belum terhubung. Kunci Anthropic perlu ditambahkan di pengaturan Vercel.",
  "העוזר הקולי פתוח רק לחשבון של המנהל.": "Asisten suara hanya terbuka untuk akun manajer.",
  "העוזר לא הצליח לענות. נסה שוב.": "Asisten gagal menjawab. Coba lagi.",
+ "Shali חשב על זה יותר מדי זמן ולא הספיק לענות. נסה שוב, אולי בבקשה קצרה יותר.": "Shali terlalu lama berpikir dan tidak sempat menjawab. Coba lagi, mungkin dengan permintaan yang lebih singkat.",
  "העוזר לא יכול לענות על זה. נסה לנסח אחרת.": "Asisten tidak bisa menjawab ini. Coba dengan kata-kata lain.",
  "הערות": "Catatan",
  "הערות למנהל": "Catatan untuk manajer",

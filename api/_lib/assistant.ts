@@ -198,7 +198,7 @@ const MODE = `
 
 export type AssistantReply =
   | { ok: true; content: unknown[]; call: { id: string; name: string; input: unknown } | null; text: string; usage?: Anthropic.Usage }
-  | { ok: false; reason: 'bad-body' | 'refused' | 'no-key' | 'no-credit' | 'failed' }
+  | { ok: false; reason: 'bad-body' | 'refused' | 'no-key' | 'no-credit' | 'timeout' | 'failed' }
 
 /** True when the conversation has the shape the API needs: user first, roles alternating, small enough. */
 export function validConversation(messages: unknown): messages is Anthropic.MessageParam[] {
@@ -245,6 +245,11 @@ export function languageNote(context: unknown): { type: 'text'; text: string }[]
   ]
 }
 
+/** The whole turn, retry included: under Vercel's 60 s, with room for the budget write after it. */
+export const ASSISTANT_DEADLINE_MS = 45_000
+/** One try at Claude; the retry gets what is left of the deadline. */
+const ATTEMPT_TIMEOUT_MS = 30_000
+
 export async function runAssistant(
   apiKey: string,
   messages: unknown,
@@ -257,7 +262,11 @@ export async function runAssistant(
   // Paid calls only from Vercel: on this machine nothing is sent, whatever key is given (spendGuard.ts),
   // except the owner's own manual test in the dev server with the switch on (vite.config.ts).
   if (!onVercel() && !manualLocal) return { ok: false, reason: 'no-key' }
-  const client = new Anthropic({ apiKey, maxRetries: 1, timeout: 40_000 })
+  // Vercel stops the function at 60 s (vercel.json maxDuration). One deadline covers the first try and
+  // the retry together, so the turn always ends in time to say "it took too long" instead of being cut.
+  const deadline = new AbortController()
+  const timer = setTimeout(() => deadline.abort(), ASSISTANT_DEADLINE_MS)
+  const client = new Anthropic({ apiKey, maxRetries: 1, timeout: ATTEMPT_TIMEOUT_MS })
   let res: Anthropic.Message
   try {
     const stream = client.messages.stream({
@@ -275,7 +284,7 @@ export async function runAssistant(
       // Low: the hard thinking is the planner's (solve), the model recognizes and words (docs/spikes/solver.md).
       output_config: { effort: 'low' },
       messages,
-    })
+    }, { signal: deadline.signal })
     let tool = ''
     let partial = ''
     let sent = false
@@ -294,11 +303,14 @@ export async function runAssistant(
     }
     res = await stream.finalMessage()
   } catch (e) {
+    if (deadline.signal.aborted) return { ok: false, reason: 'timeout' }
     if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) return { ok: false, reason: 'no-key' }
     // The account ran out of credit or hit its spend limit: say so, not "try again".
     if (e instanceof Anthropic.APIError && /credit balance|spend limit|usage limit|billing/i.test(e.message)) return { ok: false, reason: 'no-credit' }
     console.error('assistant error', (e as Error).name, (e as Error).message?.slice(0, 300))
     return { ok: false, reason: 'failed' }
+  } finally {
+    clearTimeout(timer)
   }
   if (res.stop_reason === 'refusal') return { ok: false, reason: 'refused' }
   const use = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')

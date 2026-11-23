@@ -6,7 +6,7 @@ import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeP
 import { newId } from '../lib/catalog'
 import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
-import { askAssistant, fetchBudget, userTurn, type AssistantAnswer, type Budget, type Turn } from '../lib/assistantApi'
+import { AssistantTimeoutError, askAssistant, fetchBudget, userTurn, type AssistantAnswer, type Budget, type Turn } from '../lib/assistantApi'
 import { realAssistantOn, setRealAssistant } from '../dev/realAssistant'
 import { carFix, claudePart, continueCar, continueJob, continueWho, countTurn, exampleAction, handleFree, knownResult, learn, mergeProposals, pickedOption, sickPlan, splitFree, usage, whyNotFree, type Local, type PendingCar, type PendingJob, type PendingWho } from '../lib/freeCommands'
 import { saveEntry, type ClaudeLogEntry, type LogOutcome } from '../lib/claudeLog'
@@ -182,6 +182,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       logDid(`error: ${(e as Error).message}`)
       setError((e as Error).message)
       setPhase('idle')
+      // Too slow: say it, so the manager is not left in silence waiting for an answer.
+      if (e instanceof AssistantTimeoutError) speak((e as Error).message)
       offerLocalPart() // the parts the app knows are not lost
       return
     }

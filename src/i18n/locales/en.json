@@ -343,6 +343,7 @@
  "העוזר הקולי עוד לא מחובר. צריך להוסיף את מפתח Anthropic בהגדרות של Vercel.": "The voice assistant isn't connected yet. You need to add the Anthropic key in Vercel settings.",
  "העוזר הקולי פתוח רק לחשבון של המנהל.": "The voice assistant is only available to the manager's account.",
  "העוזר לא הצליח לענות. נסה שוב.": "The assistant couldn't answer. Try again.",
+ "Shali חשב על זה יותר מדי זמן ולא הספיק לענות. נסה שוב, אולי בבקשה קצרה יותר.": "Shali took too long thinking about this and could not answer in time. Try again, maybe with a shorter request.",
  "העוזר לא יכול לענות על זה. נסה לנסח אחרת.": "The assistant can't answer that. Try rephrasing.",
  "הערות": "Notes",
  "הערות למנהל": "Notes for the manager",

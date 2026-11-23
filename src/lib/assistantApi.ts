@@ -43,10 +43,17 @@ export async function fetchBudget(): Promise<Budget | null> {
   }
 }
 
+/** Claude took too long and the turn was stopped; Voice.tsx says this aloud, not only on screen. */
+export class AssistantTimeoutError extends Error {}
+
+/** A little over the server's own deadline (api/_lib/assistant.ts): if no answer by then, stop waiting. */
+const CLIENT_WAIT_MS = 58_000
+
 /** Asked Claude before the manager agreed to send to an outside AI (src/lib/aiConsent.ts). */
 export class NoAiConsentError extends Error {}
 
 const REASONS: Record<string, string> = {
+  timeout: tx('Shali חשב על זה יותר מדי זמן ולא הספיק לענות. נסה שוב, אולי בבקשה קצרה יותר.'),
   'not-owner': tx('העוזר הקולי פתוח רק לחשבון של המנהל.'),
   'free-only': tx('את זה Shali עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.'),
   'no-session': tx('החיבור במכשיר הזה נגמר. צריך להתחבר שוב.'),
@@ -79,10 +86,29 @@ export async function askAssistant(
 ): Promise<AssistantAnswer> {
   // Nothing goes to Claude before the manager agreed (Voice.tsx asks first; this is the safety net).
   if (!hasAiConsent()) throw new NoAiConsentError(tx('בלי האישור שלך Shali עושה רק את מה שהוא יודע לבד, בלי Claude.'))
+  const wait = new AbortController()
+  const timer = setTimeout(() => wait.abort(), CLIENT_WAIT_MS)
+  try {
+    return await readTurn(messages, context, wait.signal, onEarly, onBudget)
+  } catch (e) {
+    throw wait.signal.aborted && !(e instanceof AssistantTimeoutError) ? new AssistantTimeoutError(REASONS.timeout) : e
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function readTurn(
+  messages: Turn[],
+  context: unknown,
+  signal: AbortSignal,
+  onEarly?: (text: string) => void,
+  onBudget?: (budget: Budget) => void,
+): Promise<AssistantAnswer> {
   let res: Response
   try {
     res = await fetch('/api/assistant', {
       method: 'POST',
+      signal,
       credentials: 'same-origin',
       // Dev server only: the owner's switch for a real answer (src/dev/realAssistant.ts); else a stand-in.
       headers: { 'Content-Type': 'application/json', ...(import.meta.env.DEV && realAssistantOn() ? { 'X-Dev-Real-Assistant': '1' } : {}) },
@@ -93,7 +119,8 @@ export async function askAssistant(
     throw new Error(tx('אין חיבור לאינטרנט.'))
   }
   if (res.status === 404) throw new Error(REASONS['not-configured'])
-  const failed = (reason?: string) => new Error(REASONS[reason ?? ''] ?? tx('העוזר לא הצליח לענות. נסה שוב.'))
+  const failed = (reason?: string) =>
+    reason === 'timeout' ? new AssistantTimeoutError(REASONS.timeout) : new Error(REASONS[reason ?? ''] ?? tx('העוזר לא הצליח לענות. נסה שוב.'))
   if (!res.ok || !res.body || !(res.headers.get('content-type') ?? '').includes('ndjson')) {
     const data = (await res.json().catch(() => ({}))) as { reason?: string }
     throw failed(data.reason)

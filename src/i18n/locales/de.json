@@ -343,6 +343,7 @@
  "העוזר הקולי עוד לא מחובר. צריך להוסיף את מפתח Anthropic בהגדרות של Vercel.": "Der Sprachassistent ist noch nicht verbunden. Du musst den Anthropic-Schlüssel in den Vercel-Einstellungen hinzufügen.",
  "העוזר הקולי פתוח רק לחשבון של המנהל.": "Der Sprachassistent ist nur für das Konto des Managers freigeschaltet.",
  "העוזר לא הצליח לענות. נסה שוב.": "Der Assistent konnte nicht antworten. Versuch es nochmal.",
+ "Shali חשב על זה יותר מדי זמן ולא הספיק לענות. נסה שוב, אולי בבקשה קצרה יותר.": "Shali hat zu lange nachgedacht und konnte nicht rechtzeitig antworten. Versuch es noch einmal, vielleicht mit einer kürzeren Anfrage.",
  "העוזר לא יכול לענות על זה. נסה לנסח אחרת.": "Dazu kann der Assistent nichts sagen. Formuliere es anders.",
  "הערות": "Notizen",
  "הערות למנהל": "Notizen für den Manager",

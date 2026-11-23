@@ -343,6 +343,7 @@
  "העוזר הקולי עוד לא מחובר. צריך להוסיף את מפתח Anthropic בהגדרות של Vercel.": "Sesli asistan henüz bağlı değil. Vercel ayarlarına Anthropic anahtarı eklenmeli.",
  "העוזר הקולי פתוח רק לחשבון של המנהל.": "Sesli asistan yalnızca yöneticinin hesabına açık.",
  "העוזר לא הצליח לענות. נסה שוב.": "Asistan cevap veremedi. Tekrar dene.",
+ "Shali חשב על זה יותר מדי זמן ולא הספיק לענות. נסה שוב, אולי בבקשה קצרה יותר.": "Shali bunu çok uzun süre düşündü ve zamanında cevap veremedi. Tekrar deneyin, belki daha kısa bir istekle.",
  "העוזר לא יכול לענות על זה. נסה לנסח אחרת.": "Asistan buna cevap veremez. Başka bir şekilde söylemeyi dene.",
  "הערות": "Notlar",
  "הערות למנהל": "Yönetici için notlar",
