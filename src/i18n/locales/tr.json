@@ -1315,5 +1315,6 @@
  "השוואת קולות": "Ses karşılaştırma",
  "כל לחיצה שולחת את המשפט לגוגל (ולניקוד של דיקטה) ועולה סנטים בודדים. לחיצה שנייה משמיעה שוב בלי לשלוח.": "Her dokunuş cümleyi Google'a (nikud için Dicta'ya) gönderir ve birkaç sent tutar. İkinci dokunuş göndermeden yeniden çalar.",
  "משפט משלך": "Kendi cümleniz",
- "נכשל: {why}": "Başarısız: {why}"
+ "נכשל: {why}": "Başarısız: {why}",
+ "קול של Gemini": "Gemini sesi"
 }

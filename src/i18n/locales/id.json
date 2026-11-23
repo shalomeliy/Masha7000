@@ -1315,5 +1315,6 @@
  "השוואת קולות": "Perbandingan suara",
  "כל לחיצה שולחת את המשפט לגוגל (ולניקוד של דיקטה) ועולה סנטים בודדים. לחיצה שנייה משמיעה שוב בלי לשלוח.": "Setiap ketukan mengirim kalimat ke Google (dan ke Dicta untuk nikud) dan biayanya beberapa sen. Ketukan kedua memutar ulang tanpa mengirim.",
  "משפט משלך": "Kalimat Anda sendiri",
- "נכשל: {why}": "Gagal: {why}"
+ "נכשל: {why}": "Gagal: {why}",
+ "קול של Gemini": "Suara Gemini"
 }

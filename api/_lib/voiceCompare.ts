@@ -11,6 +11,7 @@ export interface CompareRequest {
   text: string
   engine: Engine
   nikud: boolean
+  voice: string // Gemini only: a Voice Library id; Chirp always uses Shali's voice
 }
 export interface CompareResult {
   audio: string // base64
@@ -23,14 +24,15 @@ export interface CompareResult {
 
 const MAX = 300
 const VOICE = 'Sadaltager' // Shali's default male voice; Gemini TTS has the same name
-const PROMPT = 'Read this Hebrew text aloud exactly as written, in modern Israeli Hebrew, as a calm, friendly, professional man.'
 
 export function readCompareRequest(body: Record<string, unknown> | null): CompareRequest | null {
   const text = typeof body?.text === 'string' ? body.text.trim() : ''
   if (!text || text.length > MAX) return null
   const engine = body?.engine === 'gemini' ? 'gemini' : body?.engine === 'chirp' ? 'chirp' : null
   if (!engine) return null
-  return { text, engine, nikud: body?.nikud === true }
+  const v = typeof body?.voice === 'string' ? body.voice.trim() : ''
+  const voice = /^[\w.:/-]{1,120}$/.test(v) ? v : VOICE
+  return { text, engine, nikud: body?.nikud === true, voice }
 }
 
 const NAKDAN = 'https://nakdan-2-0.loadbalancer.dicta.org.il/api'
@@ -78,43 +80,57 @@ export function pcmToWav(pcm: Uint8Array, rate = 24_000): Uint8Array {
   return out
 }
 
-/**
- * Gemini TTS. With GEMINI_API_KEY (from Google AI Studio) it uses the Gemini API's newest cheap model;
- * otherwise the Cloud Text-to-Speech API with Shali's existing key (needs Vertex AI allowed on the project).
- */
-async function gemini(text: string, ttsKey: string, geminiKey: string, fetchFn: typeof fetch): Promise<{ bytes: Uint8Array; mime: string; engine: string }> {
-  if (geminiKey) {
-    const model = 'gemini-3.8-flash-lite-tts'
-    const res = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `${PROMPT}\n\n${text}` }] }],
-        generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } } },
-      }),
-      signal: AbortSignal.timeout(15_000),
-    })
-    if (!res.ok) throw new Error(`gemini api ${res.status} ${(await res.text()).slice(0, 300)}`)
-    const data = (await res.json()) as { candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] } }[] }
-    const b64 = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data
-    if (!b64) throw new Error('gemini api empty')
-    return { bytes: pcmToWav(new Uint8Array(Buffer.from(b64, 'base64'))), mime: 'audio/wav', engine: model }
-  }
-  const model = 'gemini-3.1-flash-tts-preview'
-  const res = await fetchFn('https://texttospeech.googleapis.com/v1/text:synthesize', {
+// Gemini 3.8 TTS reads the text field word for word, so the style goes in speech_metadata (owner,
+// 2026-11-23: the old prompt-in-text was read aloud). The accent comes from the voice itself, not the
+// style: Google's own advice is to pick a regional voice from its Voice Library (listVoices below).
+const STYLE = 'calm, friendly, professional; casual everyday Israeli speech'
+
+/** Hebrew male voices from Gemini's Voice Library (free to list): id, name, accent, description. */
+export async function listVoices(geminiKey: string, fetchFn: typeof fetch = fetch): Promise<{ id: string; name: string; info: string }[]> {
+  const male = await askVoices(geminiKey, { language_code: 'he-IL', gender: 'male' }, fetchFn)
+  return male.length ? male : askVoices(geminiKey, { region_code: 'IL' }, fetchFn)
+}
+
+async function askVoices(geminiKey: string, filter: Record<string, string>, fetchFn: typeof fetch): Promise<{ id: string; name: string; info: string }[]> {
+  const q = new URLSearchParams({ ...filter, page_size: '100' })
+  const res = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/voices?${q}`, {
+    headers: { 'x-goog-api-key': geminiKey },
+    signal: AbortSignal.timeout(8000),
+  })
+  if (!res.ok) throw new Error(`voices ${res.status} ${(await res.text()).slice(0, 300)}`)
+  const data = (await res.json()) as { voices?: Record<string, unknown>[] }
+  const str = (v: unknown) => (typeof v === 'string' ? v : '')
+  return (data.voices ?? [])
+    .map((v) => ({
+      id: str(v.id) || str(v.name),
+      name: str(v.displayName) || str(v.display_name) || str(v.id),
+      info: [str(v.accent), str(v.persona), str(v.description)].filter(Boolean).join(' · ').slice(0, 160),
+    }))
+    .filter((v) => v.id)
+}
+
+const isWav = (b: Uint8Array) => b.length > 12 && String.fromCharCode(...b.subarray(0, 4)) === 'RIFF'
+
+/** Gemini 3.8 Flash-Lite TTS on the Gemini API (GEMINI_API_KEY from Google AI Studio). */
+async function gemini(text: string, voice: string, geminiKey: string, fetchFn: typeof fetch): Promise<{ bytes: Uint8Array; mime: string; engine: string }> {
+  if (!geminiKey) throw new Error('no GEMINI_API_KEY')
+  const model = 'gemini-3.8-flash-lite-tts'
+  const res = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': ttsKey },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
     body: JSON.stringify({
-      input: { text, prompt: PROMPT },
-      voice: { languageCode: 'he-IL', name: VOICE, modelName: model },
-      audioConfig: { audioEncoding: 'MP3' },
+      contents: [{ role: 'user', parts: [{ text, speech_metadata: { style: STYLE } }] }],
+      generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { voice } } },
     }),
     signal: AbortSignal.timeout(15_000),
   })
-  if (!res.ok) throw new Error(`cloud gemini ${res.status} ${(await res.text()).slice(0, 300)}`)
-  const { audioContent } = (await res.json()) as { audioContent?: string }
-  if (!audioContent) throw new Error('cloud gemini empty')
-  return { bytes: new Uint8Array(Buffer.from(audioContent, 'base64')), mime: 'audio/mpeg', engine: model }
+  if (!res.ok) throw new Error(`gemini api ${res.status} ${(await res.text()).slice(0, 300)}`)
+  const data = (await res.json()) as { candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] } }[] }
+  const b64 = data.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data
+  if (!b64) throw new Error('gemini api empty')
+  const raw = new Uint8Array(Buffer.from(b64, 'base64'))
+  // Unary 3.8 answers are already WAV; older ones were bare PCM.
+  return { bytes: isWav(raw) ? raw : pcmToWav(raw), mime: 'audio/wav', engine: `${model} ${voice}` }
 }
 
 export async function compareVoice(
@@ -129,6 +145,6 @@ export async function compareVoice(
   const spoken =
     req.engine === 'chirp'
       ? { bytes: await synthesize(keys.tts, { text: said, voice: VOICE, rate: 1 }, fetchFn), mime: 'audio/mpeg', engine: 'chirp3-hd' }
-      : await gemini(said, keys.tts, keys.gemini, fetchFn)
+      : await gemini(said, req.voice, keys.gemini, fetchFn)
   return { audio: Buffer.from(spoken.bytes).toString('base64'), mime: spoken.mime, engine: spoken.engine, said, msNikud, msVoice: Date.now() - t }
 }
