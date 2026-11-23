@@ -433,6 +433,7 @@
  "טופס פרטים לעובדים: שליחת קישור בוואטסאפ": "Formulaire d'informations pour les employés : envoi d'un lien sur WhatsApp",
  "טיפוס, ריתוך... וכמה אנשים כל סוג צריך": "Escalade, soudure... et combien de personnes chaque type nécessite",
  "טלפון בבית": "Téléphone fixe",
+ "טלפון חירום": "Téléphone d'urgence",
  "טלפון חירום 1": "Téléphone d'urgence 1",
  "טלפון חירום 1 (קרוב משפחה)": "Téléphone d'urgence 1 (proche)",
  "טלפון חירום 2": "Téléphone d'urgence 2",
@@ -1305,5 +1306,7 @@
  "באיזה קול Shali מדבר בטלפון הזה": "La voix de Shali sur ce téléphone",
  "הקול של Shali, איך הוא מבטא מילים, ומה הלך ל-Claude": "La voix de Shali, sa prononciation des mots, et ce qui est allé à Claude",
  "Shali מדבר...": "Shali parle...",
- "הוספתי את רכב {car}": "J'ai ajouté le véhicule {car}"
+ "הוספתי את רכב {car}": "J'ai ajouté le véhicule {car}",
+ "של מי טלפון החירום": "À qui est le téléphone d'urgence",
+ "של מי? (שם)": "À qui ? (nom)"
 }

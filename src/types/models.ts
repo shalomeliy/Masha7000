@@ -45,6 +45,7 @@ export interface Worker {
   homePhone?: string
   emergencyPhone1?: string
   emergencyPhone2?: string
+  emergencyName?: string // whose the emergency phone is ("אמא", "דנה")
   certificationIds: string[]
   // The manager's own 1-5 star rating of the worker in each certification they hold; absent = 5.
   // "שבץ" prefers more stars in the certifications a place asks for.

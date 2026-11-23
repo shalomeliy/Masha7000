@@ -458,11 +458,11 @@ function WorkerSheet({
   );
 }
 
+// Two phones only: the mobile and one emergency phone with whose it is (the manager's request, 2026-11-23).
+// Home phone, a second emergency phone and notes left the form; values saved before stay in the file.
 const PHONES = [
   ["mobilePhone", tx('טלפון נייד (חובה)')],
-  ["homePhone", tx('טלפון בבית')],
-  ["emergencyPhone1", tx('טלפון חירום 1')],
-  ["emergencyPhone2", tx('טלפון חירום 2')],
+  ["emergencyPhone1", tx('טלפון חירום')],
 ] as const;
 
 const OPTIONAL_TEXT = [
@@ -471,6 +471,9 @@ const OPTIONAL_TEXT = [
   "notes",
   "idNumber",
   "personalNumber",
+  "homePhone",
+  "emergencyPhone2",
+  "emergencyName",
   ...PHONES.map(([f]) => f),
 ] as const;
 type TextField = "firstName" | "lastName" | (typeof OPTIONAL_TEXT)[number];
@@ -775,11 +778,12 @@ function WorkerForm({
         />
       )}
 
-      {/* Two phones side by side only where a whole number fits (phones 390 wide and up). */}
-      <div className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2">
+      {/* Half-width pairs on every phone (the manager's request, 2026-11-23): mobile | emergency, birth date | address.
+          The emergency phone's owner sits right under it, in the same column, so it reads as part of it. */}
+      <div className="grid grid-cols-2 items-start gap-x-2 gap-y-3">
         {PHONES.map(([field, label]) => {
           const dial = telHref(draft[field]);
-          return (
+          const phone = (
             <Field key={field} label={label}>
               <span className="flex gap-1">
                 <input
@@ -788,21 +792,21 @@ function WorkerForm({
                   inputMode="tel"
                   value={draft[field] ?? ""}
                   onChange={set(field)}
-                  className={`${inputClass} min-w-0 px-2.5! text-right`}
+                  className={`${inputClass} min-w-0 px-2! text-right`}
                 />
                 {/* Always shown so every phone field visibly has a call button; inactive until a number is typed. */}
                 {dial ? (
                   <a
                     href={dial}
                     aria-label={tx('חיוג: {label}', { label })}
-                    className="flex w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300"
+                    className="flex w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300"
                   >
                     <Phone size={18} aria-hidden />
                   </a>
                 ) : (
                   <span
                     aria-hidden
-                    className="flex w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800/60 text-slate-600"
+                    className="flex w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800/60 text-slate-600"
                   >
                     <Phone size={18} />
                   </span>
@@ -810,33 +814,38 @@ function WorkerForm({
               </span>
             </Field>
           );
+          if (field !== "emergencyPhone1") return phone;
+          return (
+            <div key={field} className="min-w-0 space-y-1.5">
+              {phone}
+              <input
+                value={draft.emergencyName ?? ""}
+                onChange={set("emergencyName")}
+                placeholder={tx('של מי? (שם)')}
+                aria-label={tx('של מי טלפון החירום')}
+                className={`${inputClass} px-2.5! py-2!`}
+              />
+            </div>
+          );
         })}
+        <DateField
+          label={tx('תאריך לידה')}
+          value={draft.birthDate ?? ""}
+          min="1900-01-01"
+          max={todayIso()}
+          onChange={(birthDate, valid) => {
+            setDraft((d) => ({ ...d, birthDate }));
+            setBirthDateValid(valid);
+          }}
+        />
+        <Field label={tx('כתובת')}>
+          <input
+            value={draft.address ?? ""}
+            onChange={set("address")}
+            className={inputClass}
+          />
+        </Field>
       </div>
-      <DateField
-        label={tx('תאריך לידה')}
-        value={draft.birthDate ?? ""}
-        min="1900-01-01"
-        max={todayIso()}
-        onChange={(birthDate, valid) => {
-          setDraft((d) => ({ ...d, birthDate }));
-          setBirthDateValid(valid);
-        }}
-      />
-      <Field label={tx('כתובת')}>
-        <input
-          value={draft.address ?? ""}
-          onChange={set("address")}
-          className={inputClass}
-        />
-      </Field>
-      <Field label={tx('הערות')}>
-        <textarea
-          rows={2}
-          value={draft.notes ?? ""}
-          onChange={set("notes")}
-          className={inputClass}
-        />
-      </Field>
 
       <SheetActions
         onSave={save}

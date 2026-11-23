@@ -433,6 +433,7 @@
  "טופס פרטים לעובדים: שליחת קישור בוואטסאפ": "Formulir data untuk pekerja: kirim tautan lewat WhatsApp",
  "טיפוס, ריתוך... וכמה אנשים כל סוג צריך": "Memanjat, mengelas... dan berapa orang yang dibutuhkan setiap jenis",
  "טלפון בבית": "Telepon rumah",
+ "טלפון חירום": "Telepon darurat",
  "טלפון חירום 1": "Telepon darurat 1",
  "טלפון חירום 1 (קרוב משפחה)": "Telepon darurat 1 (keluarga)",
  "טלפון חירום 2": "Telepon darurat 2",
@@ -1305,5 +1306,7 @@
  "באיזה קול Shali מדבר בטלפון הזה": "Suara yang dipakai Shali di ponsel ini",
  "הקול של Shali, איך הוא מבטא מילים, ומה הלך ל-Claude": "Suara Shali, cara mengucapkan kata, dan apa yang dikirim ke Claude",
  "Shali מדבר...": "Shali sedang berbicara...",
- "הוספתי את רכב {car}": "Saya menambahkan kendaraan {car}"
+ "הוספתי את רכב {car}": "Saya menambahkan kendaraan {car}",
+ "של מי טלפון החירום": "Milik siapa telepon darurat ini",
+ "של מי? (שם)": "Milik siapa? (nama)"
 }
