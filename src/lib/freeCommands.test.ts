@@ -377,9 +377,26 @@ describe('worker names said a little differently (typos, speech recognition, Eng
     expect(sickOf(run('דייויד סמית חולה היום', d))).toBe('w7')
   })
 
-  it('says there is no such worker when no name is close enough, and never guesses', () => {
-    for (const [s, name] of [['גלעד חולה היום', 'גלעד'], ['רונן חולה היום', 'רונן'], ['אמי חולה מחר', 'אמי']])
-      expect(run(s)).toEqual({ kind: 'say', text: `לא מצאתי עובד בשם ${name}. אפשר לומר שוב, עם השם כמו שהוא ברשימת העובדים.` })
+  it('says there is no such worker when no name is even near, and never guesses', () => {
+    for (const [s, name] of [['גלעד חולה היום', 'גלעד'], ['שמעון חולה מחר', 'שמעון'], ['גלעד ברק חולה היום', 'גלעד ברק']])
+      expect(run(s)).toEqual({ kind: 'say', text: `לא מצאתי עובד בשם ${name}, ואין ברשימה שם דומה. אפשר לומר שוב, עם השם כמו שהוא ברשימת העובדים.` })
+  })
+
+  it('a name that is no worker: offers the nearest ones to pick, and "כן" takes the only one offered (owner, 2026-11-23)', () => {
+    const r = run('רונן חולה היום')
+    expect(r).toMatchObject({ kind: 'which', question: 'לא מצאתי עובד בשם רונן. אולי התכוונת לרון מזרחי?' })
+    if (r?.kind !== 'which') throw new Error()
+    const L = learn(base.assistantExamples, base)
+    expect(sickOf(continueWho('כן', r.pending, base, L, NOW)?.local ?? null)).toBe('w4')
+    expect(continueWho('כן', r.pending, base, L, NOW)?.text).toBe('רון מזרחי חולה היום')
+    expect(continueWho('לא', r.pending, base, L, NOW)).toBeNull()
+    // Close to several: all of them, closest first, picked by name or by order.
+    const m = run('אמי חולה מחר')
+    expect(m).toMatchObject({ kind: 'which', question: 'לא מצאתי עובד בשם אמי. אולי התכוונת לאלי פרץ או אבי אלפסי?' })
+    if (m?.kind !== 'which') throw new Error()
+    expect(sickOf(continueWho('אבי', m.pending, base, L, NOW)?.local ?? null)).toBe('w6')
+    expect(sickOf(continueWho('הראשון', m.pending, base, L, NOW)?.local ?? null)).toBe('w3')
+    expect(continueWho('כן', m.pending, base, L, NOW)).toBeNull() // two offered: "כן" says nothing
   })
 
   it('asks which one when two workers are about equally close', () => {

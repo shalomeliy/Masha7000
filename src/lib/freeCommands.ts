@@ -56,6 +56,7 @@ export const plus = (now: Date, n: number) => iso(new Date(now.getFullYear(), no
 export const words = (s: string) =>
   s
     .replace(/(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?/g, (_, a, b, c) => `${a}-${b}${c ? `-${c}` : ''}`) // "15.11" stays one word
+    .replace(/(?<=[א-ת])׳(?=[א-ת])/g, "'") // "דאצ׳יה" as one word, like "דאצ'יה" (speech-to-text writes either)
     .replace(/[?!.,״"׳:;/]/g, ' ')
     .split(/\s+/)
     .filter(Boolean)
@@ -684,19 +685,47 @@ function sickWho(text: string, d: AppData, L: Learned, now: Date): Local {
     const list = names.length === 2 ? names.join(' או ') : `${names.slice(0, -1).join(', ')} או ${names[names.length - 1]}`
     return { kind: 'which', question: `למי התכוונת, ${list}?`, pending: { text, at: u.at, n: u.n, ids: u.ids } }
   }
-  if (!f.unsure.length && other.length === 1) {
-    const heard = words(text)[other[0]]
-    if (heard.length < 2 || COMMON.has(heard) || COMMON.has(bare(heard)) || isValue(heard)) return null
-    return { kind: 'say', text: `לא מצאתי עובד בשם ${heard}. אפשר לומר שוב, עם השם כמו שהוא ברשימת העובדים.` }
+  // A name of one or two words (first, or first and last) that is no worker: the closest ones are offered
+  // to pick from, or it says there is none like it (the owner, 2026-11-23). Never a guess.
+  const together = other.length === 2 && other[1] === other[0] + 1
+  if (!f.unsure.length && (other.length === 1 || together)) {
+    const ws = words(text)
+    const said1 = other.map((i) => ws[i])
+    if (said1.some((x) => x.length < 2 || COMMON.has(x) || COMMON.has(bare(x)) || isValue(x))) return null
+    const heard = said1.join(' ')
+    const near = nearWorkers(said1, d)
+    if (near.length) {
+      const names = near.map(name)
+      const list = names.length === 1 ? names[0] : names.length === 2 ? names.join(' או ') : `${names.slice(0, -1).join(', ')} או ${names[names.length - 1]}`
+      return { kind: 'which', question: `לא מצאתי עובד בשם ${heard}. אולי התכוונת ל${list}?`, pending: { text, at: other[0], n: other.length, ids: near } }
+    }
+    return { kind: 'say', text: `לא מצאתי עובד בשם ${heard}, ואין ברשימה שם דומה. אפשר לומר שוב, עם השם כמו שהוא ברשימת העובדים.` }
   }
   return null
+}
+
+/** Up to three workers whose name is near the words said, closest first: for "אולי התכוונת ל...". */
+export function nearWorkers(said1: string[], d: AppData): string[] {
+  const score = (x: { firstName: string; lastName: string }) => {
+    const first = Math.min(nameDistance(said1[0], x.firstName), nameDistance(bare(said1[0]), x.firstName))
+    if (said1.length === 1) return Math.min(first, x.lastName ? nameDistance(said1[0], x.lastName) : Infinity)
+    return first + (x.lastName ? nameDistance(said1[1], x.lastName) : 1)
+  }
+  const room = said1.length === 1 ? 1.5 : 2.5
+  return d.workers
+    .map((x) => ({ id: x.id, s: score(x) }))
+    .filter((r) => r.s <= room)
+    .sort((a, b) => a.s - b.s)
+    .slice(0, 3)
+    .map((r) => r.id)
 }
 
 /** The answer to "למי התכוונת": the sentence again with the worker picked, or null when the answer is not one of them. */
 export function continueWho(text: string, p: PendingWho, d: AppData, L: Learned, now: Date): { text: string; local: Local } | null {
   const ws = words(text)
   const options = p.ids.map((id) => d.workers.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => Boolean(x))
-  let pick = isYes(clean(text)) ? null : pickedOption(text, options.length) // "כן" does not say which
+  // "כן" does not say which, unless only one was offered ("אולי התכוונת לדני לוי?").
+  let pick = isYes(clean(text)) ? (options.length === 1 ? 0 : null) : pickedOption(text, options.length)
   if (pick === null) {
     // A first name, a last name or both: the one option it fits, and only that one.
     const fits = options.map((w) => {

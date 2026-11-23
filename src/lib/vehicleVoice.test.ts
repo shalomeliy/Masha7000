@@ -130,6 +130,28 @@ describe('a new job with a vehicle, free', () => {
   it('two vehicles of one model: asked by their digits', () => {
     expect(run('תפתח עבודת יום מחר בערד 17 עם הרכב דימקס')).toMatchObject({ kind: 'whichCar', question: 'יש 2 רכבים דימקס: 345 Isuzu D-Max 4X4 או 077 Isuzu D-Max. איזה מהם?' })
   })
+  it('no such vehicle: says so and names the closest, never takes it (owner, 2026-11-23)', () => {
+    expect(run('תפתח עבודת יום מחר בערד 17 עם רכב 688')).toEqual({
+      kind: 'say',
+      text: 'לא מצאתי רכב שמספר הרישוי שלו נגמר ב-688. הכי קרוב: 678, סיטרואן ברלינגו. אפשר לומר שוב את שלוש הספרות האחרונות, או לבדוק במסך הרכבים.',
+    })
+    // A make we have with a model we do not: the job does not take some other Dacia silently.
+    expect(run("תפתח עבודת יום מחר בערד 17 עם רכב דאצ'יה דאסטר")).toEqual({
+      kind: 'say',
+      text: "לא מצאתי אצלנו רכב דאצ'יה דאסטר. הכי קרוב: 812, Dacia Dokker. אפשר לומר את שלוש הספרות האחרונות של מספר הרישוי.",
+    })
+    expect(run('תפתח עבודת יום מחר בערד 17 עם רכב טויוטה קורולה')).toEqual({
+      kind: 'say',
+      text: 'לא מצאתי אצלנו רכב טויוטה קורולה. הכי קרוב: 555, Toyota Hilux. אפשר לומר את שלוש הספרות האחרונות של מספר הרישוי.',
+    })
+    expect(run('תפתח עבודת יום מחר בערד 17 עם רכב מאזדה')).toEqual({
+      kind: 'say',
+      text: 'לא מצאתי אצלנו רכב מאזדה, ואין אצלנו יצרן או דגם דומה. אפשר לומר את שלוש הספרות האחרונות של מספר הרישוי.',
+    })
+  })
+  it('a make written with a Hebrew geresh is one word', () => {
+    expect(run('תפתח עבודת יום מחר בערד 17 עם רכב דאצ׳יה דאסטר')).toEqual(run("תפתח עבודת יום מחר בערד 17 עם רכב דאצ'יה דאסטר"))
+  })
   it('no vehicle with those digits: says so, never a guess', () => {
     expect(run('תפתח עבודת יום מחר בערד 17 עם רכב 999')).toEqual({ kind: 'say', text: 'לא מצאתי רכב שמספר הרישוי שלו נגמר ב-999. אפשר לומר שוב את שלוש הספרות האחרונות, או לבדוק במסך הרכבים.' })
   })

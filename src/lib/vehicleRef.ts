@@ -5,7 +5,7 @@
 // דימקס, לא דאצ'יה"), and asks when two vehicles fit. Every read-back says the 3 digits, make and model.
 // Pure, Hebrew only (the free path), and used by the read-back of Claude's proposals too.
 
-import { closeName } from './nameMatch'
+import { closeName, nameDistance } from './nameMatch'
 import { makeOf, modelOf, plateOf } from './vehicles'
 import type { Vehicle } from '../types/models'
 
@@ -270,6 +270,33 @@ export function readCar(ws: string[], used: boolean[], vehicles: Vehicle[], stop
 /** The said make or model words, put back together: "דאצ'יה". */
 const saidText = (ws: string[]) => ws.map(bare1).join(' ')
 
+/**
+ * Up to three vehicles near what was said, closest first. Digits: the last digits differ in one place
+ * ("688" for 683). Make or model: the nearest sound to each word said.
+ */
+export function nearCars(ref: CarRef, vehicles: Vehicle[]): Vehicle[] {
+  const scored = vehicles.map((v) => {
+    let s = Infinity
+    if (ref.digits) {
+      const mine = plateDigits(v).slice(-ref.digits.length)
+      if (mine.length === ref.digits.length) {
+        const off = [...mine].filter((c, i) => c !== ref.digits[i]).length
+        if (off === 1) s = 1
+      }
+    } else if (ref.said.length) {
+      const ws = carWords(v)
+      s = ref.said.reduce((sum, w) => sum + Math.min(...ws.map((x) => Math.min(nameDistance(strip(w), strip(x)), nameDistance(strip(bare1(w)), strip(x))))), 0)
+      if (s > 2 * ref.said.length) s = Infinity
+    }
+    return { v, s }
+  })
+  return scored
+    .filter((r) => r.s < Infinity)
+    .sort((a, b) => a.s - b.s)
+    .slice(0, 3)
+    .map((r) => r.v)
+}
+
 /** What the vehicle said comes to: one vehicle (maybe with a correction), several (ask), or none. */
 export type CarPick =
   | { kind: 'one'; vehicle: Vehicle; note: string }
@@ -279,8 +306,12 @@ export type CarPick =
 export function pickCar(ref: CarRef, vehicles: Vehicle[]): CarPick {
   const found = ref.ids.map((id) => vehicles.find((v) => v.id === id)).filter((v): v is Vehicle => Boolean(v))
   if (!found.length) {
-    if (ref.digits) return { kind: 'none', text: `לא מצאתי רכב שמספר הרישוי שלו נגמר ב-${ref.digits}. אפשר לומר שוב את שלוש הספרות האחרונות, או לבדוק במסך הרכבים.` }
-    return { kind: 'none', text: `לא מצאתי אצלנו רכב ${saidText(ref.said)}. אפשר לומר את שלוש הספרות האחרונות של מספר הרישוי.` }
+    // The closest vehicles are offered by their digits, make and model (the owner, 2026-11-23); never a guess.
+    const near = nearCars(ref, vehicles)
+    const hint = near.length ? ` הכי ${near.length === 1 ? 'קרוב' : 'קרובים'}: ${near.map(carText).join('; ')}.` : ''
+    if (ref.digits) return { kind: 'none', text: `לא מצאתי רכב שמספר הרישוי שלו נגמר ב-${ref.digits}.${hint} אפשר לומר שוב את שלוש הספרות האחרונות, או לבדוק במסך הרכבים.` }
+    const none = near.length ? '.' : ', ואין אצלנו יצרן או דגם דומה.'
+    return { kind: 'none', text: `לא מצאתי אצלנו רכב ${saidText(ref.said)}${none}${hint} אפשר לומר את שלוש הספרות האחרונות של מספר הרישוי.` }
   }
   if (found.length > 1) {
     const sameDigits = new Set(found.map(last3)).size === 1
