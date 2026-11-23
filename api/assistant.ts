@@ -78,7 +78,7 @@ async function hearRecording(req: Request): Promise<Response> {
   if (!(await takeSeconds(env, stt.seconds))) return json({ reason: 'over-budget' }, 402)
   const started = Date.now()
   try {
-    const text = await transcribe(provider, apiKey, stt.wav)
+    const text = await transcribe(provider, apiKey, stt.wav, stt.lang)
     return json({ text, provider, ms: Date.now() - started })
   } catch (e) {
     const detail = (e as Error).message?.slice(0, 800) ?? ''

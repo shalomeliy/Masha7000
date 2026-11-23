@@ -2,6 +2,7 @@ import { language, tx } from '../i18n'
 import { joinTranscripts } from './dictation'
 import { CLOUD_VOICES, cloudOff, prefetchCloud, speakCloud, stopCloud, unlockCloud, type CloudVoice } from './cloudVoice'
 import { pronounce } from './pronounce'
+import { canRecord, listenViaServer } from './serverListen'
 import { vlog } from './voiceLog'
 import { rankVoices, shortVoiceName, speakable } from './speakable'
 
@@ -29,12 +30,16 @@ const isIOS =
   typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
 // Installed on an iPhone's home screen, the page's speech recognition starts but never hears anything
-// (WebKit bug 225298; Dolik, 2026-11-16: stuck on "listening"). There the keyboard's own mic is used.
+// (WebKit bug 225298; Dolik, 2026-11-16: stuck on "listening"). There the sound is recorded and the
+// server turns it into text (serverListen.ts, 2026-11-23); without a microphone, the keyboard's own mic.
 export const iosHomeApp =
   isIOS &&
   ((navigator as unknown as { standalone?: boolean }).standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true)
 
-export const canListen = Boolean(Speech) && !iosHomeApp
+/** Listening goes through the server here (it sends the recording to Google: needs the AI consent). */
+export const viaServer = iosHomeApp && canRecord()
+
+export const canListen = (Boolean(Speech) && !iosHomeApp) || viaServer
 export const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window
 
 export const LISTEN_ERRORS: Record<string, string> = {
@@ -83,6 +88,10 @@ export interface Listening {
  * the final words (maybe empty), or an error message.
  */
 export function listen(onText: (text: string) => void, onEnd: (text: string, error?: string) => void): Listening | null {
+  if (viaServer) {
+    audioSession('auto')
+    return listenViaServer(onText, onEnd)
+  }
   if (!Speech || !canListen) return null
   audioSession('auto')
   const r = new Speech()

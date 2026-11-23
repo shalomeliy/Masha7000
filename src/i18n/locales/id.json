@@ -1302,5 +1302,9 @@
  "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "Rekaman berhasil. Tekan putar untuk mendengarnya.",
  "העתק תוצאות": "Salin hasil",
  "זהה טקסט (נשלח לגוגל)": "Kenali teks (dikirim ke Google)",
- "לא זוהו מילים": "Tidak ada kata yang dikenali"
+ "לא זוהו מילים": "Tidak ada kata yang dikenali",
+ "זיהוי הדיבור הגיע למכסה של החודש. אפשר להקליד במקום.": "Pengenalan suara mencapai batas bulan ini. Anda bisa mengetik sebagai gantinya.",
+ "מזהה...": "Mengenali...",
+ "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "Di aplikasi pada layar utama iPhone, rekaman ucapan Anda kepada Shali dikirim ke Google untuk diubah menjadi teks.",
+ "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Tanpa persetujuan Anda, Anda bisa mengetik, atau mengetuk mikrofon di keyboard."
 }

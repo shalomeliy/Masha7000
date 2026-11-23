@@ -17,7 +17,7 @@ import { vlog, voiceReport } from '../lib/voiceLog'
 import { cloudOff } from '../lib/cloudVoice'
 import { hasAiConsent, setAiConsent } from '../lib/aiConsent'
 import { AiConsentCard } from '../components/AiConsentCard'
-import { canListen, canSpeak, currentVoice, iosHomeApp, listen, unlockSpeech, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
+import { canListen, canSpeak, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -70,7 +70,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const [typed, setTyped] = useState('')
   const [rate, setRate] = useState(speechRate)
   // A turn for Claude held back until the manager agrees to send to an outside AI (src/lib/aiConsent.ts).
-  const [consentFor, setConsentFor] = useState<{ turn: Turn; fixes: number } | null>(null)
+  // What waits for the consent: a turn for Claude, or (iPhone home-screen app) the listening itself.
+  const [consentFor, setConsentFor] = useState<{ turn: Turn; fixes: number } | { mic: true } | null>(null)
   // The phone's voices for the app's language; they may load a moment after the screen opens.
   const [voiceList, setVoiceList] = useState(voices)
   const [voice, setVoice] = useState(currentVoice)
@@ -554,6 +555,10 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     }
     setError(null)
     setHeard('')
+    if (viaServer && !hasAiConsent()) {
+      setConsentFor({ mic: true })
+      return
+    }
     const l = listen(setHeard, (text, err) => {
       listening.current = null
       setHeard('')
@@ -621,10 +626,17 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
               const held = consentFor
               setConsentFor(null)
               setAiConsent(true)
+              // A tap: the iPhone lets the microphone and the answer's sound start from here.
+              if ('mic' in held) return toggleMic()
               void send(held.turn, held.fixes)
             }}
             onDecline={() => {
               setConsentFor(null)
+              if ('mic' in consentFor) {
+                setTyping(true)
+                setError(tx('בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.'))
+                return
+              }
               setError(tx('בלי האישור שלך Shali עושה רק את מה שהוא יודע לבד, בלי Claude.'))
               offerLocalPart()
             }}

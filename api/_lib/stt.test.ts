@@ -30,7 +30,9 @@ describe('speech to text (server)', () => {
   })
 
   it('takes a 16 kHz mono WAV up to 30 seconds and refuses anything else', () => {
-    expect(readSttRequest({ audio: wav(5).toString('base64') })?.seconds).toBe(5)
+    expect(readSttRequest({ audio: wav(5).toString('base64') })).toMatchObject({ seconds: 5, lang: 'he-IL' })
+    expect(readSttRequest({ audio: wav(5).toString('base64'), lang: 'ar-SA' })?.lang).toBe('ar-SA')
+    expect(readSttRequest({ audio: wav(5).toString('base64'), lang: 'x; drop' })?.lang).toBe('he-IL')
     expect(readSttRequest({ audio: wav(31).toString('base64') })).toBeNull()
     expect(readSttRequest({ audio: wav(5, 48_000).toString('base64') })).toBeNull()
     expect(readSttRequest({ audio: Buffer.from('not audio at all, just text here....................').toString('base64') })).toBeNull()
@@ -56,13 +58,13 @@ describe('speech to text (server)', () => {
       return new Response(JSON.stringify({ results: [{ alternatives: [{ transcript: 'דוליק חולה' }] }, { alternatives: [{ transcript: 'מחר' }] }] }))
     }) as unknown as typeof fetch
     const w = wav(1)
-    expect(await transcribe('google', 'k', w, 'he', google)).toBe('דוליק חולה מחר')
+    expect(await transcribe('google', 'k', w, 'he-IL', google)).toBe('דוליק חולה מחר')
     expect(sent!.config).toEqual({ encoding: 'LINEAR16', sampleRateHertz: 16_000, languageCode: 'he-IL' })
     expect(Buffer.from(sent!.audio.content, 'base64').length).toBe(w.length - 44)
     const silent = (async () => new Response('{}')) as unknown as typeof fetch
-    expect(await transcribe('google', 'k', w, 'he', silent)).toBe('')
+    expect(await transcribe('google', 'k', w, 'he-IL', silent)).toBe('')
     const refused = (async () => new Response('nope', { status: 403 })) as unknown as typeof fetch
-    await expect(transcribe('google', 'k', w, 'he', refused)).rejects.toThrow('google stt 403')
+    await expect(transcribe('google', 'k', w, 'he-IL', refused)).rejects.toThrow('google stt 403')
   })
 
   it('sends OpenAI the WAV file with gpt-4o-mini-transcribe', async () => {
@@ -71,7 +73,7 @@ describe('speech to text (server)', () => {
       form = init.body as FormData
       return new Response(JSON.stringify({ text: ' שלום ' }))
     }) as unknown as typeof fetch
-    expect(await transcribe('openai', 'k', wav(1), 'he', openai)).toBe('שלום')
+    expect(await transcribe('openai', 'k', wav(1), 'he-IL', openai)).toBe('שלום')
     expect(form!.get('model')).toBe('gpt-4o-mini-transcribe')
     expect(form!.get('language')).toBe('he')
   })

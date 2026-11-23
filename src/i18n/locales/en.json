@@ -1302,5 +1302,9 @@
  "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "The recording worked. Press play to hear it.",
  "העתק תוצאות": "Copy results",
  "זהה טקסט (נשלח לגוגל)": "Recognize text (sent to Google)",
- "לא זוהו מילים": "No words recognized"
+ "לא זוהו מילים": "No words recognized",
+ "זיהוי הדיבור הגיע למכסה של החודש. אפשר להקליד במקום.": "Speech recognition reached this month's limit. You can type instead.",
+ "מזהה...": "Recognizing...",
+ "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "In the app on an iPhone home screen, the recording of what you say to Shali is sent to Google to become text.",
+ "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Without your consent you can type, or tap the microphone on the keyboard."
 }

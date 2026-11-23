@@ -41,21 +41,14 @@ function prefetchScreens() {
 // Shown once per device, after Google: kept out of the first download.
 const TwoStep = lazy(() => import('./pages/TwoStep').then((m) => ({ default: m.TwoStep })))
 
-// Same test as iosHomeApp in src/lib/speech.ts, kept here so the speech code stays out of the first download.
-const iosHomeApp =
-  typeof navigator !== 'undefined' &&
-  (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) &&
-  ((navigator as unknown as { standalone?: boolean }).standalone === true || window.matchMedia?.('(display-mode: standalone)').matches === true)
-
 export default function App() {
   const status = useAuth((s) => s.status)
   const check = useAuth((s) => s.check)
   const who = useAuth((s) => s.who)
   // The voice assistant is the main screen of whoever may use it (the owner, and managers the owner
   // opened it to in Settings); locally it is always on.
-  // Hidden for now in an iPhone home-screen app: Apple gives the page no speech recognition there
-  // (WebKit bug 225298), so the assistant would only open the keyboard (user, 2026-11-20). Back with the store app.
-  const voice = !iosHomeApp && (who?.assistant === true || who?.isOwner === true || import.meta.env.DEV)
+  // In an iPhone home-screen app it listens through the server (src/lib/serverListen.ts, back 2026-11-23).
+  const voice = who?.assistant === true || who?.isOwner === true || import.meta.env.DEV
   const [tab, setTab] = useState<Tab | null>(null)
   const shown: Tab = tab ?? (voice ? 'voice' : 'calendar')
   // "הגדרות" tapped again from inside one of its screens (vehicles, archive...) goes back to its first screen.

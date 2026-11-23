@@ -1302,5 +1302,9 @@
  "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "Kayıt çalıştı. Dinlemek için oynat'a basın.",
  "העתק תוצאות": "Sonuçları kopyala",
  "זהה טקסט (נשלח לגוגל)": "Metni tanı (Google’a gönderilir)",
- "לא זוהו מילים": "Hiç kelime tanınmadı"
+ "לא זוהו מילים": "Hiç kelime tanınmadı",
+ "זיהוי הדיבור הגיע למכסה של החודש. אפשר להקליד במקום.": "Konuşma tanıma bu ayın sınırına ulaştı. Bunun yerine yazabilirsiniz.",
+ "מזהה...": "Tanınıyor...",
+ "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "iPhone ana ekranındaki uygulamada, Shali’ye söylediklerinizin kaydı metne dönüşmesi için Google’a gönderilir.",
+ "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Onayınız olmadan yazabilir veya klavyedeki mikrofona dokunabilirsiniz."
 }

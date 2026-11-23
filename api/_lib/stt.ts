@@ -31,8 +31,8 @@ export function sttMonthlyLimit(e: NodeJS.ProcessEnv = process.env): number {
 const KEEP = 70 * 86_400
 const secondsKey = (now: Date) => `stt-seconds:${now.toISOString().slice(0, 7)}`
 
-/** The body checked: { audio: base64 WAV, 16 kHz mono 16-bit, up to 30 seconds }. */
-export function readSttRequest(body: Record<string, unknown> | null): { wav: Buffer; seconds: number } | null {
+/** The body checked: { audio: base64 WAV, 16 kHz mono 16-bit, up to 30 seconds, lang: 'he-IL' (default) }. */
+export function readSttRequest(body: Record<string, unknown> | null): { wav: Buffer; seconds: number; lang: string } | null {
   const audio = typeof body?.audio === 'string' ? body.audio : ''
   if (!audio) return null
   const wav = Buffer.from(audio, 'base64')
@@ -40,7 +40,8 @@ export function readSttRequest(body: Record<string, unknown> | null): { wav: Buf
   if (wav.readUInt16LE(22) !== 1 || wav.readUInt32LE(24) !== 16_000 || wav.readUInt16LE(34) !== 16) return null
   const seconds = (wav.length - WAV_HEADER) / BYTES_PER_SECOND
   if (seconds > MAX_STT_SECONDS) return null
-  return { wav, seconds }
+  const lang = typeof body?.lang === 'string' && /^[a-z]{2,3}(-[A-Z]{2})?$/.test(body.lang) ? body.lang : 'he-IL'
+  return { wav, seconds, lang }
 }
 
 /** Counts the seconds first (rounded up, as billed), then says whether this month is still under the limit. */
@@ -53,12 +54,13 @@ export async function takeSeconds(env: Env, seconds: number, now = new Date(), e
 }
 
 /** The text heard, '' when nothing was said. Throws with the status on any failure. */
-export async function transcribe(provider: SttProvider, apiKey: string, wav: Buffer, lang = 'he', fetchFn: typeof fetch = fetch): Promise<string> {
+/** `lang` as the app's speech language, 'he-IL'. */
+export async function transcribe(provider: SttProvider, apiKey: string, wav: Buffer, lang = 'he-IL', fetchFn: typeof fetch = fetch): Promise<string> {
   if (provider === 'openai') {
     const form = new FormData()
     form.append('file', new Blob([new Uint8Array(wav)], { type: 'audio/wav' }), 'speech.wav')
     form.append('model', 'gpt-4o-mini-transcribe')
-    form.append('language', lang)
+    form.append('language', lang.slice(0, 2))
     const res = await fetchFn('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -72,7 +74,7 @@ export async function transcribe(provider: SttProvider, apiKey: string, wav: Buf
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey },
     body: JSON.stringify({
-      config: { encoding: 'LINEAR16', sampleRateHertz: 16_000, languageCode: lang === 'he' ? 'he-IL' : lang },
+      config: { encoding: 'LINEAR16', sampleRateHertz: 16_000, languageCode: lang },
       audio: { content: wav.subarray(WAV_HEADER).toString('base64') },
     }),
     signal: AbortSignal.timeout(15_000),

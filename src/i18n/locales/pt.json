@@ -1302,5 +1302,9 @@
  "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "A gravação funcionou. Toque em reproduzir para ouvi-la.",
  "העתק תוצאות": "Copiar resultados",
  "זהה טקסט (נשלח לגוגל)": "Reconhecer texto (enviado ao Google)",
- "לא זוהו מילים": "Nenhuma palavra reconhecida"
+ "לא זוהו מילים": "Nenhuma palavra reconhecida",
+ "זיהוי הדיבור הגיע למכסה של החודש. אפשר להקליד במקום.": "O reconhecimento de voz atingiu o limite deste mês. Você pode digitar.",
+ "מזהה...": "Reconhecendo...",
+ "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "No app da tela inicial do iPhone, a gravação do que você diz ao Shali é enviada ao Google para virar texto.",
+ "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Sem o seu consentimento, você pode digitar ou tocar no microfone do teclado."
 }
