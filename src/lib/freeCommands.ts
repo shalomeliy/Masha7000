@@ -5,6 +5,7 @@ import { continueDates, freeDates } from './freeDates'
 import { HINTS, type Hint } from './hint'
 import { closeName, nameDistance, nameLimit } from './nameMatch'
 import { isWaiting } from './shifts'
+import { workerState } from './workerState'
 import { solve, type SolverOption } from './solvers'
 import type { AssistantExample, ExampleAction, Vehicle } from '../types/models'
 import { answerCar, CAR_WORD, carText, pickCar, plateDigits, readCar, type CarRef } from './vehicleRef'
@@ -31,7 +32,7 @@ const JOB_VERBS = new Set(
 )
 const NEW_WORDS = new Set(['חדשה', 'חדש'])
 // Words that never start a job's description: questions and other actions (they go to Claude).
-export const NOT_DESCRIPTION = /^(?:מה|מי|כמה|איפה|מתי|למה|איך|איזה|איזו|אילו|האם|תעביר|העבר|תזיז|הזז|תסגור|סגור|תבטל|בטל|תמחק|מחק|תדחה|דחה|תשנה|שנה|תבדוק|בדוק|תזכור|לא|אל|חולה)$/
+export const NOT_DESCRIPTION = /^(?:מה|מי|כמה|איפה|מתי|למה|איך|איזה|איזו|אילו|האם|תעביר|העבר|תזיז|הזז|תסגור|סגור|תבטל|בטל|תמחק|מחק|תדחה|דחה|תשנה|שנה|תבדוק|בדוק|תזכור|לא|אל|חולה|כחולה)$/
 // A description that starts with ב ("בדיקת מצלמות") is not a place.
 export const WORK_START = /^(?:בדיק|בני|ביצוע|ביקור|בירור|בטיחות|בקר|ברז|בסיס|בידוד|ביוב|בור)/
 // Places of two words: towns ("באר שבע", "קרית גת") and named sites ("קניון הדרים", "תחנת הכוח").
@@ -44,7 +45,7 @@ const FILLER = new Set(['לי', 'את', 'עם', 'של', 'גם', 'ו', 'אני', 
 const NOT_NAMES = ['מישהו', 'מישהי', 'כולם', 'אף', 'הבן', 'הבת', 'הילד', 'הילדה', 'אשתי', 'בעלי', 'אמא', 'אבא', 'הם', 'הן', 'אתה', 'את', 'שלי', 'שלו', 'שלה']
 const COMMON = new Set([
   ...NOT_NAMES,
-  ...['חולה', 'חולים', 'חולות', 'מחלה', 'במחלה', 'עבודה', 'עבודות', 'עבודת', 'תפתח', 'פתח', 'תפתחי', 'תשבץ', 'שבץ', 'תסגור', 'תעביר', 'תבטל', 'תזיז', 'חדשה', 'חדש', ...JOB_VERBS],
+  ...['חולה', 'כחולה', 'חולים', 'חולות', 'מחלה', 'במחלה', 'עבודה', 'עבודות', 'עבודת', 'תפתח', 'פתח', 'תפתחי', 'תשבץ', 'שבץ', 'תסגור', 'תעביר', 'תבטל', 'תזיז', 'חדשה', 'חדש', ...JOB_VERBS],
   ...['לילה', 'יום', 'היום', 'מחר', 'מחרתיים', 'עד', 'בעוד', 'ימים', 'יומיים', 'שבוע', 'שבועיים', 'הקרוב', 'הבא', 'הבאה', 'חופש', 'חופשה', 'מילואים', 'אילוץ', 'לינה'],
 ])
 // Words that mean "assign people to it too".
@@ -361,6 +362,8 @@ export function learn(examples: AssistantExample[], d: AppData): Learned {
   for (const ws of [...L.job.words, ...L.sick.words]) for (const w of ws) L.protect.add(w)
   // Built in, from the first time (the user's request): "<worker> חולה <when>". Learned phrasings add to it.
   L.sick.words.push(['חולה'])
+  // Speech recognition often hears "X חולה" as "X כחולה" ("blue"; the log, 2026-11-23, 3 times).
+  L.sick.words.push(['כחולה'])
   L.sick.needsDate = false
   return L
 }
@@ -451,7 +454,24 @@ function fixed(text: string, d: AppData, now: Date): Local {
     const f = find(who[1], d, {}, now)
     if (f.date && !f.rest.length && !f.location && !f.workerIds.length && !f.unsure.length && !f.staffing.length && !f.vehicle) return { kind: 'say', text: whoWorks(f.date, d, now) }
   }
+  // "מי חולה היום/מחר" (the log, 2026-11-16, twice): answered from the workers' cards. No day = today.
+  const sick = /^מי (?:חולה|חולים|במחלה|בחופשת מחלה)(?: (.+))?$/.exec(s)
+  if (sick) {
+    if (!sick[1]) return { kind: 'say', text: whoSick(plus(now, 0), d, now) }
+    const f = find(sick[1], d, {}, now)
+    if (f.date && f.date >= plus(now, 0) && !f.rest.length && !f.location && !f.workerIds.length && !f.unsure.length && !f.staffing.length && !f.vehicle)
+      return { kind: 'say', text: whoSick(f.date, d, now) }
+  }
   return null
+}
+
+/** "Who is sick" on a day (today or later), from each worker's status and dated sick days, said back. */
+export function whoSick(date: string, d: AppData, now: Date): string {
+  const when = dayText(date, now)
+  const sick = d.workers.filter((w) => w.status !== 'inactive' && workerState(w, date).id === 'sick')
+  if (!sick.length) return `${when} אין חולים.`
+  const names = sick.map((w) => `${w.firstName} ${w.lastName}`.trim())
+  return sick.length === 1 ? `${when} חולה אחד: ${names[0]}.` : `${when} ${sick.length} חולים: ${names.join(', ')}.`
 }
 
 /** "Who works" from the data, said back. */
