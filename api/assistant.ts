@@ -5,14 +5,15 @@ import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
 import { canUseAssistant, canUseClaude, isOwner, requireManager } from './_lib/session.js'
 import { readSttRequest, sttKey, sttProvider, takeSeconds, transcribe } from './_lib/stt.js'
-import { mp3, readTtsRequest, synthesize, takeChars } from './_lib/tts.js'
+import { mp3, readTtsRequest, speakBest, takeChars, voiceEngine } from './_lib/tts.js'
 import { compareVoice, listVoices, readCompareRequest } from './_lib/voiceCompare.js'
 
 // POST /api/assistant { messages, context }: one turn of the voice assistant, for the owner only,
 // answered as JSON lines (an early spoken part, then the whole reply)
 // (the user's rule: the budget is the owner's alone; a manager the owner opened Shali to in Settings
 // uses only the free commands, and is told 'free-only'). The key stays here.
-// POST /api/assistant?tts { text, voice, rate }: one sentence in Shali's cloud voice, as MP3 (tts.ts), for
+// POST /api/assistant?tts { text, voice, rate }: one sentence in Shali's cloud voice (Gemini + niqqud as WAV,
+// or Chirp as MP3; tts.ts speakBest), for
 // the owner and the managers he opened Shali to (it costs nothing within Google's free monthly amount).
 // POST /api/assistant?stt { audio }: a WAV recording as text, Google or OpenAI by STT_PROVIDER (stt.ts).
 // POST /api/assistant?voicecompare { text, engine, nikud }: the owner's voice-compare spike (voiceCompare.ts).
@@ -55,7 +56,10 @@ async function speakSentence(req: Request): Promise<Response> {
   if (!tts) return json({ reason: 'bad-body' }, 400)
   if (!(await takeChars(env, tts.text.length))) return json({ reason: 'over-budget' }, 402)
   try {
-    return mp3(await synthesize(apiKey, tts))
+    const spoken = await speakBest(apiKey, tts, voiceEngine())
+    const res = mp3(spoken.bytes, spoken.type)
+    res.headers.set('X-Voice-Engine', spoken.engine)
+    return res
   } catch (e) {
     console.error('tts failed', (e as Error).message?.slice(0, 200))
     return json({ reason: 'tts-failed' }, 502)
