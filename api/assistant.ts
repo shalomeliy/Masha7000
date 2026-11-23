@@ -5,7 +5,7 @@ import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
 import { canUseAssistant, canUseClaude, isOwner, requireManager } from './_lib/session.js'
 import { readSttRequest, sttKey, sttProvider, takeSeconds, transcribe } from './_lib/stt.js'
-import { mp3, readTtsRequest, speakBest, takeChars, voiceEngine } from './_lib/tts.js'
+import { cacheTarget, keepVoice, mp3, readCachedVoice, readTtsRequest, speakBest, takeChars, voiceEngine } from './_lib/tts.js'
 import { compareVoice, listVoices, readCompareRequest } from './_lib/voiceCompare.js'
 
 // POST /api/assistant { messages, context }: one turn of the voice assistant, for the owner only,
@@ -54,9 +54,19 @@ async function speakSentence(req: Request): Promise<Response> {
   if (!apiKey) return json({ reason: 'no-key' }, 503)
   const tts = readTtsRequest(await readJson(req, 4_000))
   if (!tts) return json({ reason: 'bad-body' }, 400)
+  const engine = voiceEngine()
+  const target = cacheTarget(tts, engine)
+  // A sentence said before plays from the cache: free and at once (tts.ts).
+  const kept = await readCachedVoice(env, tts, target)
+  if (kept) {
+    const res = mp3(kept.bytes, kept.type)
+    res.headers.set('X-Voice-Engine', 'cache')
+    return res
+  }
   if (!(await takeChars(env, tts.text.length))) return json({ reason: 'over-budget' }, 402)
   try {
-    const spoken = await speakBest(apiKey, tts, voiceEngine())
+    const spoken = await speakBest(apiKey, tts, engine)
+    await keepVoice(env, tts, target, spoken)
     const res = mp3(spoken.bytes, spoken.type)
     res.headers.set('X-Voice-Engine', spoken.engine)
     return res

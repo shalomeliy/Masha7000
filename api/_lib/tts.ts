@@ -1,6 +1,7 @@
 import type { Env } from './env.js'
 import { kv } from './kv.js'
 import { addNikud, geminiSpeak } from './gemini.js'
+import { open, seal, sha256url } from './crypto.js'
 
 // Shali's cloud voice (the owner's choice, 2026-11-13/14): Google Cloud Text-to-Speech, Chirp 3 HD
 // Hebrew, a male voice. One sentence at a time comes in, MP3 goes back.
@@ -115,4 +116,41 @@ export async function speakBest(
     }
   }
   return { bytes: await synthesize(apiKey, req, fetchFn), type: 'audio/mpeg', engine: 'chirp' }
+}
+
+
+// Pay for a sentence once (the owner, 2026-11-23; docs/GOAL.md "The voice costs too"): Shali says many
+// sentences word for word ("רגע, בודק", "אשר או תקן", read-backs), so the audio of each short sentence is
+// kept, sealed, for CACHE_DAYS and replayed: no Google call, no characters counted, and it plays at once.
+// Only audio from the engine that should speak is kept (a Chirp fallback is not, so Gemini gets its turn
+// next time), and the key holds the engine and voice, so changing either starts fresh. Short sentences
+// only, which is what repeats and keeps each entry small (Gemini's WAV is ~48 KB a second).
+export const CACHE_MAX_CHARS = 120
+const CACHE_DAYS = 30
+const CACHE_MAX_BYTES = 600_000
+
+export function cacheTarget(req: TtsRequest, gemini: { geminiVoice: string } | null): string {
+  return gemini ? `gemini|${gemini.geminiVoice}` : `chirp|${req.voice}|${req.rate}`
+}
+
+const cacheKey = async (env: Env, target: string, text: string) => `tts-cache:${await sha256url(`${env.sessionKey}|${target}|${text}`)}`
+
+export async function readCachedVoice(env: Env, req: TtsRequest, target: string): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string } | null> {
+  if (req.text.length > CACHE_MAX_CHARS) return null
+  try {
+    const kept = await open<{ type: string; audio: string }>(env.sessionKey, await kv.get(env, await cacheKey(env, target, req.text)))
+    return kept ? { bytes: new Uint8Array(Buffer.from(kept.audio, 'base64')), type: kept.type } : null
+  } catch {
+    return null
+  }
+}
+
+export async function keepVoice(env: Env, req: TtsRequest, target: string, spoken: { bytes: Uint8Array; type: string; engine: string }): Promise<void> {
+  if (req.text.length > CACHE_MAX_CHARS || spoken.bytes.length > CACHE_MAX_BYTES || !target.startsWith(spoken.engine)) return
+  try {
+    const value = await seal(env.sessionKey, { type: spoken.type, audio: Buffer.from(spoken.bytes).toString('base64') })
+    await kv.set(env, await cacheKey(env, target, req.text), value, CACHE_DAYS * 86_400)
+  } catch (e) {
+    console.error('tts cache keep failed', (e as Error).message?.slice(0, 200))
+  }
 }
