@@ -53,6 +53,10 @@ export default function App() {
   const shown: Tab = tab ?? (voice ? 'voice' : 'calendar')
   // "הגדרות" tapped again from inside one of its screens (vehicles, archive...) goes back to its first screen.
   const [settingsRound, setSettingsRound] = useState(0)
+  // Once opened, the assistant stays behind the other tabs, so a conversation is not lost on a
+  // look at another screen (user, 2026-11-23).
+  const [voiceOpened, setVoiceOpened] = useState(false)
+  if (shown === 'voice' && !voiceOpened) setVoiceOpened(true)
   const go = (next: Tab) => {
     if (next === 'settings' && (shown === 'settings' || shown === 'archive')) setSettingsRound((n) => n + 1)
     setTab(next)
@@ -92,9 +96,17 @@ export default function App() {
       <ConstraintAnswersSync />
       {/* "לשיבוץ" is no longer a screen: its waiting jobs are at the top of the calendar. */}
       {/* A screen that crashes shows a message in its place; the tabs below keep working. */}
+      {voice && voiceOpened && (
+        <div hidden={shown !== 'voice'}>
+          <CrashGuard>
+            <Suspense fallback={<ScreenLoading />}>
+              <Voice active={shown === 'voice'} onNavigate={(s) => setTab(s === 'toSchedule' ? 'calendar' : s)} />
+            </Suspense>
+          </CrashGuard>
+        </div>
+      )}
       <CrashGuard key={shown}>
-        <Suspense fallback={<ScreenLoading />}>
-          {shown === 'voice' && voice && <Voice onNavigate={(s) => setTab(s === 'toSchedule' ? 'calendar' : s)} />}
+        <Suspense fallback={shown === 'voice' ? null : <ScreenLoading />}>
           {shown === 'calendar' && <Calendar />}
           {shown === 'workers' && <Workers />}
           {shown === 'journal' && <Journal />}
