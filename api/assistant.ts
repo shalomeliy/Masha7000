@@ -81,7 +81,7 @@ async function hearRecording(req: Request): Promise<Response> {
     const text = await transcribe(provider, apiKey, stt.wav)
     return json({ text, provider, ms: Date.now() - started })
   } catch (e) {
-    const detail = (e as Error).message?.slice(0, 200) ?? ''
+    const detail = (e as Error).message?.slice(0, 800) ?? ''
     console.error('stt failed', detail)
     return json({ reason: 'stt-failed', provider, detail }, 502)
   }

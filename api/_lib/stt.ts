@@ -77,7 +77,7 @@ export async function transcribe(provider: SttProvider, apiKey: string, wav: Buf
     }),
     signal: AbortSignal.timeout(15_000),
   })
-  if (!res.ok) throw new Error(`google stt ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`)
+  if (!res.ok) throw new Error(`google stt ${res.status} ${(await res.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 700)}`)
   const { results } = (await res.json()) as { results?: { alternatives?: { transcript?: string }[] }[] }
   return (results ?? [])
     .map((r) => r.alternatives?.[0]?.transcript ?? '')
