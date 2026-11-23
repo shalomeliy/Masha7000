@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 // Masha7000 MCP server: lets Claude (Claude Code on the owner's PC, via .mcp.json) read the shift
-// calendar through the outside API (/api/v1). READ ONLY: it only ever sends GET, so it cannot change
-// anything in the app. A key without personal details is enough (no phones or ID numbers reach Claude).
+// calendar through the outside API (/api/v1), and, with a key that has the write permission, add and
+// change jobs, worker status and constraints (mcp/write.mjs: a Hebrew read-back first, a write only
+// after the manager approved that exact change). No deletes. A key without personal details is enough.
 // No dependencies: MCP over stdio is newline-delimited JSON-RPC 2.0. Docs: docs/mcp.md.
 //
 // Env: MASHA_API_KEY (Settings > נתונים וגוגל > גישת API), MASHA_API_URL (default: the live app).
 import { createInterface } from 'node:readline'
+import { makeWriteTools } from './write.mjs'
 
 const BASE = (process.env.MASHA_API_URL || 'https://masha7000.vercel.app/api/v1').replace(/\/$/, '')
 const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05']
@@ -138,18 +140,30 @@ export function addDays(day, n) {
 export function makeApi(key = process.env.MASHA_API_KEY || '', base = BASE, fetchFn = fetch) {
   let lists = null
   let listsAt = 0
-  async function get(path) {
-    if (!key) throw new Error('MASHA_API_KEY is not set. Make a read-only key in Settings > נתונים וגוגל > גישת API and save it with: setx MASHA_API_KEY <key>')
+  async function call(method, path, payload) {
+    if (!key) throw new Error('MASHA_API_KEY is not set. Make a key in Settings > נתונים וגוגל > גישת API and save it with: setx MASHA_API_KEY <key>')
     let res
     try {
-      res = await fetchFn(`${base}/${path}`, { headers: { Authorization: `Bearer ${key}` } })
+      res = await fetchFn(`${base}/${path}`, {
+        method,
+        headers: { Authorization: `Bearer ${key}`, ...(payload ? { 'Content-Type': 'application/json' } : {}) },
+        ...(payload ? { body: JSON.stringify(payload) } : {}),
+      })
     } catch (e) {
       throw new Error(`cannot reach the Masha7000 API (${e.message})`)
     }
     const body = await res.json().catch(() => null)
+    if (body?.error?.code === 'no-scope') throw new Error('לא נכתב כלום: המפתח הזה מותר רק לקריאה. כדי לשנות דרך Claude צריך מפתח חדש עם הרשאת כתיבה (הגדרות > גישת API).')
     if (res.status === 401 || res.status === 403) throw new Error('the API key was refused (deleted or wrong). Make a new one in Settings > גישת API.')
-    if (!res.ok || !body || body.error) throw new Error(`API ${res.status}: ${body?.error?.message ?? body?.error?.code ?? 'no answer'}`)
-    return body.data
+    if (!res.ok || !body || body.error) throw new Error(`API ${res.status}: ${body?.error?.message ?? body?.error?.code ?? 'no answer'}${body?.error?.field ? ` (${body.error.field})` : ''}`)
+    return body
+  }
+  const get = async (path) => (await call('GET', path)).data
+  /** A write (POST or PATCH only, never DELETE). Returns { data, warnings }. */
+  async function send(method, path, payload) {
+    if (method !== 'POST' && method !== 'PATCH') throw new Error(`no ${method}: only POST and PATCH`)
+    const body = await call(method, path, payload)
+    return { data: body.data, warnings: body.warnings ?? [] }
   }
   async function named() {
     if (!lists || Date.now() - listsAt > LISTS_TTL_MS) {
@@ -159,7 +173,7 @@ export function makeApi(key = process.env.MASHA_API_KEY || '', base = BASE, fetc
     }
     return lists
   }
-  return { get, named }
+  return { get, named, send }
 }
 
 // ---- tools ----
@@ -224,6 +238,9 @@ export function makeTools(api, today = () => new Date().toLocaleDateString('sv-S
   ]
 }
 
+/** Read tools and write tools together. */
+export const allTools = (api, today) => [...makeTools(api, today), ...makeWriteTools(api)]
+
 // ---- the MCP protocol ----
 
 export function makeHandler(tools) {
@@ -235,8 +252,12 @@ export function makeHandler(tools) {
         return {
           protocolVersion: PROTOCOLS.includes(asked) ? asked : PROTOCOLS[0],
           capabilities: { tools: {} },
-          serverInfo: { name: 'masha7000', version: '1.0.0' },
-          instructions: 'Read-only access to the Masha7000 shift calendar (Israel). Call `today` first to resolve relative dates. Answer the manager in Hebrew, short. Nothing can be changed through these tools: for changes, tell the manager to use the app or Shali.',
+          serverInfo: { name: 'masha7000', version: '1.1.0' },
+          instructions:
+            'The Masha7000 shift calendar (Israel). Call `today` first to resolve relative dates. Answer the manager in Hebrew, short. ' +
+            'Changes (add_shift, update_shift, add_pending_job, set_worker_status, add_constraint) always go in two steps: first call without confirm, then read the readBack and warnings to the manager in full and ask whether to do it. ' +
+            'Never set confirm: true until the manager explicitly approved the latest read-back. After any correction, call again without confirm and read the full new change back again, until he approves it. ' +
+            'Then call with confirm: true and the changeCode of the approved read-back. Nothing can be deleted through these tools.',
         }
       }
       case 'ping':
@@ -259,7 +280,7 @@ export function makeHandler(tools) {
   }
 }
 
-export function serve(input = process.stdin, output = process.stdout, handle = makeHandler(makeTools(makeApi()))) {
+export function serve(input = process.stdin, output = process.stdout, handle = makeHandler(allTools(makeApi()))) {
   const send = (v) => output.write(`${JSON.stringify(v)}\n`)
   createInterface({ input }).on('line', async (line) => {
     if (!line.trim()) return
