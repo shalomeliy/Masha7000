@@ -17,9 +17,10 @@ Can Claude (Desktop or Code) read the Masha7000 calendar through a small MCP ser
 
 - `node spikes/mcp/try.mjs` (fake API on a local port): 7 of 7 PASS. initialize, tools/list, who_is_free (sick, busy, vacation excluded; night-only = partly), get_shifts, bad date = tool error, unknown tool refused, only GET with the key.
 - The official `@modelcontextprotocol/sdk` client (the same library Claude Desktop uses) connected over stdio, listed the 5 tools and called one. An unreachable API came back as a tool error, not a crash.
-- Not tested: a real key against the live API and Claude Desktop itself. That needs the owner's key and PC.
+- Live test 2026-11-23 on the owner's PC (key without personal details, from the MASHA_API_KEY user env var): initialize, tools/list, who_is_free for 2026-11-24 (8 free, 6 not free: 2 sick, 1 vacation, 3 in a job) and get_shifts for the week (1 job) all succeeded against the real API.
+- Claude Desktop's chat no longer reads claude_desktop_config.json in the new app; the server is registered for Claude Code through `.mcp.json` (key via `${MASHA_API_KEY}`).
 
-## Verdict: GO (after one live test by the owner)
+## Verdict: GO (live test passed 2026-11-23)
 
 The riskiest part (protocol, tool shape, read-only, no personal data) works. The API already has everything the tools need, including constraints inside workers.
 
