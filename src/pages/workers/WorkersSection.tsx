@@ -408,8 +408,14 @@ function WorkerCard({
                 key={c.id}
                 title={note ?? undefined}
                 aria-label={note ? `${c.name}, ${note}` : undefined}
-                className={`rounded-full border px-2 py-0.5 text-xs ${expiry === "expired" ? "border-red-500 bg-red-500/15 text-red-200" : expiry === "soon" ? "border-orange-400 bg-orange-500/15 text-orange-200" : "border-transparent bg-emerald-500/15 text-emerald-200"}`}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${expiry === "expired" ? "border-red-500 bg-red-500/15 text-red-200" : expiry === "soon" ? "border-orange-400 bg-orange-500/15 text-orange-200" : "border-transparent bg-emerald-500/15 text-emerald-200"}`}
               >
+                {/* An expired one also gets a small red "!" inside its own chip (2026-11-23). */}
+                {expiry === "expired" && (
+                  <span aria-hidden className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold leading-none text-white">
+                    !
+                  </span>
+                )}
                 {c.name}
               </span>
             );
