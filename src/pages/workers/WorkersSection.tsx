@@ -39,7 +39,7 @@ import { departmentColor } from "../../lib/departmentColor";
 import { searchWorkers } from "../../lib/workerSearch";
 import { AverageStars, CertStarsField, RatingsSheet } from "./CertStars";
 import { keepHeldRatings } from "../../lib/certRatings";
-import { expiryCounts, expiryNote, expiryState, keepHeldExpiry } from "../../lib/certExpiry";
+import { expiryNote, expiryState, keepHeldExpiry } from "../../lib/certExpiry";
 import { ChoiceList } from '../../components/ChoiceList'
 
 const blankWorker = (): Worker => ({
@@ -340,29 +340,6 @@ function TabIntro({ title, text }: { title: string; text: string }) {
   );
 }
 
-/**
- * One red "!" beside the worker's name when any of their certifications already expired or ends within
- * 30 days (the manager's request, 2026-11-09, instead of two counts). Nothing when all are fine.
- */
-function ExpiryAlert({ worker, certIds, today }: { worker: Worker; certIds: string[]; today: string }) {
-  const { soon, expired } = expiryCounts(worker, certIds, today);
-  if (!soon && !expired) return null;
-  const label = [
-    expired > 0 ? tx('הסמכות שפג תוקפן: {n}', { n: expired }) : "",
-    soon > 0 ? tx('הסמכות שעומדות לפוג: {n}', { n: soon }) : "",
-  ].filter(Boolean).join(", ");
-  return (
-    <span
-      role="img"
-      aria-label={label}
-      title={label}
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white"
-    >
-      !
-    </span>
-  );
-}
-
 function WorkerCard({
   worker: w,
   onOpen,
@@ -399,11 +376,8 @@ function WorkerCard({
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
           <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
           <span className="max-w-full truncate">{fullName(w)}</span>
-          {/* One average star (a tap shows the stars in each certification) and the expiry "!", kept together. */}
-          <span className="flex shrink-0 items-center gap-1.5">
-            <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
-            <ExpiryAlert worker={w} certIds={certList.map((c) => c.id)} today={today} />
-          </span>
+          {/* One average star (a tap shows the stars in each certification). Expiry is marked on the certification itself below. */}
+          <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
         </span>
         <span className="flex flex-wrap gap-1">
           {department && (
@@ -412,12 +386,16 @@ function WorkerCard({
             </span>
           )}
           {certList.map((c) => {
+            // Only the certification that expired (red frame) or ends within 30 days (orange frame) is marked,
+            // instead of one "!" for the whole worker (the manager's request, 2026-11-23).
             const expiry = expiryState(w, c.id, today);
+            const note = expiryNote(w, c.id, today);
             return (
               <span
                 key={c.id}
-                title={expiryNote(w, c.id, today) ?? undefined}
-                className={`rounded-full px-2 py-0.5 text-xs ${expiry === "expired" ? "bg-red-500/15 text-red-200" : expiry === "soon" ? "bg-orange-500/15 text-orange-200" : "bg-emerald-500/15 text-emerald-200"}`}
+                title={note ?? undefined}
+                aria-label={note ? `${c.name}, ${note}` : undefined}
+                className={`rounded-full border px-2 py-0.5 text-xs ${expiry === "expired" ? "border-red-500 bg-red-500/15 text-red-200" : expiry === "soon" ? "border-orange-400 bg-orange-500/15 text-orange-200" : "border-transparent bg-emerald-500/15 text-emerald-200"}`}
               >
                 {c.name}
               </span>
