@@ -863,7 +863,7 @@ function WorkerForm({
               <input
                 value={draft.emergencyName ?? ""}
                 onChange={set("emergencyName")}
-                placeholder={tx('של מי? (שם)')}
+                placeholder={tx('שם מלא')}
                 aria-label={tx('של מי טלפון החירום')}
                 className={`${inputClass} px-2.5! py-2!`}
               />
