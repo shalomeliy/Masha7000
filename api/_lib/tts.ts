@@ -121,7 +121,7 @@ export async function speakBest(
 
 // Pay for a sentence once (the owner, 2026-11-23; docs/GOAL.md "The voice costs too"): Shali says many
 // sentences word for word ("רגע, בודק", "אשר או תקן", read-backs), so the audio of each short sentence is
-// kept, sealed, for CACHE_DAYS and replayed: no Google call, no characters counted, and it plays at once.
+// kept, sealed, for CACHE_DAYS after it was last said, and replayed: no Google call, no characters counted, and it plays at once.
 // Only audio from the engine that should speak is kept (a Chirp fallback is not, so Gemini gets its turn
 // next time), and the key holds the engine and voice, so changing either starts fresh. Short sentences
 // only, which is what repeats and keeps each entry small (Gemini's WAV is ~48 KB a second).
@@ -138,7 +138,10 @@ const cacheKey = async (env: Env, target: string, text: string) => `tts-cache:${
 export async function readCachedVoice(env: Env, req: TtsRequest, target: string): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string } | null> {
   if (req.text.length > CACHE_MAX_CHARS) return null
   try {
-    const kept = await open<{ type: string; audio: string }>(env.sessionKey, await kv.get(env, await cacheKey(env, target, req.text)))
+    const key = await cacheKey(env, target, req.text)
+    const kept = await open<{ type: string; audio: string }>(env.sessionKey, await kv.get(env, key))
+    // Each replay starts the 30 days again: a sentence Shali keeps saying stays; one not said for a month goes.
+    if (kept) void kv.expire(env, key, CACHE_DAYS * 86_400).catch(() => undefined)
     return kept ? { bytes: new Uint8Array(Buffer.from(kept.audio, 'base64')), type: kept.type } : null
   } catch {
     return null
