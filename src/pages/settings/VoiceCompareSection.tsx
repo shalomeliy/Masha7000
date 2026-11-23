@@ -39,6 +39,21 @@ export function VoiceCompareSection() {
   const [busy, setBusy] = useState<string | null>(null)
   const [best, setBest] = useState<Record<string, VersionId>>({})
   const [copied, setCopied] = useState(false)
+  // Gemini's accent comes from the voice (owner, 2026-11-23: "heavy American accent"), so Hebrew voices
+  // from Google's Voice Library are offered; the first prebuilt one is the fallback.
+  const [voices, setVoices] = useState<{ id: string; name: string; info: string }[]>([])
+  const [voice, setVoice] = useState('Sadaltager')
+  useEffect(() => {
+    void fetch('/api/assistant?voicecompare&voices', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+      .then((r) => r.json())
+      .then((d: { voices?: { id: string; name: string; info: string }[] }) => {
+        if (d.voices?.length) {
+          setVoices(d.voices)
+          setVoice(d.voices[0].id)
+        }
+      })
+      .catch(() => undefined)
+  }, [])
   const audio = useRef<HTMLAudioElement | null>(null)
   const urls = useRef<string[]>([])
   useEffect(() => () => urls.current.forEach((u) => URL.revokeObjectURL(u)), [])
@@ -60,7 +75,7 @@ export function VoiceCompareSection() {
   }
 
   const run = async (text: string, v: (typeof VERSIONS)[number]) => {
-    const key = `${v.id}|${text}`
+    const key = `${v.id}|${text}|${v.engine === 'gemini' ? voice : ''}`
     const have = got[key]
     if (have && 'url' in have) return play(have.url)
     wake()
@@ -71,7 +86,7 @@ export function VoiceCompareSection() {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, engine: v.engine, nikud: v.nikud }),
+        body: JSON.stringify({ text, engine: v.engine, nikud: v.nikud, voice }),
       })
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
       if (!res.ok) throw new Error(`${res.status} ${String(data.reason ?? '')} ${String(data.detail ?? '')}`.trim())
@@ -98,13 +113,13 @@ export function VoiceCompareSection() {
     sentences
       .map((s) => {
         const rows = VERSIONS.map((v) => {
-          const g = got[`${v.id}|${s}`]
+          const g = got[`${v.id}|${s}|${v.engine === 'gemini' ? voice : ''}`]
           const mark = best[s] === v.id ? ' *BEST*' : ''
           if (!g) return `  ${v.id}: -${mark}`
           if ('error' in g) return `  ${v.id}: error ${g.error}${mark}`
           return `  ${v.id}: ${g.engine} nikud ${g.msNikud} ms, voice ${g.msVoice} ms, total ${g.msTotal} ms${mark}`
         })
-        return [s, ...rows].join('\n')
+        return [s, `  gemini voice: ${voice}`, ...rows].join('\n')
       })
       .join('\n')
 
@@ -125,6 +140,30 @@ export function VoiceCompareSection() {
           {tx('כל לחיצה שולחת את המשפט לגוגל (ולניקוד של דיקטה) ועולה סנטים בודדים. לחיצה שנייה משמיעה שוב בלי לשלוח.')}
         </p>
       </div>
+      {voices.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-sm text-slate-300">{tx('קול של Gemini')}</p>
+          <div className="flex flex-wrap gap-2">
+            {voices.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                title={v.info}
+                aria-pressed={voice === v.id}
+                onClick={() => setVoice(v.id)}
+                className={`min-h-11 rounded-xl border px-3 text-sm ${voice === v.id ? 'border-sky-400 bg-sky-500/20 text-sky-100' : 'border-slate-700 text-slate-300'}`}
+              >
+                <span dir="auto">{v.name}</span>
+              </button>
+            ))}
+          </div>
+          {voices.find((v) => v.id === voice)?.info && (
+            <p dir="auto" className="text-xs text-slate-400">
+              {voices.find((v) => v.id === voice)?.info}
+            </p>
+          )}
+        </div>
+      )}
       <label className="block space-y-1 text-sm">
         <span className="text-slate-300">{tx('משפט משלך')}</span>
         <input
@@ -139,7 +178,7 @@ export function VoiceCompareSection() {
             <p className="text-base text-slate-100">{s}</p>
             <div className="grid grid-cols-2 gap-2">
               {VERSIONS.map((v) => {
-                const key = `${v.id}|${s}`
+                const key = `${v.id}|${s}|${v.engine === 'gemini' ? voice : ''}`
                 const g = got[key]
                 return (
                   <div key={v.id} className="space-y-1">
@@ -180,7 +219,7 @@ export function VoiceCompareSection() {
               })}
             </div>
             {(() => {
-              const g = got[`chirp+n|${s}`] ?? got[`gemini+n|${s}`]
+              const g = got[`chirp+n|${s}|`] ?? got[`gemini+n|${s}|${voice}`]
               return g && 'said' in g ? <p className="text-sm text-slate-300">{g.said}</p> : null
             })()}
           </li>

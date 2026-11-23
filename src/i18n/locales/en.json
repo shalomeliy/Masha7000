@@ -1315,5 +1315,6 @@
  "השוואת קולות": "Voice comparison",
  "כל לחיצה שולחת את המשפט לגוגל (ולניקוד של דיקטה) ועולה סנטים בודדים. לחיצה שנייה משמיעה שוב בלי לשלוח.": "Each tap sends the sentence to Google (and to Dicta for niqqud) and costs a few cents. A second tap replays it without sending.",
  "משפט משלך": "Your own sentence",
- "נכשל: {why}": "Failed: {why}"
+ "נכשל: {why}": "Failed: {why}",
+ "קול של Gemini": "Gemini voice"
 }

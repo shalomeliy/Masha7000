@@ -6,7 +6,7 @@ import { overLimit } from './_lib/rate.js'
 import { canUseAssistant, canUseClaude, isOwner, requireManager } from './_lib/session.js'
 import { readSttRequest, sttKey, sttProvider, takeSeconds, transcribe } from './_lib/stt.js'
 import { mp3, readTtsRequest, synthesize, takeChars } from './_lib/tts.js'
-import { compareVoice, readCompareRequest } from './_lib/voiceCompare.js'
+import { compareVoice, listVoices, readCompareRequest } from './_lib/voiceCompare.js'
 
 // POST /api/assistant { messages, context }: one turn of the voice assistant, for the owner only,
 // answered as JSON lines (an early spoken part, then the whole reply)
@@ -74,11 +74,19 @@ async function compareSentence(req: Request): Promise<Response> {
   if (!isOwner(env, gate.session.email)) return json({ reason: 'not-owner' }, 403)
   const tts = (process.env.GOOGLE_TTS_API_KEY ?? '').trim()
   if (!tts) return json({ reason: 'no-key' }, 503)
+  const geminiKey = (process.env.GEMINI_API_KEY ?? '').trim()
+  if (new URL(req.url).searchParams.has('voices')) {
+    try {
+      return json({ voices: geminiKey ? await listVoices(geminiKey) : [] })
+    } catch (e) {
+      return json({ reason: 'failed', detail: (e as Error).message?.slice(0, 600) ?? '' }, 502)
+    }
+  }
   const ask = readCompareRequest(await readJson(req, 4_000))
   if (!ask) return json({ reason: 'bad-body' }, 400)
   if (!(await takeChars(env, ask.text.length * (ask.nikud ? 2 : 1)))) return json({ reason: 'over-budget' }, 402)
   try {
-    return json(await compareVoice(ask, { tts, gemini: (process.env.GEMINI_API_KEY ?? '').trim() }))
+    return json(await compareVoice(ask, { tts, gemini: geminiKey }))
   } catch (e) {
     const detail = (e as Error).message?.slice(0, 600) ?? ''
     console.error('voice compare failed', detail)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addNikud, compareVoice, pcmToWav, readCompareRequest } from './voiceCompare.js'
+import { addNikud, compareVoice, listVoices, pcmToWav, readCompareRequest } from './voiceCompare.js'
 
 type Call = { url: string; body: Record<string, unknown> }
 const fake = (calls: Call[]) =>
@@ -14,8 +14,10 @@ const fake = (calls: Call[]) =>
 
 describe('voice compare spike (server)', () => {
   it('accepts a short sentence and a known engine only', () => {
-    expect(readCompareRequest({ text: ' שלום ', engine: 'gemini', nikud: true })).toEqual({ text: 'שלום', engine: 'gemini', nikud: true })
-    expect(readCompareRequest({ text: 'שלום', engine: 'chirp' })).toEqual({ text: 'שלום', engine: 'chirp', nikud: false })
+    expect(readCompareRequest({ text: ' שלום ', engine: 'gemini', nikud: true })).toEqual({ text: 'שלום', engine: 'gemini', nikud: true, voice: 'Sadaltager' })
+    expect(readCompareRequest({ text: 'שלום', engine: 'chirp' })).toEqual({ text: 'שלום', engine: 'chirp', nikud: false, voice: 'Sadaltager' })
+    expect(readCompareRequest({ text: 'שלום', engine: 'gemini', voice: 'voice_abc-1' })?.voice).toBe('voice_abc-1')
+    expect(readCompareRequest({ text: 'שלום', engine: 'gemini', voice: 'a b<script>' })?.voice).toBe('Sadaltager')
     expect(readCompareRequest({ text: 'שלום', engine: 'eleven' })).toBeNull()
     expect(readCompareRequest({ text: 'א'.repeat(301), engine: 'chirp' })).toBeNull()
     expect(readCompareRequest(null)).toBeNull()
@@ -27,20 +29,33 @@ describe('voice compare spike (server)', () => {
 
   it('reads the niqqud text with Chirp when asked', async () => {
     const calls: Call[] = []
-    const r = await compareVoice({ text: 'שלום דני', engine: 'chirp', nikud: true }, { tts: 'k', gemini: '' }, fake(calls))
+    const r = await compareVoice({ text: 'שלום דני', engine: 'chirp', nikud: true, voice: 'Sadaltager' }, { tts: 'k', gemini: '' }, fake(calls))
     expect(r.said).toBe('שָׁלוֹם דני')
     expect(r.engine).toBe('chirp3-hd')
     expect((calls[1].body.input as { text: string }).text).toBe('שָׁלוֹם דני')
   })
 
-  it('uses Gemini on the Cloud TTS key without a Gemini key, and the Gemini API with one (as WAV)', async () => {
+  it('sends Gemini only the words (style apart, so it is not read aloud) and keeps a WAV answer as it is', async () => {
     const calls: Call[] = []
-    const cloud = await compareVoice({ text: 'שלום', engine: 'gemini', nikud: false }, { tts: 'k', gemini: '' }, fake(calls))
-    expect(cloud.engine).toBe('gemini-3.1-flash-tts-preview')
-    expect(calls[0].body.voice).toMatchObject({ languageCode: 'he-IL', modelName: 'gemini-3.1-flash-tts-preview' })
-    const api = await compareVoice({ text: 'שלום', engine: 'gemini', nikud: false }, { tts: 'k', gemini: 'g' }, fake(calls))
-    expect(api.mime).toBe('audio/wav')
-    expect(Buffer.from(api.audio, 'base64').subarray(0, 4).toString()).toBe('RIFF')
+    const r = await compareVoice({ text: 'שלום', engine: 'gemini', nikud: false, voice: 'v1' }, { tts: 'k', gemini: 'g' }, fake(calls))
+    const part = (calls[0].body.contents as { parts: { text: string; speech_metadata: unknown }[] }[])[0].parts[0]
+    expect(part.text).toBe('שלום')
+    expect(part.speech_metadata).toBeTruthy()
+    expect(calls[0].body.generationConfig).toMatchObject({ speechConfig: { voiceConfig: { voice: 'v1' } } })
+    expect(r.mime).toBe('audio/wav')
+    expect(Buffer.from(r.audio, 'base64').subarray(0, 4).toString()).toBe('RIFF')
+    await expect(compareVoice({ text: 'שלום', engine: 'gemini', nikud: false, voice: 'v1' }, { tts: 'k', gemini: '' }, fake([]))).rejects.toThrow('GEMINI')
+  })
+
+  it('lists Hebrew male voices from the Voice Library', async () => {
+    let asked = ''
+    const f = (async (url: string) => {
+      asked = url
+      return new Response(JSON.stringify({ voices: [{ id: 'voice_1', displayName: 'Avi', accent: 'Israeli' }, { foo: 1 }] }))
+    }) as unknown as typeof fetch
+    expect(await listVoices('g', f)).toEqual([{ id: 'voice_1', name: 'Avi', info: 'Israeli' }])
+    expect(asked).toContain('language_code=he-IL')
+    expect(asked).toContain('gender=male')
   })
 
   it('makes a valid WAV header', () => {

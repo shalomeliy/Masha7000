@@ -1315,5 +1315,6 @@
  "השוואת קולות": "Comparar vozes",
  "כל לחיצה שולחת את המשפט לגוגל (ולניקוד של דיקטה) ועולה סנטים בודדים. לחיצה שנייה משמיעה שוב בלי לשלוח.": "Cada toque envia a frase ao Google (e à Dicta para o nikud) e custa alguns centavos. Um segundo toque reproduz sem enviar.",
  "משפט משלך": "Sua própria frase",
- "נכשל: {why}": "Falhou: {why}"
+ "נכשל: {why}": "Falhou: {why}",
+ "קול של Gemini": "Voz do Gemini"
 }
