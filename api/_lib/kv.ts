@@ -13,6 +13,8 @@ export const KEYS = {
   allowed: 'allowed',
   /** Allowed managers the owner also opened the voice assistant to (it spends the owner's monthly budget). */
   assistant: 'assistant',
+  /** Of those, the ones whose Shali may also ask Claude (the owner's budget; the owner's choice per manager, 2026-11-23). */
+  assistantClaude: 'assistant-claude',
   joinForm: 'join:form',
   joinSubs: 'join:subs',
   joinSent: 'join:sent',

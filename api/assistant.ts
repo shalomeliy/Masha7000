@@ -3,7 +3,7 @@ import { readBudget, recordSpend } from './_lib/budget.js'
 import { readEnv, type Env } from './_lib/env.js'
 import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
-import { canUseAssistant, isOwner, requireManager } from './_lib/session.js'
+import { canUseAssistant, canUseClaude, isOwner, requireManager } from './_lib/session.js'
 import { readSttRequest, sttKey, sttProvider, takeSeconds, transcribe } from './_lib/stt.js'
 import { mp3, readTtsRequest, synthesize, takeChars } from './_lib/tts.js'
 
@@ -26,7 +26,7 @@ async function ownerGate(req: Request): Promise<{ env: Env } | { refuse: Respons
   const gate = await requireManager(env, req)
   if ('refuse' in gate) return gate
   const email = gate.session.email
-  if (!isOwner(env, email)) return { refuse: json({ reason: (await canUseAssistant(env, email)) ? 'free-only' : 'not-owner' }, 403) }
+  if (!(await canUseClaude(env, email))) return { refuse: json({ reason: (await canUseAssistant(env, email)) ? 'free-only' : 'not-owner' }, 403) }
   return { env }
 }
 

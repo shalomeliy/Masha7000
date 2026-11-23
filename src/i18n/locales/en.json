@@ -1208,7 +1208,7 @@
  "רכב: {v}": "Vehicle: {v}",
  "רכבים": "Vehicles",
  "עוזר קולי": "Voice assistant",
- "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shali, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.": "Voice assistant: anyone marked in yellow can talk to Shali, only for what it already learned to do for free. Only you reach Claude, from your budget.",
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shali, רק במה שהוא כבר למד לעשות בחינם. \"גם Claude\": ה-Shali שלו פונה גם ל-Claude, מהתקציב החודשי שלך.": "Voice assistant: whoever is marked in yellow can talk to Shali, only in what it already learned to do for free. \"Claude too\": their Shali also asks Claude, from your monthly budget.",
  "את זה Shali עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.": "Shali has not learned to do this on its own yet, and on this account it does not ask Claude. Try saying it differently, or do it in the screens.",
  "דגם רכב": "Vehicle model",
  "כניסה עם גוגל": "Signed in with Google",
@@ -1307,5 +1307,6 @@
  "זיהוי הדיבור הגיע למכסה של החודש. אפשר להקליד במקום.": "Speech recognition reached this month's limit. You can type instead.",
  "מזהה...": "Recognizing...",
  "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "In the app on an iPhone home screen, the recording of what you say to Shali is sent to Google to become text.",
- "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Without your consent you can type, or tap the microphone on the keyboard."
+ "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Without your consent you can type, or tap the microphone on the keyboard.",
+ "גם Claude": "Claude too"
 }

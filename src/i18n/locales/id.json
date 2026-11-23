@@ -1208,7 +1208,7 @@
  "רכב: {v}": "Kendaraan: {v}",
  "רכבים": "Kendaraan",
  "עוזר קולי": "Asisten suara",
- "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shali, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.": "Asisten suara: yang ditandai kuning dapat berbicara dengan Shali, hanya untuk hal yang sudah dipelajarinya secara gratis. Hanya Anda yang menghubungi Claude, dari anggaran Anda.",
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shali, רק במה שהוא כבר למד לעשות בחינם. \"גם Claude\": ה-Shali שלו פונה גם ל-Claude, מהתקציב החודשי שלך.": "Asisten suara: yang ditandai kuning bisa bicara dengan Shali, hanya untuk yang sudah dipelajari gratis. \"Juga Claude\": Shali miliknya juga bertanya ke Claude, dari anggaran bulanan Anda.",
  "את זה Shali עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.": "Shali belum belajar melakukan ini sendiri, dan di akun ini ia tidak bertanya ke Claude. Coba katakan dengan cara lain, atau lakukan di layar.",
  "דגם רכב": "Model kendaraan",
  "כניסה עם גוגל": "Masuk dengan Google",
@@ -1307,5 +1307,6 @@
  "זיהוי הדיבור הגיע למכסה של החודש. אפשר להקליד במקום.": "Pengenalan suara mencapai batas bulan ini. Anda bisa mengetik sebagai gantinya.",
  "מזהה...": "Mengenali...",
  "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "Di aplikasi pada layar utama iPhone, rekaman ucapan Anda kepada Shali dikirim ke Google untuk diubah menjadi teks.",
- "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Tanpa persetujuan Anda, Anda bisa mengetik, atau mengetuk mikrofon di keyboard."
+ "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Tanpa persetujuan Anda, Anda bisa mengetik, atau mengetuk mikrofon di keyboard.",
+ "גם Claude": "Juga Claude"
 }

@@ -6,6 +6,8 @@ export interface AccessList {
   emails: string[]
   /** Of those, the ones the voice assistant is open to. */
   assistant?: string[]
+  /** Of those, the ones whose Shali may also ask Claude (the owner's budget). */
+  claude?: string[]
 }
 
 const REASONS: Record<string, string> = {
@@ -36,6 +38,7 @@ export const listAccess = () => call<AccessList>({ action: 'list' })
 export const addAccess = (email: string) => call<AccessList>({ action: 'add', email })
 export const removeAccess = (email: string) => call<AccessList>({ action: 'remove', email })
 export const setAssistant = (email: string, on: boolean) => call<AccessList>({ action: 'assistant', email, on })
+export const setAssistantClaude = (email: string, on: boolean) => call<AccessList>({ action: 'assistant-claude', email, on })
 export const disconnectDrive = () => call<{ ok: true }>({ action: 'disconnect' })
 
 /** One line of the server's security log (api/_lib/audit.ts). */

@@ -72,6 +72,11 @@ export async function canUseAssistant(env: Env, email: string) {
   return isOwner(env, email) || ((await isAllowed(env, email)) && kv.isMember(env, KEYS.assistant, email))
 }
 
+/** The owner, or a manager the owner opened Shali to with Claude too (both spend the owner's monthly budget). */
+export async function canUseClaude(env: Env, email: string) {
+  return isOwner(env, email) || ((await canUseAssistant(env, email)) && kv.isMember(env, KEYS.assistantClaude, email))
+}
+
 export const hasMfa = async (env: Env, email: string) => (await kv.get(env, KEYS.mfa(email))) !== null
 
 /**

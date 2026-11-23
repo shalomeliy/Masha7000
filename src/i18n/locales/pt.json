@@ -1208,7 +1208,7 @@
  "רכב: {v}": "Veículo: {v}",
  "רכבים": "Veículos",
  "עוזר קולי": "Assistente de voz",
- "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shali, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.": "Assistente de voz: quem estiver marcado em amarelo pode falar com a Shali, só para o que ela já aprendeu a fazer de graça. Só você recorre ao Claude, com o seu orçamento.",
+ "עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shali, רק במה שהוא כבר למד לעשות בחינם. \"גם Claude\": ה-Shali שלו פונה גם ל-Claude, מהתקציב החודשי שלך.": "Assistente de voz: quem está marcado em amarelo pode falar com o Shali, só no que ele já aprendeu a fazer de graça. \"Também Claude\": o Shali dele também consulta o Claude, do seu orçamento mensal.",
  "את זה Shali עוד לא למד לעשות לבד, ובחשבון הזה הוא לא פונה ל-Claude. נסה לומר את זה אחרת, או לעשות את זה במסכים.": "A Shali ainda não aprendeu a fazer isso sozinha, e nesta conta ela não recorre ao Claude. Tente dizer de outra forma ou faça isso nas telas.",
  "דגם רכב": "Modelo do veículo",
  "כניסה עם גוגל": "Entrada com o Google",
@@ -1307,5 +1307,6 @@
  "זיהוי הדיבור הגיע למכסה של החודש. אפשר להקליד במקום.": "O reconhecimento de voz atingiu o limite deste mês. Você pode digitar.",
  "מזהה...": "Reconhecendo...",
  "באפליקציה שעל המסך הראשי של אייפון, ההקלטה של מה שאומרים ל-Shali נשלחת ל-Google כדי להפוך לטקסט.": "No app da tela inicial do iPhone, a gravação do que você diz ao Shali é enviada ao Google para virar texto.",
- "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Sem o seu consentimento, você pode digitar ou tocar no microfone do teclado."
+ "בלי האישור אפשר להקליד, או ללחוץ על המיקרופון שבמקלדת.": "Sem o seu consentimento, você pode digitar ou tocar no microfone do teclado.",
+ "גם Claude": "Também Claude"
 }

@@ -9,7 +9,8 @@ import { overLimit } from './_lib/rate.js'
 import { endAllSessions, isOwner, normalizeEmail, requireManager } from './_lib/session.js'
 
 // POST /api/owner { action }: the owner's controls. 'list' | 'add' | 'remove' manage who may sign in;
-// 'assistant' { email, on } opens or closes the voice assistant to one of them (the owner's budget)
+// 'assistant' { email, on } opens or closes the voice assistant to one of them (free commands only);
+// 'assistant-claude' { email, on } lets that manager's Shali ask Claude too (the owner's budget)
 // (the owner is implicit and never stored); 'disconnect' revokes the app's access to the owner's Drive;
 // 'audit' reads the security log (api/_lib/audit.ts). Every change here is written to that log.
 // POST /api/owner?scope=api-keys { action }: the outside-API keys (api/_lib/apiKeysRoute.ts), same owner-only checks.
@@ -46,7 +47,16 @@ export const POST = guarded(async (req: Request) => {
     if (!email || !(await kv.isMember(env, KEYS.allowed, email))) return json({ reason: 'bad-email' }, 400)
     if (body.on === true) await kv.add(env, KEYS.assistant, email)
     else await kv.remove(env, KEYS.assistant, email)
+    if (body.on !== true) await kv.remove(env, KEYS.assistantClaude, email)
     await audit(env, req, 'assistant-access', { email: me, target: `${email} ${body.on === true ? 'on' : 'off'}` })
+  } else if (body.action === 'assistant-claude') {
+    const email = normalizeEmail(body.email)
+    if (!email || !(await kv.isMember(env, KEYS.allowed, email))) return json({ reason: 'bad-email' }, 400)
+    if (body.on === true) {
+      await kv.add(env, KEYS.assistant, email)
+      await kv.add(env, KEYS.assistantClaude, email)
+    } else await kv.remove(env, KEYS.assistantClaude, email)
+    await audit(env, req, 'assistant-access', { email: me, target: `${email} claude ${body.on === true ? 'on' : 'off'}` })
   } else if (body.action === 'add' || body.action === 'remove') {
     const email = normalizeEmail(body.email)
     if (!email) return json({ reason: 'bad-email' }, 400)
@@ -57,6 +67,7 @@ export const POST = guarded(async (req: Request) => {
       // Out of the list: signed out everywhere now, and a fresh two-step setup if ever added back.
       await kv.remove(env, KEYS.allowed, email)
       await kv.remove(env, KEYS.assistant, email)
+      await kv.remove(env, KEYS.assistantClaude, email)
       await endAllSessions(env, email)
       await kv.del(env, KEYS.mfa(email), KEYS.mfaSetup(email))
     }
@@ -65,5 +76,6 @@ export const POST = guarded(async (req: Request) => {
   }
   const emails = (await kv.members(env, KEYS.allowed)).sort()
   const assistant = (await kv.members(env, KEYS.assistant)).filter((e) => emails.includes(e)).sort()
-  return json({ owner: env.ownerEmail, emails, assistant })
+  const claude = (await kv.members(env, KEYS.assistantClaude)).filter((e) => assistant.includes(e)).sort()
+  return json({ owner: env.ownerEmail, emails, assistant, claude })
 })

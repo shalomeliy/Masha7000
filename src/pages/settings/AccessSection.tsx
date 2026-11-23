@@ -1,9 +1,9 @@
 import { tx } from '../../i18n'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Mic, RotateCcw, Trash2 } from 'lucide-react'
+import { Loader2, Mic, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 import { inputClass } from '../../components/Sheet'
-import { addAccess, disconnectDrive, listAccess, removeAccess, setAssistant } from '../../lib/google/owner'
+import { addAccess, disconnectDrive, listAccess, removeAccess, setAssistant, setAssistantClaude } from '../../lib/google/owner'
 import type { AccessList } from '../../lib/google/owner'
 import { resetMfaOf } from '../../lib/google/mfa'
 import { useAuth } from '../../store/auth'
@@ -25,9 +25,14 @@ export function AccessSection() {
       if (action === 'add') setEmail('')
     },
   })
-  // Shali per manager: free commands only; Claude (and its budget) stays the owner's.
+  // Shali per manager: free commands only, or (the owner's choice per manager, 2026-11-23) with Claude too,
+  // from the owner's monthly budget.
   const voice = useMutation({
     mutationFn: ({ email, on }: { email: string; on: boolean }) => setAssistant(email, on),
+    onSuccess: (list: AccessList) => qc.setQueryData(['access'], list),
+  })
+  const claude = useMutation({
+    mutationFn: ({ email, on }: { email: string; on: boolean }) => setAssistantClaude(email, on),
     onSuccess: (list: AccessList) => qc.setQueryData(['access'], list),
   })
   const reset = useMutation({
@@ -86,6 +91,22 @@ export function AccessSection() {
                   </button>
                 )
               })()}
+              {access.data.assistant?.includes(e) === true &&
+                (() => {
+                  const on = access.data.claude?.includes(e) === true
+                  return (
+                    <button
+                      type="button"
+                      aria-pressed={on}
+                      disabled={claude.isPending}
+                      onClick={() => claude.mutate({ email: e, on: !on })}
+                      className={`flex min-h-11 items-center gap-1 rounded-lg px-3 ${on ? 'bg-amber-400/20 text-amber-200' : 'text-slate-400'}`}
+                    >
+                      <Sparkles size={16} aria-hidden />
+                      {tx('גם Claude')}
+                    </button>
+                  )
+                })()}
               <button
                 type="button"
                 disabled={reset.isPending}
@@ -131,7 +152,7 @@ export function AccessSection() {
           {tx('הוספה')}
         </button>
       </form>
-      <p className="text-xs text-slate-500">{tx('עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shali, רק במה שהוא כבר למד לעשות בחינם. רק אתה פונה ל-Claude, מהתקציב שלך.')}</p>
+      <p className="text-xs text-slate-500">{tx('עוזר קולי: מי שמסומן בצהוב יכול לדבר עם Shali, רק במה שהוא כבר למד לעשות בחינם. "גם Claude": ה-Shali שלו פונה גם ל-Claude, מהתקציב החודשי שלך.')}</p>
       <p className="text-xs text-slate-500">{tx('איפוס אימות: למי שאיבד את הטלפון. הוא ינותק מכל המכשירים, ובכניסה הבאה יגדיר את אפליקציית האימות מחדש.')}</p>
       {reset.isError && (
         <p role="alert" className="text-sm text-red-400">

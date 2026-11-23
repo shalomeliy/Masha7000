@@ -274,10 +274,10 @@ describe('owner controls', () => {
 
     const boss = await managerSession(OWNER)
     const added = await post(owner, boss, { action: 'add', email: ' New@Example.com ' })
-    expect(await added.json()).toEqual({ owner: OWNER, emails: ['deputy@example.com', 'new@example.com'], assistant: [] })
+    expect(await added.json()).toEqual({ owner: OWNER, emails: ['deputy@example.com', 'new@example.com'], assistant: [], claude: [] })
     expect((await post(owner, boss, { action: 'add', email: 'not an email' })).status).toBe(400)
     await post(owner, boss, { action: 'remove', email: 'deputy@example.com' })
-    expect(await (await post(owner, boss, { action: 'list' })).json()).toEqual({ owner: OWNER, emails: ['new@example.com'], assistant: [] })
+    expect(await (await post(owner, boss, { action: 'list' })).json()).toEqual({ owner: OWNER, emails: ['new@example.com'], assistant: [], claude: [] })
   })
 
   it('disconnect revokes the Drive token at Google', async () => {
@@ -680,7 +680,7 @@ describe('voice assistant for another manager', () => {
     const boss = await managerSession(OWNER)
     expect((await post(owner, boss, { action: 'assistant', email: 'stranger@example.com', on: true })).status).toBe(400)
     const opened = await post(owner, boss, { action: 'assistant', email: 'deputy@example.com', on: true })
-    expect(await opened.json()).toEqual({ owner: OWNER, emails: ['deputy@example.com'], assistant: ['deputy@example.com'] })
+    expect(await opened.json()).toEqual({ owner: OWNER, emails: ['deputy@example.com'], assistant: ['deputy@example.com'], claude: [] })
     expect(await (await post(token, deputy)).json()).toMatchObject({ assistant: true })
     // Free commands only: the budget is the owner's, so Claude is never asked for them.
     store.set(`spend:${new Date().toISOString().slice(0, 7)}`, String(0))
@@ -688,7 +688,18 @@ describe('voice assistant for another manager', () => {
     expect(res.status).toBe(403)
     expect(await res.json()).toEqual({ reason: 'free-only' })
     expect((await assistantBudget(new Request(`${ORIGIN}/api/x`, { headers: { cookie: `__Host-session=${deputy}` } }))).status).toBe(403)
+    // "גם Claude" (the owner's choice per manager, 2026-11-23): his Shali asks Claude too, from the owner's budget.
+    expect((await post(owner, deputy, { action: 'assistant-claude', email: 'deputy@example.com', on: true })).status).toBe(403)
+    const withClaude = await post(owner, boss, { action: 'assistant-claude', email: 'deputy@example.com', on: true })
+    expect(await withClaude.json()).toMatchObject({ assistant: ['deputy@example.com'], claude: ['deputy@example.com'] })
+    const paid = await post(assistant, deputy, turn)
+    expect(paid.status).toBe(200) // past every check; outside Vercel no paid call leaves (spendGuard)
+    await post(owner, boss, { action: 'assistant-claude', email: 'deputy@example.com', on: false })
+    expect(await (await post(assistant, deputy, turn)).json()).toEqual({ reason: 'free-only' })
+    await post(owner, boss, { action: 'assistant-claude', email: 'deputy@example.com', on: true })
+    // Closing Shali to him closes Claude too.
     await post(owner, boss, { action: 'assistant', email: 'deputy@example.com', on: false })
+    expect([...((store.get('assistant-claude') as Set<string> | undefined) ?? [])]).toEqual([])
     expect(await (await post(assistant, deputy, turn)).json()).toEqual({ reason: 'not-owner' })
     await post(owner, boss, { action: 'assistant', email: 'deputy@example.com', on: true })
     await post(owner, boss, { action: 'remove', email: 'deputy@example.com' })
