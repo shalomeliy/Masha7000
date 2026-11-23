@@ -237,6 +237,17 @@ export function onSpoken(fn: (text: string) => void): () => void {
 // nothing is heard; holding it here keeps it alive.
 const alive = new Set<SpeechSynthesisUtterance>()
 
+// Whether Shali is speaking now, for the assistant screen (owner, 2026-11-23: nothing on screen showed
+// it while the answer was read). Only the latest text counts: one cut off by the next does not end it.
+let speakingTurn = 0
+const speakingFns = new Set<(on: boolean) => void>()
+const tellSpeaking = (on: boolean) => speakingFns.forEach((fn) => fn(on))
+/** Calls `fn` with true when Shali starts reading aloud and false when it ends; returns a function to stop. */
+export function onSpeaking(fn: (on: boolean) => void): () => void {
+  speakingFns.add(fn)
+  return () => void speakingFns.delete(fn)
+}
+
 /**
  * Reads the text aloud in the app's language; `onDone` when it ends or cannot start. `onFail` gets the
  * browser's reason when the phone could not read it at all (not when another text cut it short).
@@ -257,15 +268,21 @@ export function speak(text: string, onDone?: () => void, onFail?: (reason: strin
     return
   }
   heard.forEach((fn) => fn(text))
+  const turn = ++speakingTurn
+  tellSpeaking(true)
+  const done = () => {
+    if (turn === speakingTurn) tellSpeaking(false)
+    onDone?.()
+  }
   audioSession('playback')
   const said = pronounce(speakable(text, language().speech))
   vlog(`speak: ${useCloud ? `cloud ${cloud}` : 'device'}, ${said.length} chars${cloudOff() ? `, cloud off: ${cloudOff()}` : ''}`)
   if (useCloud && cloud) {
     if (canSpeak) speechSynthesis.cancel()
-    return speakCloud(said, cloud, RATE, () => onDone?.(), (rest) => (canSpeak ? speakDevice(rest, onDone, onFail) : onDone?.()))
+    return speakCloud(said, cloud, RATE, done, (rest) => (canSpeak ? speakDevice(rest, done, onFail) : done()))
   }
   stopCloud()
-  speakDevice(said, onDone, onFail)
+  speakDevice(said, done, onFail)
 }
 
 /** The phone's own voice reads the text, already made speakable. */
@@ -333,6 +350,8 @@ export function speakAtOnce(text: string) {
 }
 
 export const stopSpeaking = () => {
+  speakingTurn++
+  tellSpeaking(false)
   holding = null
   holdTurn++
   stopCloud()

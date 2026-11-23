@@ -1,6 +1,6 @@
 import { language, tx } from '../i18n'
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, BookMarked, Check, Keyboard, LifeBuoy, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
+import { AlertTriangle, AudioLines, BookMarked, Check, Keyboard, LifeBuoy, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
 import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, proposalVehicles, snapshot, summaryWith, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
@@ -17,7 +17,7 @@ import { vlog, voiceReport } from '../lib/voiceLog'
 import { cloudOff } from '../lib/cloudVoice'
 import { hasAiConsent, setAiConsent } from '../lib/aiConsent'
 import { AiConsentCard } from '../components/AiConsentCard'
-import { canListen, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, onVoicesChanged, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
+import { canListen, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, onSpeaking, onVoicesChanged, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -66,6 +66,9 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
   const data = Object.fromEntries(Object.entries(lists).map(([k, l]) => [k, l.items])) as unknown as AppData
 
   const [phase, setPhase] = useState<Phase>('idle')
+  // Shali reading its answer aloud (owner, 2026-11-23: the screen showed nothing until it ended).
+  const [speaking, setSpeaking] = useState(false)
+  useEffect(() => onSpeaking(setSpeaking), [])
   const [heard, setHeard] = useState('')
   const [lines, setLines] = useState<Line[]>([])
   const [showText, setShowText] = useState(false)
@@ -629,7 +632,7 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
 
   const busy = phase === 'thinking' || phase === 'saving' || loading
   const status =
-    phase === 'listening' ? tx('מקשיב... אפשר לדבר') : phase === 'thinking' ? tx('חושב...') : phase === 'saving' ? tx('שומר...') : loading ? tx('טוען נתונים...') : proposal ? tx('לאשר, או לתקן?') : advice ? tx('איזה פתרון לעשות?') : talking ? tx('לחץ וענה') : tx('לחץ ודבר')
+    phase === 'listening' ? tx('מקשיב... אפשר לדבר') : phase === 'thinking' ? tx('חושב...') : phase === 'saving' ? tx('שומר...') : loading ? tx('טוען נתונים...') : speaking ? tx('Shali מדבר...') : proposal ? tx('לאשר, או לתקן?') : advice ? tx('איזה פתרון לעשות?') : talking ? tx('לחץ וענה') : tx('לחץ ודבר')
 
   return (
     <section className="flex min-h-[calc(100dvh-6rem)] flex-col items-center px-4 pt-10">
@@ -641,13 +644,19 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
           aria-pressed={phase === 'listening'}
           aria-label={phase === 'listening' ? tx('עצירת ההקשבה') : tx('דבר עם Shali')}
           className={`flex size-44 items-center justify-center rounded-full border-4 shadow-xl transition active:scale-95 disabled:opacity-50 ${
-            phase === 'listening' ? 'animate-pulse border-red-400 bg-red-500/20 text-red-100' : 'border-sky-400 bg-sky-500/15 text-sky-100'
+            phase === 'listening'
+              ? 'animate-pulse border-red-400 bg-red-500/20 text-red-100'
+              : speaking && phase === 'idle'
+                ? 'animate-pulse border-emerald-400 bg-emerald-500/15 text-emerald-100'
+                : 'border-sky-400 bg-sky-500/15 text-sky-100'
           }`}
         >
           {busy && phase !== 'idle' ? (
             <Loader2 className="animate-spin" size={64} aria-hidden />
           ) : phase === 'listening' ? (
             <Square size={56} aria-hidden />
+          ) : speaking ? (
+            <AudioLines size={72} aria-hidden />
           ) : (
             <Mic size={72} aria-hidden />
           )}
