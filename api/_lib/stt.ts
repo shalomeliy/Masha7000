@@ -1,0 +1,86 @@
+import type { Env } from './env.js'
+import { kv } from './kv.js'
+
+// Speech to text on the server, for the iPhone home-screen app, where the page cannot recognize speech
+// (WebKit bug 225298). The phone records 16 kHz mono 16-bit WAV (the iPhone's own audio/mp4 is AAC, which
+// Google's v1 does not take), and one of two services turns it into text. The owner's choice, 2026-11-23:
+// start with Google Cloud Speech-to-Text (paid by the trial credit until ~Feb 2027), move to OpenAI later
+// by changing STT_PROVIDER in Vercel, with no code change. Both take the same WAV.
+// Hard stop: seconds of audio per calendar month (UTC), refused from STT_MONTHLY_SECONDS on (default 3,000:
+// 50 minutes, about $0.80 at Google's $0.016 a minute).
+
+export type SttProvider = 'google' | 'openai'
+export const MAX_STT_SECONDS = 30
+const WAV_HEADER = 44
+const BYTES_PER_SECOND = 16_000 * 2
+
+export function sttProvider(e: NodeJS.ProcessEnv = process.env): SttProvider {
+  return (e.STT_PROVIDER ?? '').trim().toLowerCase() === 'openai' ? 'openai' : 'google'
+}
+
+/** The provider's key, or '' when it is not set. Google's is the cloud-voice key, allowed for both APIs. */
+export function sttKey(provider: SttProvider, e: NodeJS.ProcessEnv = process.env): string {
+  return ((provider === 'openai' ? e.OPENAI_API_KEY : e.GOOGLE_TTS_API_KEY) ?? '').trim()
+}
+
+export function sttMonthlyLimit(e: NodeJS.ProcessEnv = process.env): number {
+  const n = Number((e.STT_MONTHLY_SECONDS ?? '').trim())
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 3_000
+}
+
+const KEEP = 70 * 86_400
+const secondsKey = (now: Date) => `stt-seconds:${now.toISOString().slice(0, 7)}`
+
+/** The body checked: { audio: base64 WAV, 16 kHz mono 16-bit, up to 30 seconds }. */
+export function readSttRequest(body: Record<string, unknown> | null): { wav: Buffer; seconds: number } | null {
+  const audio = typeof body?.audio === 'string' ? body.audio : ''
+  if (!audio) return null
+  const wav = Buffer.from(audio, 'base64')
+  if (wav.length <= WAV_HEADER || wav.toString('ascii', 0, 4) !== 'RIFF' || wav.toString('ascii', 8, 12) !== 'WAVE') return null
+  if (wav.readUInt16LE(22) !== 1 || wav.readUInt32LE(24) !== 16_000 || wav.readUInt16LE(34) !== 16) return null
+  const seconds = (wav.length - WAV_HEADER) / BYTES_PER_SECOND
+  if (seconds > MAX_STT_SECONDS) return null
+  return { wav, seconds }
+}
+
+/** Counts the seconds first (rounded up, as billed), then says whether this month is still under the limit. */
+export async function takeSeconds(env: Env, seconds: number, now = new Date(), e: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  const add = Math.max(1, Math.ceil(seconds))
+  const key = secondsKey(now)
+  const used = await kv.incrBy(env, key, add)
+  if (used === add) await kv.expire(env, key, KEEP)
+  return used <= sttMonthlyLimit(e)
+}
+
+/** The text heard, '' when nothing was said. Throws with the status on any failure. */
+export async function transcribe(provider: SttProvider, apiKey: string, wav: Buffer, lang = 'he', fetchFn: typeof fetch = fetch): Promise<string> {
+  if (provider === 'openai') {
+    const form = new FormData()
+    form.append('file', new Blob([new Uint8Array(wav)], { type: 'audio/wav' }), 'speech.wav')
+    form.append('model', 'gpt-4o-mini-transcribe')
+    form.append('language', lang)
+    const res = await fetchFn('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+      signal: AbortSignal.timeout(15_000),
+    })
+    if (!res.ok) throw new Error(`openai stt ${res.status}`)
+    return (((await res.json()) as { text?: string }).text ?? '').trim()
+  }
+  const res = await fetchFn('https://speech.googleapis.com/v1/speech:recognize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey },
+    body: JSON.stringify({
+      config: { encoding: 'LINEAR16', sampleRateHertz: 16_000, languageCode: lang === 'he' ? 'he-IL' : lang },
+      audio: { content: wav.subarray(WAV_HEADER).toString('base64') },
+    }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (!res.ok) throw new Error(`google stt ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`)
+  const { results } = (await res.json()) as { results?: { alternatives?: { transcript?: string }[] }[] }
+  return (results ?? [])
+    .map((r) => r.alternatives?.[0]?.transcript ?? '')
+    .join(' ')
+    .trim()
+}

@@ -1294,11 +1294,13 @@
  "שעת סיום לא יכולה להיות כמו שעת התחלה": "L'heure de fin ne peut pas être identique à l'heure de début",
  "בדיקת הקלטה": "Test d'enregistrement",
  "בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה": "Vérifie que le micro enregistre sur ce téléphone : 5 secondes, puis lecture",
- "מקליטה 5 שניות ומשמיעה אותן. שום דבר לא נשלח. בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "Enregistre 5 secondes et les fait écouter. Rien n'est envoyé. La première fois, le téléphone demandera l'accès au micro : il faut l'autoriser.",
+ "מקליטה 5 שניות ומשמיעה אותן. ההקלטה נשלחת לגוגל רק אם לוחצים \"זהה טקסט\". בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "Enregistre 5 secondes puis les rejoue. L’enregistrement n’est envoyé à Google que si vous touchez « Reconnaître le texte ». La première fois, le téléphone demandera l’accès au micro : autorisez-le.",
  "מקליט... עוד {v} שניות. דבר עכשיו": "Enregistrement... encore {v} secondes. Parlez maintenant",
  "הקלט 5 שניות": "Enregistrer 5 secondes",
  "ההקלטה ריקה: לא נקלט שום דבר.": "L'enregistrement est vide : rien n'a été capté.",
  "יש קובץ, אבל נשמע שקט. אם דיברת, ייתכן שהמיקרופון לא נקלט.": "Il y a un fichier, mais il semble silencieux. Si vous avez parlé, le micro n'a peut-être pas été capté.",
  "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "L'enregistrement a fonctionné. Appuyez sur lecture pour l'écouter.",
- "העתק תוצאות": "Copier les résultats"
+ "העתק תוצאות": "Copier les résultats",
+ "זהה טקסט (נשלח לגוגל)": "Reconnaître le texte (envoyé à Google)",
+ "לא זוהו מילים": "Aucun mot reconnu"
 }

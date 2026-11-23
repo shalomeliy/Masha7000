@@ -1294,11 +1294,13 @@
  "שעת סיום לא יכולה להיות כמו שעת התחלה": "Bitiş saati başlangıç saatiyle aynı olamaz",
  "בדיקת הקלטה": "Kayıt testi",
  "בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה": "Mikrofonun bu telefonda kayıt yaptığını kontrol eder: 5 saniye, sonra oynatma",
- "מקליטה 5 שניות ומשמיעה אותן. שום דבר לא נשלח. בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "5 saniye kaydeder ve geri oynatır. Hiçbir şey gönderilmez. İlk seferde telefon mikrofon izni isteyecek: izin verin.",
+ "מקליטה 5 שניות ומשמיעה אותן. ההקלטה נשלחת לגוגל רק אם לוחצים \"זהה טקסט\". בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "5 saniye kaydeder ve geri oynatır. Kayıt yalnızca \"Metni tanı\"ya dokunursanız Google’a gider. İlk seferde telefon mikrofon izni ister: izin verin.",
  "מקליט... עוד {v} שניות. דבר עכשיו": "Kaydediliyor... {v} saniye kaldı. Şimdi konuşun",
  "הקלט 5 שניות": "5 saniye kaydet",
  "ההקלטה ריקה: לא נקלט שום דבר.": "Kayıt boş: hiçbir şey alınmadı.",
  "יש קובץ, אבל נשמע שקט. אם דיברת, ייתכן שהמיקרופון לא נקלט.": "Dosya var ama sessiz görünüyor. Konuştuysanız mikrofon alınmamış olabilir.",
  "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "Kayıt çalıştı. Dinlemek için oynat'a basın.",
- "העתק תוצאות": "Sonuçları kopyala"
+ "העתק תוצאות": "Sonuçları kopyala",
+ "זהה טקסט (נשלח לגוגל)": "Metni tanı (Google’a gönderilir)",
+ "לא זוהו מילים": "Hiç kelime tanınmadı"
 }

@@ -4,6 +4,7 @@ import { readEnv, type Env } from './_lib/env.js'
 import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
 import { canUseAssistant, isOwner, requireManager } from './_lib/session.js'
+import { readSttRequest, sttKey, sttProvider, takeSeconds, transcribe } from './_lib/stt.js'
 import { mp3, readTtsRequest, synthesize, takeChars } from './_lib/tts.js'
 
 // POST /api/assistant { messages, context }: one turn of the voice assistant, for the owner only,
@@ -12,6 +13,7 @@ import { mp3, readTtsRequest, synthesize, takeChars } from './_lib/tts.js'
 // uses only the free commands, and is told 'free-only'). The key stays here.
 // POST /api/assistant?tts { text, voice, rate }: one sentence in Shali's cloud voice, as MP3 (tts.ts), for
 // the owner and the managers he opened Shali to (it costs nothing within Google's free monthly amount).
+// POST /api/assistant?stt { audio }: a WAV recording as text, Google or OpenAI by STT_PROVIDER (stt.ts).
 // GET /api/assistant: how much of this month's budget the assistant has used (budget.ts).
 
 // Configured, not too many, signed in as the owner. (A same-site GET carries no Origin header,
@@ -58,8 +60,36 @@ async function speakSentence(req: Request): Promise<Response> {
   }
 }
 
+// Speech to text for the iPhone home-screen app (stt.ts): the same people as the cloud voice.
+async function hearRecording(req: Request): Promise<Response> {
+  const env = readEnv()
+  if (!env) return json({ reason: 'not-configured' }, 503)
+  if (!sameOrigin(req, env.appOrigin)) return json({ reason: 'bad-origin' }, 403)
+  if (await overLimit(env, 'stt', clientIp(req))) return json({ reason: 'too-many' }, 429)
+  const gate = await requireManager(env, req)
+  if ('refuse' in gate) return gate.refuse
+  const email = gate.session.email
+  if (!isOwner(env, email) && !(await canUseAssistant(env, email))) return json({ reason: 'not-owner' }, 403)
+  const provider = sttProvider()
+  const apiKey = sttKey(provider)
+  if (!apiKey) return json({ reason: 'no-key', provider }, 503)
+  const stt = readSttRequest(await readJson(req, 1_400_000))
+  if (!stt) return json({ reason: 'bad-body' }, 400)
+  if (!(await takeSeconds(env, stt.seconds))) return json({ reason: 'over-budget' }, 402)
+  const started = Date.now()
+  try {
+    const text = await transcribe(provider, apiKey, stt.wav)
+    return json({ text, provider, ms: Date.now() - started })
+  } catch (e) {
+    const detail = (e as Error).message?.slice(0, 200) ?? ''
+    console.error('stt failed', detail)
+    return json({ reason: 'stt-failed', provider, detail }, 502)
+  }
+}
+
 export const POST = guarded(async (req: Request) => {
   if (new URL(req.url).searchParams.has('tts')) return speakSentence(req)
+  if (new URL(req.url).searchParams.has('stt')) return hearRecording(req)
   const gate = await ownerGate(req)
   if ('refuse' in gate) return gate.refuse
   const { env } = gate

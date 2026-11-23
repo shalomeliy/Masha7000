@@ -1294,11 +1294,13 @@
  "שעת סיום לא יכולה להיות כמו שעת התחלה": "Jam selesai tidak boleh sama dengan jam mulai",
  "בדיקת הקלטה": "Uji rekaman",
  "בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה": "Memeriksa apakah mikrofon merekam di ponsel ini: 5 detik, lalu diputar",
- "מקליטה 5 שניות ומשמיעה אותן. שום דבר לא נשלח. בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "Merekam 5 detik lalu memutarnya. Tidak ada yang dikirim. Pertama kali, ponsel akan meminta izin mikrofon: izinkan.",
+ "מקליטה 5 שניות ומשמיעה אותן. ההקלטה נשלחת לגוגל רק אם לוחצים \"זהה טקסט\". בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "Merekam 5 detik lalu memutarnya. Rekaman dikirim ke Google hanya jika Anda mengetuk \"Kenali teks\". Pertama kali, ponsel akan meminta izin mikrofon: izinkan.",
  "מקליט... עוד {v} שניות. דבר עכשיו": "Merekam... sisa {v} detik. Bicaralah sekarang",
  "הקלט 5 שניות": "Rekam 5 detik",
  "ההקלטה ריקה: לא נקלט שום דבר.": "Rekaman kosong: tidak ada yang tertangkap.",
  "יש קובץ, אבל נשמע שקט. אם דיברת, ייתכן שהמיקרופון לא נקלט.": "Ada file, tetapi terdengar senyap. Jika Anda berbicara, mungkin mikrofon tidak tertangkap.",
  "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "Rekaman berhasil. Tekan putar untuk mendengarnya.",
- "העתק תוצאות": "Salin hasil"
+ "העתק תוצאות": "Salin hasil",
+ "זהה טקסט (נשלח לגוגל)": "Kenali teks (dikirim ke Google)",
+ "לא זוהו מילים": "Tidak ada kata yang dikenali"
 }

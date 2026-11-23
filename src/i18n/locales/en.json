@@ -1294,11 +1294,13 @@
  "שעת סיום לא יכולה להיות כמו שעת התחלה": "End time cannot be the same as the start time",
  "בדיקת הקלטה": "Recording test",
  "בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה": "Checks that the microphone records on this phone: 5 seconds, then playback",
- "מקליטה 5 שניות ומשמיעה אותן. שום דבר לא נשלח. בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "Records 5 seconds and plays them back. Nothing is sent. The first time, the phone will ask about the microphone: allow it.",
+ "מקליטה 5 שניות ומשמיעה אותן. ההקלטה נשלחת לגוגל רק אם לוחצים \"זהה טקסט\". בפעם הראשונה הטלפון ישאל על המיקרופון: צריך לאשר.": "Records 5 seconds and plays them back. The recording goes to Google only if you tap \"Recognize text\". The first time, the phone will ask about the microphone: allow it.",
  "מקליט... עוד {v} שניות. דבר עכשיו": "Recording... {v} seconds left. Speak now",
  "הקלט 5 שניות": "Record 5 seconds",
  "ההקלטה ריקה: לא נקלט שום דבר.": "The recording is empty: nothing was captured.",
  "יש קובץ, אבל נשמע שקט. אם דיברת, ייתכן שהמיקרופון לא נקלט.": "There is a file, but it sounds silent. If you spoke, the microphone may not have been captured.",
  "ההקלטה עבדה. לחץ על נגן כדי לשמוע אותה.": "The recording worked. Press play to hear it.",
- "העתק תוצאות": "Copy results"
+ "העתק תוצאות": "Copy results",
+ "זהה טקסט (נשלח לגוגל)": "Recognize text (sent to Google)",
+ "לא זוהו מילים": "No words recognized"
 }
