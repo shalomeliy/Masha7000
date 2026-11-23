@@ -1,7 +1,7 @@
 import { tx } from '../i18n'
 import { LanguagePicker } from './settings/LanguagePicker'
 import { useEffect, useState } from 'react'
-import { Archive as ArchiveIcon, Car, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, Car, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, LifeBuoy, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
@@ -20,6 +20,7 @@ import { ApiSection } from './settings/ApiSection'
 import { BackupSection } from './settings/BackupSection'
 import { SecuritySection } from './settings/SecuritySection'
 import { FeatureRequestSection } from './settings/FeatureRequestSection'
+import { FaultReportSection } from './settings/FaultReportSection'
 import { ClaudeLogSection } from './settings/ClaudeLogSection'
 import { DepartmentsSection } from './settings/DepartmentsSection'
 import { NameListSection } from './settings/NameListSection'
@@ -144,7 +145,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog' | 'api' | 'micTest' | 'voice'
+type PanelId = 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'fault' | 'claudeLog' | 'api' | 'micTest' | 'voice'
 type ItemId = ListId | PanelId
 
 // A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
@@ -170,6 +171,7 @@ const PANELS: Record<PanelId, { title: string; explain: string }> = {
   connection: { title: tx('בדיקת חיבור לגוגל'), explain: tx('בודקת שהשמירה בדרייב והיומן עובדים') },
   account: { title: tx('החשבון שלי'), explain: tx('עם איזה מייל נכנסת, התנתקות, שליחה ל-AI ומחיקת החשבון') },
   feedback: { title: tx('בקשת תכונות חדשות'), explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח') },
+  fault: { title: tx('דיווח על תקלה'), explain: tx('משהו לא עובד? מתארים מה קרה, והדיווח נשלח לתמיכה') },
   api: { title: tx('גישת API'), explain: tx('מפתחות למערכות אחרות שקוראות וכותבות את הנתונים') },
   voice: { title: tx('קול של Shali'), explain: tx('באיזה קול Shali מדבר בטלפון הזה') },
   micTest: { title: tx('בדיקת הקלטה'), explain: tx('בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה') },
@@ -245,6 +247,14 @@ function groups(isOwner: boolean, server: boolean): Group[] {
           explain: tx('בקשה לראות, לתקן או למחוק מידע, או דיווח על בעיית נגישות'),
         },
       ],
+    },
+    {
+      id: 'fault',
+      title: tx('דיווח על תקלה'),
+      explain: tx('משהו לא עובד? מתארים מה קרה, והדיווח נשלח לתמיכה'),
+      icon: LifeBuoy,
+      // Sent by the server, so it shows only where the server is on.
+      items: server ? [panelItem('fault')] : [],
     },
     {
       id: 'feedback',
@@ -374,6 +384,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
         {open === 'micTest' && <MicTestSection />}
         {open === 'voice' && <VoiceSection />}
         {open === 'feedback' && <FeatureRequestSection />}
+        {open === 'fault' && <FaultReportSection />}
         {open === 'claudeLog' && <ClaudeLogSection />}
         {open === 'api' && <ApiSection />}
         {open === 'account' && <AccountSection />}

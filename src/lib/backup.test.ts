@@ -6,6 +6,7 @@ import {
   backupDate,
   backupFileName,
   copiesToDelete,
+  copyDueToday,
   countsText,
   hasWeeklyCopy,
   makeBackup,
@@ -104,6 +105,25 @@ describe('automatic copies', () => {
     expect(hasWeeklyCopy(copies, new Date(2026, 10, 1))).toBe(false)
     // A copy before a restore is not the week's copy.
     expect(hasWeeklyCopy([copy('b', 'beforeRestore', new Date(2026, 9, 27).toISOString())], new Date(2026, 9, 31))).toBe(false)
+  })
+
+  it('makes one automatic copy a day: the first of the week is weekly, the rest daily', () => {
+    const sun = copy('s', 'weekly', new Date(2026, 10, 22, 8).toISOString()) // Sunday 22.11
+    expect(copyDueToday([], new Date(2026, 10, 22, 9))).toBe('weekly')
+    expect(copyDueToday([sun], new Date(2026, 10, 22, 20))).toBeNull()
+    expect(copyDueToday([sun], new Date(2026, 10, 23, 7))).toBe('daily')
+    const mon = copy('m', 'daily', new Date(2026, 10, 23, 7).toISOString())
+    expect(copyDueToday([sun, mon], new Date(2026, 10, 23, 22))).toBeNull()
+    // A copy before a restore does not count as today's copy.
+    expect(copyDueToday([sun, copy('b', 'beforeRestore', new Date(2026, 10, 24, 7).toISOString())], new Date(2026, 10, 24, 9))).toBe('daily')
+    // A new week starts with a weekly copy again.
+    expect(copyDueToday([sun, mon], new Date(2026, 10, 29, 9))).toBe('weekly')
+  })
+
+  it('keeps the newest 14 daily copies', () => {
+    const daily = Array.from({ length: 16 }, (_, i) => copy(`d${i}`, 'daily', new Date(2026, 0, 1 + i).toISOString()))
+    expect(copiesToDelete(daily).map((c) => c.id)).toEqual(['d1', 'd0'])
+    expect(toCopyInfo({ id: '2', name: 'backup-daily-x.json', createdTime: 't', appProperties: { kind: 'daily' } })?.kind).toBe('daily')
   })
 
   it('keeps the newest 8 weekly and 3 before-restore copies', () => {
