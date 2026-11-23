@@ -14,6 +14,7 @@ Reply to the user in Hebrew (masculine form), short and direct, no emojis.
 - Product direction: `docs/PRODUCT-DIRECTION.md`. Do not invent beyond it; ask the user.
 - Standing goal: `docs/GOAL.md`. The voice assistant keeps learning actions until it runs almost free, calling Claude only for what is new or unclear. Read it before any voice-assistant work and measure changes against its targets.
 - Hook: `.claude/settings.json` runs `.claude/hooks/git-guard.mjs` before every shell command and blocks `git add -A`/`.`/`-u`, `stash`, `checkout`/`switch`, `restore`, `reset --hard`, `clean` in the shared PC folder (off in cloud sessions). Commit only your own files by name.
+- MCP server (read only): `mcp/server.mjs`, registered in `.mcp.json`, key from the `MASHA_API_KEY` user env var. Lets Claude Code read the calendar through `/api/v1`. See `docs/mcp.md`.
 - Git: remote `https://github.com/shalomeliy/Masha7000`, branch `master`. Standing rule from the user: at the end of every version, commit and push to that repo.
 
 ## Never spend the API key locally

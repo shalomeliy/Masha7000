@@ -1,6 +1,6 @@
 # Spike: MCP server over the outside API (/api/v1)
 
-Date: 2026-11-23. Code: `spikes/mcp/server.mjs` (throwaway), check: `node spikes/mcp/try.mjs`.
+Date: 2026-11-23. Spike code was in `spikes/mcp/`; the full build replaced it with `mcp/server.mjs` (see docs/mcp.md).
 
 ## Question
 
