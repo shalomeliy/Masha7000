@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { CLOUD_VOICES as SERVER_VOICES, readTtsRequest, synthesize, takeChars, ttsMonthlyLimit } from './tts.js'
+import { CLOUD_VOICES as SERVER_VOICES, readTtsRequest, speakBest, synthesize, takeChars, ttsMonthlyLimit, voiceEngine } from './tts.js'
 import { CLOUD_VOICES as APP_VOICES } from '../../src/lib/cloudVoice.js'
 import { kv } from './kv.js'
 import type { Env } from './env.js'
@@ -42,5 +42,53 @@ describe('cloud voice (server)', () => {
     expect(calls[0].body).toMatchObject({ voice: { languageCode: 'he-IL', name: 'he-IL-Chirp3-HD-Charon' }, audioConfig: { audioEncoding: 'MP3' } })
     const no = (async () => new Response('{}', { status: 429 })) as unknown as typeof fetch
     await expect(synthesize('k', { text: 'x', voice: 'Charon', rate: 1 }, no)).rejects.toThrow('429')
+  })
+})
+
+describe('Shali speaks with Gemini + niqqud, Chirp when it cannot', () => {
+  const req = { text: 'שלום', voice: 'Charon' as const, rate: 1 }
+  const wav = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(20)]).toString('base64')
+  const fake = (gemini: 'ok' | 'fail', nikud: 'ok' | 'fail' = 'ok') => {
+    const seen: string[] = []
+    const f = (async (url: string, init: RequestInit) => {
+      seen.push(url)
+      if (url.includes('dicta')) return nikud === 'ok' ? new Response(JSON.stringify([{ word: 'שלום', options: ['שָׁלוֹם'] }])) : new Response('', { status: 500 })
+      if (url.includes('generativelanguage')) {
+        if (gemini === 'fail') return new Response('quota', { status: 429 })
+        const text = (JSON.parse(String(init.body)) as { contents: { parts: { text: string }[] }[] }).contents[0].parts[0].text
+        seen.push(`said:${text}`)
+        return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: wav } }] } }] }))
+      }
+      return new Response(JSON.stringify({ audioContent: Buffer.from('mp3').toString('base64') }))
+    }) as unknown as typeof fetch
+    return { f, seen }
+  }
+  const g = { geminiKey: 'g', geminiVoice: 'Sadaltager' }
+
+  it('is on only with a Gemini key, and TTS_ENGINE=chirp turns it off', () => {
+    expect(voiceEngine({})).toBeNull()
+    expect(voiceEngine({ GEMINI_API_KEY: 'g' })).toEqual(g)
+    expect(voiceEngine({ GEMINI_API_KEY: 'g', GEMINI_VOICE: 'voice_x' })?.geminiVoice).toBe('voice_x')
+    expect(voiceEngine({ GEMINI_API_KEY: 'g', TTS_ENGINE: 'chirp' })).toBeNull()
+  })
+
+  it('reads the niqqud text with Gemini as WAV', async () => {
+    const { f, seen } = fake('ok')
+    const r = await speakBest('k', req, g, f)
+    expect(r).toMatchObject({ engine: 'gemini', type: 'audio/wav' })
+    expect(seen).toContain('said:שָׁלוֹם')
+  })
+
+  it('lets Gemini read the plain text when niqqud fails', async () => {
+    const { f, seen } = fake('ok', 'fail')
+    expect((await speakBest('k', req, g, f)).engine).toBe('gemini')
+    expect(seen).toContain('said:שלום')
+  })
+
+  it('falls back to Chirp (MP3) when Gemini refuses, and uses Chirp alone without a Gemini key', async () => {
+    expect(await speakBest('k', req, g, fake('fail').f)).toMatchObject({ engine: 'chirp', type: 'audio/mpeg' })
+    const { f, seen } = fake('ok')
+    expect((await speakBest('k', req, null, f)).engine).toBe('chirp')
+    expect(seen.some((u) => u.includes('dicta') || u.includes('generativelanguage'))).toBe(false)
   })
 })
