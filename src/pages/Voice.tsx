@@ -17,7 +17,7 @@ import { vlog, voiceReport } from '../lib/voiceLog'
 import { cloudOff } from '../lib/cloudVoice'
 import { hasAiConsent, setAiConsent } from '../lib/aiConsent'
 import { AiConsentCard } from '../components/AiConsentCard'
-import { canListen, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, onSpeaking, onVoicesChanged, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
+import { canListen, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, onSpeaking, onVoicesChanged, whenQuiet, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -167,14 +167,17 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on leaving and coming back only
   }, [active])
 
-  const talk = (text: string) => {
-    if (shownNow.current) speak(text)
-    else missed.current.push(text)
+  const talk = (text: string, onDone?: () => void) => {
+    if (shownNow.current) speak(text, onDone)
+    else {
+      missed.current.push(text)
+      onDone?.()
+    }
   }
 
-  const say = (text: string) => {
+  const say = (text: string, onDone?: () => void) => {
     setLines((l) => [...l, { who: 'app', text }])
-    talk(text)
+    talk(text, onDone)
   }
 
   const reset = () => {
@@ -257,15 +260,18 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
         setPhase('idle')
         return
       }
-      if (text && text !== early) say(text)
       // A button only a tap may press (WhatsApp, sharing): open its screen and make it blink.
       const hint = call.input.pressButton as Hint | ''
       const screen = hint && hint in HINTS ? HINTS[hint] : (call.input.openScreen as Screen | '')
-      if (screen)
-        setTimeout(() => {
-          onNavigate(screen)
-          if (hint && hint in HINTS) showHint(hint)
-        }, text ? 1800 : 0)
+      // The screen opens once the answer has been said: leaving this screen stops the voice, and the
+      // cloud voice takes 2-3 s to start (owner, 2026-11-23: "it said one moment, closed, nothing happened").
+      const go = () => {
+        if (!screen) return
+        onNavigate(screen)
+        if (hint && hint in HINTS) showHint(hint)
+      }
+      if (text && text !== early) say(text, () => whenQuiet(go))
+      else whenQuiet(go)
     } else if (call?.name === 'solve') {
       // The planner computes the options here, in milliseconds; the model then ranks and words them.
       const i = call.input as { kind: Problem['kind']; shiftId: string; workerIds: string[]; date: string }

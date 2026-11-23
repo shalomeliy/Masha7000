@@ -902,7 +902,7 @@ export function carFix(text: string, p: Proposal, d: AppData, L: Learned, now = 
   if (!f.vehicle || f.workerIds.length || f.unsure.length || f.staffing.length || f.description || f.date || f.location || f.shiftKindId) return null
   const rest = f.rest.map(bare)
   if (!f.rest.every((w, k) => carWordOk(w, rest[k]))) return null
-  const others = [p.assignShiftIds, p.workers, p.listItems, p.rememberNotes, p.forgetNoteIds, p.lessons, p.setCrews, p.closeJobs, p.deleteJobIds, p.editWorkers, p.addConstraints].some((x) => x.length)
+  const others = [p.newVehicles ?? [], p.assignShiftIds, p.workers, p.listItems, p.rememberNotes, p.forgetNoteIds, p.lessons, p.setCrews, p.closeJobs, p.deleteJobIds, p.editWorkers, p.addConstraints].some((x) => x.length)
   if (others) return null
   const j = p.jobs[0]
   const e = p.editJobs[0]

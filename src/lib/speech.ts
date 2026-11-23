@@ -240,8 +240,26 @@ const alive = new Set<SpeechSynthesisUtterance>()
 // Whether Shali is speaking now, for the assistant screen (owner, 2026-11-23: nothing on screen showed
 // it while the answer was read). Only the latest text counts: one cut off by the next does not end it.
 let speakingTurn = 0
+let speakingNow = false
 const speakingFns = new Set<(on: boolean) => void>()
-const tellSpeaking = (on: boolean) => speakingFns.forEach((fn) => fn(on))
+const tellSpeaking = (on: boolean) => {
+  speakingNow = on
+  speakingFns.forEach((fn) => fn(on))
+}
+/** Runs `fn` once Shali is quiet: now if nothing is being said, else when it ends (at most `maxMs`). */
+export function whenQuiet(fn: () => void, maxMs = 20_000) {
+  let ran = false
+  const run = () => {
+    if (ran) return
+    ran = true
+    off()
+    clearTimeout(timer)
+    fn()
+  }
+  const off = onSpeaking((on) => !on && run())
+  const timer = setTimeout(run, maxMs)
+  if (!speakingNow && !holding) run()
+}
 /** Calls `fn` with true when Shali starts reading aloud and false when it ends; returns a function to stop. */
 export function onSpeaking(fn: (on: boolean) => void): () => void {
   speakingFns.add(fn)

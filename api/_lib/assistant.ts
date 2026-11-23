@@ -48,6 +48,7 @@ export const SYSTEM = `אתה שאלי, סדרן משמרות ותיק עם 40 �
 2. assignShiftIds: לשבץ אוטומטית עובדים לעבודות קיימות ביומן (id מתוך shifts).
 3. workers: עובד חדש: שם פרטי ושם משפחה (חובה), נייד, הסמכות מתוך הרשימה.
 4. listItems: פריט חדש ברשימה: places (מקומות), jobTypes (מהויות עבודה), certifications (הסמכות), postponeReasons (סיבות דחייה).
+   newVehicles: רכב חדש: plate (מספר רישוי, חובה, בספרות כמו שנאמר, למשל 12-345-67), make (יצרן) ו-model (דגם), "" למה שלא נאמר. בלי מספר רישוי, שאל. כתוב יצרן ודגם כמו שרכבים קיימים ב-vehicles כתובים (למשל Isuzu, D-Max), אחרת כמו שנאמרו. ה-summary אומר את מספר הרישוי, היצרן והדגם.
 5. rememberNotes: משפט קצר וברור לכל דבר שצריך לזכור. forgetNoteIds: id מתוך remembered.
 6. editJobs: לשנות עבודה קיימת (id מתוך shifts או waitingJobs). שדה ריק ("" או []) = בלי שינוי. date בעבודה ביומן = להזיז אותה לתאריך הזה (העובדים נשארים); date בעבודה ממתינה = לשבץ אותה ליומן בתאריך הזה (לעבודה ממתינה בלי kind, הוסף shiftKindId אם המנהל אמר יום או לילה). staffing מחליף את כל הרשימה של מי שצריך. autoAssign: true = שהמערכת תבחר עובדים למקומות הריקים.
 7. setCrews: לשים עובדים מסוימים בעבודה ביומן. crew היא הרשימה המלאה אחרי השינוי (כולל מי שנשאר), כל אחד עם workerId. "תחליף את דני ביוסי" = אותה רשימה עם יוסי במקום דני.
@@ -125,6 +126,7 @@ export const TOOLS: Anthropic.Tool[] = [
         type: 'array',
         items: obj({ list: { type: 'string', enum: ['places', 'jobTypes', 'certifications', 'postponeReasons'] }, name: str }),
       },
+      newVehicles: { type: 'array', items: obj({ plate: str, make: str, model: str }) },
       rememberNotes: strs,
       forgetNoteIds: strs,
       editJobs: {
