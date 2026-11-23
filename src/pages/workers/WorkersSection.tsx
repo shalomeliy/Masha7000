@@ -94,10 +94,13 @@ export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRe
   const departments = useDriveList("departments");
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Worker | null>(null);
+  // Set when the form opens from "לעוד לחץ כאן": it opens straight on the worker's monthly calendar.
+  const [monthFirst, setMonthFirst] = useState(false);
   // Set while the open form came from a worker's answer: run once it is saved (removes the answer).
   const [onSaved, setOnSaved] = useState<(() => void) | null>(null);
   const edit = (w: Worker | null, saved?: () => void) => {
     setEditing(w);
+    setMonthFirst(false);
     setOnSaved(() => saved ?? null);
   };
   const review = (w: Worker, saved: () => void) => edit(w, saved);
@@ -133,7 +136,7 @@ export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRe
 
   const sheets = (
     <>
-      <WorkerSheet editing={editing} onClose={() => edit(null)} onSaved={onSaved} />
+      <WorkerSheet editing={editing} monthFirst={monthFirst} onClose={() => edit(null)} onSaved={onSaved} />
       <RatingsSheet worker={rating} onClose={() => setRating(null)} />
     </>
   );
@@ -310,7 +313,15 @@ export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRe
         <ul className="space-y-2">
           {shown.map((w) => (
             <li key={w.id}>
-              <WorkerCard worker={w} onOpen={() => edit(w)} onRatings={() => setRating(w)} />
+              <WorkerCard
+                worker={w}
+                onOpen={() => edit(w)}
+                onRatings={() => setRating(w)}
+                onMonth={() => {
+                  edit(w);
+                  setMonthFirst(true);
+                }}
+              />
             </li>
           ))}
         </ul>
@@ -344,10 +355,12 @@ function WorkerCard({
   worker: w,
   onOpen,
   onRatings,
+  onMonth,
 }: {
   worker: Worker;
   onOpen: () => void;
   onRatings: () => void;
+  onMonth: () => void;
 }) {
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
@@ -404,7 +417,8 @@ function WorkerCard({
         </span>
         {active.length > 0 && (
           <span className="flex flex-wrap gap-1">
-            {active.slice(0, 2).map((c) => (
+            {/* Only the first constraint; the rest are one tap away in the worker's monthly calendar (the manager's request, 2026-11-23). */}
+            {active.slice(0, 1).map((c) => (
               <span
                 key={c.id}
                 className={`rounded-full px-2 py-0.5 text-xs ${c.kind === "sick" || c === sick ? "bg-rose-500/15 text-rose-200" : "bg-amber-500/15 text-amber-200"}`}
@@ -412,9 +426,26 @@ function WorkerCard({
                 {constraintText(c)}
               </span>
             ))}
-            {active.length > 2 && (
-              <span className="px-1 text-xs text-amber-200">
-                {tx('ועוד {v}', { v: active.length - 2 })}</span>
+            {active.length > 1 && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  // Only the calendar opens, not the plain form under it.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onMonth();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onMonth();
+                }}
+                className="inline-flex min-h-8 items-center px-1 text-xs text-sky-300 underline underline-offset-2"
+              >
+                {tx('לעוד לחץ כאן')}
+              </span>
             )}
           </span>
         )}
@@ -434,10 +465,12 @@ function WorkerCard({
 
 function WorkerSheet({
   editing,
+  monthFirst,
   onClose,
   onSaved,
 }: {
   editing: Worker | null;
+  monthFirst?: boolean;
   onClose: () => void;
   onSaved?: (() => void) | null;
 }) {
@@ -453,7 +486,7 @@ function WorkerSheet({
       onClose={onClose}
       locked={workers.saving}
     >
-      {editing && <WorkerForm key={editing.id} worker={editing} onDone={onClose} onSaved={onSaved ?? undefined} />}
+      {editing && <WorkerForm key={editing.id} worker={editing} monthFirst={monthFirst} onDone={onClose} onSaved={onSaved ?? undefined} />}
     </Sheet>
   );
 }
@@ -480,10 +513,12 @@ type TextField = "firstName" | "lastName" | (typeof OPTIONAL_TEXT)[number];
 
 function WorkerForm({
   worker,
+  monthFirst,
   onDone,
   onSaved,
 }: {
   worker: Worker;
+  monthFirst?: boolean;
   onDone: () => void;
   onSaved?: () => void;
 }) {
@@ -508,6 +543,13 @@ function WorkerForm({
   // The next 3 days, from the draft: a status or an absence just picked shows before saving.
   const agenda = useWorkerAgenda(draft);
   const [monthOpen, setMonthOpen] = useState(false);
+  // Opened from "לעוד לחץ כאן": the calendar opens a moment later, so it lands on top of the form's own sheet
+  // (a child's dialog would otherwise open first and end up under it).
+  useEffect(() => {
+    if (!monthFirst) return;
+    const t = setTimeout(() => setMonthOpen(true));
+    return () => clearTimeout(t);
+  }, [monthFirst]);
   // An X in the personal or monthly calendar: 'sick' is the status sickness (back to work), else a dated constraint.
   const removeAway = (id: string) =>
     setDraft((d) =>
