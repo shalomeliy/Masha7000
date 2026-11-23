@@ -2,7 +2,7 @@
   "mcpServers": {
     "masha7000": {
       "command": "node",
-      "args": ["spikes/mcp/server.mjs"],
+      "args": ["mcp/server.mjs"],
       "env": { "MASHA_API_KEY": "${MASHA_API_KEY:-}" }
     }
   }
