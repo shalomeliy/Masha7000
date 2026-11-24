@@ -263,4 +263,9 @@ export interface AppSettings {
   features?: Partial<Record<import('../lib/features').FeatureId, boolean>>
   /** The smart-onboarding wizard's answers. Absent = a team from before the wizard: everything on, no wizard. */
   onboarding?: { version: 1; answers: Record<string, string>; doneAt: string; businessName?: string }
+  /**
+   * Shifts by hours (smart onboarding stage 2): "שבץ" and constraints check the shift types' hours, and a worker
+   * needs `restHours` between two shifts. Absent = the day / night-until-16:00 model, checked by whole days as before.
+   */
+  shiftHours?: { on: boolean; restHours: number }
 }

@@ -1,7 +1,7 @@
 import { featureRules } from './featureRules'
 import { newId } from './catalog'
 import { dateError } from './dates'
-import { addDays, DAY_NAMES, HEBREW_DAYS, isNightShift, showDate, weekday } from './shifts'
+import { addDays, DAY_NAMES, HEBREW_DAYS, isNightShift, shiftInterval, showDate, weekday } from './shifts'
 import type { AbsenceKind, Constraint, DayPart, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 import { tx } from '../i18n'
 
@@ -136,7 +136,17 @@ export function blockingConstraints(w: Pick<Worker, 'constraints' | 'status' | '
   const days = shiftDays(shift, defs)
   const endTime = shift.urgent ? shift.endTime : defs.find((d) => d.id === shift.shiftDefinitionId)?.endTime
   const endsInEvening = (endTime ?? '16:00') >= EVENING_FROM
-  const blocks = (c: Constraint, d: string, last: boolean) => onDay(c, d) && (c.part !== 'evening' || !last || endsInEvening)
+  const byDays = (c: Constraint, d: string, last: boolean) => onDay(c, d) && (c.part !== 'evening' || !last || endsInEvening)
+  // A team that checks by hours: the constraint's part of the day (or the whole day) must meet the shift's hours.
+  const [from, to] = featureRules.hours ? shiftInterval(shift, defs) : [0, 0]
+  const byHours = (c: Constraint, d: string) => {
+    if (!onDay(c, d)) return false
+    const [a, b] = PART_HOURS[c.part ?? 'all']
+    const [y, m, dd] = d.split('-').map(Number)
+    const dayStart = Date.UTC(y, m - 1, dd) / 60_000
+    return dayStart + a * 60 < to && dayStart + b * 60 > from
+  }
+  const blocks = (c: Constraint, d: string, last: boolean) => (featureRules.hours ? byHours(c, d) : byDays(c, d, last))
   const sick = sickConstraint(w)
   return (
     // Constraints turned off for the team (src/lib/featureRules.ts): only sickness, which is the worker's status, still counts.
@@ -154,6 +164,9 @@ export function blockedCrew(shift: ShiftRecord, workers: Worker[], defs: ShiftDe
 }
 
 const EVENING_FROM = '17:00'
+
+// The hours of each part of the day, for a team that checks shifts by hours: [from, to) in hours of that day.
+const PART_HOURS: Record<DayPart | 'all', [number, number]> = { morning: [0, 12], noon: [12, 17], evening: [17, 24], all: [0, 24] }
 
 // Reading a worker's words: which part of the day they mean. No server, so a word table, not a
 // language model. Words match inside longer words, so Hebrew prefixes (ב, ל, ה, ו) need no care.

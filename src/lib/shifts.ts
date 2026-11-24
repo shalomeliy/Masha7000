@@ -1,5 +1,5 @@
 import { dayNames } from '../i18n'
-import { SHIFT_END, endsNextDay, newId } from './catalog'
+import { SHIFT_END, SHIFT_START, endsNextDay, newId } from './catalog'
 import { dateError, todayIso } from './dates'
 import type { PendingJob, ShiftClosure, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
@@ -47,6 +47,29 @@ export function isNightShift(r: ShiftRecord, defs: ShiftDefinition[]): boolean {
   if (r.urgent) return true
   const def = defs.find((d) => d.id === r.shiftDefinitionId)
   return def ? endsNextDay(def) : false
+}
+
+const atMinute = (date: string, hhmm: string) => {
+  const [y, m, d] = date.split('-').map(Number)
+  const [h, mi] = hhmm.split(':').map(Number)
+  return Date.UTC(y, m - 1, d, h, mi) / 60_000
+}
+
+/** A shift's start and end time: its own (urgent) or its type's. */
+export function shiftTimes(r: ShiftRecord, defs: ShiftDefinition[]): { start: string; end: string } {
+  const def = defs.find((d) => d.id === r.shiftDefinitionId)
+  return { start: r.startTime ?? def?.startTime ?? SHIFT_START, end: r.endTime ?? def?.endTime ?? SHIFT_END }
+}
+
+/**
+ * When a shift runs, in minutes: [start, end). A type whose end is not after its start (23:00-07:00) or that
+ * ends the next day runs into the next day; an urgent shift until its own end date. Used only by teams that
+ * check shifts by hours (settings.shiftHours).
+ */
+export function shiftInterval(r: ShiftRecord, defs: ShiftDefinition[]): [number, number] {
+  const { start, end } = shiftTimes(r, defs)
+  const endDate = r.endDate ?? (isNightShift(r, defs) ? addDays(r.date, 1) : r.date)
+  return [atMinute(r.date, start), atMinute(endDate, end)]
 }
 
 /** A new urgent shift opened now: starts today at this minute, ends tomorrow 16:00 unless edited. */

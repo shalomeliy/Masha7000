@@ -77,7 +77,7 @@ function SignedIn() {
   // The wizard: a new team (no onboarding record and no workers ever saved), or asked for again from Settings.
   // Teams from before the wizard (the owner's) never see it on their own: no onboarding record = everything on.
   const fresh = loaded && !settings?.onboarding && workers.missing
-  applyFeatureRules(flags)
+  applyFeatureRules(flags, settings?.shiftHours)
   // The voice assistant is the main screen of whoever may use it (the owner, and managers the owner
   // opened it to in Settings); locally it is always on. Hidden when the team turned Shali off.
   // In an iPhone home-screen app it listens through the server (src/lib/serverListen.ts, back 2026-11-23).

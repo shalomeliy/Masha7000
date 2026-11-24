@@ -3,7 +3,7 @@ import { fullName, isActive, neededCerts } from './catalog'
 import { featureRules } from './featureRules'
 import { validOn } from './certExpiry'
 import { blockingConstraint, constraintText } from './constraints'
-import { addDays, dayName, isNightShift, showDate, weekOf, weekShiftCount } from './shifts'
+import { addDays, dayName, isNightShift, shiftInterval, showDate, weekOf, weekShiftCount } from './shifts'
 import { canShare } from './workKinds'
 import type { Constraint, CrewMember, ShiftDefinition, ShiftRecord, StaffSlot, Worker } from '../types/models'
 
@@ -56,16 +56,30 @@ function span(r: ShiftRecord, defs: ShiftDefinition[]): [string, string] {
 function dayAfterNight(night: ShiftRecord, day: ShiftRecord, defs: ShiftDefinition[]): boolean {
   const def = defs.find((d) => d.id === night.shiftDefinitionId)
   if (night.urgent || night.endDate || !def || !isNightShift(night, defs) || def.thenJob) return false
+  // By hours, only a "night until 16:00 tomorrow" type (marked endsNextDay) keeps the hotel rule; a 23:00-07:00 night does not.
+  if (featureRules.hours && def.endsNextDay !== true) return false
   return !day.endDate && !isNightShift(day, defs) && day.date === addDays(night.date, 1)
 }
 
-/** Another saved shift the worker is in that runs on one of this shift's days, if any. */
+/**
+ * Another saved shift the worker is in at the same time, if any. By whole days (a shift on one of this
+ * shift's days), or, for a team that checks by hours, one whose hours overlap or leave less than the rest hours between.
+ */
 export function busyWith(workerId: string, shift: ShiftRecord, records: ShiftRecord[], defs: ShiftDefinition[]): ShiftRecord | undefined {
+  const others = records.filter((r) => r.id !== shift.id && r.crew.some((c) => c.workerId === workerId))
+  const allowed = (r: ShiftRecord) => dayAfterNight(r, shift, defs) || dayAfterNight(shift, r, defs)
+  if (featureRules.hours) {
+    const [a, b] = shiftInterval(shift, defs)
+    const rest = featureRules.restHours * 60
+    return others.find((r) => {
+      const [c, d] = shiftInterval(r, defs)
+      return c < b + rest && d + rest > a && !allowed(r)
+    })
+  }
   const [from, to] = span(shift, defs)
-  return records.find((r) => {
-    if (r.id === shift.id || !r.crew.some((c) => c.workerId === workerId)) return false
+  return others.find((r) => {
     const [a, b] = span(r, defs)
-    return a <= to && b >= from && !dayAfterNight(r, shift, defs) && !dayAfterNight(shift, r, defs)
+    return a <= to && b >= from && !allowed(r)
   })
 }
 
