@@ -642,7 +642,7 @@ function WorkerForm({
             onClick={() => setDepartmentOpen(true)}
             className={`inline-flex min-h-10 items-center font-semibold ${departmentColor(draft.departmentId, departments.items)}`}
           >
-            {departments.items.find((d) => d.id === draft.departmentId)?.name ?? tx('בלי מחלקה')}
+            {departments.items.find((d) => d.id === draft.departmentId)?.name ?? tx('מנהלה')}
           </button>
         </p>
         <p className="flex items-center gap-1">
@@ -659,7 +659,7 @@ function WorkerForm({
       <Sheet open={departmentOpen} title={tx('מחלקה')} onClose={() => setDepartmentOpen(false)}>
         {departments.items.length ? (
           <ul className="space-y-2">
-            {[{ id: "", name: tx('בלי מחלקה') }, ...departments.items].map((dep) => {
+            {[{ id: "", name: tx('מנהלה') }, ...departments.items].map((dep) => {
               const chosen = (draft.departmentId ?? "") === dep.id;
               return (
                 <li key={dep.id || "none"}>
