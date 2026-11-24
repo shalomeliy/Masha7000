@@ -5,7 +5,7 @@ import { canSpeak, speak, stopSpeaking } from '../../lib/speech'
 import { tx } from '../../i18n'
 
 // A manager writes or dictates an idea for the app; it can be read back aloud before sending, and
-// the server emails it to the app's maker (api/feedback.ts). The address never reaches the browser.
+// the server emails it to the app's maker (api/_lib/routes/feedback.ts). The address never reaches the browser.
 
 const MAX = 4000
 

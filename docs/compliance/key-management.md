@@ -8,7 +8,7 @@
 |---|---|---|
 | תעבורה | HTTPS בלבד; HSTS שנתיים עם preload; `upgrade-insecure-requests` | `vercel.json` |
 | עוגיות כניסה, טוקן Drive, סודות TOTP, טפסים, יומנים בשרת | AES-256-GCM, IV אקראי של 12 בתים לכל ערך, תגית אימות | `api/_lib/crypto.ts` |
-| טלפון ות"ז של מצטרפים, קודי גיבוי | SHA-256 עם `SESSION_KEY` כ"מלח" | `api/join.ts`, `api/mfa.ts` |
+| טלפון ות"ז של מצטרפים, קודי גיבוי | SHA-256 עם `SESSION_KEY` כ"מלח" | `api/_lib/routes/join.ts`, `api/_lib/routes/mfa.ts` |
 | מפתחות API חיצוניים | רק SHA-256 של המפתח נשמר; המפתח עצמו מוצג פעם אחת | `api/_lib/apiKeys.ts` |
 | מנוחה אצל הספקים | Upstash, Google, Vercel מצפינים דיסקים | (הספק) |
 

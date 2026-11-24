@@ -1,9 +1,9 @@
-import { open, randomToken, seal, sha256url } from './_lib/crypto.js'
-import { readEnv, type Env } from './_lib/env.js'
-import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
-import { KEYS, kv } from './_lib/kv.js'
-import { overLimit } from './_lib/rate.js'
-import { requireManager } from './_lib/session.js'
+import { open, randomToken, seal, sha256url } from '../crypto.js'
+import { readEnv, type Env } from '../env.js'
+import { clientIp, guarded, json, readJson, sameOrigin } from '../http.js'
+import { KEYS, kv } from '../kv.js'
+import { overLimit } from '../rate.js'
+import { requireManager } from '../session.js'
 
 // The workers' details form. A manager opens it and shares one link (/join/<code>) in WhatsApp.
 // Workers, not signed in to anything, fill it; each answer waits here, sealed, until a manager

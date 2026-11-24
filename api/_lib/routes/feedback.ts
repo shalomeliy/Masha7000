@@ -1,8 +1,8 @@
-import { readEnv } from './_lib/env.js'
-import { FEEDBACK_TO_DEFAULT, faultDetails, faultMail, faultRecipient, faultWhatsapp, feedbackMail, feedbackText, sendFeedback } from './_lib/feedback.js'
-import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
-import { overLimit } from './_lib/rate.js'
-import { requireManager } from './_lib/session.js'
+import { readEnv } from '../env.js'
+import { FEEDBACK_TO_DEFAULT, faultDetails, faultMail, faultRecipient, faultWhatsapp, feedbackMail, feedbackText, sendFeedback } from '../feedback.js'
+import { clientIp, guarded, json, readJson, sameOrigin } from '../http.js'
+import { overLimit } from '../rate.js'
+import { requireManager } from '../session.js'
 
 // POST /api/feedback { text }: a signed-in manager's request for a new feature, emailed to the
 // app's maker. With { kind: 'fault', text, details } it is a fault report, emailed to the

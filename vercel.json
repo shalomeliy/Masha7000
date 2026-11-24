@@ -4,7 +4,19 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": { "api/assistant.ts": { "maxDuration": 60 } },
-  "rewrites": [{ "source": "/api/v1/:path*", "destination": "/api/v1?path=:path*" }, { "source": "/((?!api/|assets/|icons/|sw.js|manifest.webmanifest|privacy.html|terms.html|accessibility.html|delete-account.html|.well-known/).*)", "destination": "/index.html" }],
+  "rewrites": [
+    { "source": "/api/v1/:path*", "destination": "/api/v1?path=:path*" },
+    { "source": "/api/auth/start", "destination": "/api/signin?fn=auth-start" },
+    { "source": "/api/auth/callback", "destination": "/api/signin?fn=auth-callback" },
+    { "source": "/api/token", "destination": "/api/signin?fn=token" },
+    { "source": "/api/logout", "destination": "/api/signin?fn=logout" },
+    { "source": "/api/mfa", "destination": "/api/signin?fn=mfa" },
+    { "source": "/api/owner", "destination": "/api/manage?fn=owner" },
+    { "source": "/api/feedback", "destination": "/api/manage?fn=feedback" },
+    { "source": "/api/claude-log", "destination": "/api/manage?fn=claude-log" },
+    { "source": "/api/join", "destination": "/api/forms?fn=join" },
+    { "source": "/api/constraints", "destination": "/api/forms?fn=constraints" },
+    { "source": "/((?!api/|assets/|icons/|sw.js|manifest.webmanifest|privacy.html|terms.html|accessibility.html|delete-account.html|.well-known/).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/(.*)",

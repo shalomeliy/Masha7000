@@ -1,11 +1,11 @@
-import { audit } from './_lib/audit.js'
-import { open, previousKey, seal, sha256url } from './_lib/crypto.js'
-import { readEnv, type Env } from './_lib/env.js'
-import { clearCookie, clientIp, guarded, json, readJson, sameOrigin, SESSION_COOKIE } from './_lib/http.js'
-import { KEYS, kv } from './_lib/kv.js'
-import { overLimit } from './_lib/rate.js'
-import { endAllSessions, isAllowed, isOwner, markVerified, normalizeEmail, readSession, requireManager, type Session } from './_lib/session.js'
-import { base32, fromBase32, matchStep, otpauthUri } from './_lib/totp.js'
+import { audit } from '../audit.js'
+import { open, previousKey, seal, sha256url } from '../crypto.js'
+import { readEnv, type Env } from '../env.js'
+import { clearCookie, clientIp, guarded, json, readJson, sameOrigin, SESSION_COOKIE } from '../http.js'
+import { KEYS, kv } from '../kv.js'
+import { overLimit } from '../rate.js'
+import { endAllSessions, isAllowed, isOwner, markVerified, normalizeEmail, readSession, requireManager, type Session } from '../session.js'
+import { base32, fromBase32, matchStep, otpauthUri } from '../totp.js'
 
 // POST /api/mfa { action }: two-step sign-in. After Google says who you are, an authenticator app on
 // your phone gives a 6-digit code that changes every 30 seconds; this device works only after one is typed.
