@@ -80,6 +80,24 @@ describe('proposalErrors', () => {
   it('auto-assign needs a date', () => expect(proposalErrors(proposal({ jobs: [job({ date: '', autoAssign: true })] }), data())).toHaveLength(1))
 })
 
+describe('a new vehicle by voice (owner, 2026-11-23)', () => {
+  const car = { plate: '12-345-67', make: 'Isuzu', model: 'D-Max' }
+  it('adds the card with its three fields and says its last digits, make and model', () => {
+    const r = applyProposal(proposal({ newVehicles: [car] }), data())
+    expect(r.data.vehicles).toHaveLength(1)
+    expect(r.data.vehicles[0].values).toEqual({ plate: '12-345-67', make: 'Isuzu', model: 'D-Max' })
+    expect(r.changed.has('vehicles')).toBe(true)
+    expect(r.report.join(' ')).toContain('567, Isuzu D-Max')
+    expect(proposalErrors(proposal({ newVehicles: [car] }), data())).toEqual([])
+  })
+  it('refuses one with no plate, or a plate already there', () => {
+    expect(proposalErrors(proposal({ newVehicles: [{ ...car, plate: '' }] }), data())).toHaveLength(1)
+    const d = { ...data(), vehicles: [{ id: 'v1', values: { plate: '1234567' } }] }
+    expect(proposalErrors(proposal({ newVehicles: [car] }), d)).toHaveLength(1)
+    expect(proposalErrors(proposal({ newVehicles: [car, car] }), data())).toHaveLength(1)
+  })
+})
+
 describe('jobStaffing', () => {
   it('one place per person', () => expect(jobStaffing(job(), data()).staffing).toEqual([{ certificationIds: ['climb'] }, { certificationIds: ['climb'] }, { certificationIds: ['cam'] }]))
 

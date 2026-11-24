@@ -29,6 +29,11 @@ export type AuditEvent =
   | 'apikey-create'
   | 'apikey-revoke'
   | 'account-delete'
+  | 'access-request'
+  | 'team-approve'
+  | 'team-reject'
+  | 'team-change'
+  | 'team-remove'
 
 export interface AuditEntry {
   at: string

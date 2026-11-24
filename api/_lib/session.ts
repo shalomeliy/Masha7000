@@ -2,6 +2,7 @@ import { open, randomToken, seal } from './crypto.js'
 import type { Env } from './env.js'
 import { KEYS, kv } from './kv.js'
 import { json, readCookie, SESSION_COOKIE, SESSION_DAYS, setCookie } from './http.js'
+import { teamOf, type Team } from './team.js'
 
 // A signed-in device = a sealed { sid } cookie plus a sealed record in the store, 180 days.
 // The record is what counts: signing out, "sign out everywhere", or the owner removing an email
@@ -63,18 +64,46 @@ export async function endAllSessions(env: Env, email: string, except?: string) {
 
 export const isOwner = (env: Env, email: string) => email === env.ownerEmail
 
+/** In a team: the root team (the owner and his `allowed` list) or a customer team the owner approved. */
 export async function isAllowed(env: Env, email: string) {
-  return isOwner(env, email) || kv.isMember(env, KEYS.allowed, email)
+  return (await teamOf(env, email)) !== null
 }
 
-/** The owner, or an allowed manager the owner opened the voice assistant to (same monthly budget). */
-export async function canUseAssistant(env: Env, email: string) {
-  return isOwner(env, email) || ((await isAllowed(env, email)) && kv.isMember(env, KEYS.assistant, email))
+/**
+ * May use Shali. Root: the owner, or a manager the owner opened it to (same monthly budget).
+ * A customer team: every manager, free commands only (canUseClaude says when more).
+ */
+export async function canUseAssistant(env: Env, email: string, team?: Team | null) {
+  const t = team === undefined ? await teamOf(env, email) : team
+  if (!t) return false
+  if (!t.isRoot) return true
+  return isOwner(env, email) || kv.isMember(env, KEYS.assistant, email)
 }
 
-/** The owner, or a manager the owner opened Shali to with Claude too (both spend the owner's monthly budget). */
-export async function canUseClaude(env: Env, email: string) {
-  return isOwner(env, email) || ((await canUseAssistant(env, email)) && kv.isMember(env, KEYS.assistantClaude, email))
+/**
+ * May ask Claude (the owner's budget). Root: the owner, or a manager the owner opened Shali to with
+ * Claude too. A customer team: only once the owner turned Claude on for that team.
+ */
+export async function canUseClaude(env: Env, email: string, team?: Team | null) {
+  const t = team === undefined ? await teamOf(env, email) : team
+  if (!t) return false
+  if (!t.isRoot) return t.record.claude === true
+  return isOwner(env, email) || ((await canUseAssistant(env, email, t)) && kv.isMember(env, KEYS.assistantClaude, email))
+}
+
+/**
+ * The cloud voice and the server's speech-to-text: they spend the owner's monthly caps. Root: whoever
+ * may use Shali. A customer team: only with Claude on (until then Shali speaks with the phone's voice).
+ */
+export async function canUseCloudVoice(env: Env, email: string, team?: Team | null) {
+  const t = team === undefined ? await teamOf(env, email) : team
+  if (!t) return false
+  return t.isRoot ? canUseAssistant(env, email, t) : t.record.claude === true
+}
+
+/** What the app is told about who signed in. isOwner = owns the team he is in (root or a customer's). */
+export async function whoIs(env: Env, email: string, team: Team) {
+  return { email, isOwner: team.isTeamOwner, root: team.isRoot, assistant: await canUseAssistant(env, email, team) }
 }
 
 export const hasMfa = async (env: Env, email: string) => (await kv.get(env, KEYS.mfa(email))) !== null
@@ -83,15 +112,16 @@ export const hasMfa = async (env: Env, email: string) => (await kv.get(env, KEYS
  * The signed-in, still allowed, two-step verified person, or the answer that refuses them.
  * 'mfa-required' says whether they still need to set up the app (enrolled: false) or just type a code.
  */
-export async function requireManager(env: Env, req: Request): Promise<{ session: Session } | { refuse: Response }> {
+export async function requireManager(env: Env, req: Request): Promise<{ session: Session; team: Team } | { refuse: Response }> {
   const session = await readSession(env, req)
   if (!session) return { refuse: json({ reason: 'no-session' }, 401) }
-  if (!(await isAllowed(env, session.email))) return { refuse: json({ reason: 'not-allowed' }, 403) }
+  // The team is looked up on every request, never kept in the session (the security review's rule).
+  const team = await teamOf(env, session.email)
+  if (!team) return { refuse: json({ reason: 'not-allowed' }, 403) }
   if (!session.mfa) {
-    const who = { email: session.email, isOwner: isOwner(env, session.email), assistant: await canUseAssistant(env, session.email) }
-    return { refuse: json({ reason: 'mfa-required', enrolled: await hasMfa(env, session.email), ...who }, 401) }
+    return { refuse: json({ reason: 'mfa-required', enrolled: await hasMfa(env, session.email), ...(await whoIs(env, session.email, team)) }, 401) }
   }
-  return { session }
+  return { session, team }
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

@@ -111,7 +111,7 @@ afterEach(() => {
 })
 
 async function key(write = false, personal = false) {
-  return (await createKey(readEnv()!, { name: 'test', scopes: write ? ['read', 'write'] : ['read'], personal }))!.key
+  return (await createKey(readEnv()!, 'root', { name: 'test', scopes: write ? ['read', 'write'] : ['read'], personal }))!.key
 }
 
 const call = (handler: (r: Request) => Promise<Response>, path: string, k: string | null, method = 'GET', body?: unknown) =>

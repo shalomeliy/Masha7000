@@ -31,7 +31,7 @@ import type {
 import { tx } from '../i18n'
 import { asTaskList, oneLine } from './taskList'
 import { carText, last3, pickCar, readCar, saysCar } from './vehicleRef'
-import { makeOf, modelOf, plateOf } from './vehicles'
+import { cleanVehicle, makeOf, MAKE, MODEL, modelOf, PLATE, plateOf, vehicleError } from './vehicles'
 
 export interface AppData {
   certifications: Certification[]
@@ -72,6 +72,8 @@ export interface Proposal extends Edits {
   assignShiftIds: string[]
   workers: { firstName: string; lastName: string; mobilePhone: string; certificationIds: string[] }[]
   listItems: { list: ListName; name: string }[]
+  // New vehicles: the card's three fields (owner, 2026-11-23: "add a vehicle, Isuzu D-Max" did nothing).
+  newVehicles?: { plate: string; make: string; model: string }[]
   rememberNotes: string[] // things the manager asked the assistant to remember from now on
   lessons: string[] // rules the assistant learned from the manager in this conversation; saved with the yes
   forgetNoteIds: string[]
@@ -255,7 +257,14 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
     const e = nameError(item.name, d[item.list])
     if (e) errors.push(`"${item.name}": ${e}`)
   }
-  const total = p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length + editCount(p)
+  const cars = [...d.vehicles]
+  for (const car of p.newVehicles ?? []) {
+    const v = newCar(car)
+    const e = vehicleError(v, cars)
+    if (e) errors.push(`רכב "${car.plate}": ${e}`)
+    cars.push(v)
+  }
+  const total = (p.newVehicles?.length ?? 0) + p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length + editCount(p)
   // Edits are tried on a copy: what the screens would refuse (a worker in two jobs, a missing certification) goes back.
   errors.push(...applyProposal(p, d).errors)
   if (total === 0) errors.push('אין בהצעה שום שינוי')
@@ -318,6 +327,13 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     changed.add(item.list)
   }
   if (p.listItems.length) report.push(p.listItems.length === 1 ? tx('הוספתי פריט לרשימה') : tx('הוספתי {length} פריטים לרשימות', { length: p.listItems.length }))
+
+  for (const car of p.newVehicles ?? []) {
+    const v = newCar(car)
+    d.vehicles = [...d.vehicles, v]
+    changed.add('vehicles')
+    report.push(tx('הוספתי את רכב {car}', { car: carText(v) }))
+  }
 
   for (const w of p.workers) {
     d.workers = [
@@ -580,6 +596,9 @@ const LISTS: ListName[] = ['places', 'jobTypes', 'certifications', 'postponeReas
 const OUTCOMES = ['done', 'partial', 'postponed'] as const
 const STATUSES = ['', 'active', 'sick', 'inactive'] as const
 
+/** A vehicle card from what the manager said: plate, make, model (src/lib/vehicles.ts). */
+const newCar = (c: { plate: string; make: string; model: string }) => cleanVehicle({ id: newId(), values: { [PLATE]: c.plate, [MAKE]: c.make, [MODEL]: c.model } })
+
 export function normalizeProposal(raw: unknown): Proposal {
   const p = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   return {
@@ -603,6 +622,7 @@ export function normalizeProposal(raw: unknown): Proposal {
     assignShiftIds: SS(p.assignShiftIds),
     workers: A(p.workers, (w) => ({ firstName: S(w.firstName), lastName: S(w.lastName), mobilePhone: S(w.mobilePhone), certificationIds: SS(w.certificationIds) })),
     listItems: A(p.listItems, (i) => ({ list: i.list as ListName, name: S(i.name) })).filter((i) => LISTS.includes(i.list)),
+    newVehicles: A(p.newVehicles, (v) => ({ plate: S(v.plate), make: S(v.make), model: S(v.model) })),
     rememberNotes: SS(p.rememberNotes),
     lessons: SS(p.lessons),
     forgetNoteIds: SS(p.forgetNoteIds),

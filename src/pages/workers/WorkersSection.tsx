@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useFeatures } from '../../lib/data/useFeatures'
 import { ArrowRight, Phone, Search, UserX, X } from "lucide-react";
 import {
   Chips,
@@ -39,7 +40,7 @@ import { departmentColor } from "../../lib/departmentColor";
 import { searchWorkers } from "../../lib/workerSearch";
 import { AverageStars, CertStarsField, RatingsSheet } from "./CertStars";
 import { keepHeldRatings } from "../../lib/certRatings";
-import { expiryCounts, expiryNote, expiryState, keepHeldExpiry } from "../../lib/certExpiry";
+import { expiryNote, expiryState, keepHeldExpiry } from "../../lib/certExpiry";
 import { ChoiceList } from '../../components/ChoiceList'
 
 const blankWorker = (): Worker => ({
@@ -94,10 +95,13 @@ export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRe
   const departments = useDriveList("departments");
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Worker | null>(null);
+  // Set when the form opens from "לעוד לחץ כאן": it opens straight on the worker's monthly calendar.
+  const [monthFirst, setMonthFirst] = useState(false);
   // Set while the open form came from a worker's answer: run once it is saved (removes the answer).
   const [onSaved, setOnSaved] = useState<(() => void) | null>(null);
   const edit = (w: Worker | null, saved?: () => void) => {
     setEditing(w);
+    setMonthFirst(false);
     setOnSaved(() => saved ?? null);
   };
   const review = (w: Worker, saved: () => void) => edit(w, saved);
@@ -133,7 +137,7 @@ export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRe
 
   const sheets = (
     <>
-      <WorkerSheet editing={editing} onClose={() => edit(null)} onSaved={onSaved} />
+      <WorkerSheet editing={editing} monthFirst={monthFirst} onClose={() => edit(null)} onSaved={onSaved} />
       <RatingsSheet worker={rating} onClose={() => setRating(null)} />
     </>
   );
@@ -310,7 +314,15 @@ export function WorkersSection({ tab, addRequest = 0 }: { tab: WorkersTab; addRe
         <ul className="space-y-2">
           {shown.map((w) => (
             <li key={w.id}>
-              <WorkerCard worker={w} onOpen={() => edit(w)} onRatings={() => setRating(w)} />
+              <WorkerCard
+                worker={w}
+                onOpen={() => edit(w)}
+                onRatings={() => setRating(w)}
+                onMonth={() => {
+                  edit(w);
+                  setMonthFirst(true);
+                }}
+              />
             </li>
           ))}
         </ul>
@@ -340,48 +352,29 @@ function TabIntro({ title, text }: { title: string; text: string }) {
   );
 }
 
-/**
- * One red "!" beside the worker's name when any of their certifications already expired or ends within
- * 30 days (the manager's request, 2026-11-09, instead of two counts). Nothing when all are fine.
- */
-function ExpiryAlert({ worker, certIds, today }: { worker: Worker; certIds: string[]; today: string }) {
-  const { soon, expired } = expiryCounts(worker, certIds, today);
-  if (!soon && !expired) return null;
-  const label = [
-    expired > 0 ? tx('הסמכות שפג תוקפן: {n}', { n: expired }) : "",
-    soon > 0 ? tx('הסמכות שעומדות לפוג: {n}', { n: soon }) : "",
-  ].filter(Boolean).join(", ");
-  return (
-    <span
-      role="img"
-      aria-label={label}
-      title={label}
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-red-600 text-sm font-bold text-white"
-    >
-      !
-    </span>
-  );
-}
-
 function WorkerCard({
   worker: w,
   onOpen,
   onRatings,
+  onMonth,
 }: {
   worker: Worker;
   onOpen: () => void;
   onRatings: () => void;
+  onMonth: () => void;
 }) {
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
-  const certList = certs.items.filter((c) => w.certificationIds.includes(c.id));
-  const department = departments.items.find(
+  const { isOn } = useFeatures();
+  // Features turned off for the team (Settings > מסכים ותכונות) are not shown on the card; the data stays.
+  const certList = isOn("certs") ? certs.items.filter((c) => w.certificationIds.includes(c.id)) : [];
+  const department = isOn("departments") ? departments.items.find(
     (d) => d.id === w.departmentId,
-  )?.name;
+  )?.name : undefined;
   const today = todayIso();
   // A sickness saved as the worker's status ("חולה עד") is shown like one saved as a dated constraint.
   const sick = sickConstraint(w);
-  const active = [...(sick ? [sick] : []), ...w.constraints].filter((c) => !isOver(c, today));
+  const active = [...(sick ? [sick] : []), ...(isOn("constraints") ? w.constraints : [])].filter((c) => !isOver(c, today));
   const state = workerState(w, today);
 
   const dial = telHref(w.mobilePhone);
@@ -399,11 +392,8 @@ function WorkerCard({
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
           <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
           <span className="max-w-full truncate">{fullName(w)}</span>
-          {/* One average star (a tap shows the stars in each certification) and the expiry "!", kept together. */}
-          <span className="flex shrink-0 items-center gap-1.5">
-            <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
-            <ExpiryAlert worker={w} certIds={certList.map((c) => c.id)} today={today} />
-          </span>
+          {/* One average star (a tap shows the stars in each certification). Expiry is marked on the certification itself below. */}
+          {isOn("certs") && <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />}
         </span>
         <span className="flex flex-wrap gap-1">
           {department && (
@@ -412,13 +402,23 @@ function WorkerCard({
             </span>
           )}
           {certList.map((c) => {
-            const expiry = expiryState(w, c.id, today);
+            // Only the certification that expired (red frame) or ends within 30 days (orange frame) is marked,
+            // instead of one "!" for the whole worker (the manager's request, 2026-11-23).
+            const expiry = isOn("certExpiry") ? expiryState(w, c.id, today) : null;
+            const note = isOn("certExpiry") ? expiryNote(w, c.id, today) : null;
             return (
               <span
                 key={c.id}
-                title={expiryNote(w, c.id, today) ?? undefined}
-                className={`rounded-full px-2 py-0.5 text-xs ${expiry === "expired" ? "bg-red-500/15 text-red-200" : expiry === "soon" ? "bg-orange-500/15 text-orange-200" : "bg-emerald-500/15 text-emerald-200"}`}
+                title={note ?? undefined}
+                aria-label={note ? `${c.name}, ${note}` : undefined}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${expiry === "expired" ? "border-red-500 bg-red-500/15 text-red-200" : expiry === "soon" ? "border-orange-400 bg-orange-500/15 text-orange-200" : "border-transparent bg-emerald-500/15 text-emerald-200"}`}
               >
+                {/* An expired one also gets a small red "!" inside its own chip (2026-11-23). */}
+                {expiry === "expired" && (
+                  <span aria-hidden className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold leading-none text-white">
+                    !
+                  </span>
+                )}
                 {c.name}
               </span>
             );
@@ -426,7 +426,8 @@ function WorkerCard({
         </span>
         {active.length > 0 && (
           <span className="flex flex-wrap gap-1">
-            {active.slice(0, 2).map((c) => (
+            {/* Only the first constraint; the rest are one tap away in the worker's monthly calendar (the manager's request, 2026-11-23). */}
+            {active.slice(0, 1).map((c) => (
               <span
                 key={c.id}
                 className={`rounded-full px-2 py-0.5 text-xs ${c.kind === "sick" || c === sick ? "bg-rose-500/15 text-rose-200" : "bg-amber-500/15 text-amber-200"}`}
@@ -434,9 +435,26 @@ function WorkerCard({
                 {constraintText(c)}
               </span>
             ))}
-            {active.length > 2 && (
-              <span className="px-1 text-xs text-amber-200">
-                {tx('ועוד {v}', { v: active.length - 2 })}</span>
+            {active.length > 1 && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  // Only the calendar opens, not the plain form under it.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onMonth();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onMonth();
+                }}
+                className="inline-flex min-h-8 items-center px-1 text-xs text-sky-300 underline underline-offset-2"
+              >
+                {tx('לעוד לחץ כאן')}
+              </span>
             )}
           </span>
         )}
@@ -456,10 +474,12 @@ function WorkerCard({
 
 function WorkerSheet({
   editing,
+  monthFirst,
   onClose,
   onSaved,
 }: {
   editing: Worker | null;
+  monthFirst?: boolean;
   onClose: () => void;
   onSaved?: (() => void) | null;
 }) {
@@ -475,16 +495,16 @@ function WorkerSheet({
       onClose={onClose}
       locked={workers.saving}
     >
-      {editing && <WorkerForm key={editing.id} worker={editing} onDone={onClose} onSaved={onSaved ?? undefined} />}
+      {editing && <WorkerForm key={editing.id} worker={editing} monthFirst={monthFirst} onDone={onClose} onSaved={onSaved ?? undefined} />}
     </Sheet>
   );
 }
 
+// Two phones only: the mobile and one emergency phone with whose it is (the manager's request, 2026-11-23).
+// Home phone, a second emergency phone and notes left the form; values saved before stay in the file.
 const PHONES = [
   ["mobilePhone", tx('טלפון נייד (חובה)')],
-  ["homePhone", tx('טלפון בבית')],
-  ["emergencyPhone1", tx('טלפון חירום 1')],
-  ["emergencyPhone2", tx('טלפון חירום 2')],
+  ["emergencyPhone1", tx('טלפון חירום')],
 ] as const;
 
 const OPTIONAL_TEXT = [
@@ -493,22 +513,28 @@ const OPTIONAL_TEXT = [
   "notes",
   "idNumber",
   "personalNumber",
+  "homePhone",
+  "emergencyPhone2",
+  "emergencyName",
   ...PHONES.map(([f]) => f),
 ] as const;
 type TextField = "firstName" | "lastName" | (typeof OPTIONAL_TEXT)[number];
 
 function WorkerForm({
   worker,
+  monthFirst,
   onDone,
   onSaved,
 }: {
   worker: Worker;
+  monthFirst?: boolean;
   onDone: () => void;
   onSaved?: () => void;
 }) {
   const workers = useDriveList("workers");
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
+  const { isOn } = useFeatures();
   // A sickness that has ended opens as active, so the form shows what is true today.
   const [draft, setDraft] = useState<Worker>(() =>
     worker.status === "sick" && !sickNow(worker, todayIso())
@@ -527,6 +553,13 @@ function WorkerForm({
   // The next 3 days, from the draft: a status or an absence just picked shows before saving.
   const agenda = useWorkerAgenda(draft);
   const [monthOpen, setMonthOpen] = useState(false);
+  // Opened from "לעוד לחץ כאן": the calendar opens a moment later, so it lands on top of the form's own sheet
+  // (a child's dialog would otherwise open first and end up under it).
+  useEffect(() => {
+    if (!monthFirst) return;
+    const t = setTimeout(() => setMonthOpen(true));
+    return () => clearTimeout(t);
+  }, [monthFirst]);
   // An X in the personal or monthly calendar: 'sick' is the status sickness (back to work), else a dated constraint.
   const removeAway = (id: string) =>
     setDraft((d) =>
@@ -635,7 +668,7 @@ function WorkerForm({
       {/* Small on purpose: one line under the name, the department first and the status after it.
           A tap on either opens its own screen (department: the user's request, 2026-11-11). */}
       <div className="-my-3 flex flex-wrap items-center gap-x-4 text-xs text-slate-400">
-        <p className="min-w-0 flex items-center gap-1">
+        {isOn("departments") && <p className="min-w-0 flex items-center gap-1">
           {tx('מחלקה:')}{" "}
           <button
             type="button"
@@ -644,7 +677,7 @@ function WorkerForm({
           >
             {departments.items.find((d) => d.id === draft.departmentId)?.name ?? tx('מנהלה')}
           </button>
-        </p>
+        </p>}
         <p className="flex items-center gap-1">
           {tx('סטטוס:')}{" "}
           <button
@@ -729,7 +762,7 @@ function WorkerForm({
           />
         </Field>
       </div>
-      <div className="space-y-1">
+      {isOn("certs") && <div className="space-y-1">
         <span className="text-sm text-slate-300">{tx('הסמכות')}</span>
         {/* Only the certifications the worker holds; more are added from the list under them, and an open
             row has "הסר הסמכה" (the user's request, 2026-11-10). A new worker's certifications start with
@@ -765,7 +798,7 @@ function WorkerForm({
             {tx('עוד אין הסמכות. אפשר להוסיף אותן בלשונית "הסמכות".')}
           </p>
         )}
-      </div>
+      </div>}
 
       {exists && (
         <WorkerAgenda
@@ -797,11 +830,12 @@ function WorkerForm({
         />
       )}
 
-      {/* Two phones side by side only where a whole number fits (phones 390 wide and up). */}
-      <div className="grid grid-cols-1 gap-3 min-[390px]:grid-cols-2">
+      {/* Half-width pairs on every phone (the manager's request, 2026-11-23): mobile | emergency, birth date | address.
+          The emergency phone's owner sits right under it, in the same column, so it reads as part of it. */}
+      <div className="grid grid-cols-2 items-start gap-x-2 gap-y-3">
         {PHONES.map(([field, label]) => {
           const dial = telHref(draft[field]);
-          return (
+          const phone = (
             <Field key={field} label={label}>
               <span className="flex gap-1">
                 <input
@@ -810,21 +844,21 @@ function WorkerForm({
                   inputMode="tel"
                   value={draft[field] ?? ""}
                   onChange={set(field)}
-                  className={`${inputClass} min-w-0 px-2.5! text-right`}
+                  className={`${inputClass} min-w-0 px-2! text-right`}
                 />
                 {/* Always shown so every phone field visibly has a call button; inactive until a number is typed. */}
                 {dial ? (
                   <a
                     href={dial}
                     aria-label={tx('חיוג: {label}', { label })}
-                    className="flex w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300"
+                    className="flex w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300"
                   >
                     <Phone size={18} aria-hidden />
                   </a>
                 ) : (
                   <span
                     aria-hidden
-                    className="flex w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800/60 text-slate-600"
+                    className="flex w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800/60 text-slate-600"
                   >
                     <Phone size={18} />
                   </span>
@@ -832,33 +866,38 @@ function WorkerForm({
               </span>
             </Field>
           );
+          if (field !== "emergencyPhone1") return phone;
+          return (
+            <div key={field} className="min-w-0 space-y-1.5">
+              {phone}
+              <input
+                value={draft.emergencyName ?? ""}
+                onChange={set("emergencyName")}
+                placeholder={tx('שם מלא')}
+                aria-label={tx('של מי טלפון החירום')}
+                className={`${inputClass} px-2.5! py-2!`}
+              />
+            </div>
+          );
         })}
+        <DateField
+          label={tx('תאריך לידה')}
+          value={draft.birthDate ?? ""}
+          min="1900-01-01"
+          max={todayIso()}
+          onChange={(birthDate, valid) => {
+            setDraft((d) => ({ ...d, birthDate }));
+            setBirthDateValid(valid);
+          }}
+        />
+        <Field label={tx('כתובת')}>
+          <input
+            value={draft.address ?? ""}
+            onChange={set("address")}
+            className={inputClass}
+          />
+        </Field>
       </div>
-      <DateField
-        label={tx('תאריך לידה')}
-        value={draft.birthDate ?? ""}
-        min="1900-01-01"
-        max={todayIso()}
-        onChange={(birthDate, valid) => {
-          setDraft((d) => ({ ...d, birthDate }));
-          setBirthDateValid(valid);
-        }}
-      />
-      <Field label={tx('כתובת')}>
-        <input
-          value={draft.address ?? ""}
-          onChange={set("address")}
-          className={inputClass}
-        />
-      </Field>
-      <Field label={tx('הערות')}>
-        <textarea
-          rows={2}
-          value={draft.notes ?? ""}
-          onChange={set("notes")}
-          className={inputClass}
-        />
-      </Field>
 
       <SheetActions
         onSave={save}

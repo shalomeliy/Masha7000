@@ -1,6 +1,6 @@
 # Spec: Backup and restore of all app data (v0.6 candidate)
 
-Status: built (2026-10-31). Open answers taken as recommended: weekly copies yes, no password, only the owner restores. Also kept: up to 3 "before restore" copies, separate from the 8 weekly. User decisions: automatic weekly copies, last 8 kept; no password on the downloaded file, a warning instead. No expert fan-out yet. `SECURITY TRIGGERED`: restore reads a file from outside the app (external input) and the backup holds personal data; the `security-expert` must review before the plan.
+Status: built (2026-10-31). Changed 2026-11-23 (owner's SLA decision): copies are DAILY, on the first open of each day; the first copy of each week is marked weekly. Kept: last 14 daily + last 8 weekly + 3 before-restore. Open answers taken as recommended: weekly copies yes, no password, only the owner restores. Also kept: up to 3 "before restore" copies, separate from the 8 weekly. User decisions: automatic weekly copies, last 8 kept; no password on the downloaded file, a warning instead. No expert fan-out yet. `SECURITY TRIGGERED`: restore reads a file from outside the app (external input) and the backup holds personal data; the `security-expert` must review before the plan.
 
 ## Context and observed problem
 

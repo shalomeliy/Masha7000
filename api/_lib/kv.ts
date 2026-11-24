@@ -5,7 +5,8 @@ import type { Env } from './env.js'
 // Vercel Marketplace "Redis"). Holds only: the owner's sealed refresh token, a sealed cached
 // access token, the allowed emails, the workers' details form and its sealed answers, the weekly constraints form and its sealed answers, the sealed
 // sign-in sessions, each person's sealed two-step secret, short-lived rate-limit counters, the
-// voice assistant's spending this month (budget.ts), the sealed log of what went to Claude (claudeLog.ts), and the sealed security log (audit.ts).
+// voice assistant's spending this month (budget.ts), the sealed log of what went to Claude (claudeLog.ts), the sealed security log (audit.ts), and the
+// sealed audio of Shali's short sentences for 30 days, so a repeated one is not paid for again (tts.ts).
 
 export const KEYS = {
   refresh: 'owner:refresh',

@@ -1,5 +1,7 @@
 import type { Env } from './env.js'
 import { kv } from './kv.js'
+import { geminiSpeak } from './gemini.js'
+import { open, seal, sha256url } from './crypto.js'
 
 // Shali's cloud voice (the owner's choice, 2026-11-13/14): Google Cloud Text-to-Speech, Chirp 3 HD
 // Hebrew, a male voice. One sentence at a time comes in, MP3 goes back.
@@ -71,5 +73,82 @@ export async function synthesize(apiKey: string, req: TtsRequest, fetchFn: typeo
   return new Uint8Array(Buffer.from(audioContent, 'base64'))
 }
 
-export const mp3 = (bytes: Uint8Array<ArrayBuffer>) =>
-  new Response(bytes, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'private, max-age=86400' } })
+export const mp3 = (bytes: Uint8Array<ArrayBuffer>, type = 'audio/mpeg') =>
+  new Response(bytes, { headers: { 'Content-Type': type, 'Cache-Control': 'private, max-age=86400' } })
+
+// Since 2026-11-23 (the owner's pick by ear): with GEMINI_API_KEY set, Shali speaks with Gemini TTS
+// (gemini.ts); TTS_ENGINE=chirp turns it back to Chirp alone. The plain text, no niqqud: with billing on,
+// the owner heard plain Gemini as better than Gemini given Dicta's niqqud (2026-11-23), and it saves the
+// Dicta round trip. Gemini takes ~2.5 s a sentence against Chirp's ~0.8 s, so it gets GEMINI_BUDGET_MS;
+// anything slower or failing (429, outage) is read by Chirp in the same request, so Shali never waits
+// long or goes silent.
+const GEMINI_BUDGET_MS = 4500
+
+// The voice is the one the manager picked with "קול: ענן N": all six names are Gemini voices too (owner,
+// 2026-11-23: "where is Google's voice?" when ענן 1..6 all sounded the same).
+export function voiceEngine(e: NodeJS.ProcessEnv = process.env): { geminiKey: string } | null {
+  const key = (e.GEMINI_API_KEY ?? '').trim()
+  if (!key || (e.TTS_ENGINE ?? '').trim().toLowerCase() === 'chirp') return null
+  return { geminiKey: key }
+}
+
+/** One sentence as audio: Gemini when configured, else (or on any trouble) Chirp. */
+export async function speakBest(
+  apiKey: string,
+  req: TtsRequest,
+  gemini: { geminiKey: string } | null,
+  fetchFn: typeof fetch = fetch,
+  now: () => number = Date.now,
+): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string; engine: 'gemini' | 'chirp' }> {
+  if (gemini) {
+    const start = now()
+    try {
+      const left = Math.max(1000, GEMINI_BUDGET_MS - (now() - start))
+      const { bytes } = await geminiSpeak(req.text, req.voice, gemini.geminiKey, fetchFn, left)
+      return { bytes: new Uint8Array(bytes), type: 'audio/wav', engine: 'gemini' }
+    } catch (e) {
+      console.error('gemini tts failed, Chirp instead', (e as Error).message?.slice(0, 200))
+    }
+  }
+  return { bytes: await synthesize(apiKey, req, fetchFn), type: 'audio/mpeg', engine: 'chirp' }
+}
+
+
+// Pay for a sentence once (the owner, 2026-11-23; docs/GOAL.md "The voice costs too"): Shali says many
+// sentences word for word ("רגע, בודק", "אשר או תקן", read-backs), so the audio of each short sentence is
+// kept, sealed, for CACHE_DAYS after it was last said, and replayed: no Google call, no characters counted, and it plays at once.
+// Only audio from the engine that should speak is kept (a Chirp fallback is not, so Gemini gets its turn
+// next time), and the key holds the engine and voice, so changing either starts fresh. Short sentences
+// only, which is what repeats and keeps each entry small (Gemini's WAV is ~48 KB a second).
+export const CACHE_MAX_CHARS = 120
+const CACHE_DAYS = 30
+const CACHE_MAX_BYTES = 600_000
+
+export function cacheTarget(req: TtsRequest, gemini: object | null): string {
+  return gemini ? `gemini-plain|${req.voice}` : `chirp|${req.voice}|${req.rate}`
+}
+
+const cacheKey = async (env: Env, target: string, text: string) => `tts-cache:${await sha256url(`${env.sessionKey}|${target}|${text}`)}`
+
+export async function readCachedVoice(env: Env, req: TtsRequest, target: string): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string } | null> {
+  if (req.text.length > CACHE_MAX_CHARS) return null
+  try {
+    const key = await cacheKey(env, target, req.text)
+    const kept = await open<{ type: string; audio: string }>(env.sessionKey, await kv.get(env, key))
+    // Each replay starts the 30 days again: a sentence Shali keeps saying stays; one not said for a month goes.
+    if (kept) void kv.expire(env, key, CACHE_DAYS * 86_400).catch(() => undefined)
+    return kept ? { bytes: new Uint8Array(Buffer.from(kept.audio, 'base64')), type: kept.type } : null
+  } catch {
+    return null
+  }
+}
+
+export async function keepVoice(env: Env, req: TtsRequest, target: string, spoken: { bytes: Uint8Array; type: string; engine: string }): Promise<void> {
+  if (req.text.length > CACHE_MAX_CHARS || spoken.bytes.length > CACHE_MAX_BYTES || !target.startsWith(spoken.engine)) return
+  try {
+    const value = await seal(env.sessionKey, { type: spoken.type, audio: Buffer.from(spoken.bytes).toString('base64') })
+    await kv.set(env, await cacheKey(env, target, req.text), value, CACHE_DAYS * 86_400)
+  } catch (e) {
+    console.error('tts cache keep failed', (e as Error).message?.slice(0, 200))
+  }
+}

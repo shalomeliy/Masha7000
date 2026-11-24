@@ -1,4 +1,5 @@
 import { tx } from '../i18n'
+import { useFeatures } from '../lib/data/useFeatures'
 import { useState } from 'react'
 import { CalendarPlus, Trash2 } from 'lucide-react'
 import { DictationField } from '../components/DictationField'
@@ -36,6 +37,7 @@ export function WaitingJobs() {
   const certs = useDriveList('certifications')
   const defs = useDriveList('shiftDefinitions')
   const vehicles = useDriveList('vehicles')
+  const { isOn } = useFeatures()
   // Newest first: the job added last is on top.
   const waiting = jobs.items.filter((j) => isWaiting(j, shifts.items)).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
   const [editing, setEditing] = useState<PendingJob | null>(null)
@@ -75,7 +77,7 @@ export function WaitingJobs() {
                         {tx('חייבים להיות: {v}', { v: fullNames(j.pinnedIds, workers.items).join(', ') })}
                       </span>
                     )}
-                    {(j.vehicleId || j.vehicleModel) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(j, vehicles.items) })}</span>}
+                    {isOn('vehicles') && (j.vehicleId || j.vehicleModel) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(j, vehicles.items) })}</span>}
                     <span className="block text-sm text-slate-400">
                       {tx('צריך {v}', { v: staffingText(staffingFor(j.staffing, certs.items.map((c) => c.id)), certs.items) })}</span>
                   </button>

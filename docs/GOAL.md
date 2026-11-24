@@ -23,7 +23,7 @@ Shali keeps learning actions until almost every request is done by local code, f
 | Name matching | `src/lib/nameMatch.ts` | Names by closeness; two close = "למי התכוונת"; none close = "לא מצאתי", never a guess |
 | Splitting long sentences | `splitFree` | Known parts done free, only the unknown part goes to Claude and to the log |
 | Local solver | `src/lib/solvers.ts` | Staffing options computed locally; the model only ranks and words them |
-| "What went to Claude" log | `src/lib/claudeLog.ts`, `api/claude-log.ts`, `scripts/claude-log.mjs` | Every paid conversation with why the free path refused it (`whyNotFree`), what Claude did, how it ended |
+| "What went to Claude" log | `src/lib/claudeLog.ts`, `api/_lib/routes/claude-log.ts`, `scripts/claude-log.mjs` | Every paid conversation with why the free path refused it (`whyNotFree`), what Claude did, how it ended |
 | Free vs paid counter | `usage()` / `countTurn()`, localStorage `assistant.usage` | Free and Claude turns this month, on the assistant screen |
 | Budget meter | `api/_lib/budget.ts` | Money spent this month vs the cap, shown under the talk button |
 | Teaching skill | `.claude/skills/free-commands/` | How to turn a logged request shape into a free action, cheapest fix first |
@@ -71,3 +71,11 @@ Repeated request shapes become free. A truly new or unclear request will always 
 - Never spend the app's key for development (CLAUDE.md). Tests use the stand-in only.
 - Learned patterns keep only action words; values are slots (skill `free-commands`).
 - Every proposal is read back and done only after the owner's yes, free or paid.
+
+## The voice costs too (added 2026-11-23)
+
+Since 2026-11-23 Shali speaks with Gemini TTS, plain text without niqqud by the owner's ear (`api/_lib/gemini.ts`, `tts.ts` `speakBest`), Chirp 3 HD when Gemini fails. This is a second, separate cost: Claude is the thinking, the voice is the mouth. Teaching free commands lowers only the thinking; every sentence Shali says still costs voice characters, free path or not.
+
+- Gemini TTS is paid per audio second (Google AI Studio key `GEMINI_API_KEY`, not the $300 Google Cloud credit). Roughly $1-3 a month for one team; prices double on 2027-01-01.
+- The same rule applies: a sentence paid for once should not be paid for again. Shali repeats many sentences word for word ("רגע, בודק", "אשר או תקן", read-backs of free commands). Next step: keep the audio of each spoken sentence on the server and replay it, so a repeated sentence costs nothing and plays at once.
+- The weekly routine does not change: it reads the Claude log. A voice measure joins the table once the server counts voice characters by engine.

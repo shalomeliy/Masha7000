@@ -1,9 +1,10 @@
-import { open, randomToken, seal, sha256url } from './_lib/crypto.js'
-import { readEnv, type Env } from './_lib/env.js'
-import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
-import { KEYS, kv } from './_lib/kv.js'
-import { overLimit } from './_lib/rate.js'
-import { requireManager } from './_lib/session.js'
+import { open, randomToken, seal, sha256url } from '../crypto.js'
+import { readEnv, type Env } from '../env.js'
+import { clientIp, guarded, json, readJson, sameOrigin } from '../http.js'
+import { kv } from '../kv.js'
+import { overLimit } from '../rate.js'
+import { requireManager } from '../session.js'
+import { linkFormCode, teamKeys, teamOfFormCode, unlinkFormCode } from '../team.js'
 
 // The workers' details form. A manager opens it and shares one link (/join/<code>) in WhatsApp.
 // Workers, not signed in to anything, fill it; each answer waits here, sealed, until a manager
@@ -16,6 +17,8 @@ import { requireManager } from './_lib/session.js'
 // One answer per person: the mobile and ID number of everyone who sent are kept (as keyed hashes,
 // never the numbers), and a second answer with either is refused, even after a new link.
 // Only a manager throwing an answer away (remove with allowAgain) lets that person send again.
+// Each team has its own form, answers and "who sent" marks (api/_lib/team.ts). A manager's actions
+// use his session's team; a public link finds its team only from the server's record of that code.
 
 export interface Tag {
   id: string
@@ -95,10 +98,11 @@ export async function senderMarks(env: Env, d: { mobilePhone?: string; idNumber?
   return Promise.all(parts.map((p) => sha256url(`${env.sessionKey}|${p}`)))
 }
 
-const readForm = async (env: Env) => open<Form>(env.sessionKey, await kv.get(env, KEYS.joinForm))
+type Keys = ReturnType<typeof teamKeys>
+const readForm = async (env: Env, keys: Keys) => open<Form>(env.sessionKey, await kv.get(env, keys.joinForm))
 
-async function readSubmissions(env: Env) {
-  const sealed = await kv.members(env, KEYS.joinSubs)
+async function readSubmissions(env: Env, keys: Keys) {
+  const sealed = await kv.members(env, keys.joinSubs)
   const opened = await Promise.all(sealed.map(async (s) => ({ sealed: s, sub: await open<Submission>(env.sessionKey, s) })))
   return opened.filter((o): o is { sealed: string; sub: Submission } => o.sub !== null)
 }
@@ -108,7 +112,7 @@ export const GET = guarded(async (req: Request) => {
   if (!env) return json({ reason: 'not-configured' }, 503)
   if (await overLimit(env, 'joinRead', clientIp(req))) return json({ reason: 'too-many' }, 429)
   const code = new URL(req.url).searchParams.get('c')
-  const form = await readForm(env)
+  const form = await readForm(env, teamKeys(await teamOfFormCode(env, 'join', code)))
   if (!form || !code || code !== form.code) return json({ reason: 'closed' }, 404)
   return json({ lists: form.lists })
 })
@@ -122,16 +126,17 @@ export const POST = guarded(async (req: Request) => {
 
   if (body.action === 'submit') {
     if (await overLimit(env, 'joinSubmit', clientIp(req))) return json({ reason: 'too-many' }, 429)
-    const form = await readForm(env)
+    const keys = teamKeys(await teamOfFormCode(env, 'join', body.code))
+    const form = await readForm(env, keys)
     if (!form || body.code !== form.code) return json({ reason: 'closed' }, 404)
     const cleaned = cleanDetails(body.details, form.lists)
     if ('reason' in cleaned) return json({ reason: cleaned.reason }, 400)
     const marks = await senderMarks(env, cleaned.details)
-    for (const m of marks) if (await kv.isMember(env, KEYS.joinSent, m)) return json({ reason: 'already' }, 409)
-    if ((await kv.members(env, KEYS.joinSubs)).length >= MAX_PENDING) return json({ reason: 'full' }, 429)
+    for (const m of marks) if (await kv.isMember(env, keys.joinSent, m)) return json({ reason: 'already' }, 409)
+    if ((await kv.members(env, keys.joinSubs)).length >= MAX_PENDING) return json({ reason: 'full' }, 429)
     const sub: Submission = { ...cleaned.details, id: randomToken(9), at: Date.now() }
-    await kv.add(env, KEYS.joinSubs, await seal(env.sessionKey, sub))
-    for (const m of marks) await kv.add(env, KEYS.joinSent, m)
+    await kv.add(env, keys.joinSubs, await seal(env.sessionKey, sub))
+    for (const m of marks) await kv.add(env, keys.joinSent, m)
     return json({ ok: true })
   }
 
@@ -139,29 +144,34 @@ export const POST = guarded(async (req: Request) => {
   if (await overLimit(env, 'joinManage', clientIp(req))) return json({ reason: 'too-many' }, 429)
   const gate = await requireManager(env, req)
   if ('refuse' in gate) return gate.refuse
+  const teamId = gate.team.id
+  const keys = teamKeys(teamId)
 
   switch (body.action) {
     case 'open': {
       // Opening again keeps the same link (already sent to the group) and refreshes its choice lists.
-      const current = await readForm(env)
+      const current = await readForm(env, keys)
       const code = current && body.renew !== true ? current.code : randomToken(12)
-      await kv.set(env, KEYS.joinForm, await seal(env.sessionKey, { code, lists: cleanLists(body.lists) } satisfies Form))
+      if (current && current.code !== code) await unlinkFormCode(env, 'join', current.code)
+      await kv.set(env, keys.joinForm, await seal(env.sessionKey, { code, lists: cleanLists(body.lists) } satisfies Form))
+      await linkFormCode(env, 'join', code, teamId)
       return json({ code })
     }
     case 'close':
-      await kv.del(env, KEYS.joinForm)
+      await unlinkFormCode(env, 'join', (await readForm(env, keys))?.code)
+      await kv.del(env, keys.joinForm)
       return json({ code: null })
     case 'list': {
-      const form = await readForm(env)
-      const subs = (await readSubmissions(env)).map((o) => o.sub).sort((a, b) => a.at - b.at)
+      const form = await readForm(env, keys)
+      const subs = (await readSubmissions(env, keys)).map((o) => o.sub).sort((a, b) => a.at - b.at)
       return json({ code: form?.code ?? null, submissions: subs })
     }
     case 'remove': {
-      const found = (await readSubmissions(env)).find((o) => o.sub.id === body.id)
+      const found = (await readSubmissions(env, keys)).find((o) => o.sub.id === body.id)
       if (found) {
-        await kv.remove(env, KEYS.joinSubs, found.sealed)
+        await kv.remove(env, keys.joinSubs, found.sealed)
         // Thrown away (not added to the list): this person may fill the form again.
-        if (body.allowAgain === true) for (const m of await senderMarks(env, found.sub)) await kv.remove(env, KEYS.joinSent, m)
+        if (body.allowAgain === true) for (const m of await senderMarks(env, found.sub)) await kv.remove(env, keys.joinSent, m)
       }
       return json({ ok: true })
     }

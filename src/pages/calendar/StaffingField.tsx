@@ -1,4 +1,5 @@
 import { tx } from '../../i18n'
+import { useFeatures } from '../../lib/data/useFeatures'
 import { useState } from 'react'
 import { ChevronDown, Minus, Plus } from 'lucide-react'
 import { Chips } from '../../components/Sheet'
@@ -14,6 +15,8 @@ const selectClass = 'min-h-11 w-full min-w-0 rounded-lg border border-slate-700 
 export function StaffingField({ value, onChange }: { value: StaffSlot[]; onChange: (next: StaffSlot[]) => void }) {
   const kinds = useDriveList('workKinds')
   const certs = useDriveList('certifications')
+  // Certifications turned off for the team: only how many people, no certification per place.
+  const withCerts = useFeatures().isOn('certs')
   const resize = (n: number) => onChange(resizeStaffing(value, n))
   const setSlot = (i: number, patch: Partial<StaffSlot>) => onChange(value.map((s, j) => (j === i ? { ...s, ...patch } : s)))
   const [open, setOpen] = useState<number | null>(null)
@@ -50,6 +53,7 @@ export function StaffingField({ value, onChange }: { value: StaffSlot[]; onChang
           </button>
         </div>
       </div>
+      {withCerts && (
       <ol className="space-y-2">
         {value.map((s, i) => (
           <li key={i} className="space-y-2 rounded-xl border border-slate-800 bg-slate-950 p-2">
@@ -80,6 +84,7 @@ export function StaffingField({ value, onChange }: { value: StaffSlot[]; onChang
           </li>
         ))}
       </ol>
+      )}
     </div>
   )
 }

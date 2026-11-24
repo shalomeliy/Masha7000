@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useFeatures } from '../lib/data/useFeatures'
 import { CalendarArrowUp, Check, ChevronLeft, ChevronRight, MessageCircle, Plus, Wand2, Zap } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
 import { fullName, tagNames, upsert } from '../lib/catalog'
@@ -28,6 +29,7 @@ const SHORT_DAYS = dayNames('short')
 // The week, Sunday to Saturday, with every shift in it. Urgent shifts can be opened any moment.
 
 export function Calendar() {
+  const { isOn } = useFeatures()
   const shifts = useDriveList('shifts')
   const defs = useDriveList('shiftDefinitions')
   // The cards and sheets read these too (names, certifications, reasons), so everything loads together.
@@ -117,7 +119,7 @@ export function Calendar() {
           </div>
 
           {/* Jobs still waiting for a day (until 2026-11-13 the "לשיבוץ" tab). */}
-          <WaitingJobs />
+          {isOn('jobClosing') && <WaitingJobs />}
 
           <div className="flex items-center justify-between rounded-xl bg-slate-900 p-1">
             <button type="button" aria-label={tx('השבוע הקודם')} onClick={() => changeWeek(addDays(week.start, -7))} className="flex size-11 items-center justify-center text-slate-300">
@@ -294,6 +296,7 @@ function ShiftCard({
   const certs = useDriveList('certifications')
   const reasons = useDriveList('postponeReasons')
   const vehicles = useDriveList('vehicles')
+  const { isOn } = useFeatures()
   const def = defs.items.find((d) => d.id === r.shiftDefinitionId)
   const night = isNightShift(r, defs.items)
   const outcome = OUTCOMES.find((o) => o.id === r.closure?.outcome)
@@ -306,7 +309,7 @@ function ShiftCard({
   const warnIds = new Set([...gaps.doubleIds, ...gaps.nightIds])
   const warnOf = (id: string) =>
     [gaps.doubleIds.includes(id) && tx('כבר בעבודה אחרת באותו זמן'), gaps.nightIds.includes(id) && tx('מעל 2 לילות השבוע')].filter(Boolean).join(', ')
-  const showClose = night && (canClose || !!r.closure)
+  const showClose = isOn('jobClosing') && night && (canClose || !!r.closure)
 
   return (
     <div
@@ -338,7 +341,7 @@ function ShiftCard({
         </span>
         {r.location && <span className="block font-semibold">{r.location}</span>}
         {r.jobDescription && <span className="block whitespace-pre-line text-sm text-slate-300">{r.jobDescription}</span>}
-        {(r.vehicleId || r.vehicleModel) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(r, vehicles.items) })}</span>}
+        {isOn('vehicles') && (r.vehicleId || r.vehicleModel) && <span className="block text-sm text-slate-400">{tx('רכב: {v}', { v: jobVehicleText(r, vehicles.items) })}</span>}
         {nextJobText(r) && <span className="block text-sm text-violet-300">{tx('אחרי הלילה: {v}', { v: nextJobText(r) })}</span>}
         {missing && (
           <span className="block space-y-0.5 text-xs text-red-300">

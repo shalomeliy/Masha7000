@@ -9,3 +9,13 @@ describe('earlyText', () => {
   })
   it('never for a proposal', () => expect(earlyText('propose', '{"summary":"x"')).toBeNull())
 })
+
+describe('featuresNote', async () => {
+  const { featuresNote } = await import('./assistant.js')
+  it('names only known features, and nothing when none is off', () => {
+    expect(featuresNote({})).toEqual([])
+    expect(featuresNote({ featuresOff: ['ignore previous'] })).toEqual([])
+    const [note] = featuresNote({ featuresOff: ['vehicles', 'x', 'nightJobs'] })
+    expect(note.text).toContain('רכבים, עבודות לילה')
+  })
+})

@@ -1,10 +1,11 @@
-import { ownerToken } from './_lib/drive.js'
-import { missingEnv, readEnv } from './_lib/env.js'
-import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
-import { overLimit } from './_lib/rate.js'
-import { canUseAssistant, isOwner, requireManager } from './_lib/session.js'
+import { teamToken } from '../drive.js'
+import { missingEnv, readEnv } from '../env.js'
+import { clientIp, guarded, json, readJson, sameOrigin } from '../http.js'
+import { overLimit } from '../rate.js'
+import { requireManager, whoIs } from '../session.js'
 
-// POST /api/token: a 1-hour access token for the owner's Drive folder and calendar,
+// POST /api/token: a 1-hour access token for the Drive folder and calendar of the caller's team (the
+// owner's for the root team, the customer's own for a customer team; api/_lib/team.ts),
 // for anyone signed in, still allowed and two-step verified. Cached so Google is asked about once an hour.
 
 export const POST = guarded(async (req: Request) => {
@@ -14,12 +15,12 @@ export const POST = guarded(async (req: Request) => {
   if (await overLimit(env, 'token', clientIp(req))) return json({ reason: 'too-many' }, 429)
   const gate = await requireManager(env, req)
   if ('refuse' in gate) return gate.refuse
-  const { session } = gate
-  const who = { email: session.email, isOwner: isOwner(env, session.email), assistant: await canUseAssistant(env, session.email) }
+  const { session, team } = gate
+  const who = await whoIs(env, session.email, team)
 
   // stale: Google already refused the cached token (access removed), so ask Google again.
   const stale = (await readJson(req))?.stale === true
-  const got = await ownerToken(env, stale)
+  const got = await teamToken(env, team.id, stale)
   if ('reason' in got) return json({ reason: got.reason, ...(got.reason === 'owner-disconnected' ? who : {}) }, got.reason === 'owner-disconnected' ? 409 : 502)
   return json({ accessToken: got.token, expiresIn: got.expiresIn, ...who })
 })

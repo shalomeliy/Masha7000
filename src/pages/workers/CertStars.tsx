@@ -1,4 +1,5 @@
 import { ChevronDown, Star, Trash2 } from 'lucide-react'
+import { useFeatures } from '../../lib/data/useFeatures'
 import { useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { Sheet } from '../../components/Sheet'
 import { tx } from '../../i18n'
@@ -41,6 +42,8 @@ export function CertStarsField({
   onRemove: (certId: string) => void
 }) {
   const [openId, setOpenId] = useState<string | null>(null)
+  // "תוקף הסמכות" turned off for the team: no expiry date to fill (a saved one is kept).
+  const withExpiry = useFeatures().isOn('certExpiry')
   const held = certs.filter((c) => worker.certificationIds.includes(c.id))
   if (!held.length) return null
   const today = todayIso()
@@ -50,7 +53,7 @@ export function CertStarsField({
         const stars = certStars(worker, c.id)
         const state = expiryState(worker, c.id, today)
         // A certification marked "ללא תוקף" has no date at all.
-        const dated = !c.noExpiry
+        const dated = !c.noExpiry && withExpiry
         const left = dated ? daysLeftText(worker, c.id, today) : null
         const open = openId === c.id
         const toggle = () => setOpenId(open ? null : c.id)

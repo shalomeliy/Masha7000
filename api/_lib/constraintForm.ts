@@ -1,5 +1,5 @@
 // The weekly constraints form's rules, no I/O: who is on the roster, and what an answer may hold.
-// The form itself is api/constraints.ts.
+// The form itself is api/_lib/routes/constraints.ts.
 
 /** A worker the form knows: the manager's app sends these when it opens the form. */
 export interface RosterEntry {

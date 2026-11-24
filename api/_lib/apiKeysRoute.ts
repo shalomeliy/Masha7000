@@ -8,21 +8,22 @@ import { json } from './http.js'
 // { action: 'create', name, write, personal } -> { key, record }   (the key is shown only now)
 // { action: 'revoke', id }                   -> { ok }
 
-export async function apiKeysAction(env: Env, body: Record<string, unknown>): Promise<Response> {
+/** `teamId`: the caller's team, from his session (requireManager), never from the body. */
+export async function apiKeysAction(env: Env, teamId: string, body: Record<string, unknown>): Promise<Response> {
   switch (body.action) {
     case 'list':
-      return json({ keys: await listKeys(env), log: await readLog(env) })
+      return json({ keys: await listKeys(env, teamId), log: await readLog(env, teamId) })
     case 'create': {
       const name = cleanName(body.name)
       if (!name) return json({ reason: 'no-name' }, 400)
       const scopes: Scope[] = body.write === true ? ['read', 'write'] : ['read']
-      const made = await createKey(env, { name, scopes, personal: body.personal === true })
+      const made = await createKey(env, teamId, { name, scopes, personal: body.personal === true })
       if (!made) return json({ reason: 'too-many-keys' }, 409)
       return json(made)
     }
     case 'revoke':
       if (typeof body.id !== 'string') return json({ reason: 'bad-request' }, 400)
-      return json({ ok: await revokeKey(env, body.id) })
+      return json({ ok: await revokeKey(env, teamId, body.id) })
     default:
       return json({ reason: 'bad-request' }, 400)
   }

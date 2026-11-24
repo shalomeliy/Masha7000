@@ -32,6 +32,8 @@ export const LIMITS = {
   apiKey: { max: 60, windowSeconds: 60 }, // one outside API key
   apiBadKey: { max: 30, windowSeconds: 600 }, // wrong keys from one address
   apiKeysManage: { max: 120, windowSeconds: 600 },
+  accessIp: { max: 20, windowSeconds: 3600 }, // the public access request
+  accessEmail: { max: 3, windowSeconds: 86_400 },
 } satisfies Record<string, Limit>
 
 /** Counts this try; true when the caller is over the limit. */

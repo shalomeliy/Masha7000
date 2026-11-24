@@ -1,6 +1,6 @@
 import { tx } from '../../i18n'
 
-// Settings > "גישת API": the owner's keys for the outside API (api/owner.ts?scope=api-keys, api/v1.ts).
+// Settings > "גישת API": the owner's keys for the outside API (api/_lib/routes/owner.ts?scope=api-keys, api/v1.ts).
 
 export interface ApiKeyRow {
   id: string

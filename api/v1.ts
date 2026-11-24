@@ -1,8 +1,9 @@
-import { keyOf, logCall, markUsed, type ApiKey } from './_lib/apiKeys.js'
-import { Drive, DriveConflict, DriveFailed, ownerToken } from './_lib/drive.js'
+import { keyOf, keyTeam, logCall, markUsed, type ApiKey } from './_lib/apiKeys.js'
+import { Drive, DriveConflict, DriveFailed, teamToken } from './_lib/drive.js'
 import { readEnv, type Env } from './_lib/env.js'
 import { clientIp } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
+import { readTeam, ROOT } from './_lib/team.js'
 import { SCHEMA, SCHEMA_VERSION, toApiConstraint, toApiNamed, toApiPendingJob, toApiShift, toApiWorker } from './_lib/v1/contract.js'
 import { normalizeConstraint, normalizePendingJob, normalizeShiftRecord, normalizeWorker, withoutGeneralCert, type StoredShift } from './_lib/v1/normalize.js'
 import * as store from './_lib/v1/store.js'
@@ -386,7 +387,10 @@ async function handle(req: Request, env: Env, key: ApiKey): Promise<Response> {
   if (!isWrite && method !== 'GET') throw new Fail(405, 'bad-method', 'GET, POST or PATCH')
   if (isWrite && !key.scopes.includes('write')) throw new Fail(403, 'no-scope', 'this key may only read')
   if (await overLimit(env, 'apiKey', key.id)) throw new Fail(429, 'too-many', 'at most 60 calls a minute per key')
-  const got = await ownerToken(env)
+  // The key's own team's Drive: root = the owner's, a customer key = that customer's, while the team exists.
+  const teamId = keyTeam(key)
+  if (teamId !== ROOT && !(await readTeam(env, teamId))) throw new Fail(401, 'bad-key', 'this key no longer works')
+  const got = await teamToken(env, teamId)
   if ('reason' in got) throw new Fail(got.reason === 'owner-disconnected' ? 409 : 502, got.reason)
   const drive = new Drive(got.token)
   const path = pathOf(req)
@@ -425,7 +429,7 @@ async function gate(req: Request): Promise<Response> {
     }
     await markUsed(env, key.id).catch(() => {})
   }
-  await logCall(env, { at: new Date().toISOString(), keyId: key?.id ?? null, method: req.method, path: key ? `/${pathOf(req).join('/')}`.slice(0, 200) : '(wrong key)', status: res.status }).catch(() => {})
+  await logCall(env, key ? keyTeam(key) : ROOT, { at: new Date().toISOString(), keyId: key?.id ?? null, method: req.method, path: key ? `/${pathOf(req).join('/')}`.slice(0, 200) : '(wrong key)', status: res.status }).catch(() => {})
   return res
 }
 

@@ -162,3 +162,18 @@ test("a job picks its vehicle from the app's own list: make, model, plate, mark 
   await expect(page.getByRole('option')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Volkswagen/ })).toBeVisible()
 })
+
+// The user, 2026-11-23: a look at another tab in the middle of a conversation must not lose it.
+test('a conversation with Shali waits while another tab is looked at', async ({ page }) => {
+  await openWithFakeDrive(page)
+  await page.getByRole('button', { name: 'הקלדה' }).click()
+  await page.getByPlaceholder('אפשר גם להקליד').fill('יוסי חולה מחר')
+  await page.getByRole('button', { name: 'שלח' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'לאשר, או לתקן?' })).toBeVisible()
+  await tab(page, 'יומן').click()
+  await expect(page.getByRole('button', { name: 'אשר' })).toBeHidden()
+  // The center button (Shali) has no text name of its own.
+  await page.getByRole('navigation').getByRole('button').nth(2).click()
+  await expect(page.getByRole('status').filter({ hasText: 'לאשר, או לתקן?' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'אשר' })).toBeVisible()
+})

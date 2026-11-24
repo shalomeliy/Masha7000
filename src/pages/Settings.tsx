@@ -1,7 +1,7 @@
 import { tx } from '../i18n'
 import { LanguagePicker } from './settings/LanguagePicker'
 import { useEffect, useState } from 'react'
-import { Archive as ArchiveIcon, Car, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, Car, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, LifeBuoy, ToggleRight, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
@@ -10,8 +10,12 @@ import { useDriveList } from '../lib/data/useDriveList'
 import { ensureShiftsCalendar, deleteEvent, listEvents, upsertEvent } from '../lib/google/calendar'
 import { readJson, writeJson } from '../lib/google/drive'
 import { TIME_ZONE } from '../lib/google/config'
-import { authMode } from '../lib/google/auth'
+import { authMode, isRootTeam } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
+import { useFeatures } from '../lib/data/useFeatures'
+import type { FeatureId } from '../lib/features'
+import { FeaturesSection } from './settings/FeaturesSection'
+import { GuideSection } from './settings/GuideSection'
 import { Archive } from './Archive'
 import { Vehicles } from './Vehicles'
 import { AccessSection } from './settings/AccessSection'
@@ -20,6 +24,7 @@ import { ApiSection } from './settings/ApiSection'
 import { BackupSection } from './settings/BackupSection'
 import { SecuritySection } from './settings/SecuritySection'
 import { FeatureRequestSection } from './settings/FeatureRequestSection'
+import { FaultReportSection } from './settings/FaultReportSection'
 import { ClaudeLogSection } from './settings/ClaudeLogSection'
 import { DepartmentsSection } from './settings/DepartmentsSection'
 import { NameListSection } from './settings/NameListSection'
@@ -29,8 +34,8 @@ import { ReasonsSection } from './ToSchedule'
 import { ShiftsSection } from './workers/ShiftsSection'
 import { TagSection } from './workers/TagSection'
 import { WorkKindsSection } from './settings/WorkKindsSection'
+import { VoiceSection } from './settings/VoiceSection'
 import { MicTestSection } from './settings/MicTestSection'
-import { VoiceCompareSection } from './settings/VoiceCompareSection'
 
 type StepState = 'idle' | 'running' | 'ok' | 'fail'
 interface Step {
@@ -144,7 +149,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'claudeLog' | 'api' | 'micTest' | 'voiceCompare'
+type PanelId = 'features' | 'guide' | 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'fault' | 'claudeLog' | 'api' | 'micTest' | 'voice'
 type ItemId = ListId | PanelId
 
 // A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
@@ -162,6 +167,8 @@ interface Group {
 }
 
 const PANELS: Record<PanelId, { title: string; explain: string }> = {
+  features: { title: tx('מסכים ותכונות'), explain: tx('מה מופיע באפליקציה: הדלקה וכיבוי של כל תכונה') },
+  guide: { title: tx('מדריך'), explain: tx('איך עושים כל דבר באפליקציה, צעד אחר צעד') },
   archive: { title: tx('ארכיון ודוחות'), explain: tx('כל העבודות שהיו: מי עבד, איפה, ודוחות שבועיים וחודשיים') },
   vehicles: { title: tx('רכבים'), explain: tx('רשימת הרכבים: הוספה, חיפוש ומחיקה. בוחרים מהם בעבודה ביומן') },
   access: { title: tx('מי יכול להיכנס'), explain: tx('הוספה והסרה של אנשים שמשתמשים באפליקציה') },
@@ -170,9 +177,10 @@ const PANELS: Record<PanelId, { title: string; explain: string }> = {
   connection: { title: tx('בדיקת חיבור לגוגל'), explain: tx('בודקת שהשמירה בדרייב והיומן עובדים') },
   account: { title: tx('החשבון שלי'), explain: tx('עם איזה מייל נכנסת, התנתקות, שליחה ל-AI ומחיקת החשבון') },
   feedback: { title: tx('בקשת תכונות חדשות'), explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח') },
+  fault: { title: tx('דיווח על תקלה'), explain: tx('משהו לא עובד? מתארים מה קרה, והדיווח נשלח לתמיכה') },
   api: { title: tx('גישת API'), explain: tx('מפתחות למערכות אחרות שקוראות וכותבות את הנתונים') },
+  voice: { title: tx('קול של Shali'), explain: tx('באיזה קול Shali מדבר בטלפון הזה') },
   micTest: { title: tx('בדיקת הקלטה'), explain: tx('בודקת שהמיקרופון מקליט בטלפון הזה: 5 שניות, ואז השמעה') },
-  voiceCompare: { title: tx('השוואת קולות'), explain: tx('אותו משפט ב-4 קולות: הקול של היום, עם ניקוד, ו-Gemini. מקשיבים ובוחרים') },
   claudeLog: { title: tx('מה הלך ל-Claude'), explain: tx('בקשות שלא בוצעו בחינם, למה, ומה Claude עשה. עם כפתור העתקה') },
 }
 
@@ -182,8 +190,31 @@ const listItem = (id: ListId): Entry => {
 }
 const panelItem = (id: PanelId): Entry => ({ id, ...PANELS[id] })
 
-function groups(isOwner: boolean, server: boolean): Group[] {
+// Items that belong to a feature the team can turn off (src/lib/features.ts); hidden while it is off.
+const ITEM_FEATURE: Partial<Record<ItemId, FeatureId>> = {
+  certifications: 'certs',
+  departments: 'departments',
+  constraintWords: 'constraints',
+  vehicles: 'vehicles',
+  archive: 'reports',
+  postponeReasons: 'jobClosing',
+  places: 'quickLists',
+  jobTypes: 'quickLists',
+  api: 'api',
+  voice: 'shali',
+  pronunciations: 'shali',
+  claudeLog: 'shali',
+}
+
+function groups(isOwner: boolean, server: boolean, isOn: (id: FeatureId) => boolean = () => true, root = true): Group[] {
   const all: Group[] = [
+    {
+      id: 'features',
+      title: tx('מסכים ותכונות'),
+      explain: tx('מה מופיע באפליקציה, ומדריך לכל מסך'),
+      icon: ToggleRight,
+      items: [panelItem('features'), panelItem('guide')],
+    },
     {
       id: 'jobs',
       title: tx('עבודות ושיבוץ'),
@@ -247,6 +278,14 @@ function groups(isOwner: boolean, server: boolean): Group[] {
       ],
     },
     {
+      id: 'fault',
+      title: tx('דיווח על תקלה'),
+      explain: tx('משהו לא עובד? מתארים מה קרה, והדיווח נשלח לתמיכה'),
+      icon: LifeBuoy,
+      // Sent by the server, so it shows only where the server is on.
+      items: server ? [panelItem('fault')] : [],
+    },
+    {
       id: 'feedback',
       title: tx('בקשת תכונות חדשות'),
       explain: tx('רעיון לשיפור? כותבים או מכתיבים, והוא נשלח למפתח'),
@@ -257,10 +296,11 @@ function groups(isOwner: boolean, server: boolean): Group[] {
     {
       id: 'assistant',
       title: tx('העוזר הקולי'),
-      explain: tx('איך Shali מבטא מילים, ומה הלך ל-Claude'),
+      explain: tx('הקול של Shali, איך הוא מבטא מילים, ומה הלך ל-Claude'),
       icon: Mic,
-      // The assistant is the owner's only (the dev server has no sign-in).
-      items: (isOwner && server) || import.meta.env.DEV ? [listItem('pronunciations'), panelItem('voiceCompare'), panelItem('claudeLog')] : [],
+      // The voice for everyone who may use Shali (owner, 2026-11-23); the rest is the owner's only (the dev server has no sign-in).
+      // The Claude log is the app owner's alone: a customer team's owner never sees it (part 2).
+      items: [panelItem('voice'), ...((isOwner && server) || import.meta.env.DEV ? [listItem('pronunciations'), ...(root ? [panelItem('claudeLog')] : [])] : [])],
     },
     {
       id: 'account',
@@ -270,7 +310,8 @@ function groups(isOwner: boolean, server: boolean): Group[] {
       items: [panelItem('account')],
     },
   ]
-  return all.filter((g) => g.items.length > 0)
+  const shown = (e: Entry) => !('id' in e) || !ITEM_FEATURE[e.id] || isOn(ITEM_FEATURE[e.id]!)
+  return all.map((g) => ({ ...g, items: g.items.filter(shown) })).filter((g) => g.items.length > 0)
 }
 
 const isList = (id: ItemId): id is ListId => LISTS.some((l) => l.id === id)
@@ -327,7 +368,8 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
           0,
         )
       : lists[id].items.length
-  const topics = groups(who?.isOwner === true, authMode() === 'server')
+  const { isOn } = useFeatures()
+  const topics = groups(who?.isOwner === true, authMode() === 'server', isOn, isRootTeam(who))
   const group = topics.find((g) => g.id === groupId)
 
   const backButton = (label: string, onClick: () => void) => (
@@ -359,6 +401,8 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
     return (
       <section className="space-y-4 px-4 pt-6">
         {back}
+        {open === 'features' && <FeaturesSection openGuide={() => setOpen('guide')} />}
+        {open === 'guide' && <GuideSection />}
         {open === 'access' && <AccessSection />}
         {open === 'security' && <SecuritySection />}
         {/* Restore replaces the owner's data for everyone; without the server, everyone is on their own Drive. */}
@@ -372,8 +416,9 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
           ))}
         {open === 'connection' && <ConnectionCheck />}
         {open === 'micTest' && <MicTestSection />}
-        {open === 'voiceCompare' && <VoiceCompareSection />}
+        {open === 'voice' && <VoiceSection />}
         {open === 'feedback' && <FeatureRequestSection />}
+        {open === 'fault' && <FaultReportSection />}
         {open === 'claudeLog' && <ClaudeLogSection />}
         {open === 'api' && <ApiSection />}
         {open === 'account' && <AccountSection />}

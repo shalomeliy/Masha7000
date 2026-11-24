@@ -1,13 +1,13 @@
 import { vlog } from './voiceLog.js'
 import { hasAiConsent } from './aiConsent.js'
 
-// Shali's cloud voice (Google Chirp 3 HD, Hebrew, male; server side in api/_lib/tts.ts). A reply is cut
+// Shali's cloud voice (Gemini TTS, or Google Chirp 3 HD; server side in api/_lib/tts.ts). A reply is cut
 // into sentences, all asked for at once and played in order, so the first words are heard in about half
 // a second even when the whole reply would take a second and a half (spike, docs/spikes/cloud-tts.md).
 // Anything that goes wrong (no network, month's characters used up, a slow answer, the phone refusing
 // to play) hands the rest of the reply to the phone's own voice: Shali is never silent.
 
-/** Male Chirp 3 HD voices, as in api/_lib/tts.ts CLOUD_VOICES; the first is the default. */
+/** Male voices, as in api/_lib/tts.ts CLOUD_VOICES (Gemini and Chirp 3 HD share the names); the first is the default. */
 export const CLOUD_VOICES = ['Sadaltager', 'Achird', 'Charon', 'Umbriel', 'Iapetus', 'Algieba'] as const
 export type CloudVoice = (typeof CLOUD_VOICES)[number]
 
@@ -58,7 +58,9 @@ function shortFirst(pieces: string[]): string[] {
 let off: string | null = null
 export const cloudOff = () => off
 
-const FIRST_WAIT_MS = 2500 // longer than the spike's slowest long sentence (~1.4 s)
+// Gemini takes ~2.5 s a sentence and the server switches to Chirp after 4.5 s (api/_lib/tts.ts),
+// so this waits past that before the phone's own voice takes over.
+const FIRST_WAIT_MS = 6000
 const cache = new Map<string, Promise<Blob>>()
 const CACHE_MAX = 80 // fixed phrases ("אשר", "לא מצאתי...") come back without asking again
 

@@ -1,7 +1,7 @@
 // The "what went to Claude" log (the user's request, 2026-11-07). Every conversation the voice
 // assistant sent to Claude is kept with why the free path did not do it, what Claude did, and how it
 // ended. A developer reads it (Settings > "מה הלך ל-Claude" > copy, or `node scripts/claude-log.mjs`)
-// and teaches the next free action with the skill free-commands. Kept on the server (api/claude-log.ts,
+// and teaches the next free action with the skill free-commands. Kept on the server (api/_lib/routes/claude-log.ts,
 // owner only, sealed), and the last ones on this device too, so a failed send is not lost.
 
 export type LogOutcome = 'pending' | 'answered' | 'confirmed' | 'cancelled' | 'failed'

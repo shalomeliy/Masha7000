@@ -1,8 +1,8 @@
-import { audit } from './_lib/audit.js'
-import { deleteAccount } from './_lib/deleteAccount.js'
-import { readEnv } from './_lib/env.js'
-import { clearCookie, guarded, json, readJson, sameOrigin, SESSION_COOKIE } from './_lib/http.js'
-import { endSession, readSession, requireManager } from './_lib/session.js'
+import { audit } from '../audit.js'
+import { deleteAccount } from '../deleteAccount.js'
+import { readEnv } from '../env.js'
+import { clearCookie, guarded, json, readJson, sameOrigin, SESSION_COOKIE } from '../http.js'
+import { endSession, readSession, requireManager } from '../session.js'
 
 // POST /api/logout: signs out this device only (its session is deleted on the server too).
 // Other devices and the owner's Drive link stay.
@@ -19,7 +19,7 @@ export const POST = guarded(async (req: Request) => {
     const gate = await requireManager(env, req)
     if ('refuse' in gate) return gate.refuse
     await audit(env, req, 'account-delete', { email: gate.session.email })
-    await deleteAccount(env, gate.session.email)
+    await deleteAccount(env, gate.session.email, gate.team)
     return json({ ok: true }, 200, [clearCookie(SESSION_COOKIE)])
   }
   const session = await readSession(env, req)

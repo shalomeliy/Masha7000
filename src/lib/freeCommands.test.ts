@@ -628,3 +628,50 @@ describe('certifications in the plural (the user, 2026-11-08)', () => {
     expect(run('יוסי חולה מחר', d())).toMatchObject({ kind: 'propose' })
   })
 })
+
+describe('the log, 2026-11-23: "כחולה" and "מי חולה"', () => {
+  it('"X כחולה מחר" (speech recognition) is "X חולה מחר"', () => {
+    const r = run('יוסי כחולה מחר')
+    expect(r?.kind).toBe('propose')
+    if (r?.kind !== 'propose') return
+    expect(r.proposal.addConstraints).toEqual([{ workerId: 'w2', from: '2026-11-08', to: '2026-11-08', nightsOnly: false, note: 'מחלה', kind: '' }])
+    expect(r.proposal.summary).toBe('יוסי כהן חולה מחר. הוא לא משובץ לעבודה בימים האלה. לאשר, או שיש עוד תיקון?')
+    const today = run('דני כחולה היום')
+    if (today?.kind === 'propose') expect(today.proposal.editWorkers[0]).toMatchObject({ workerId: 'w1', status: 'sick', sickUntil: '2026-11-07' })
+    else throw new Error(JSON.stringify(today))
+  })
+
+  it('a geresh name said with "כחולה" is still the worker', () => {
+    const r = run('משה תורג׳מן כחולה מחר')
+    expect(r?.kind).toBe('propose')
+    if (r?.kind === 'propose') expect(r.proposal.addConstraints[0]).toMatchObject({ workerId: 'w5' })
+  })
+
+  it('"כחולה" with more in the sentence still goes to Claude', () => {
+    expect(run('יוסי ודני כחולה מחר')?.kind).not.toBe('propose')
+    expect(run('יוסי כחולה מחר בערד 17')?.kind).not.toBe('propose')
+    expect(run('הרכב הכחולה מחר')?.kind).not.toBe('propose')
+    expect(run('דולי כתשובה אני חולה מחר')?.kind).not.toBe('propose')
+  })
+
+  it('says who is sick on a day, from status and dated sick days', () => {
+    const d = data({
+      workers: [
+        { ...base.workers[0], status: 'sick', sickUntil: '2026-11-08' },
+        { ...base.workers[1], constraints: [{ id: 'c1', when: 'dates', from: '2026-11-08', to: '2026-11-08', nightsOnly: false, note: 'מחלה' }] },
+        { ...base.workers[2], constraints: [{ id: 'c2', when: 'dates', from: '2026-11-08', to: '2026-11-08', nightsOnly: false, note: 'חופש' }] },
+        { ...base.workers[3], status: 'inactive' },
+      ],
+    })
+    expect(run('מי חולה היום?', d)).toEqual({ kind: 'say', text: 'היום חולה אחד: דני לוי.' })
+    expect(run('מי חולה', d)).toEqual({ kind: 'say', text: 'היום חולה אחד: דני לוי.' })
+    expect(run('מי חולה מחר', d)).toEqual({ kind: 'say', text: 'מחר 2 חולים: דני לוי, יוסי כהן.' })
+    expect(run('מי חולים מחרתיים', d)).toEqual({ kind: 'say', text: expect.stringMatching(/אין חולים\.$/) })
+  })
+
+  it('"מי חולה" with more than a day still goes to Claude', () => {
+    expect(run('מי חולה בערד 17')).toBeNull()
+    expect(run('מי חולה ומי מחליף אותו מחר')).toBeNull()
+    expect(run('תשלח לי דו״ח מי חולה היום')).toBeNull()
+  })
+})

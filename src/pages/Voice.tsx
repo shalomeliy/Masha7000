@@ -1,6 +1,9 @@
 import { language, tx } from '../i18n'
+import { useFeatures } from '../lib/data/useFeatures'
+import { FEATURE_IDS } from '../lib/features'
+import { offFeatureAnswer, offFeatureSaid } from '../lib/featureSpeech'
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, AudioLines, BookMarked, Check, Gauge, Keyboard, LifeBuoy, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
+import { AlertTriangle, AudioLines, BookMarked, Check, Keyboard, LifeBuoy, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
 import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, proposalVehicles, snapshot, summaryWith, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
@@ -17,7 +20,7 @@ import { vlog, voiceReport } from '../lib/voiceLog'
 import { cloudOff } from '../lib/cloudVoice'
 import { hasAiConsent, setAiConsent } from '../lib/aiConsent'
 import { AiConsentCard } from '../components/AiConsentCard'
-import { canListen, canSpeak, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, nextRate, nextVoice, onVoicesChanged, prepare, rateName, speak, speakAtOnce, speechRate, stopSpeaking, voiceName, voices, type Listening } from '../lib/speech'
+import { canListen, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, onSpeaking, onVoicesChanged, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -42,7 +45,12 @@ interface Line {
 // A proposal with wrong ids or dates goes back to the assistant at most this many times in a row.
 const MAX_FIXES = 2
 
-export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
+// The screen stays open behind the other tabs (App.tsx), so a conversation survives a look at the
+// calendar. Away longer than this, it starts fresh (user, 2026-11-23).
+export const KEEP_TALK_MS = 30 * 60 * 1000
+
+export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Screen) => void; active?: boolean }) {
+  const { isOn, flags } = useFeatures()
   const lists = {
     certifications: useDriveList('certifications'),
     workers: useDriveList('workers'),
@@ -62,26 +70,25 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   const data = Object.fromEntries(Object.entries(lists).map(([k, l]) => [k, l.items])) as unknown as AppData
 
   const [phase, setPhase] = useState<Phase>('idle')
+  // Shali reading its answer aloud (owner, 2026-11-23: the screen showed nothing until it ended).
+  const [speaking, setSpeaking] = useState(false)
+  useEffect(() => onSpeaking(setSpeaking), [])
   const [heard, setHeard] = useState('')
   const [lines, setLines] = useState<Line[]>([])
   const [showText, setShowText] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [typing, setTyping] = useState(!canListen)
   const [typed, setTyped] = useState('')
-  const [rate, setRate] = useState(speechRate)
   // A turn for Claude held back until the manager agrees to send to an outside AI (src/lib/aiConsent.ts).
   // What waits for the consent: a turn for Claude, or (iPhone home-screen app) the listening itself.
   const [consentFor, setConsentFor] = useState<{ turn: Turn; fixes: number } | { mic: true } | null>(null)
   // The phone's voices for the app's language; they may load a moment after the screen opens.
-  const [voiceList, setVoiceList] = useState(voices)
+  // The voice is picked in Settings > העוזר הקולי (owner, 2026-11-23); here only for the trouble log.
   const [voice, setVoice] = useState(currentVoice)
-  useEffect(() => onVoicesChanged(() => {
-    setVoiceList(voices())
-    setVoice(currentVoice())
-  }), [])
+  useEffect(() => onVoicesChanged(() => setVoice(currentVoice())), [])
   // Said the moment a request goes to Claude, while the answer is on its way (owner, 2026-11-14), ready ahead.
   const MOMENT = tx('רגע, בודק.')
-  useEffect(() => prepare(MOMENT), [MOMENT, voice, rate])
+  useEffect(() => prepare(MOMENT), [MOMENT, voice])
   const [realDev, setRealDev] = useState(realAssistantOn)
   const [used, setUsed] = useState(usage)
   const [budget, setBudget] = useState<Budget | null>(null)
@@ -133,6 +140,33 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     stopSpeaking()
   }, [])
 
+  // On another tab nothing is heard (the mic stops), but Shali goes on talking there (owner, 2026-11-23:
+  // "can Shali speak in the background while I move between screens?"), answers that arrive meanwhile too.
+  const shownNow = useRef(active)
+  const leftAt = useRef(0)
+  useEffect(() => {
+    shownNow.current = active
+    if (!active) {
+      leftAt.current = Date.now()
+      listening.current?.stop()
+      return
+    }
+    if (!leftAt.current) return
+    const away = Date.now() - leftAt.current
+    leftAt.current = 0
+    if (away > KEEP_TALK_MS) {
+      // Long gone: a fresh start, nothing half-said waits for a yes.
+      if (logged.current) logEnd('cancelled')
+      reset()
+      setLines([])
+      setError(null)
+      setHeard('')
+      setConflicts([])
+      return
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on leaving and coming back only
+  }, [active])
+
   const say = (text: string) => {
     setLines((l) => [...l, { who: 'app', text }])
     speak(text)
@@ -165,14 +199,16 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       return
     }
     setPhase('thinking')
-    if (!fixes) speakAtOnce(MOMENT)
+    if (!fixes && shownNow.current) speakAtOnce(MOMENT)
     setError(null)
     fromFree.current = false
     conversation.current = [...conversation.current, turn]
     let answer: AssistantAnswer
     let early = ''
     try {
-      answer = await askAssistant(conversation.current, snapshot(data, undefined, asked.current.join(' ')), (text) => {
+      // Features the team turned off: Claude is told not to offer them (api/_lib/assistant.ts featuresNote).
+      const featuresOff = FEATURE_IDS.filter((id) => !flags[id])
+      answer = await askAssistant(conversation.current, { ...snapshot(data, undefined, asked.current.join(' ')), featuresOff }, (text) => {
         // Spoken while the rest of the answer is still being written.
         early = text
         say(text)
@@ -218,15 +254,15 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
         setPhase('idle')
         return
       }
-      if (text && text !== early) say(text)
       // A button only a tap may press (WhatsApp, sharing): open its screen and make it blink.
       const hint = call.input.pressButton as Hint | ''
       const screen = hint && hint in HINTS ? HINTS[hint] : (call.input.openScreen as Screen | '')
-      if (screen)
-        setTimeout(() => {
-          onNavigate(screen)
-          if (hint && hint in HINTS) showHint(hint)
-        }, text ? 1800 : 0)
+      // The screen opens at once; the answer goes on being said there (it used to be cut off, owner 2026-11-23).
+      if (text && text !== early) say(text)
+      if (screen) {
+        onNavigate(screen)
+        if (hint && hint in HINTS) showHint(hint)
+      }
     } else if (call?.name === 'solve') {
       // The planner computes the options here, in milliseconds; the model then ranks and words them.
       const i = call.input as { kind: Problem['kind']; shiftId: string; workerIds: string[]; date: string }
@@ -371,6 +407,14 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
     const picked = advice ? pickedOption(text, advice.options.length) : null
     if (picked !== null) {
       pickOption(picked)
+      return
+    }
+    // A request about a feature the team turned off: answered here, free, never sent to Claude.
+    const offFeature = offFeatureSaid(text, isOn, data.certifications.map((c) => c.name))
+    if (offFeature) {
+      setError(null)
+      say(offFeatureAnswer(offFeature))
+      reset()
       return
     }
     asked.current = [...asked.current, text]
@@ -539,7 +583,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
   // "שליחת יומן תקלות": what listening and speaking did on this phone, to Sentry and to the clipboard.
   const [logState, setLogState] = useState<string | null>(null)
   const sendLog = () => {
-    const log = voiceReport({ canListen, iosHomeApp, voice: voiceName(voice), rate, cloudOff: cloudOff() ?? 'no', phase })
+    const log = voiceReport({ canListen, iosHomeApp, voice: voiceName(voice), cloudOff: cloudOff() ?? 'no', phase })
     navigator.clipboard?.writeText(log).catch(() => {})
     setLogState(tx('שולח...'))
     void reportMessage('Voice log', log).then((id) =>
@@ -565,6 +609,8 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
       listening.current = null
       setHeard('')
       setPhase('idle')
+      // Stopped by leaving the screen: half a sentence is not acted on.
+      if (!shownNow.current) return
       if (err) setError(err)
       handleSaid(text)
     })
@@ -591,7 +637,7 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
 
   const busy = phase === 'thinking' || phase === 'saving' || loading
   const status =
-    phase === 'listening' ? tx('מקשיב... אפשר לדבר') : phase === 'thinking' ? tx('חושב...') : phase === 'saving' ? tx('שומר...') : loading ? tx('טוען נתונים...') : proposal ? tx('לאשר, או לתקן?') : advice ? tx('איזה פתרון לעשות?') : talking ? tx('לחץ וענה') : tx('לחץ ודבר')
+    phase === 'listening' ? tx('מקשיב... אפשר לדבר') : phase === 'thinking' ? tx('חושב...') : phase === 'saving' ? tx('שומר...') : loading ? tx('טוען נתונים...') : speaking ? tx('Shali מדבר...') : proposal ? tx('לאשר, או לתקן?') : advice ? tx('איזה פתרון לעשות?') : talking ? tx('לחץ וענה') : tx('לחץ ודבר')
 
   return (
     <section className="flex min-h-[calc(100dvh-6rem)] flex-col items-center px-4 pt-10">
@@ -603,13 +649,19 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
           aria-pressed={phase === 'listening'}
           aria-label={phase === 'listening' ? tx('עצירת ההקשבה') : tx('דבר עם Shali')}
           className={`flex size-44 items-center justify-center rounded-full border-4 shadow-xl transition active:scale-95 disabled:opacity-50 ${
-            phase === 'listening' ? 'animate-pulse border-red-400 bg-red-500/20 text-red-100' : 'border-sky-400 bg-sky-500/15 text-sky-100'
+            phase === 'listening'
+              ? 'animate-pulse border-red-400 bg-red-500/20 text-red-100'
+              : speaking && phase === 'idle'
+                ? 'animate-pulse border-emerald-400 bg-emerald-500/15 text-emerald-100'
+                : 'border-sky-400 bg-sky-500/15 text-sky-100'
           }`}
         >
           {busy && phase !== 'idle' ? (
             <Loader2 className="animate-spin" size={64} aria-hidden />
           ) : phase === 'listening' ? (
             <Square size={56} aria-hidden />
+          ) : speaking ? (
+            <AudioLines size={72} aria-hidden />
           ) : (
             <Mic size={72} aria-hidden />
           )}
@@ -756,37 +808,6 @@ export function Voice({ onNavigate }: { onNavigate: (screen: Screen) => void }) 
             <button type="button" onClick={() => setShowText((s) => !s)} aria-expanded={showText} className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200">
               <MessageSquareText size={18} aria-hidden />
               {showText ? tx('הסתר טקסט') : tx('הצג טקסט')}
-            </button>
-          )}
-          {canSpeak && (
-            <button
-              type="button"
-              onClick={() => {
-                const v = nextRate()
-                setRate(v)
-                // Starts with the name, so the owner can hear how it is said (the same in every language).
-                speak(`Shali. ${tx('ככה אני מדבר בקצב {v}', { v: rateName(v) })}`)
-              }}
-              aria-label={tx('מהירות הדיבור: {v}. לחיצה משנה', { v: rateName(rate) })}
-              className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200"
-            >
-              <Gauge size={18} aria-hidden />
-              {tx('קצב: {v}', { v: rateName(rate) })}
-            </button>
-          )}
-          {canSpeak && voiceList.length > 1 && (
-            <button
-              type="button"
-              onClick={() => {
-                const v = nextVoice()
-                setVoice(v)
-                speak(`Shali. ${tx('ככה נשמע הקול הזה')}`)
-              }}
-              aria-label={tx('קול הדיבור: {v}. לחיצה מחליפה לקול אחר', { v: voiceName(voice) })}
-              className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 px-4 text-sm text-slate-200"
-            >
-              <AudioLines size={18} aria-hidden />
-              {tx('קול: {v}', { v: voiceName(voice) })}
             </button>
           )}
           {canListen && (

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useFeatures } from '../../lib/data/useFeatures'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, Loader2, MessageCircle, Share2, Trash2, UserPlus } from 'lucide-react'
 import { Sheet } from '../../components/Sheet'
@@ -58,7 +59,9 @@ function JoinSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const departments = useDriveList('departments')
   const [copied, setCopied] = useState(false)
   const [confirmNew, setConfirmNew] = useState(false)
-  const lists = formLists(certs.items, departments.items)
+  // A feature the team turned off is not asked in the workers' form either.
+  const { isOn } = useFeatures()
+  const lists = formLists(isOn('certs') ? certs.items : [], isOn('departments') ? departments.items : [])
 
   // Opening the sheet opens the form (or keeps it open) with today's certifications and departments.
   const link = useQuery({

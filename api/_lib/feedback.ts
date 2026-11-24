@@ -42,3 +42,75 @@ export async function sendFeedback(apiKey: string, mail: FeedbackMail, fetcher: 
   if (!res.ok) console.error('feedback mail refused', res.status)
   return res.ok
 }
+
+// ---- Fault reports (2026-11-23) ----
+// A manager reports something broken. It goes to a dedicated address kept only on the server
+// (FAULT_REPORT_EMAIL in Vercel), so the users never see where it lands.
+
+export interface FaultDetails {
+  urgent: boolean
+  where: string
+  page: string
+  device: string
+  model: string
+  os: string
+  osVersion: string
+  occurredAt: string
+  language: string
+  release: string
+}
+
+const clip = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/[\r\n\t]+/g, ' ').trim().slice(0, max) : '')
+
+/** The details the app adds by itself, each cut short and flattened to one line. */
+export function faultDetails(raw: unknown): FaultDetails {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+  return {
+    urgent: r.urgent === true,
+    where: clip(r.where, 80),
+    page: clip(r.page, 200),
+    device: clip(r.device, 300),
+    model: clip(r.model, 80),
+    os: clip(r.os, 40),
+    osVersion: clip(r.osVersion, 40),
+    occurredAt: clip(r.occurredAt, 40),
+    language: clip(r.language, 20),
+    release: clip(r.release, 60),
+  }
+}
+
+/** The recipient of fault reports: the dedicated address, else the feature-request one. */
+export function faultRecipient(env: Record<string, string | undefined> = process.env): string {
+  return (env.FAULT_REPORT_EMAIL ?? '').trim() || (env.FEEDBACK_TO ?? '').trim() || FEEDBACK_TO_DEFAULT
+}
+
+export function faultMail(text: string, d: FaultDetails, sender: string, to: string, from: string, when = new Date()): FeedbackMail {
+  const first = text.split('\n')[0].slice(0, 60)
+  const lines = [
+    `דחיפות: ${d.urgent ? 'דחוף, אי אפשר לעבוד' : 'רגיל'}`,
+    d.where && `איפה באפליקציה: ${d.where}`,
+    d.page && `כתובת: ${d.page}`,
+    d.occurredAt && `מתי קרתה: ${d.occurredAt}`,
+    d.model && `מכשיר: ${d.model}`,
+    (d.os || d.osVersion) && `מערכת הפעלה: ${[d.os, d.osVersion].filter(Boolean).join(' ')}`,
+    d.device && `דפדפן (טכני): ${d.device}`,
+    d.language && `שפה: ${d.language}`,
+    d.release && `גרסה: ${d.release}`,
+    `מדווח: ${sender}`,
+    `זמן: ${when.toISOString()}`,
+  ].filter(Boolean)
+  return {
+    from,
+    to: [to],
+    reply_to: sender,
+    subject: `Shali - ${d.urgent ? 'תקלה דחופה' : 'דיווח תקלה'}: ${first}`,
+    text: `${text}\n\n---\n${lines.join('\n')}`,
+  }
+}
+
+/** The urgent-fault WhatsApp number (FAULT_WHATSAPP), as digits with the country code; '' when unset. */
+export function faultWhatsapp(env: Record<string, string | undefined> = process.env): string {
+  let d = (env.FAULT_WHATSAPP ?? '').replace(/\D/g, '')
+  if (d.startsWith('0')) d = `972${d.slice(1)}` // an Israeli number written as 05x
+  return d.length >= 9 && d.length <= 15 ? d : ''
+}

@@ -1,11 +1,12 @@
-import { addToLog, clearStoredLog, logEntry, readLog, tokenMatches } from './_lib/claudeLog.js'
-import { readEnv, type Env } from './_lib/env.js'
-import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
-import { overLimit } from './_lib/rate.js'
-import { canUseAssistant, isOwner, requireManager } from './_lib/session.js'
+import { addToLog, clearStoredLog, logEntry, readLog, tokenMatches } from '../claudeLog.js'
+import { readEnv, type Env } from '../env.js'
+import { clientIp, guarded, json, readJson, sameOrigin } from '../http.js'
+import { overLimit } from '../rate.js'
+import { canUseAssistant, isOwner, requireManager } from '../session.js'
 
 // The "what went to Claude" log of the voice assistant (api/_lib/claudeLog.ts). Read and emptied by the
-// owner only; written by anyone allowed the assistant, so the owner sees every conversation.
+// owner only; written by anyone in the owner's own team allowed the assistant, so the owner sees every
+// conversation of his team. Never a customer team's: their workers' names are not the owner's to keep.
 // POST { entry }: add one conversation, or update it (same id).
 // GET: the whole log, oldest first. Also open to a development session with the CLAUDE_LOG_TOKEN key
 //   (scripts/claude-log.mjs), so the log can be read without pasting.
@@ -15,7 +16,7 @@ async function ownerGate(req: Request, env: Env, allow = isOwner as (env: Env, e
   if (req.method !== 'GET' && !sameOrigin(req, env.appOrigin)) return json({ reason: 'bad-origin' }, 403)
   const gate = await requireManager(env, req)
   if ('refuse' in gate) return gate.refuse
-  if (!(await allow(env, gate.session.email))) return json({ reason: 'not-owner' }, 403)
+  if (!gate.team.isRoot || !(await allow(env, gate.session.email))) return json({ reason: 'not-owner' }, 403)
   return null
 }
 
