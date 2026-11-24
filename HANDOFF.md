@@ -536,7 +536,7 @@ model said with them, and every read-back says the 3 digits, make and model.
 - Plan `docs/plans/hourly-shifts-PLAN.md`, spike `docs/spikes/hourly-shifts.md` (GO).
 - Switch: `settings.shiftHours = { on, restHours }` (team's `settings.json`), read into `featureRules.hours` / `restHours` (`src/lib/featureRules.ts`, set in `App.tsx`). Absent = the old whole-day checks, unchanged (the owner's team, Dolik).
 - With it on: `busyWith` (`src/lib/planner.ts`) checks hour overlap plus rest hours (`shiftInterval` in `src/lib/shifts.ts`); a type marked `endsNextDay: true` (night until 16:00 tomorrow) keeps the day-job-next-morning rule. `blockingConstraints` (`src/lib/constraints.ts`) checks morning 00-12 / noon 12-17 / evening 17-24 against the shift's hours. Calendar sorts a day by start time and shows the hours; the WhatsApp report shows them; "לינה" is not auto-added.
-- Wizard: shifts question has "משמרות לפי שעות", then a step picking בוקר/צהריים/ערב/לילה (with hours), יום, לילה עד מחר 16:00 (`src/lib/hourlyShifts.ts`: `choicesFrom`, `typesFromChoices`). Default rest 8 hours (owner's choice pending, recommended).
+- Wizard: shifts question has "משמרות לפי שעות", then a step picking בוקר/צהריים/ערב/לילה (with hours) and יום; not "לילה עד מחר 16:00" (owner, 2026-11-24) (`src/lib/hourlyShifts.ts`: `choicesFrom`, `typesFromChoices`). Default rest 8 hours (owner confirmed).
 - Settings > תבניות עבודה: "משמרות לפי שעות" switch + rest hours, shown only to a team with an `onboarding` record or the setting; types get start/end fields.
 - Shali free: "משמרת ערב" / "ערב" / "בוקר" pick the type; "בערב" with a prefix stays a time of day.
 - Tests: `src/lib/hourlyShifts.test.ts`, `src/lib/freeCommands.test.ts` (hours block), `e2e/hourlyShifts.e2e.ts`.

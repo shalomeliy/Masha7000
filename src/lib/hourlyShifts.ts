@@ -15,15 +15,15 @@ export interface ShiftChoice {
   end: string
 }
 
-/** The spec's suggestion: morning and evening picked; the two old-style types last, with fixed hours. */
+/** The spec's suggestion: morning and evening picked; the old-style day last, with fixed hours. */
 export const DEFAULT_CHOICES: ShiftChoice[] = [
   { key: 'morning', on: true, start: '07:00', end: '15:00' },
   { key: 'noon', on: false, start: '12:00', end: '20:00' },
   { key: 'evening', on: true, start: '15:00', end: '23:00' },
   { key: 'night', on: false, start: '23:00', end: '07:00' },
   { key: 'fullDay', on: false, start: '07:00', end: '16:00' },
-  { key: 'nightToNoon', on: false, start: '07:00', end: '16:00' },
 ]
+// "לילה עד מחר 16:00" is not offered to a team by hours (the owner, 2026-11-24); the key stays so an old type is still read.
 
 /** The two choices whose hours are fixed: a day until 16:00, and a night until 16:00 the next day. */
 export const FIXED_HOURS: PresetKey[] = ['fullDay', 'nightToNoon']
@@ -74,11 +74,11 @@ export function choicesFrom(defs: ShiftDefinition[]): ShiftChoice[] {
  */
 export function typesFromChoices(choices: ShiftChoice[], existing: ShiftDefinition[], hasShifts: boolean): ShiftDefinition[] {
   const picked = choices.filter((c) => c.on)
-  const bothNights = picked.some((c) => c.key === 'night') && picked.some((c) => c.key === 'nightToNoon')
   const made = picked.map((c): ShiftDefinition => {
     const old = typeOf(c.key, existing)
-    // The old "לילה" until 16:00 tomorrow next to a new 23:00 "לילה": it takes its own name, so the two differ.
-    const name = old && !(bothNights && c.key === 'nightToNoon' && norm(old.name) === norm(presetName('night'))) ? old.name : presetName(c.key)
+    // A new type whose name another type already has (the old "לילה" until 16:00 tomorrow): its hours tell them apart.
+    const taken = !old && existing.some((d) => norm(d.name) === norm(presetName(c.key)))
+    const name = old ? old.name : taken ? `${presetName(c.key)} ${c.start}` : presetName(c.key)
     const base = old ?? { id: newId(), name, requiredHeadcount: 1, requiredCertificationIds: [] }
     const { endsNextDay: _drop, ...rest } = { ...base, name, startTime: c.start, endTime: c.end } as ShiftDefinition
     return c.key === 'nightToNoon' ? { ...rest, endsNextDay: true } : c.key === 'fullDay' ? { ...rest, endsNextDay: false } : rest

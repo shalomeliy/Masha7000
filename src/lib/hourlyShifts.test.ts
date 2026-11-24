@@ -120,24 +120,18 @@ describe('the wizard choices become shift types', () => {
       ['לילה', '23:00', '07:00', undefined],
     ])
   })
-  it('the old "לילה" until 16:00 is read as that choice, never as the 23:00 night', () => {
+  it('the old "לילה" until 16:00 is never read as the 23:00 night, and is not offered', () => {
     const c = choicesFrom(owners)
-    expect(c.filter((x) => x.on).map((x) => x.key)).toEqual(['morning', 'evening', 'fullDay', 'nightToNoon'])
+    expect(c.map((x) => x.key)).not.toContain('nightToNoon')
+    expect(c.filter((x) => x.on).map((x) => x.key)).toEqual(['morning', 'evening', 'fullDay'])
+    // A team with saved shifts keeps it as it was.
     const types = typesFromChoices(c, owners, true)
     expect(types.find((d) => d.id === 'n1')).toMatchObject({ name: 'לילה', endsNextDay: true, startTime: '07:00', endTime: '16:00' })
   })
-  it('both nights: the old one takes its own name, so the two differ', () => {
-    const types = typesFromChoices(choices('night', 'nightToNoon'), owners, true)
-    expect(types.find((d) => d.id === 'n1')?.name).toBe('לילה עד מחר 16:00')
-    expect(types.filter((d) => d.name === 'לילה')).toHaveLength(1)
-  })
-  it('a team with saved shifts keeps the types it did not pick', () => {
-    const types = typesFromChoices(choices('evening'), OLD, true)
-    expect(types.map((d) => d.name)).toEqual(['ערב', 'day', 'night', 'linah'])
-  })
-  it('the night until 16:00 tomorrow keeps its mark', () => {
-    const [t] = typesFromChoices(choices('nightToNoon'), [], false)
-    expect(t.endsNextDay).toBe(true)
+  it('a 23:00 night next to the old one: a new type, the old one untouched', () => {
+    const types = typesFromChoices(choices('night'), owners, true)
+    expect(types.find((d) => d.id === 'n1')).toMatchObject({ endsNextDay: true })
+    expect(types.find((d) => d.id !== 'n1' && d.startTime === '23:00')?.name).toBe('לילה 23:00')
   })
   it('errors', () => {
     expect(choicesError(choices())).not.toBeNull()
