@@ -2,6 +2,7 @@ import { tx } from '../../i18n'
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { mfaStatus, logoutEverywhere, newRecoveryCodes } from '../../lib/google/mfa'
+import { isRootTeam } from '../../lib/google/auth'
 import { useAuth } from '../../store/auth'
 import { RecoveryCodes } from '../../components/RecoveryCodes'
 import { AuditLog } from './AuditLog'
@@ -25,7 +26,8 @@ export function SecuritySection() {
     onSuccess: () => useAuth.setState({ status: 'signedOut', who: null }),
   })
   const error = (fresh.error ?? everywhere.error) as Error | null
-  const isOwner = useAuth((a) => a.who?.isOwner === true)
+  // The security log is the app owner's (it holds every team's sign-ins): not a customer team's owner.
+  const isOwner = useAuth((a) => a.who?.isOwner === true && isRootTeam(a.who))
 
   return (
     <div className="space-y-3">

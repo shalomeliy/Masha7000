@@ -45,14 +45,14 @@ describe('resume', () => {
   it('is signed in through the server with no click', async () => {
     stubFetch(() => json({ accessToken: 'owner-token', expiresIn: 3600, email: 'deputy@x.com', isOwner: false }))
     const auth = await load()
-    expect(await auth.resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: false } })
+    expect(await auth.resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: false, root: true } })
     expect(auth.authMode()).toBe('server')
     expect(auth.getAccessToken()).toBe('owner-token')
   })
 
   it('knows a deputy the owner opened the voice assistant to', async () => {
     stubFetch(() => json({ accessToken: 't', expiresIn: 3600, email: 'deputy@x.com', isOwner: false, assistant: true }))
-    expect(await (await load()).resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: true } })
+    expect(await (await load()).resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: true, root: true } })
   })
 
   it('a start with no signal still knows a deputy with the voice assistant', async () => {
@@ -63,7 +63,7 @@ describe('resume', () => {
     await (await load()).resume()
     vi.resetModules()
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('offline'))))
-    expect(await (await load()).resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: true } })
+    expect(await (await load()).resume()).toEqual({ status: 'signedIn', who: { email: 'deputy@x.com', isOwner: false, assistant: true, root: true } })
   })
 
   it('tells apart a removed email and a disconnected owner', async () => {
@@ -71,7 +71,17 @@ describe('resume', () => {
     expect((await (await load()).resume()).status).toBe('notAllowed')
     vi.resetModules()
     stubFetch(() => json({ reason: 'owner-disconnected', email: 'boss@x.com', isOwner: true }, 409))
-    expect(await (await load()).resume()).toEqual({ status: 'ownerDisconnected', who: { email: 'boss@x.com', isOwner: true, assistant: true } })
+    expect(await (await load()).resume()).toEqual({ status: 'ownerDisconnected', who: { email: 'boss@x.com', isOwner: true, assistant: true, root: true } })
+  })
+
+  it("a new customer's owner links his own Drive (mode=team), not the app owner's", async () => {
+    stubFetch(() => json({ reason: 'owner-disconnected', email: 'cust@x.com', isOwner: true, root: false, assistant: true }, 409))
+    const auth = await load()
+    expect(await auth.resume()).toEqual({ status: 'ownerDisconnected', who: { email: 'cust@x.com', isOwner: true, assistant: true, root: false } })
+    const assign = vi.fn()
+    vi.stubGlobal('window', { location: { assign } })
+    auth.ownerReconnect()
+    expect(assign).toHaveBeenCalledWith('/api/auth/start?mode=team')
   })
 })
 
