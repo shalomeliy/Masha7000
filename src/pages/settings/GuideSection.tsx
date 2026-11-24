@@ -3,16 +3,18 @@ import { ChevronDown, Mic } from 'lucide-react'
 import { tx } from '../../i18n'
 import { useFeatures } from '../../lib/data/useFeatures'
 import { visibleChapters } from '../../lib/guide'
+import { useShiftHours } from '../workers/ShiftsSection'
 
 // Settings > "מדריך": how to do each thing, only for the screens this team has turned on.
 export function GuideSection() {
   const { isOn } = useFeatures()
+  const hoursOffered = useShiftHours().offered
   const [open, setOpen] = useState<string | null>(null)
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{tx('מדריך')}</h1>
       <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-        {visibleChapters(isOn).map((c) => (
+        {visibleChapters(isOn, hoursOffered).map((c) => (
           <li key={c.id}>
             <button type="button" aria-expanded={open === c.id} onClick={() => setOpen(open === c.id ? null : c.id)} className="flex min-h-14 w-full items-center justify-between gap-3 px-4 text-start font-medium">
               {c.title}

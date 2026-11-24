@@ -1,3 +1,5 @@
+import { featureRules } from './featureRules'
+import { hoursRange } from './hourlyShifts'
 import { tx } from '../i18n'
 import { endsNextDay, fullName } from './catalog'
 import { dayName, showDate, sortShifts, weekOf } from './shifts'
@@ -49,7 +51,8 @@ function reportShift(r: ShiftRecord, ctx: ReportContext, colors: Map<string, str
   const kind: ShiftKind = r.urgent ? 'urgent' : !def ? 'other' : endsNextDay(def) ? 'night' : 'day'
   return {
     kind,
-    kindLabel: r.urgent ? tx('דחופה מ-{startTime}', { startTime: r.startTime }) : (def?.name ?? tx('עבודה')),
+    // By hours: "ערב 15:00-23:00", so the workers see when the shift is.
+    kindLabel: r.urgent ? tx('דחופה מ-{startTime}', { startTime: r.startTime }) : def && featureRules.hours ? `${def.name} ${hoursRange(def)}` : (def?.name ?? tx('עבודה')),
     location: r.location,
     until: r.urgent && r.endDate ? tx('עד יום {weekday} {v2} {v3}', { weekday: dayName(r.endDate), v2: showDate(r.endDate), v3: r.endTime ?? '' }).trim() : undefined,
     job: r.jobDescription,
@@ -65,7 +68,7 @@ function reportShift(r: ShiftRecord, ctx: ReportContext, colors: Map<string, str
 }
 
 function reportDay(date: string, ctx: ReportContext): ReportDay {
-  const shifts = sortShifts(ctx.shifts).filter((r) => r.date === date)
+  const shifts = sortShifts(ctx.shifts, ctx.defs).filter((r) => r.date === date)
   // Colors from the whole worker list, so a worker keeps theirs whoever else works that day.
   const colors = workerColors(ctx.workers)
   return { date, title: tx('יום {weekday} {v2}', { weekday: dayName(date), v2: showDate(date) }), shifts: shifts.map((r) => reportShift(r, ctx, colors)) }

@@ -101,7 +101,7 @@ export function withFeature(flags: Record<FeatureId, boolean>, id: FeatureId, on
 export type Answers = Partial<{
   business: 'field' | 'security' | 'maintenance' | 'other'
   size: 'upTo10' | 'upTo30' | 'upTo100' | 'more'
-  shifts: 'day' | 'dayNight'
+  shifts: 'day' | 'dayNight' | 'hours'
   certs: 'withExpiry' | 'noExpiry' | 'no'
   vehicles: 'yes' | 'no'
   departments: 'yes' | 'no'

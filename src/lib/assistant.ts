@@ -3,6 +3,7 @@
 // The server (api/_lib/assistant.ts) only proposes; every change is made here, by the same rules
 // the screens use.
 
+import { featureRules } from './featureRules'
 import { certStars, endsNextDay, fullName, isActive, MAX_STAFF, MAX_STARS, nameError, newId, placeText, staffingFor, upsert } from './catalog'
 import { ABSENCE_NAMES, blockingConstraints, constraintText, isOver, shiftDays } from './constraints'
 import { todayIso } from './dates'
@@ -100,6 +101,8 @@ function top(values: string[], n = 3): string[] {
 /** What each kind of job means, in the words the manager uses, so "כולל לינה" is never a name. */
 function kindMeaning(s: ShiftDefinition): string {
   if (s.thenJob) return 'עבודת לילה ואחריה עוד עבודה לפני החזרה לבסיס. נגמרת ב-16:00 למחרת. נקראת גם "כולל לינה", "עם לינה", "לילה פלוס"'
+  // A team with shifts by hours: the type's own hours ("משמרת 23:00 עד 07:00 למחרת").
+  if (featureRules.hours && !s.endsNextDay) return endsNextDay(s) ? `משמרת ${s.startTime} עד ${s.endTime} למחרת` : `משמרת ${s.startTime} עד ${s.endTime} באותו יום`
   if (endsNextDay(s)) return 'יוצאים בבוקר, עובדים גם בלילה, חוזרים ב-16:00 למחרת'
   if (s.isStandby) return 'כוננות'
   return `עבודת יום, ${s.startTime} עד ${s.endTime} באותו יום`

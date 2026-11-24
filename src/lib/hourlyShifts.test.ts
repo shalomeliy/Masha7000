@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { busyWith } from './planner'
 import { blockingConstraint } from './constraints'
+import { withNightPlus } from './catalog'
+import { choicesError, choicesFrom, DEFAULT_CHOICES, typesFromChoices, type PresetKey, type ShiftChoice } from './hourlyShifts'
 import { applyFeatureRules } from './featureRules'
 import { ALL_ON } from './features'
 import type { ShiftDefinition, ShiftRecord } from '../types/models'
@@ -101,5 +103,51 @@ describe('constraints by hours', () => {
   })
   it('without hours an evening constraint does not block a day job ending 16:00 (as before)', () => {
     expect(blockingConstraint(worker({ part: 'evening' }), s(D, 'day'), DEFS)).toBeNull()
+  })
+})
+
+describe('the wizard choices become shift types', () => {
+  const choices = (...on: PresetKey[]): ShiftChoice[] => DEFAULT_CHOICES.map((c) => ({ ...c, on: on.includes(c.key) }))
+  const owners = [
+    { ...def('d1', '07:00', '16:00'), name: 'יום' },
+    { ...def('n1', '07:00', '16:00', true), name: 'לילה' },
+    { ...def('l1', '07:00', '16:00', true), name: 'לינה', thenJob: true },
+  ]
+  it('a new team gets only what it picked, with the hours', () => {
+    const types = typesFromChoices(choices('morning', 'night'), [], false)
+    expect(types.map((d) => [d.name, d.startTime, d.endTime, d.endsNextDay])).toEqual([
+      ['בוקר', '07:00', '15:00', undefined],
+      ['לילה', '23:00', '07:00', undefined],
+    ])
+  })
+  it('the old "לילה" until 16:00 is read as that choice, never as the 23:00 night', () => {
+    const c = choicesFrom(owners)
+    expect(c.filter((x) => x.on).map((x) => x.key)).toEqual(['morning', 'evening', 'fullDay', 'nightToNoon'])
+    const types = typesFromChoices(c, owners, true)
+    expect(types.find((d) => d.id === 'n1')).toMatchObject({ name: 'לילה', endsNextDay: true, startTime: '07:00', endTime: '16:00' })
+  })
+  it('both nights: the old one takes its own name, so the two differ', () => {
+    const types = typesFromChoices(choices('night', 'nightToNoon'), owners, true)
+    expect(types.find((d) => d.id === 'n1')?.name).toBe('לילה עד מחר 16:00')
+    expect(types.filter((d) => d.name === 'לילה')).toHaveLength(1)
+  })
+  it('a team with saved shifts keeps the types it did not pick', () => {
+    const types = typesFromChoices(choices('evening'), OLD, true)
+    expect(types.map((d) => d.name)).toEqual(['ערב', 'day', 'night', 'linah'])
+  })
+  it('the night until 16:00 tomorrow keeps its mark', () => {
+    const [t] = typesFromChoices(choices('nightToNoon'), [], false)
+    expect(t.endsNextDay).toBe(true)
+  })
+  it('errors', () => {
+    expect(choicesError(choices())).not.toBeNull()
+    expect(choicesError([{ key: 'morning', on: true, start: '07:00', end: '07:00' }])).not.toBeNull()
+    expect(choicesError(choices('morning'))).toBeNull()
+  })
+  it('"לינה" is not added for a team with hours', () => {
+    hours()
+    expect(withNightPlus(HOURS)).toBe(HOURS)
+    applyFeatureRules(ALL_ON)
+    expect(withNightPlus(HOURS).at(-1)?.thenJob).toBe(true)
   })
 })

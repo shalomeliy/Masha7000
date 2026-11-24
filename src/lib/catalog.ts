@@ -67,7 +67,8 @@ export const NIGHT_PLUS: ShiftDefinition = {
 export function withNightPlus(saved: ShiftDefinition[]): ShiftDefinition[] {
   const old = saved.some((d) => normalize(d.name) === OLD_NIGHT_PLUS_NAME)
   const defs = old ? saved.map((d) => (normalize(d.name) === OLD_NIGHT_PLUS_NAME ? { ...d, name: NIGHT_PLUS_NAME } : d)) : saved
-  if (defs.length === 0 || defs.some((d) => d.thenJob)) return defs
+  // A team with shifts by hours chose its own types: "לינה" is not added for it.
+  if (defs.length === 0 || defs.some((d) => d.thenJob) || featureRules.hours) return defs
   const named = defs.find((d) => normalize(d.name) === normalize(NIGHT_PLUS_NAME))
   return named ? defs.map((d) => (d === named ? { ...d, endsNextDay: true, thenJob: true } : d)) : [...defs, NIGHT_PLUS]
 }

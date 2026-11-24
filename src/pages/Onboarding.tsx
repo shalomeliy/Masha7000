@@ -3,6 +3,9 @@ import { ChevronRight, Loader2 } from 'lucide-react'
 import { tx } from '../i18n'
 import { answersToFeatures, FEATURE_IDS, NEEDS, resolveFeatures, suggestedAnswers, suggestsDepartments, withFeature, type Answers, type FeatureId } from '../lib/features'
 import { useSaveSettings, useSettings } from '../lib/data/useFeatures'
+import { useDriveList } from '../lib/data/useDriveList'
+import { DEFAULT_REST_HOURS } from '../lib/featureRules'
+import { choicesError, choicesFrom, FIXED_HOURS, presetName, typesFromChoices, type ShiftChoice } from '../lib/hourlyShifts'
 import { authMode } from '../lib/google/auth'
 import { useOnboarding } from '../store/onboarding'
 import { FeatureRow } from './settings/FeaturesSection'
@@ -45,6 +48,7 @@ const questions = (): Question[] => [
     options: [
       { id: 'day', label: tx('רק עבודות יום (עד 16:00)') },
       { id: 'dayNight', label: tx('יום, וגם לילה עד מחר ב-16:00') },
+      { id: 'hours', label: tx('משמרות לפי שעות: בוקר, צהריים, ערב, לילה') },
     ],
   },
   {
@@ -100,6 +104,11 @@ export function Onboarding() {
   const [flags, setFlags] = useState<Record<FeatureId, boolean> | null>(null)
   const [missing, setMissing] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // Shifts by hours: which ones and their hours, asked right after the shifts question (spec question 3א).
+  const defs = useDriveList('shiftDefinitions')
+  const records = useDriveList('shifts')
+  const [choices, setChoices] = useState<ShiftChoice[]>(() => choicesFrom(defs.items))
+  const [askHours, setAskHours] = useState(false)
   const all = questions()
   const total = all.length + 2
 
@@ -109,11 +118,14 @@ export function Onboarding() {
     if (q.key === 'business') next = { ...suggestedAnswers(id as NonNullable<Answers['business']>), ...answers, business: id as Answers['business'] }
     if (q.key === 'size' && next.departments === undefined && suggestsDepartments(next.size)) next.departments = 'yes'
     setAnswers(next)
-    setStep(step + 1)
+    if (q.key === 'shifts' && id === 'hours') setAskHours(true)
+    else setStep(step + 1)
   }
 
   const toSummary = () => {
     const next = answersToFeatures(answers)
+    // By hours: night jobs (the night choice in "תבנית עבודה", 2 nights a week) only when a night shift was picked.
+    if (answers.shifts === 'hours') next.nightJobs = choices.some((c) => c.on && (c.key === 'night' || c.key === 'nightToNoon'))
     // Answering again: what has no question (API, journal, quick lists) keeps how the team has it now.
     if (settings.data?.onboarding) {
       const now = resolveFeatures(settings.data)
@@ -127,7 +139,14 @@ export function Onboarding() {
     if (!flags) return
     setError(null)
     try {
+      const hourly = answers.shifts === 'hours'
+      const rest = settings.data?.shiftHours?.restHours ?? DEFAULT_REST_HOURS
+      // The shift types first: with hours on, "שבץ" reads their hours.
+      // The types are read before they are rewritten; a type is dropped only when no shift was ever saved.
+      if (hourly && !defs.query.isSuccess) throw new Error('shift types not read yet')
+      if (hourly) await defs.save(typesFromChoices(choices, defs.items, !records.missing))
       await save.mutateAsync({
+        ...(hourly || settings.data?.shiftHours ? { shiftHours: { on: hourly, restHours: rest } } : {}),
         features: flags,
         onboarding: { version: 1, answers: answers as Record<string, string>, doneAt: new Date().toISOString(), ...(name.trim() ? { businessName: name.trim().slice(0, 80) } : {}) },
       })
@@ -146,7 +165,7 @@ export function Onboarding() {
   }
 
   const back = step > 0 && (
-    <button type="button" onClick={() => setStep(step - 1)} className="flex min-h-11 items-center gap-1 text-sky-300">
+    <button type="button" onClick={() => (askHours ? setAskHours(false) : setStep(step - 1))} className="flex min-h-11 items-center gap-1 text-sky-300">
       <ChevronRight size={20} aria-hidden />
       {tx('הקודם')}
     </button>
@@ -180,7 +199,18 @@ export function Onboarding() {
         </section>
       )}
 
-      {step >= 1 && step <= all.length && (
+      {askHours && (
+        <HoursStep
+          choices={choices}
+          onChange={setChoices}
+          onDone={() => {
+            setAskHours(false)
+            setStep(step + 1)
+          }}
+        />
+      )}
+
+      {!askHours && step >= 1 && step <= all.length && (
         <Ask q={all[step - 1]} chosen={answers[all[step - 1].key]} onPick={(id) => pick(all[step - 1], id)} />
       )}
 
@@ -237,6 +267,54 @@ function Ask({ q, chosen, onPick }: { q: Question; chosen: string | undefined; o
           </button>
         ))}
       </div>
+    </section>
+  )
+}
+
+function HoursStep({ choices, onChange, onDone }: { choices: ShiftChoice[]; onChange: (c: ShiftChoice[]) => void; onDone: () => void }) {
+  const [error, setError] = useState<string | null>(null)
+  const set = (i: number, part: Partial<ShiftChoice>) => onChange(choices.map((c, j) => (j === i ? { ...c, ...part } : c)))
+  const next = () => {
+    const e = choicesError(choices)
+    setError(e)
+    if (!e) onDone()
+  }
+  return (
+    <section className="space-y-4">
+      <h1 className="text-2xl font-bold">{tx('אילו משמרות, ובאיזה שעות?')}</h1>
+      <p className="text-slate-400">{tx('אפשר לבחור כמה. השעות מוצעות, ואפשר לשנות אותן כאן או אחר כך בהגדרות.')}</p>
+      <ul className="space-y-3">
+        {choices.map((c, i) => (
+          <li key={c.key} className={`space-y-3 rounded-xl border p-3 ${c.on ? 'border-sky-400 bg-sky-500/10' : 'border-slate-700 bg-slate-900'}`}>
+            <label className="flex min-h-11 items-center gap-3 text-lg">
+              <input type="checkbox" checked={c.on} onChange={(e) => set(i, { on: e.target.checked })} className="size-5 accent-sky-500" />
+              {presetName(c.key)}
+              {FIXED_HOURS.includes(c.key) && <span className="text-sm text-slate-400">{c.key === 'fullDay' ? tx('עד 16:00') : tx('עבודת לילה, עד 16:00 למחרת')}</span>}
+            </label>
+            {c.on && !FIXED_HOURS.includes(c.key) && (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="space-y-1 text-sm text-slate-300">
+                  <span>{tx('מתחילה ב')}</span>
+                  <input type="time" dir="ltr" value={c.start} onChange={(e) => set(i, { start: e.target.value })} className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-950 px-2" />
+                </label>
+                <label className="space-y-1 text-sm text-slate-300">
+                  <span>{tx('נגמרת ב')}</span>
+                  <input type="time" dir="ltr" value={c.end} onChange={(e) => set(i, { end: e.target.value })} className="min-h-11 w-full rounded-lg border border-slate-700 bg-slate-950 px-2" />
+                </label>
+                {c.end <= c.start && <span className="col-span-2 text-xs text-slate-400">{tx('נגמרת למחרת')}</span>}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {error && (
+        <p role="alert" className="text-sm text-red-400">
+          {error}
+        </p>
+      )}
+      <button type="button" onClick={next} className="min-h-12 w-full rounded-xl bg-sky-500 font-semibold text-slate-950">
+        {tx('המשך')}
+      </button>
     </section>
   )
 }

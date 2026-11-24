@@ -675,3 +675,20 @@ describe('the log, 2026-11-23: "כחולה" and "מי חולה"', () => {
     expect(run('תשלח לי דו״ח מי חולה היום')).toBeNull()
   })
 })
+
+describe('a team with shifts by hours (smart onboarding stage 2)', () => {
+  const hourly = data({
+    assistantExamples: [],
+    shiftDefinitions: [
+      { id: 'm', name: 'בוקר', requiredCertificationIds: [], startTime: '07:00', endTime: '15:00' },
+      { id: 'e', name: 'ערב', requiredCertificationIds: [], startTime: '15:00', endTime: '23:00' },
+    ],
+  })
+  it('"משמרת ערב" and "ערב" pick the evening type, free', () => {
+    expect(job(run('תפתח משמרת ערב מחר בערד 17 החלפת אנטנה', hourly))).toMatchObject({ date: '2026-11-08', shiftKindId: 'e', location: 'ערד 17' })
+    expect(job(run('תפתח עבודה בוקר מחר בערד 17 החלפת אנטנה', hourly))).toMatchObject({ shiftKindId: 'm' })
+  })
+  it('"בערב" with a prefix is a time of day, not the type', () => {
+    expect(job(run('תפתח עבודה מחר בערב בערד 17 החלפת אנטנה', hourly))?.shiftKindId).not.toBe('e')
+  })
+})

@@ -46,8 +46,10 @@ const NOT_NAMES = ['מישהו', 'מישהי', 'כולם', 'אף', 'הבן', 'ה
 const COMMON = new Set([
   ...NOT_NAMES,
   ...['חולה', 'כחולה', 'חולים', 'חולות', 'מחלה', 'במחלה', 'עבודה', 'עבודות', 'עבודת', 'תפתח', 'פתח', 'תפתחי', 'תשבץ', 'שבץ', 'תסגור', 'תעביר', 'תבטל', 'תזיז', 'חדשה', 'חדש', ...JOB_VERBS],
-  ...['לילה', 'יום', 'היום', 'מחר', 'מחרתיים', 'עד', 'בעוד', 'ימים', 'יומיים', 'שבוע', 'שבועיים', 'הקרוב', 'הבא', 'הבאה', 'חופש', 'חופשה', 'מילואים', 'אילוץ', 'לינה'],
+  ...['לילה', 'יום', 'היום', 'מחר', 'מחרתיים', 'עד', 'בעוד', 'ימים', 'יומיים', 'שבוע', 'שבועיים', 'הקרוב', 'הבא', 'הבאה', 'חופש', 'חופשה', 'מילואים', 'אילוץ', 'לינה', 'בוקר', 'צהריים', 'ערב', 'משמרת'],
 ])
+// Shift types of a team by hours that are also a time of day: with a prefix ("בערב") they are not the type.
+const PART_NAMES = ['בוקר', 'צהריים', 'ערב']
 // Words that mean "assign people to it too".
 const ASSIGN = /^(?:ו?תשבץ|ו?שבץ|ו?תשבצי|מישהו|אנשים)$/
 
@@ -179,11 +181,13 @@ export function find(said: string, d: AppData, aliases: Record<string, string>, 
   for (let i = 0; i < ws.length; i++) {
     if (used[i]) continue
     if (/^ו?היום$/.test(ws[i])) continue // "היום" is today, not the kind "יום"
-    const def = d.shiftDefinitions.find((s) => s.name === bare(ws[i]) || s.name === ws[i])
+    // Shifts by hours: "משמרת ערב" / "ערב" names the type; "בערב" / "בבוקר" stays a time of day (a constraint).
+    const shiftWord = i > 0 && /^(?:ה|ב|ל)?משמרת$/.test(ws[i - 1])
+    const def = d.shiftDefinitions.find((s) => s.name === ws[i] || (s.name === bare(ws[i]) && (shiftWord || !PART_NAMES.includes(s.name))))
     if (!def || DAYS.includes(bare(ws[i + 1] ?? ''))) continue
     out.shiftKindId = def.id
     take(i)
-    if (i > 0 && /^(?:עבודת|כולל|עם)$/.test(ws[i - 1])) take(i - 1)
+    if (i > 0 && (/^(?:עבודת|כולל|עם)$/.test(ws[i - 1]) || shiftWord)) take(i - 1)
   }
   // Dates.
   for (let i = 0; i < ws.length; i++) {
@@ -539,11 +543,12 @@ function jobSaid(f: Found, text: string, L: Learned): boolean {
   if (words(text).some((w) => OTHER_JOB.test(w))) return false
   const rest = f.rest.map(bare)
   if (said(L.job.words, rest.filter((w) => !ASSIGN.test(w)))) return true
-  return words(text).some((w) => /^ו?עבוד[הת]$/.test(w)) && f.rest.some((w, k) => JOB_VERBS.has(w) || JOB_VERBS.has(rest[k]) || NEW_WORDS.has(w))
+  // "משמרת" opens one too (a team with shifts by hours: "תפתח משמרת ערב מחר").
+  return words(text).some((w) => /^ו?(?:עבוד[הת]|משמרת)$/.test(w)) && f.rest.some((w, k) => JOB_VERBS.has(w) || JOB_VERBS.has(rest[k]) || NEW_WORDS.has(w))
 }
 /** A word that belongs to "open a job" itself, not to its details. */
 const isJobWord = (w: string, b: string, L: Learned) =>
-  JOB_VERBS.has(w) || JOB_VERBS.has(b) || NEW_WORDS.has(b) || b === 'עבודה' || ASSIGN.test(b) || L.job.words.some((x) => x.includes(b))
+  JOB_VERBS.has(w) || JOB_VERBS.has(b) || NEW_WORDS.has(b) || b === 'עבודה' || b === 'משמרת' || ASSIGN.test(b) || L.job.words.some((x) => x.includes(b))
 
 /** A new job said the way a learned one was. */
 function learnedJob(text: string, d: AppData, L: Learned, now: Date): Local {

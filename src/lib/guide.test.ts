@@ -12,4 +12,8 @@ describe('guide', () => {
     expect(shown.some((c) => c.feature === 'vehicles')).toBe(false)
     expect(shown.every((c) => !c.say)).toBe(true)
   })
+  it('the shifts-by-hours chapter only for a team offered it (not the owner team)', () => {
+    expect(visibleChapters(() => true).some((c) => c.id === 'shiftHours')).toBe(false)
+    expect(visibleChapters(() => true, true).some((c) => c.id === 'shiftHours')).toBe(true)
+  })
 })

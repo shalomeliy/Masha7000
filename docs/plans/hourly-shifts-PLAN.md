@@ -1,7 +1,7 @@
 # Plan: smart onboarding, stage 2 (shift types with hours)
 
 Spec: `docs/specs/smart-onboarding.md` (questions 3/3א, "משמרות לפי שעות"). Spike: `docs/spikes/hourly-shifts.md` (GO).
-Status: waiting for the owner's approval.
+Status: built 2026-11-24 (owner said "תתחיל את שלב 2"); rest hours default 8 and mixing in "לילה עד מחר 16:00" taken as recommended, waiting for his word.
 
 ## Rule above all
 

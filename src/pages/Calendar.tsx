@@ -7,6 +7,8 @@ import { blockedCrew, constraintText } from '../lib/constraints'
 import { useDriveList } from '../lib/data/useDriveList'
 import { todayIso } from '../lib/dates'
 import { busyCrew, busyText } from '../lib/planner'
+import { featureRules } from '../lib/featureRules'
+import { hoursRange } from '../lib/hourlyShifts'
 import { gapCounts, placeText, shiftGaps, type GapKind, type ShiftGaps } from '../lib/gaps'
 import { dayData, nextJobText, weekData } from '../lib/report'
 import type { Report } from '../lib/report'
@@ -52,7 +54,7 @@ export function Calendar() {
   const [filter, setFilter] = useState<GapKind | null>(null)
   const [planning, setPlanning] = useState<ShiftRecord[] | null>(null)
   const week = weekOf(weekStart)
-  const records = sortShifts(shifts.items)
+  const records = sortShifts(shifts.items, defs.items)
   const ctx = { shifts: shifts.items, defs: defs.items, workers: workers.items }
   // What each shift of the week still needs (docs/specs/week-gaps.md). Computed, never saved.
   const gapCtx = {
@@ -333,6 +335,7 @@ function ShiftCard({
           )}
           {r.urgent && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 font-semibold text-amber-300">{tx('דחופה מ-{startTime}', { startTime: r.startTime })}</span>}
           {def && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-slate-300">{def.name}</span>}
+          {def && !r.urgent && featureRules.hours && <span className="text-slate-300" dir="ltr">{hoursRange(def)}</span>}
           {r.fromJobId && <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-300">{tx('המשך של משימה קודמת')}</span>}
           {r.urgent && r.endDate && (
             <span className="text-slate-400">

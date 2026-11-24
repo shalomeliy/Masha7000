@@ -1,6 +1,7 @@
 import { dayNames } from '../i18n'
 import { SHIFT_END, SHIFT_START, endsNextDay, newId } from './catalog'
 import { dateError, todayIso } from './dates'
+import { featureRules } from './featureRules'
 import type { PendingJob, ShiftClosure, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 // Pure rules for real shifts: validation, the Sunday-to-Saturday week, closing a night job
@@ -157,7 +158,9 @@ export function weekShiftCount(workerId: string, date: string, records: ShiftRec
 }
 
 /** Shifts in date order; same day: urgent ones by start time after the planned ones. */
-export function sortShifts(records: ShiftRecord[]): ShiftRecord[] {
+export function sortShifts(records: ShiftRecord[], defs?: ShiftDefinition[]): ShiftRecord[] {
+  // A team with shifts by hours: same day, by start time (morning before evening), urgent ones among them.
+  if (featureRules.hours && defs) return [...records].sort((a, b) => a.date.localeCompare(b.date) || shiftTimes(a, defs).start.localeCompare(shiftTimes(b, defs).start))
   return [...records].sort((a, b) => a.date.localeCompare(b.date) || Number(!!a.urgent) - Number(!!b.urgent) || (a.startTime ?? '').localeCompare(b.startTime ?? ''))
 }
 

@@ -10,6 +10,8 @@ export interface Chapter {
   feature?: FeatureId
   title: string
   steps: string[]
+  /** Shown only to a team offered shifts by hours (a customer from the wizard, or a team that has the setting). */
+  hours?: true
   /** Things to say to Shali. Shown only while Shali is on. */
   say?: string[]
 }
@@ -52,6 +54,18 @@ export const chapters = (): Chapter[] => [
     id: 'features',
     title: tx('מסכים ותכונות'),
     steps: [tx('בהגדרות > מסכים ותכונות מדליקים ומכבים כל תכונה.'), tx('כיבוי רק מסתיר. הנתונים נשארים, ומדליקים שוב והכול חוזר.'), tx('חסרה תכונה? כותבים בשדה בתחתית המסך, והבקשה נשלחת למפתח.')],
+  },
+  {
+    id: 'shiftHours',
+    hours: true,
+    title: tx('משמרות לפי שעות'),
+    steps: [
+      tx('בהגדרות > תבניות עבודה מדליקים "משמרות לפי שעות", ולכל תבנית קובעים שעת התחלה וסיום (למשל ערב 15:00-23:00).'),
+      tx('"שבץ" לא שם עובד בשתי משמרות שהשעות שלהן חופפות, ושומר בין משמרות את שעות המנוחה שקבעת.'),
+      tx('אילוץ "בוקר", "צהריים" או "ערב" חוסם רק משמרת שהשעות שלה נוגעות בחלק הזה של היום.'),
+      tx('ביומן העבודות של כל יום מסודרות לפי שעת ההתחלה, והשעות מופיעות בכרטיס.'),
+    ],
+    say: [tx('תפתח משמרת ערב מחר באילת')],
   },
   {
     id: 'nightJobs',
@@ -144,7 +158,7 @@ export const chapters = (): Chapter[] => [
 ]
 
 /** The chapters this team sees: always-on ones, and those of features that are on. */
-export const visibleChapters = (isOn: (id: FeatureId) => boolean) =>
+export const visibleChapters = (isOn: (id: FeatureId) => boolean, hoursOffered = false) =>
   chapters()
-    .filter((c) => !c.feature || isOn(c.feature))
+    .filter((c) => (!c.feature || isOn(c.feature)) && (!c.hours || hoursOffered))
     .map((c) => (isOn('shali') ? c : { ...c, say: undefined }))
