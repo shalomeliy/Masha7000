@@ -16,6 +16,7 @@
     { "source": "/api/claude-log", "destination": "/api/manage?fn=claude-log" },
     { "source": "/api/join", "destination": "/api/forms?fn=join" },
     { "source": "/api/constraints", "destination": "/api/forms?fn=constraints" },
+    { "source": "/api/access", "destination": "/api/forms?fn=access" },
     { "source": "/((?!api/|assets/|icons/|sw.js|manifest.webmanifest|privacy.html|terms.html|accessibility.html|delete-account.html|.well-known/).*)", "destination": "/index.html" }],
   "headers": [
     {

@@ -5,6 +5,7 @@ import { clearCookie, clientIp, guarded, json, readJson, sameOrigin, SESSION_COO
 import { KEYS, kv } from '../kv.js'
 import { overLimit } from '../rate.js'
 import { endAllSessions, isAllowed, isOwner, markVerified, normalizeEmail, readSession, requireManager, type Session } from '../session.js'
+import { teamOf } from '../team.js'
 import { base32, fromBase32, matchStep, otpauthUri } from '../totp.js'
 
 // POST /api/mfa { action }: two-step sign-in. After Google says who you are, an authenticator app on
@@ -93,10 +94,14 @@ export const POST = guarded(async (req: Request) => {
       await audit(env, req, 'logout-all', { email: session.email })
       return json({ ok: true }, 200, [clearCookie(SESSION_COOKIE)])
     case 'reset': {
-      if (!isOwner(env, session.email)) return json({ reason: 'not-owner' }, 403)
+      // The root owner may reset anyone; a customer team's owner only a manager of his own team.
       const email = normalizeEmail(body.email)
       if (!email) return json({ reason: 'bad-email' }, 400)
-      if (email === env.ownerEmail) return json({ reason: 'owner-self' }, 400)
+      if (!isOwner(env, session.email)) {
+        const target = gate.team.isTeamOwner && !gate.team.isRoot ? await teamOf(env, email) : null
+        if (!target || target.id !== gate.team.id || target.isTeamOwner) return json({ reason: 'not-owner' }, 403)
+      }
+      if (email === env.ownerEmail || email === session.email) return json({ reason: 'owner-self' }, 400)
       await kv.del(env, KEYS.mfa(email), KEYS.mfaSetup(email))
       await endAllSessions(env, email)
       await audit(env, req, 'mfa-reset', { email: session.email, target: email })

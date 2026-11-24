@@ -7,10 +7,20 @@ import { addAccess, disconnectDrive, listAccess, removeAccess, setAssistant, set
 import type { AccessList } from '../../lib/google/owner'
 import { resetMfaOf } from '../../lib/google/mfa'
 import { useAuth } from '../../store/auth'
+import { isRootTeam } from '../../lib/google/auth'
+import { CustomersSection } from './CustomersSection'
+import { TeamAccessSection } from './TeamAccessSection'
 
 // Owner only: who may sign in (they all see and edit the owner's data), and disconnecting the Drive.
+// A customer team's owner sees his own team's list instead (TeamAccessSection); the app owner also
+// sees new customers' requests and the approved customers (CustomersSection).
 
 export function AccessSection() {
+  const root = useAuth((a) => isRootTeam(a.who))
+  return root ? <RootAccessSection /> : <TeamAccessSection />
+}
+
+function RootAccessSection() {
   const qc = useQueryClient()
   const access = useQuery({ queryKey: ['access'], queryFn: listAccess })
   const [email, setEmail] = useState('')
@@ -186,6 +196,7 @@ export function AccessSection() {
           </p>
         )}
       </div>
+      <CustomersSection />
     </div>
   )
 }

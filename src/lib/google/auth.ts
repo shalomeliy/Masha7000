@@ -29,7 +29,15 @@ export interface Who {
   isOwner: boolean
   /** May use the voice assistant: the owner, or a manager the owner opened it to. */
   assistant: boolean
+  /**
+   * In the app owner's own team (his Drive). False: a customer team on its own Drive (smart
+   * onboarding part 2); isOwner then means "owner of that customer team". Missing (older server): true.
+   */
+  root?: boolean
 }
+
+/** In the app owner's own team (not a customer team). */
+export const isRootTeam = (w: Who | null | undefined) => w?.root !== false
 
 const TOKEN_KEY = 'shiftsmart.token'
 const ACCOUNT_KEY = 'shiftsmart.account'
@@ -94,7 +102,7 @@ export function rememberedAccount(): Account | null {
 // ---- Server mode ----
 
 type ServerAnswer =
-  | { kind: 'token'; accessToken: string; expiresIn: number; email: string; isOwner: boolean; assistant?: boolean }
+  | { kind: 'token'; accessToken: string; expiresIn: number; email: string; isOwner: boolean; assistant?: boolean; root?: boolean }
   | { kind: 'refused'; reason: AuthReason; who?: Who; enrolled?: boolean }
   | { kind: 'no-server' }
   | { kind: 'failed' }
@@ -127,10 +135,16 @@ async function askServer(stale = false): Promise<ServerAnswer> {
   if (res.ok && typeof body.accessToken === 'string') return { kind: 'token', ...(body as Omit<Extract<ServerAnswer, { kind: 'token' }>, 'kind'>) }
   const reason = body.reason as string
   if (reason === 'no-session' || reason === 'not-allowed' || reason === 'owner-disconnected' || reason === 'mfa-required') {
-    const w = typeof body.email === 'string' ? { email: body.email, isOwner: body.isOwner === true, assistant: body.assistant === true || body.isOwner === true } : undefined
+    const w = typeof body.email === 'string' ? whoFrom(body) : undefined
     return { kind: 'refused', reason, who: w, enrolled: body.enrolled === true }
   }
   return { kind: 'failed' }
+}
+
+function whoFrom(b: { email?: unknown; isOwner?: unknown; assistant?: unknown; root?: unknown }): Who {
+  const root = b.root !== false
+  // The root owner always has Shali; a customer team's owner only as the server says.
+  return { email: String(b.email), isOwner: b.isOwner === true, assistant: b.assistant === true || (root && b.isOwner === true), root }
 }
 
 function enterServerMode() {
@@ -156,7 +170,7 @@ function renew(stale = false): Promise<string> {
     try {
       const answer = await askServer(stale)
       if (answer.kind === 'token') {
-        setWho({ email: answer.email, isOwner: answer.isOwner, assistant: answer.assistant === true || answer.isOwner })
+        setWho(whoFrom(answer))
         setToken({ value: answer.accessToken, expiresAt: Date.now() + (answer.expiresIn - 60) * 1000 })
         return answer.accessToken
       }
@@ -191,7 +205,7 @@ export async function resume(): Promise<ResumeResult> {
   if (answer.kind === 'failed') return { status: 'failed' }
   enterServerMode()
   if (answer.kind === 'token') {
-    setWho({ email: answer.email, isOwner: answer.isOwner, assistant: answer.assistant === true || answer.isOwner })
+    setWho(whoFrom(answer))
     setToken({ value: answer.accessToken, expiresAt: Date.now() + (answer.expiresIn - 60) * 1000 })
     return { status: 'signedIn', who }
   }
@@ -201,9 +215,9 @@ export async function resume(): Promise<ResumeResult> {
   return { status, who: answer.who }
 }
 
-/** Server mode: the owner grants Drive access again (after a disconnect). */
+/** Server mode: the team's owner grants Drive access (again): the app owner's Drive, or a customer's own. */
 export function ownerReconnect() {
-  window.location.assign('/api/auth/start?mode=owner')
+  window.location.assign(isRootTeam(who) ? '/api/auth/start?mode=owner' : '/api/auth/start?mode=team')
 }
 
 // ---- Popup mode ----

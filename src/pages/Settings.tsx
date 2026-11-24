@@ -10,7 +10,7 @@ import { useDriveList } from '../lib/data/useDriveList'
 import { ensureShiftsCalendar, deleteEvent, listEvents, upsertEvent } from '../lib/google/calendar'
 import { readJson, writeJson } from '../lib/google/drive'
 import { TIME_ZONE } from '../lib/google/config'
-import { authMode } from '../lib/google/auth'
+import { authMode, isRootTeam } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
 import { useFeatures } from '../lib/data/useFeatures'
 import type { FeatureId } from '../lib/features'
@@ -206,7 +206,7 @@ const ITEM_FEATURE: Partial<Record<ItemId, FeatureId>> = {
   claudeLog: 'shali',
 }
 
-function groups(isOwner: boolean, server: boolean, isOn: (id: FeatureId) => boolean = () => true): Group[] {
+function groups(isOwner: boolean, server: boolean, isOn: (id: FeatureId) => boolean = () => true, root = true): Group[] {
   const all: Group[] = [
     {
       id: 'features',
@@ -299,7 +299,8 @@ function groups(isOwner: boolean, server: boolean, isOn: (id: FeatureId) => bool
       explain: tx('הקול של Shali, איך הוא מבטא מילים, ומה הלך ל-Claude'),
       icon: Mic,
       // The voice for everyone who may use Shali (owner, 2026-11-23); the rest is the owner's only (the dev server has no sign-in).
-      items: [panelItem('voice'), ...((isOwner && server) || import.meta.env.DEV ? [listItem('pronunciations'), panelItem('claudeLog')] : [])],
+      // The Claude log is the app owner's alone: a customer team's owner never sees it (part 2).
+      items: [panelItem('voice'), ...((isOwner && server) || import.meta.env.DEV ? [listItem('pronunciations'), ...(root ? [panelItem('claudeLog')] : [])] : [])],
     },
     {
       id: 'account',
@@ -368,7 +369,7 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
         )
       : lists[id].items.length
   const { isOn } = useFeatures()
-  const topics = groups(who?.isOwner === true, authMode() === 'server', isOn)
+  const topics = groups(who?.isOwner === true, authMode() === 'server', isOn, isRootTeam(who))
   const group = topics.find((g) => g.id === groupId)
 
   const backButton = (label: string, onClick: () => void) => (

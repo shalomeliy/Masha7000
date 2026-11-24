@@ -2,6 +2,7 @@ import { open, openWith, previousKey, seal } from './crypto.js'
 import type { Env } from './env.js'
 import { refreshAccess } from './google.js'
 import { KEYS, kv } from './kv.js'
+import { isCustomerId, ROOT, teamKeys } from './team.js'
 
 // The owner's Drive appDataFolder, from the server: the same JSON files the app reads and writes
 // (src/lib/google/drive.ts), opened with the owner's stored refresh token. Used by /api/token (to hand
@@ -24,25 +25,40 @@ interface Cached {
 export type OwnerToken = { token: string; expiresIn: number } | { reason: 'owner-disconnected' | 'google-failed' }
 
 /** A 1-hour access token for the owner's Drive and calendar, cached in the store. `stale`: Google refused the cached one. */
-export async function ownerToken(env: Env, stale = false): Promise<OwnerToken> {
-  const cached = stale ? null : await open<Cached>(env.sessionKey, await kv.get(env, KEYS.access))
+export const ownerToken = (env: Env, stale = false) => tokenFrom(env, { refresh: KEYS.refresh, access: KEYS.access }, stale)
+
+/**
+ * The same for a customer team's own Drive (smart onboarding part 2). Only that team's t:<id>:* keys:
+ * it refuses root, so nothing here can ever hand out the owner's token.
+ */
+export function customerToken(env: Env, teamId: string, stale = false): Promise<OwnerToken> {
+  if (teamId === ROOT || !isCustomerId(teamId)) throw new Error('not a customer team')
+  const keys = teamKeys(teamId)
+  return tokenFrom(env, { refresh: keys.refresh, access: keys.access }, stale)
+}
+
+/** The Drive token of the team the caller is in: root = the owner's, a customer team = its own. */
+export const teamToken = (env: Env, teamId: string, stale = false) => (teamId === ROOT ? ownerToken(env, stale) : customerToken(env, teamId, stale))
+
+async function tokenFrom(env: Env, keys: { refresh: string; access: string }, stale: boolean): Promise<OwnerToken> {
+  const cached = stale ? null : await open<Cached>(env.sessionKey, await kv.get(env, keys.access))
   if (cached && cached.exp - Date.now() > 120_000) return { token: cached.token, expiresIn: Math.floor((cached.exp - Date.now()) / 1000) }
-  const sealedRefresh = await kv.get(env, KEYS.refresh)
+  const sealedRefresh = await kv.get(env, keys.refresh)
   const refresh = await open<string>(env.sessionKey, sealedRefresh)
   if (!refresh) return { reason: 'owner-disconnected' }
   // During a key change (crypto.ts) it opened with the previous key: seal it again with the new one.
-  if (previousKey() && !(await openWith<string>(env.sessionKey, sealedRefresh))) await kv.set(env, KEYS.refresh, await seal(env.sessionKey, refresh))
+  if (previousKey() && !(await openWith<string>(env.sessionKey, sealedRefresh))) await kv.set(env, keys.refresh, await seal(env.sessionKey, refresh))
   const { ok, data } = await refreshAccess(env, refresh)
   if (!ok || !data.access_token) {
     if (data.error === 'invalid_grant') {
-      // The owner removed the app's access in Google, or the token expired: everyone needs the owner to reconnect.
-      await kv.del(env, KEYS.refresh, KEYS.access)
+      // The Drive's owner removed the app's access in Google, or the token expired: his team needs him to reconnect.
+      await kv.del(env, keys.refresh, keys.access)
       return { reason: 'owner-disconnected' }
     }
     return { reason: 'google-failed' }
   }
   const expiresIn = data.expires_in ?? 3600
-  await kv.set(env, KEYS.access, await seal(env.sessionKey, { token: data.access_token, exp: Date.now() + expiresIn * 1000 } satisfies Cached), expiresIn - 60)
+  await kv.set(env, keys.access, await seal(env.sessionKey, { token: data.access_token, exp: Date.now() + expiresIn * 1000 } satisfies Cached), expiresIn - 60)
   return { token: data.access_token, expiresIn }
 }
 

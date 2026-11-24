@@ -8,7 +8,8 @@ export const IDENTITY_SCOPES = 'openid email'
 export const OWNER_SCOPES =
   'openid email https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.app.created'
 
-export type Mode = 'identity' | 'owner'
+/** 'team': a customer team owner links his own Drive (same grant as the owner's, his account). */
+export type Mode = 'identity' | 'owner' | 'team'
 
 export const hasOwnerScopes = (granted: string | undefined) =>
   OWNER_SCOPES.split(' ')
@@ -23,8 +24,8 @@ export function authUrl(env: Env, mode: Mode, state: string, challenge: string, 
     state,
     code_challenge: challenge,
     code_challenge_method: 'S256',
-    ...(mode === 'owner'
-      ? { scope: OWNER_SCOPES, access_type: 'offline', prompt: 'consent', login_hint: env.ownerEmail }
+    ...(mode === 'owner' || mode === 'team'
+      ? { scope: OWNER_SCOPES, access_type: 'offline', prompt: 'consent', login_hint: mode === 'owner' ? env.ownerEmail : (loginHint ?? '') }
       : { scope: IDENTITY_SCOPES, prompt: 'select_account', ...(loginHint ? { login_hint: loginHint } : {}) }),
   })
   return `https://accounts.google.com/o/oauth2/v2/auth?${p}`
