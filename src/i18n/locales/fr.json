@@ -1331,5 +1331,11 @@
  "רגיל: משהו לא עובד כמו שצריך": "Normal : quelque chose ne marche pas bien",
  "שליחה גם בוואטסאפ": "Envoyer aussi sur WhatsApp",
  "שליחת הדיווח": "Envoyer le signalement",
- "תקלה דחופה ב-Shali": "Problème urgent dans Shali"
+ "תקלה דחופה ב-Shali": "Problème urgent dans Shali",
+ "גרסה": "Version",
+ "למשל: Galaxy S23": "Par exemple : Galaxy S23",
+ "מכשיר": "Appareil",
+ "מערכת הפעלה": "Système d'exploitation",
+ "מתי זה קרה?": "Quand est-ce arrivé ?",
+ "פרטי המכשיר (מולאו אוטומטית, אפשר לתקן)": "Infos de l'appareil (remplies automatiquement, modifiables)"
 }

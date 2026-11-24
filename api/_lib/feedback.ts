@@ -52,6 +52,10 @@ export interface FaultDetails {
   where: string
   page: string
   device: string
+  model: string
+  os: string
+  osVersion: string
+  occurredAt: string
   language: string
   release: string
 }
@@ -66,6 +70,10 @@ export function faultDetails(raw: unknown): FaultDetails {
     where: clip(r.where, 80),
     page: clip(r.page, 200),
     device: clip(r.device, 300),
+    model: clip(r.model, 80),
+    os: clip(r.os, 40),
+    osVersion: clip(r.osVersion, 40),
+    occurredAt: clip(r.occurredAt, 40),
     language: clip(r.language, 20),
     release: clip(r.release, 60),
   }
@@ -82,7 +90,10 @@ export function faultMail(text: string, d: FaultDetails, sender: string, to: str
     `דחיפות: ${d.urgent ? 'דחוף, אי אפשר לעבוד' : 'רגיל'}`,
     d.where && `איפה באפליקציה: ${d.where}`,
     d.page && `כתובת: ${d.page}`,
-    d.device && `מכשיר ודפדפן: ${d.device}`,
+    d.occurredAt && `מתי קרתה: ${d.occurredAt}`,
+    d.model && `מכשיר: ${d.model}`,
+    (d.os || d.osVersion) && `מערכת הפעלה: ${[d.os, d.osVersion].filter(Boolean).join(' ')}`,
+    d.device && `דפדפן (טכני): ${d.device}`,
     d.language && `שפה: ${d.language}`,
     d.release && `גרסה: ${d.release}`,
     `מדווח: ${sender}`,
