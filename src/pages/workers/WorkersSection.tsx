@@ -19,7 +19,7 @@ import {
   telHref,
   upsert,
 } from "../../lib/catalog";
-import { constraintText, isOver, sickConstraint } from "../../lib/constraints";
+import { constraintText, nearestFirst, sickConstraint } from "../../lib/constraints";
 import { useDriveList } from "../../lib/data/useDriveList";
 import { daysToRanges, todayIso } from "../../lib/dates";
 import { DateField } from "../../components/DateField";
@@ -374,7 +374,8 @@ function WorkerCard({
   const today = todayIso();
   // A sickness saved as the worker's status ("חולה עד") is shown like one saved as a dated constraint.
   const sick = sickConstraint(w);
-  const active = [...(sick ? [sick] : []), ...(isOn("constraints") ? w.constraints : [])].filter((c) => !isOver(c, today));
+  // Nearest first, so the one chip shown is the one that matters next (a vacation tomorrow, not a weekly one next Sunday).
+  const active = nearestFirst([...(sick ? [sick] : []), ...(isOn("constraints") ? w.constraints : [])], today);
   const state = workerState(w, today);
 
   const dial = telHref(w.mobilePhone);

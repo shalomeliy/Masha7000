@@ -79,6 +79,36 @@ export function constraintText(c: Constraint): string {
 /** A date range, or a weekly one with a last date, that ended before today no longer matters. */
 export const isOver = (c: Constraint, today: string) => c.when !== 'always' && !!c.to && c.to < today
 
+/**
+ * The first day from today a constraint applies on: today when it is active now, a weekly one's next
+ * weekday, null when it never applies again. "בלי לילות בכלל" is a standing fact, not a date, so null too.
+ */
+export function nextDay(c: Constraint, today: string): string | null {
+  if (c.when === 'always' || isOver(c, today)) return null
+  if (c.when === 'dates') return c.from && c.from > today ? c.from : today
+  const start = c.from && c.from > today ? c.from : today
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(start, i)
+    if (c.to && d > c.to) return null
+    if (c.weekdays?.includes(weekday(d))) return d
+  }
+  return null
+}
+
+/**
+ * The constraints still ahead, nearest first: the one active now, then by the next day each applies on
+ * (a weekly one by its next weekday). A one-off date wins a tie over a weekly one; standing ones last.
+ */
+export function nearestFirst(list: Constraint[], today: string): Constraint[] {
+  const rank = (c: Constraint) => nextDay(c, today) ?? '9999-12-31'
+  const order = { dates: 0, weekdays: 1, always: 2 }
+  return list
+    .filter((c) => !isOver(c, today))
+    .map((c, i) => ({ c, i, d: rank(c) }))
+    .sort((a, b) => a.d.localeCompare(b.d) || order[a.c.when] - order[b.c.when] || a.i - b.i)
+    .map((x) => x.c)
+}
+
 export const onDay = (c: Constraint, date: string) =>
   c.when === 'always' || (c.when === 'weekdays' ? !!c.weekdays?.includes(weekday(date)) && (!c.from || c.from <= date) && (!c.to || date <= c.to) : !!c.from && c.from <= date && date <= (c.to ?? c.from))
 

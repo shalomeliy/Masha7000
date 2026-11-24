@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockedCrew, blockingConstraint, constraintError, constraintText, isOver, mergeReply, normalizeConstraint, parseReply, readAnswer, readingText, requestText } from './constraints'
+import { blockedCrew, blockingConstraint, constraintError, constraintText, isOver, mergeReply, nearestFirst, nextDay, normalizeConstraint, parseReply, readAnswer, readingText, requestText } from './constraints'
 import type { Constraint, ShiftDefinition, ShiftRecord, Worker } from '../types/models'
 
 const c = (over: Partial<Constraint>): Constraint => ({ id: 'c', when: 'dates', ...over })
@@ -236,5 +236,31 @@ describe('blockedCrew', () => {
   it('finds the crew member a constraint blocks after the shift moves to that day', () => {
     expect(blockedCrew(shift('2026-11-02', { crew }), workers, [])).toEqual([])
     expect(blockedCrew(shift('2026-11-03', { crew }), workers, []).map((b) => b.worker.id)).toEqual(['away'])
+  })
+})
+
+describe('the nearest constraint first (workers list card)', () => {
+  // Tuesday 24.11.2026, the manager's case: a vacation tomorrow and studies every Sunday until 6.12.
+  const today = '2026-11-24'
+  const studies: Constraint = { id: 's', kind: 'study', when: 'weekdays', weekdays: [0], to: '2026-12-06' }
+  const vacation: Constraint = { id: 'v', kind: 'vacation', when: 'dates', from: '2026-11-25', to: '2026-11-25' }
+
+  it('a weekly one counts from its next weekday', () => {
+    expect(nextDay(studies, today)).toBe('2026-11-29')
+    expect(nextDay(studies, '2026-12-07')).toBeNull()
+    expect(nextDay({ ...studies, from: '2026-12-10', to: undefined }, today)).toBe('2026-12-13')
+  })
+
+  it('the vacation tomorrow comes before the studies on Sunday, whatever order they were saved in', () => {
+    expect(nearestFirst([studies, vacation], today).map((c) => c.id)).toEqual(['v', 's'])
+    expect(nearestFirst([vacation, studies], today).map((c) => c.id)).toEqual(['v', 's'])
+  })
+
+  it('one active today comes first, a past one is gone, a standing one is last', () => {
+    const now: Constraint = { id: 'n', when: 'dates', from: '2026-11-20', to: '2026-11-27' }
+    const past: Constraint = { id: 'p', when: 'dates', from: '2026-11-01', to: '2026-11-02' }
+    const nights: Constraint = { id: 'a', when: 'always', nightsOnly: true }
+    const weeklyToday: Constraint = { id: 't', when: 'weekdays', weekdays: [2] }
+    expect(nearestFirst([nights, studies, past, vacation, weeklyToday, now], today).map((c) => c.id)).toEqual(['n', 't', 'v', 's', 'a'])
   })
 })
