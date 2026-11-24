@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ALL_ON, answersToFeatures, FEATURE_IDS, featureName, resolveFeatures, withFeature } from './features'
 
-const onboarding = { version: 1 as const, answers: {}, doneAt: '2026-11-24' }
+const onboarding = { version: 1 as const, answers: { business: 'other' }, doneAt: '2026-11-24' }
 
 describe('features', () => {
   it('a team from before the wizard sees everything', () => {
@@ -14,6 +14,13 @@ describe('features', () => {
     expect(f.vehicles).toBe(true)
     expect(f.certExpiry).toBe(false)
     expect(f.shali).toBe(false) // never saved: a feature added later does not turn itself on
+  })
+
+  it('a team that only flipped a switch still gets features added later', () => {
+    const f = resolveFeatures({ onboarding: { ...onboarding, answers: {} }, features: { vehicles: false, certs: false } })
+    expect(f.vehicles).toBe(false)
+    expect(f.shali).toBe(true) // never saved: on, since this team never answered the wizard
+    expect(f.certExpiry).toBe(false) // still follows its parent
   })
 
   it('switching keeps dependencies consistent', () => {

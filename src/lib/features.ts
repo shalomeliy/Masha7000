@@ -74,9 +74,13 @@ export const ALL_ON: Record<FeatureId, boolean> = Object.fromEntries(FEATURE_IDS
 export function resolveFeatures(settings: Pick<AppSettings, 'features' | 'onboarding'> | null | undefined): Record<FeatureId, boolean> {
   if (!settings?.onboarding) return { ...ALL_ON }
   const saved = settings.features ?? {}
+  // A feature added after the save: off for a team that answered the wizard (it chose what it wants),
+  // on for a team that only flipped a switch in Settings (it never chose about the rest).
+  const switchOnly = !Object.keys(settings.onboarding.answers ?? {}).length
   const on = (id: FeatureId): boolean => {
     const need = NEEDS[id]
-    return saved[id] === true && (need ? on(need) : true)
+    const own = saved[id] === true || (switchOnly && saved[id] === undefined)
+    return own && (need ? on(need) : true)
   }
   return Object.fromEntries(FEATURE_IDS.map((id) => [id, on(id)])) as Record<FeatureId, boolean>
 }

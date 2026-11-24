@@ -18,3 +18,14 @@ describe('Shali and turned-off features', () => {
     expect(offFeatureSaid('מחר ברכבת', off('vehicles'))).toBeNull()
   })
 })
+
+describe('job descriptions and places are not feature words', () => {
+  it('lets them through even when the feature is off', () => {
+    const allOff = off('vehicles', 'nightJobs', 'constraints', 'certs', 'departments', 'jobClosing')
+    expect(offFeatureSaid('תכניס עבודה מחר באילת, סגירת גדר', allOff)).toBeNull()
+    expect(offFeatureSaid('החלפת מצבר ברכב של הלקוח', allOff)).toBeNull()
+    expect(offFeatureSaid('עבודה במחלקה הפנימית', allOff)).toBeNull()
+    expect(offFeatureSaid('החלפת לוח חשמל', allOff, ['חשמלאי'])).toBeNull()
+    expect(offFeatureSaid('תוסיף את הרכב לעבודה בערד', allOff)).toBe('vehicles')
+  })
+})

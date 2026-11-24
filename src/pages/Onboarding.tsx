@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronRight, Loader2 } from 'lucide-react'
 import { tx } from '../i18n'
-import { answersToFeatures, FEATURE_IDS, NEEDS, suggestedAnswers, suggestsDepartments, withFeature, type Answers, type FeatureId } from '../lib/features'
+import { answersToFeatures, FEATURE_IDS, NEEDS, resolveFeatures, suggestedAnswers, suggestsDepartments, withFeature, type Answers, type FeatureId } from '../lib/features'
 import { useSaveSettings, useSettings } from '../lib/data/useFeatures'
 import { authMode } from '../lib/google/auth'
 import { useOnboarding } from '../store/onboarding'
@@ -86,10 +86,13 @@ function yesNo() {
   ]
 }
 
+const NO_QUESTION: FeatureId[] = ['api', 'journal', 'quickLists']
+
 export function Onboarding() {
   const settings = useSettings()
   const save = useSaveSettings()
   const close = useOnboarding((s) => s.close)
+  const forced = useOnboarding((s) => s.forced)
   const previous = (settings.data?.onboarding?.answers ?? {}) as Answers
   const [answers, setAnswers] = useState<Answers>(previous)
   const [name, setName] = useState(settings.data?.onboarding?.businessName ?? '')
@@ -110,7 +113,13 @@ export function Onboarding() {
   }
 
   const toSummary = () => {
-    setFlags(answersToFeatures(answers))
+    const next = answersToFeatures(answers)
+    // Answering again: what has no question (API, journal, quick lists) keeps how the team has it now.
+    if (settings.data?.onboarding) {
+      const now = resolveFeatures(settings.data)
+      for (const id of NO_QUESTION) next[id] = now[id]
+    }
+    setFlags(next)
     setStep(total)
   }
 
@@ -147,7 +156,14 @@ export function Onboarding() {
     <main className="mx-auto min-h-full max-w-md space-y-6 px-4 pt-6 pb-10">
       <div className="flex min-h-11 items-center justify-between">
         {back || <span />}
-        <span className="text-sm text-slate-400">{tx('שלב {n} מתוך {total}', { n: Math.min(step + 1, total + 1), total: total + 1 })}</span>
+        <span className="flex items-center gap-3">
+          <span className="text-sm text-slate-400">{tx('שלב {n} מתוך {total}', { n: Math.min(step + 1, total + 1), total: total + 1 })}</span>
+          {forced && (
+            <button type="button" onClick={close} className="min-h-11 px-2 text-sky-300">
+              {tx('ביטול')}
+            </button>
+          )}
+        </span>
       </div>
 
       {step === 0 && (
