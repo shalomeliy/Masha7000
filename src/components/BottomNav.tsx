@@ -17,11 +17,12 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
 ]
 
 // `voice` only for the owner: the assistant spends the owner's Anthropic credit.
-export function BottomNav({ active, onChange, voice }: { active: Tab; onChange: (tab: Tab) => void; voice: boolean }) {
-  const tabs = TABS.filter((t) => voice || t.id !== 'voice')
+// `journal` false: the team turned "יומן אישי" off in Settings > מסכים ותכונות.
+export function BottomNav({ active, onChange, voice, journal = true }: { active: Tab; onChange: (tab: Tab) => void; voice: boolean; journal?: boolean }) {
+  const tabs = TABS.filter((t) => (voice || t.id !== 'voice') && (journal || t.id !== 'journal'))
   return (
     <nav className="fixed inset-x-0 bottom-0 border-t border-slate-800 bg-slate-900/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <ul className={`mx-auto grid max-w-md ${tabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+      <ul className={`mx-auto grid max-w-md ${tabs.length === 5 ? 'grid-cols-5' : tabs.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
         {tabs.map(({ id, label, icon: Icon }) => (
           <li key={id} className="min-w-0">
             {id === 'voice' ? (

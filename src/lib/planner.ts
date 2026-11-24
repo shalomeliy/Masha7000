@@ -1,5 +1,6 @@
 import { tx } from '../i18n'
-import { fullName, isActive, slotCerts } from './catalog'
+import { fullName, isActive, neededCerts } from './catalog'
+import { featureRules } from './featureRules'
 import { validOn } from './certExpiry'
 import { blockingConstraint, constraintText } from './constraints'
 import { addDays, dayName, isNightShift, showDate, weekOf, weekShiftCount } from './shifts'
@@ -37,7 +38,7 @@ export interface WorkerLoad {
   blocked: Constraint | null // a constraint keeps the worker out of this shift
 }
 
-export const fitsSlot = (w: Worker, slot: StaffSlot) => slotCerts(slot).every((id) => w.certificationIds.includes(id))
+export const fitsSlot = (w: Worker, slot: StaffSlot) => neededCerts(slot).every((id) => w.certificationIds.includes(id))
 
 /** Why a place stays empty when no worker at all holds everything it needs, with what to do about it. */
 export const NO_WORKER = tx('אין עובד שמחזיק את כל הדרישות של המקום הזה. כדאי להוסיף עובד כזה, או לסמן לעובד קיים את מה שחסר לו בלשונית "עובדים".')
@@ -162,7 +163,7 @@ export function candidateOrder(shift: ShiftRecord, ctx: PlanContext): { worker: 
  */
 export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], given: PlanContext): Plan {
   // A certification expired by the day of the job does not count here (src/lib/certExpiry.ts).
-  const ctx = { ...given, workers: given.workers.map((w) => validOn(w, shift.date)) }
+  const ctx = { ...given, workers: featureRules.certExpiry ? given.workers.map((w) => validOn(w, shift.date)) : given.workers }
   const candidates = candidateOrder(shift, ctx)
   const ordered = candidates.filter((c) => !c.load.blocked && !c.load.busy).map((c) => c.worker)
   const byId = new Map(ctx.workers.map((w) => [w.id, w]))
@@ -207,7 +208,7 @@ export function autoAssign(shift: ShiftRecord, staffing: StaffSlot[], given: Pla
   // The manager's own picks first, each in a place they fit: the places that ask for more first,
   // so a certified pick is not used up on a place anyone could fill.
   const lockedFor = (s: number) => locked.filter((c) => fitsSlot(byId.get(c.workerId)!, staffing[s])).map((c) => byId.get(c.workerId)!)
-  for (const s of [...slots].sort((a, b) => slotCerts(staffing[b]).length - slotCerts(staffing[a]).length || a - b))
+  for (const s of [...slots].sort((a, b) => neededCerts(staffing[b]).length - neededCerts(staffing[a]).length || a - b))
     if (!filled(s)) place(s, lockedFor, new Set())
   // Then the rest, hardest places first (fewest fitting workers), so the fairest picks go where they matter least.
   const fitting = staffing.map((slot) => ordered.filter((w) => fitsSlot(w, slot)))

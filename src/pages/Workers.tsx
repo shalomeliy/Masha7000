@@ -1,4 +1,6 @@
 import { tx } from '../i18n'
+import { useFeatures } from '../lib/data/useFeatures'
+import type { FeatureId } from '../lib/features'
 import { useEffect, useState } from 'react'
 import { Loader2, Plus } from 'lucide-react'
 import { DriveError } from '../components/DriveError'
@@ -18,8 +20,13 @@ const TABS: { id: WorkersTab; label: string }[] = [
 // The voice assistant's "press here" points at a button that lives in one of the tabs.
 const HINT_TAB: Partial<Record<Hint, WorkersTab>> = { requestConstraints: 'request', joinLink: 'join' }
 
+// The tabs of features the team can turn off (Settings > מסכים ותכונות).
+const TAB_FEATURE: Partial<Record<WorkersTab, FeatureId>> = { request: 'constraintForm', join: 'joinForm' }
+
 export function Workers() {
-  const [tab, setTab] = useState<WorkersTab>(() => {
+  const { isOn } = useFeatures()
+  const tabs = TABS.filter((t) => !TAB_FEATURE[t.id] || isOn(TAB_FEATURE[t.id]!))
+  const [chosen, setTab] = useState<WorkersTab>(() => {
     const hint = recentHint()
     return (hint && HINT_TAB[hint]) || 'team'
   })
@@ -31,6 +38,7 @@ export function Workers() {
       }),
     [],
   )
+  const tab = tabs.some((t) => t.id === chosen) ? chosen : 'team'
   // The workers' cards and forms read the other lists (names, shifts), so they load together.
   const lists = [useDriveList('workers'), useDriveList('certifications'), useDriveList('shiftDefinitions')]
   const loading = lists.some((l) => l.query.isPending)
@@ -60,8 +68,8 @@ export function Workers() {
         )}
       </div>
 
-      <div role="tablist" aria-label={tx('מה להציג')} className="grid grid-cols-4 rounded-xl bg-slate-900 p-1">
-        {TABS.map((t) => (
+      <div role="tablist" aria-label={tx('מה להציג')} className={`grid ${['grid-cols-2', 'grid-cols-2', 'grid-cols-2', 'grid-cols-3', 'grid-cols-4'][tabs.length]} rounded-xl bg-slate-900 p-1`}>
+        {tabs.map((t) => (
           <button
             key={t.id}
             type="button"

@@ -25,7 +25,8 @@ const seed: Record<string, unknown> = {
   ],
   'places.json': [{ id: 'p1', name: 'אילת אתר 123' }],
 }
-if (files.size === 0) {
+// localStorage 'dev.mockDrive.empty' = '1': a brand-new team with nothing in Drive (the onboarding wizard shows).
+if (files.size === 0 && localStorage.getItem('dev.mockDrive.empty') !== '1') {
   for (const [name, body] of Object.entries(seed)) files.set(name, { id: `id-${name}`, name, body: JSON.stringify(body), version: 1 })
   persist()
 }

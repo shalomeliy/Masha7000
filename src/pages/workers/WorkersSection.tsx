@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useFeatures } from '../../lib/data/useFeatures'
 import { ArrowRight, Phone, Search, UserX, X } from "lucide-react";
 import {
   Chips,
@@ -364,14 +365,16 @@ function WorkerCard({
 }) {
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
-  const certList = certs.items.filter((c) => w.certificationIds.includes(c.id));
-  const department = departments.items.find(
+  const { isOn } = useFeatures();
+  // Features turned off for the team (Settings > מסכים ותכונות) are not shown on the card; the data stays.
+  const certList = isOn("certs") ? certs.items.filter((c) => w.certificationIds.includes(c.id)) : [];
+  const department = isOn("departments") ? departments.items.find(
     (d) => d.id === w.departmentId,
-  )?.name;
+  )?.name : undefined;
   const today = todayIso();
   // A sickness saved as the worker's status ("חולה עד") is shown like one saved as a dated constraint.
   const sick = sickConstraint(w);
-  const active = [...(sick ? [sick] : []), ...w.constraints].filter((c) => !isOver(c, today));
+  const active = [...(sick ? [sick] : []), ...(isOn("constraints") ? w.constraints : [])].filter((c) => !isOver(c, today));
   const state = workerState(w, today);
 
   const dial = telHref(w.mobilePhone);
@@ -390,7 +393,7 @@ function WorkerCard({
           <span role="img" aria-label={state.label} title={state.label} className={`size-2.5 shrink-0 rounded-full ${STATE_TONE[state.id].dot}`} />
           <span className="max-w-full truncate">{fullName(w)}</span>
           {/* One average star (a tap shows the stars in each certification). Expiry is marked on the certification itself below. */}
-          <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />
+          {isOn("certs") && <AverageStars worker={w} certIds={certList.map((c) => c.id)} onOpen={onRatings} />}
         </span>
         <span className="flex flex-wrap gap-1">
           {department && (
@@ -401,8 +404,8 @@ function WorkerCard({
           {certList.map((c) => {
             // Only the certification that expired (red frame) or ends within 30 days (orange frame) is marked,
             // instead of one "!" for the whole worker (the manager's request, 2026-11-23).
-            const expiry = expiryState(w, c.id, today);
-            const note = expiryNote(w, c.id, today);
+            const expiry = isOn("certExpiry") ? expiryState(w, c.id, today) : null;
+            const note = isOn("certExpiry") ? expiryNote(w, c.id, today) : null;
             return (
               <span
                 key={c.id}
@@ -531,6 +534,7 @@ function WorkerForm({
   const workers = useDriveList("workers");
   const certs = useDriveList("certifications");
   const departments = useDriveList("departments");
+  const { isOn } = useFeatures();
   // A sickness that has ended opens as active, so the form shows what is true today.
   const [draft, setDraft] = useState<Worker>(() =>
     worker.status === "sick" && !sickNow(worker, todayIso())
@@ -664,7 +668,7 @@ function WorkerForm({
       {/* Small on purpose: one line under the name, the department first and the status after it.
           A tap on either opens its own screen (department: the user's request, 2026-11-11). */}
       <div className="-my-3 flex flex-wrap items-center gap-x-4 text-xs text-slate-400">
-        <p className="min-w-0 flex items-center gap-1">
+        {isOn("departments") && <p className="min-w-0 flex items-center gap-1">
           {tx('מחלקה:')}{" "}
           <button
             type="button"
@@ -673,7 +677,7 @@ function WorkerForm({
           >
             {departments.items.find((d) => d.id === draft.departmentId)?.name ?? tx('בלי מחלקה')}
           </button>
-        </p>
+        </p>}
         <p className="flex items-center gap-1">
           {tx('סטטוס:')}{" "}
           <button
@@ -758,7 +762,7 @@ function WorkerForm({
           />
         </Field>
       </div>
-      <div className="space-y-1">
+      {isOn("certs") && <div className="space-y-1">
         <span className="text-sm text-slate-300">{tx('הסמכות')}</span>
         {/* Only the certifications the worker holds; more are added from the list under them, and an open
             row has "הסר הסמכה" (the user's request, 2026-11-10). A new worker's certifications start with
@@ -794,7 +798,7 @@ function WorkerForm({
             {tx('עוד אין הסמכות. אפשר להוסיף אותן בלשונית "הסמכות".')}
           </p>
         )}
-      </div>
+      </div>}
 
       {exists && (
         <WorkerAgenda

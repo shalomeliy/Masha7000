@@ -1,7 +1,7 @@
 import { tx } from '../i18n'
 import { LanguagePicker } from './settings/LanguagePicker'
 import { useEffect, useState } from 'react'
-import { Archive as ArchiveIcon, Car, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, LifeBuoy, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
+import { Archive as ArchiveIcon, Car, ChevronLeft, ChevronRight, CheckCircle2, ClipboardList, ExternalLink, HardDrive, LifeBuoy, ToggleRight, Lightbulb, Mic, Loader2, Scale, ShieldCheck, UserCircle, Users, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { holdBack } from '../components/backStack'
 import { DriveError } from '../components/DriveError'
@@ -12,6 +12,10 @@ import { readJson, writeJson } from '../lib/google/drive'
 import { TIME_ZONE } from '../lib/google/config'
 import { authMode } from '../lib/google/auth'
 import { useAuth } from '../store/auth'
+import { useFeatures } from '../lib/data/useFeatures'
+import type { FeatureId } from '../lib/features'
+import { FeaturesSection } from './settings/FeaturesSection'
+import { GuideSection } from './settings/GuideSection'
 import { Archive } from './Archive'
 import { Vehicles } from './Vehicles'
 import { AccessSection } from './settings/AccessSection'
@@ -145,7 +149,7 @@ const LISTS: { id: ListId; title: string; explain: string }[] = [
 ]
 
 // Everything else the screen can open besides a list editor.
-type PanelId = 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'fault' | 'claudeLog' | 'api' | 'micTest' | 'voice'
+type PanelId = 'features' | 'guide' | 'archive' | 'vehicles' | 'access' | 'security' | 'backup' | 'connection' | 'account' | 'feedback' | 'fault' | 'claudeLog' | 'api' | 'micTest' | 'voice'
 type ItemId = ListId | PanelId
 
 // A row inside a topic: a screen of this app, or a plain page outside it (public/*.html, a mail).
@@ -163,6 +167,8 @@ interface Group {
 }
 
 const PANELS: Record<PanelId, { title: string; explain: string }> = {
+  features: { title: tx('מסכים ותכונות'), explain: tx('מה מופיע באפליקציה: הדלקה וכיבוי של כל תכונה') },
+  guide: { title: tx('מדריך'), explain: tx('איך עושים כל דבר באפליקציה, צעד אחר צעד') },
   archive: { title: tx('ארכיון ודוחות'), explain: tx('כל העבודות שהיו: מי עבד, איפה, ודוחות שבועיים וחודשיים') },
   vehicles: { title: tx('רכבים'), explain: tx('רשימת הרכבים: הוספה, חיפוש ומחיקה. בוחרים מהם בעבודה ביומן') },
   access: { title: tx('מי יכול להיכנס'), explain: tx('הוספה והסרה של אנשים שמשתמשים באפליקציה') },
@@ -184,8 +190,31 @@ const listItem = (id: ListId): Entry => {
 }
 const panelItem = (id: PanelId): Entry => ({ id, ...PANELS[id] })
 
-function groups(isOwner: boolean, server: boolean): Group[] {
+// Items that belong to a feature the team can turn off (src/lib/features.ts); hidden while it is off.
+const ITEM_FEATURE: Partial<Record<ItemId, FeatureId>> = {
+  certifications: 'certs',
+  departments: 'departments',
+  constraintWords: 'constraints',
+  vehicles: 'vehicles',
+  archive: 'reports',
+  postponeReasons: 'jobClosing',
+  places: 'quickLists',
+  jobTypes: 'quickLists',
+  api: 'api',
+  voice: 'shali',
+  pronunciations: 'shali',
+  claudeLog: 'shali',
+}
+
+function groups(isOwner: boolean, server: boolean, isOn: (id: FeatureId) => boolean = () => true): Group[] {
   const all: Group[] = [
+    {
+      id: 'features',
+      title: tx('מסכים ותכונות'),
+      explain: tx('מה מופיע באפליקציה, ומדריך לכל מסך'),
+      icon: ToggleRight,
+      items: [panelItem('features'), panelItem('guide')],
+    },
     {
       id: 'jobs',
       title: tx('עבודות ושיבוץ'),
@@ -280,7 +309,8 @@ function groups(isOwner: boolean, server: boolean): Group[] {
       items: [panelItem('account')],
     },
   ]
-  return all.filter((g) => g.items.length > 0)
+  const shown = (e: Entry) => !('id' in e) || !ITEM_FEATURE[e.id] || isOn(ITEM_FEATURE[e.id]!)
+  return all.map((g) => ({ ...g, items: g.items.filter(shown) })).filter((g) => g.items.length > 0)
 }
 
 const isList = (id: ItemId): id is ListId => LISTS.some((l) => l.id === id)
@@ -337,7 +367,8 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
           0,
         )
       : lists[id].items.length
-  const topics = groups(who?.isOwner === true, authMode() === 'server')
+  const { isOn } = useFeatures()
+  const topics = groups(who?.isOwner === true, authMode() === 'server', isOn)
   const group = topics.find((g) => g.id === groupId)
 
   const backButton = (label: string, onClick: () => void) => (
@@ -369,6 +400,8 @@ export function Settings({ openArchive = false }: { openArchive?: boolean }) {
     return (
       <section className="space-y-4 px-4 pt-6">
         {back}
+        {open === 'features' && <FeaturesSection openGuide={() => setOpen('guide')} />}
+        {open === 'guide' && <GuideSection />}
         {open === 'access' && <AccessSection />}
         {open === 'security' && <SecuritySection />}
         {/* Restore replaces the owner's data for everyone; without the server, everyone is on their own Drive. */}

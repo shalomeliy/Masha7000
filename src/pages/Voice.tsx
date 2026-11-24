@@ -1,4 +1,7 @@
 import { language, tx } from '../i18n'
+import { useFeatures } from '../lib/data/useFeatures'
+import { FEATURE_IDS } from '../lib/features'
+import { offFeatureAnswer, offFeatureSaid } from '../lib/featureSpeech'
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, AudioLines, BookMarked, Check, Keyboard, LifeBuoy, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
@@ -47,6 +50,7 @@ const MAX_FIXES = 2
 export const KEEP_TALK_MS = 30 * 60 * 1000
 
 export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Screen) => void; active?: boolean }) {
+  const { isOn, flags } = useFeatures()
   const lists = {
     certifications: useDriveList('certifications'),
     workers: useDriveList('workers'),
@@ -202,7 +206,9 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
     let answer: AssistantAnswer
     let early = ''
     try {
-      answer = await askAssistant(conversation.current, snapshot(data, undefined, asked.current.join(' ')), (text) => {
+      // Features the team turned off: Claude is told not to offer them (api/_lib/assistant.ts featuresNote).
+      const featuresOff = FEATURE_IDS.filter((id) => !flags[id])
+      answer = await askAssistant(conversation.current, { ...snapshot(data, undefined, asked.current.join(' ')), featuresOff }, (text) => {
         // Spoken while the rest of the answer is still being written.
         early = text
         say(text)
@@ -401,6 +407,14 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
     const picked = advice ? pickedOption(text, advice.options.length) : null
     if (picked !== null) {
       pickOption(picked)
+      return
+    }
+    // A request about a feature the team turned off: answered here, free, never sent to Claude.
+    const offFeature = offFeatureSaid(text, isOn, data.certifications.map((c) => c.name))
+    if (offFeature) {
+      setError(null)
+      say(offFeatureAnswer(offFeature))
+      reset()
       return
     }
     asked.current = [...asked.current, text]

@@ -1,3 +1,4 @@
+import { featureRules } from './featureRules'
 import { tx } from '../i18n'
 import type { Certification, Department, ShiftDefinition, StaffSlot, Worker } from '../types/models'
 import { normalizeConstraint } from './constraints'
@@ -118,9 +119,12 @@ export function staffingFor(staffing: StaffSlot[] | undefined, certificationIds:
 export const slotCerts = (slot: StaffSlot): string[] =>
   (slot.certificationIds ?? (slot.certificationId ? [slot.certificationId] : [])).filter(notGeneral)
 
+/** The certifications that count for a place now: none while the team turned certifications off (the job keeps them). */
+export const neededCerts = (slot: StaffSlot): string[] => (featureRules.certs ? slotCerts(slot) : [])
+
 /** "טיפוס + רתך" for one place; "ללא" when it asks for no certification. */
 export function placeText(slot: StaffSlot, certs: { id: string; name: string }[]): string {
-  const names = slotCerts(slot).flatMap((id) => certs.find((c) => c.id === id)?.name ?? [])
+  const names = neededCerts(slot).flatMap((id) => certs.find((c) => c.id === id)?.name ?? [])
   return names.length ? names.join(' + ') : anyWorkerText()
 }
 

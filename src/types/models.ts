@@ -259,4 +259,8 @@ export interface WordGroupSetting {
 // Stored in Drive appDataFolder as settings.json. Not in the spec; holds ids we must remember.
 export interface AppSettings {
   calendarId?: string
+  /** Which features are on (src/lib/features.ts). Read only when `onboarding` exists; without it everything is on. */
+  features?: Partial<Record<import('../lib/features').FeatureId, boolean>>
+  /** The smart-onboarding wizard's answers. Absent = a team from before the wizard: everything on, no wizard. */
+  onboarding?: { version: 1; answers: Record<string, string>; doneAt: string; businessName?: string }
 }

@@ -247,6 +247,35 @@ export function languageNote(context: unknown): { type: 'text'; text: string }[]
   ]
 }
 
+// Features the manager's team turned off (Settings > מסכים ותכונות, src/lib/features.ts). Only known ids
+// are accepted, so the field cannot carry other instructions.
+const FEATURE_NAMES: Record<string, string> = {
+  nightJobs: 'עבודות לילה',
+  certs: 'הסמכות',
+  certExpiry: 'תוקף הסמכות',
+  vehicles: 'רכבים',
+  departments: 'מחלקות',
+  constraints: 'אילוצים',
+  constraintForm: 'טופס אילוצים שבועי',
+  joinForm: 'טופס הצטרפות',
+  jobClosing: 'סגירת עבודה',
+  reports: 'ארכיון ודוחות',
+  journal: 'יומן אישי',
+  api: 'גישת API',
+}
+export function featuresNote(context: unknown): { type: 'text'; text: string }[] {
+  const off = (context as { featuresOff?: unknown }).featuresOff
+  if (!Array.isArray(off)) return []
+  const names = off.flatMap((id) => (typeof id === 'string' && Object.hasOwn(FEATURE_NAMES, id) ? [FEATURE_NAMES[id]] : []))
+  if (!names.length) return []
+  return [
+    {
+      type: 'text',
+      text: `תכונות שהמנהל כיבה אצלו: ${names.join(', ')}. אל תציע ואל תבצע שום פעולה עליהן (גם לא בתוך הצעה אחרת), ואל תשאל עליהן. אם הוא מבקש פעולה כזו, ענה (answer) בקצרה: "התכונה כבויה. אפשר להדליק אותה בהגדרות, במסכים ותכונות."`,
+    },
+  ]
+}
+
 /** The whole turn, retry included: under Vercel's 60 s, with room for the budget write after it. */
 export const ASSISTANT_DEADLINE_MS = 45_000
 /** One try at Claude; the retry gets what is left of the deadline. */
@@ -280,6 +309,7 @@ export async function runAssistant(
         { type: 'text', text: MODE, cache_control: { type: 'ephemeral' } },
         { type: 'text', text: `הנתונים של האפליקציה עכשיו:\n${JSON.stringify(context)}` },
         ...languageNote(context),
+        ...featuresNote(context),
       ],
       tools: TOOLS,
       tool_choice: { type: 'auto' },
