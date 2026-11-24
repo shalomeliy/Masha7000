@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { CheckCircle2, Loader2, MessageCircle, Send, Square, Volume2 } from 'lucide-react'
 import { ChoiceList } from '../../components/ChoiceList'
 import { DictationField } from '../../components/DictationField'
+import { inputClass } from '../../components/Sheet'
+import { detectDevice } from '../../lib/deviceInfo'
 import { canSpeak, speak, stopSpeaking } from '../../lib/speech'
 import { language, tx } from '../../i18n'
 
 // A manager reports something broken (2026-11-23, an SLA item: one fixed way to report a fault).
 // The server emails it to a dedicated address kept only in Vercel (FAULT_REPORT_EMAIL); the
-// browser never learns it. The app adds the device, language and version by itself.
+// browser never learns it. The device, system, version and time are filled in by the app and
+// the manager can correct them (the owner, 2026-11-24); language and app version are added unseen.
 // An urgent fault can also go by WhatsApp (the owner's choice): a wa.me link to FAULT_WHATSAPP,
 // which the server hands only to signed-in managers. WhatsApp shows that number, by nature.
 
@@ -35,10 +38,27 @@ const REASONS: Record<string, string> = {
   'mfa-required': tx('צריך להזין את הקוד הדו-שלבי מחדש.'),
 }
 
-function details(urgent: boolean, where: string) {
+const pad = (n: number) => String(n).padStart(2, '0')
+/** Now, as a datetime-local value: 2026-11-24T03:40 (the phone's own clock and zone). */
+const nowLocal = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+/** 2026-11-24T03:40 -> 24.11.2026 03:40, for the mail. */
+const showWhen = (v: string) => {
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/)
+  return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}` : v
+}
+
+interface Device {
+  model: string
+  os: string
+  osVersion: string
+}
+
+function details(urgent: boolean, where: string, device: Device, occurredAt: string) {
   return {
     urgent,
     where,
+    ...device,
+    occurredAt: showWhen(occurredAt),
     page: location.origin + location.pathname,
     device: `${navigator.userAgent} · ${screen.width}x${screen.height}${navigator.onLine ? '' : ' · offline'}`,
     language: language().code,
@@ -54,7 +74,17 @@ export function FaultReportSection() {
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [whatsapp, setWhatsapp] = useState('')
+  const [device, setDevice] = useState<Device>({ model: '', os: '', osVersion: '' })
+  const [occurredAt, setOccurredAt] = useState(() => nowLocal())
   useEffect(() => () => void stopSpeaking(), [])
+  useEffect(() => {
+    let live = true
+    // Fills only what the manager has not typed yet.
+    void detectDevice().then((d) => live && setDevice((cur) => ({ model: cur.model || d.model, os: cur.os || d.os, osVersion: cur.osVersion || d.osVersion })))
+    return () => {
+      live = false
+    }
+  }, [])
   useEffect(() => {
     let live = true
     fetch('/api/feedback', { credentials: 'same-origin' })
@@ -84,13 +114,14 @@ export function FaultReportSection() {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'fault', text: text.trim(), details: details(urgent, where) }),
+        body: JSON.stringify({ kind: 'fault', text: text.trim(), details: details(urgent, where, device, occurredAt) }),
       })
       if (res.ok) {
         setState('sent')
         setText('')
         setWhere('')
         setUrgent(false)
+        setOccurredAt(nowLocal())
         return
       }
       const data = (await res.json().catch(() => ({}))) as { reason?: string }
@@ -133,6 +164,10 @@ export function FaultReportSection() {
         options={places()}
         onChange={setWhere}
       />
+      <label className="block space-y-1">
+        <span className="text-sm text-slate-300">{tx('מתי זה קרה?')}</span>
+        <input type="datetime-local" value={occurredAt} max={nowLocal()} onChange={(e) => setOccurredAt(e.target.value)} className={inputClass} />
+      </label>
       <DictationField
         label={tx('מה קרה?')}
         value={text}
@@ -143,6 +178,23 @@ export function FaultReportSection() {
         placeholder={tx('למשל: לחצתי על שבץ ביומן ושום דבר לא קרה')}
       />
       {tooLong && <p className="text-sm text-amber-300">{tx('התיאור ארוך מדי ({length} מתוך {MAX} תווים).', { length: text.length, MAX })}</p>}
+      <fieldset className="space-y-2">
+        <legend className="text-sm text-slate-300">{tx('פרטי המכשיר (מולאו אוטומטית, אפשר לתקן)')}</legend>
+        <label className="block space-y-1">
+          <span className="text-xs text-slate-400">{tx('מכשיר')}</span>
+          <input value={device.model} maxLength={80} placeholder={tx('למשל: Galaxy S23')} onChange={(e) => setDevice({ ...device, model: e.target.value })} className={inputClass} />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block space-y-1">
+            <span className="text-xs text-slate-400">{tx('מערכת הפעלה')}</span>
+            <input value={device.os} maxLength={40} placeholder="Android" onChange={(e) => setDevice({ ...device, os: e.target.value })} className={inputClass} />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-xs text-slate-400">{tx('גרסה')}</span>
+            <input value={device.osVersion} maxLength={40} inputMode="decimal" placeholder="14" onChange={(e) => setDevice({ ...device, osVersion: e.target.value })} className={inputClass} />
+          </label>
+        </div>
+      </fieldset>
       {canSpeak && (
         <button
           type="button"
