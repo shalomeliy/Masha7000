@@ -44,7 +44,7 @@ export function BackupSection({ canRestore }: { canRestore: boolean }) {
   const [opening, setOpening] = useState<string | null>(null) // copy id being read
   const fileInput = useRef<HTMLInputElement>(null)
   const busy = restore.step === 'running'
-  const lastWeekly = copies.data?.find((c) => c.kind === 'weekly')
+  const lastAuto = copies.data?.find((c) => c.kind !== 'beforeRestore')
 
   // Two taps: the first reads Drive, the second saves the file. A phone (Safari above all) only
   // saves a file from a tap, not after waiting for Drive.
@@ -113,7 +113,7 @@ export function BackupSection({ canRestore }: { canRestore: boolean }) {
   return (
     <div className="space-y-3">
       <h2 className="text-lg font-semibold">{tx('גיבוי')}</h2>
-      {lastWeekly && <p className="text-sm text-slate-400">{tx('גיבוי אוטומטי אחרון: {v} {v2}', { v: weekday(lastWeekly.createdAt), v2: backupDate(lastWeekly.createdAt) })}</p>}
+      {lastAuto && <p className="text-sm text-slate-400">{tx('גיבוי אוטומטי אחרון: {v} {v2}', { v: weekday(lastAuto.createdAt), v2: backupDate(lastAuto.createdAt) })}</p>}
 
       <div className="space-y-2 rounded-2xl border border-slate-800 bg-slate-900 p-4">
         {file ? (
@@ -172,7 +172,7 @@ export function BackupSection({ canRestore }: { canRestore: boolean }) {
       {canRestore && (
         <div className="space-y-2">
           <h3 className="font-semibold">{tx('עותקים אוטומטיים')}</h3>
-          <p className="text-xs text-slate-400">{tx('פעם בשבוע האפליקציה שומרת עותק בדרייב, ולפני כל שחזור עוד אחד. נשמרים 8 השבועות האחרונים.')}</p>
+          <p className="text-xs text-slate-400">{tx('פעם ביום האפליקציה שומרת עותק בדרייב, ולפני כל שחזור עוד אחד. נשמרים 14 הימים האחרונים, ועוד עותק אחד מכל שבוע ל-8 שבועות.')}</p>
           {copies.isPending ? (
             <p className="flex items-center gap-2 text-sm text-slate-400">
               <Loader2 className="animate-spin" size={16} aria-hidden />
@@ -181,7 +181,7 @@ export function BackupSection({ canRestore }: { canRestore: boolean }) {
           ) : copies.isError ? (
             <DriveError error={copies.error} action="load" onRetry={() => copies.refetch()} />
           ) : copies.data.length === 0 ? (
-            <p className="text-sm text-slate-500">{tx('עוד אין עותקים. הראשון יישמר השבוע.')}</p>
+            <p className="text-sm text-slate-500">{tx('עוד אין עותקים. הראשון יישמר היום.')}</p>
           ) : (
             <ul className="divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
               {copies.data.map((c) => (

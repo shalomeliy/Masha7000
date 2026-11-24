@@ -145,9 +145,12 @@ export function weekStart(now = new Date()): string {
 // ---- Copies inside the app's Drive folder ----
 
 export const COPY_PREFIX = 'backup-'
-export type CopyKind = 'weekly' | 'beforeRestore'
+// Daily copies since 2026-11-23 (the owner's SLA decision: lose at most a day). The first copy of
+// each week is marked 'weekly' and kept longer, so two months back stay reachable.
+export type CopyKind = 'daily' | 'weekly' | 'beforeRestore'
 /** How many of each kind are kept; older ones are deleted. */
-export const KEEP: Record<CopyKind, number> = { weekly: 8, beforeRestore: 3 }
+export const KEEP: Record<CopyKind, number> = { daily: 14, weekly: 8, beforeRestore: 3 }
+const KINDS: readonly CopyKind[] = ['daily', 'weekly', 'beforeRestore']
 
 export interface CopyInfo {
   id: string
@@ -158,21 +161,35 @@ export interface CopyInfo {
 
 export function toCopyInfo(f: DriveCopy): CopyInfo | null {
   const p = f.appProperties ?? {}
-  if (!f.name.startsWith(COPY_PREFIX) || (p.kind !== 'weekly' && p.kind !== 'beforeRestore')) return null
+  if (!f.name.startsWith(COPY_PREFIX) || !KINDS.includes(p.kind as CopyKind)) return null
   const n = (v?: string) => Number(v) || 0
-  return { id: f.id, kind: p.kind, createdAt: p.createdAt ?? f.createdTime, counts: { workers: n(p.workers), shifts: n(p.shifts), pendingJobs: n(p.pendingJobs) } }
+  return { id: f.id, kind: p.kind as CopyKind, createdAt: p.createdAt ?? f.createdTime, counts: { workers: n(p.workers), shifts: n(p.shifts), pendingJobs: n(p.pendingJobs) } }
 }
 
 /** Copies past the number kept, newest first in, oldest out. */
 export function copiesToDelete(copies: CopyInfo[]): CopyInfo[] {
   const sorted = [...copies].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  return (['weekly', 'beforeRestore'] as const).flatMap((k) => sorted.filter((c) => c.kind === k).slice(KEEP[k]))
+  return KINDS.flatMap((k) => sorted.filter((c) => c.kind === k).slice(KEEP[k]))
 }
+
+const automatic = (c: CopyInfo) => c.kind === 'daily' || c.kind === 'weekly'
 
 /** Was a weekly copy already made since this week's Sunday? */
 export function hasWeeklyCopy(copies: CopyInfo[], now = new Date()): boolean {
   const start = weekStart(now)
   return copies.some((c) => c.kind === 'weekly' && isoDay(new Date(c.createdAt)) >= start)
+}
+
+/** Was an automatic copy (daily or weekly) already made today? */
+export function hasTodaysCopy(copies: CopyInfo[], now = new Date()): boolean {
+  const today = isoDay(now)
+  return copies.some((c) => automatic(c) && isoDay(new Date(c.createdAt)) === today)
+}
+
+/** Today's automatic copy: none when one exists; the week's first is 'weekly', the rest 'daily'. */
+export function copyDueToday(copies: CopyInfo[], now = new Date()): CopyKind | null {
+  if (hasTodaysCopy(copies, now)) return null
+  return hasWeeklyCopy(copies, now) ? 'daily' : 'weekly'
 }
 
 /** Today's data straight from Drive (not the screens' cache). */
@@ -189,7 +206,7 @@ export async function listBackupCopies(): Promise<CopyInfo[]> {
 export async function saveCopy(kind: CopyKind, now = new Date()): Promise<boolean> {
   const b = await readAll(now)
   // A new account has nothing to keep yet.
-  if (kind === 'weekly' && BACKUP_LISTS.every((k) => b.files[k].length === 0)) return false
+  if (kind !== 'beforeRestore' && BACKUP_LISTS.every((k) => b.files[k].length === 0)) return false
   const c = backupCounts(b)
   const stamp = now.toISOString().replace(/[:.]/g, '-')
   await createCopy(`${COPY_PREFIX}${kind}-${stamp}.json`, JSON.stringify(b), {
@@ -227,20 +244,21 @@ export async function restoreLists(b: Backup, done: ReadonlySet<BackupList>, onD
   }
 }
 
-const WEEKLY_KEY = 'masha7000.weeklyBackup'
+const DAILY_KEY = 'masha7000.dailyBackup'
 
-/** On the first open of each week, saves a copy, unless someone already did this week. Never throws. */
-export async function ensureWeeklyCopy(now = new Date()): Promise<boolean> {
-  const week = weekStart(now)
+/** On the first open of each day, saves a copy, unless someone already did today. Never throws. */
+export async function ensureDailyCopy(now = new Date()): Promise<boolean> {
+  const day = isoDay(now)
   try {
-    if (localStorage.getItem(WEEKLY_KEY) === week) return false
+    if (localStorage.getItem(DAILY_KEY) === day) return false
   } catch {
     // Storage blocked: ask Drive every time.
   }
   try {
-    const made = !hasWeeklyCopy(await listBackupCopies(), now) && (await saveCopy('weekly', now))
+    const kind = copyDueToday(await listBackupCopies(), now)
+    const made = kind !== null && (await saveCopy(kind, now))
     try {
-      localStorage.setItem(WEEKLY_KEY, week)
+      localStorage.setItem(DAILY_KEY, day)
     } catch {
       // ignore
     }

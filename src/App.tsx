@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { BottomNav } from './components/BottomNav'
 import type { Tab } from './components/BottomNav'
-import { ensureWeeklyCopy } from './lib/backup'
+import { ensureDailyCopy } from './lib/backup'
 import { applyWordSettings } from './lib/constraintWords'
 import { applyPronunciations, BUILT_IN, unknownWords } from './lib/pronounce'
 import { onSpoken } from './lib/speech'
@@ -91,7 +91,7 @@ export default function App() {
       <ConstraintWords />
       <Pronunciations />
       <NewWords />
-      <WeeklyCopy />
+      <DailyCopy />
       {/* Workers' answers to the weekly constraints form land in their constraints on any screen. */}
       <ConstraintAnswersSync />
       {/* "לשיבוץ" is no longer a screen: its waiting jobs are at the top of the calendar. */}
@@ -160,11 +160,11 @@ function NewWords() {
   return null
 }
 
-// The week's automatic backup copy, made quietly on the first open of each week.
-function WeeklyCopy() {
+// The day's automatic backup copy, made quietly on the first open of each day.
+function DailyCopy() {
   const qc = useQueryClient()
   useEffect(() => {
-    void ensureWeeklyCopy().then((made) => {
+    void ensureDailyCopy().then((made) => {
       if (made) void qc.invalidateQueries({ queryKey: ['backupCopies'] })
     })
   }, [qc])
