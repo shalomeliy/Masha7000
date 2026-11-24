@@ -457,3 +457,13 @@ describe('removing and deleting', () => {
     expect((await post(feedback, cust, { text: 'שלום' })).status).toBe(503) // no mail key in tests: past the gate
   })
 })
+
+describe('access request list', () => {
+  it('a full list of expired requests never blocks a new customer', async () => {
+    store.set('access-requests', new Set(Array.from({ length: 200 }, (_, i) => `areq:old${i}`)))
+    const apply = `__Host-apply=${cookieValue(await signInAs(CUSTOMER), '__Host-apply')}`
+    await post(access, null, { businessName: 'עסק חדש', whatsapp: '0501234567' }, apply)
+    const boss = await managerSession(OWNER)
+    expect((await (await post(owner, boss, { action: 'requests' })).json()).requests.map((r: { email: string }) => r.email)).toEqual([CUSTOMER])
+  })
+})

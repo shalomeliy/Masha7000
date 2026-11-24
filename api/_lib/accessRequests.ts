@@ -40,7 +40,11 @@ export async function storeRequest(env: Env, email: string, details: { businessN
   if (email === env.ownerEmail || (await emailTaken(env, email))) return 'skipped'
   const key = await recordKey(email)
   const known = await kv.isMember(env, LIST, key)
-  if (!known && (await kv.members(env, LIST)).length >= MAX_REQUESTS) return 'skipped'
+  if (!known && (await kv.members(env, LIST)).length >= MAX_REQUESTS) {
+    // Full: first drop the ones whose record expired (30 days), so old entries never block new customers.
+    await listRequests(env)
+    if ((await kv.members(env, LIST)).length >= MAX_REQUESTS) return 'skipped'
+  }
   const req: AccessRequest = { email, ...details, at: new Date().toISOString() }
   await kv.set(env, key, await seal(env.sessionKey, req), DAYS * 86_400)
   await kv.add(env, LIST, key)

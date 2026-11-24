@@ -31,6 +31,7 @@ export async function deleteAccount(env: Env, email: string, team: Team): Promis
   if (!isOwner(env, email)) {
     await kv.remove(env, KEYS.allowed, email)
     await kv.remove(env, KEYS.assistant, email)
+    await kv.remove(env, KEYS.assistantClaude, email)
     await forget(env, email)
     return
   }
