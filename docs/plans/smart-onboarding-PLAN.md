@@ -10,8 +10,8 @@ Out (later stages, each with its own plan): hourly shifts (own spike on overlap 
 
 ## Hard constraints found in the code
 
-- **12 function files max** (`api/_lib/functionCount.test.ts`, Vercel Hobby). There are 12 now. No new `api/*.ts` file: new server actions go into existing ones (`api/owner.ts` for approve/reject, `api/join.ts` or `api/feedback.ts` for the public access request).
-- Owner = `OWNER_EMAIL`; others sign in only if in `KEYS.allowed` (`api/_lib/session.ts`, `api/auth/callback.ts`).
+- **12 function files max** (`api/_lib/functionCount.test.ts`, Vercel Hobby). Since 2026-11-24 there are 5 (routes in `api/_lib/routes/`, see CLAUDE.md). New server actions still go into existing route files (`api/_lib/routes/owner.ts` for approve/reject, `api/_lib/routes/join.ts` or `api/_lib/routes/feedback.ts` for the public access request).
+- Owner = `OWNER_EMAIL`; others sign in only if in `KEYS.allowed` (`api/_lib/session.ts`, `api/_lib/routes/auth-callback.ts`).
 - Each manager's data is their own Drive appDataFolder; settings live in `settings.json` (`DRIVE_FILES.settings`, type `AppSettings` in `src/types/models.ts`).
 - Every new string through `tx()` and translated into all 15 locales (merge on top of HEAD).
 - Lists: `ChoiceList`, never native `<select>`.
@@ -47,7 +47,7 @@ Out (later stages, each with its own plan): hourly shifts (own spike on overlap 
 ### 7. Request access + owner approval
 - Sign-in page: "לקוח חדש? בקש גישה". A refused sign-in (`not-allowed`) already knows the Google email; it offers "שלח בקשת גישה" with business name + WhatsApp phone.
 - Server: stored sealed in `KEYS.accessRequests` (new key), rate-limited per IP and email, through an existing function file. Email to the owner via Resend (`api/_lib/feedback.ts`).
-- Owner: "מי יכול להיכנס" shows pending requests with אשר / דחה (`api/owner.ts` actions `requests`, `approve`, `reject`). Approve = add to `KEYS.allowed`, Shali free-only (Claude off).
+- Owner: "מי יכול להיכנס" shows pending requests with אשר / דחה (`api/_lib/routes/owner.ts` actions `requests`, `approve`, `reject`). Approve = add to `KEYS.allowed`, Shali free-only (Claude off).
 - `security-expert` review on this step only (public form + allow-list change).
 
 ### 8. In-app guide

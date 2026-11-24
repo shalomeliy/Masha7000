@@ -1,8 +1,8 @@
-import { addToLog, clearStoredLog, logEntry, readLog, tokenMatches } from './_lib/claudeLog.js'
-import { readEnv, type Env } from './_lib/env.js'
-import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
-import { overLimit } from './_lib/rate.js'
-import { canUseAssistant, isOwner, requireManager } from './_lib/session.js'
+import { addToLog, clearStoredLog, logEntry, readLog, tokenMatches } from '../claudeLog.js'
+import { readEnv, type Env } from '../env.js'
+import { clientIp, guarded, json, readJson, sameOrigin } from '../http.js'
+import { overLimit } from '../rate.js'
+import { canUseAssistant, isOwner, requireManager } from '../session.js'
 
 // The "what went to Claude" log of the voice assistant (api/_lib/claudeLog.ts). Read and emptied by the
 // owner only; written by anyone allowed the assistant, so the owner sees every conversation.

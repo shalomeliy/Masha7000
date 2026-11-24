@@ -1,8 +1,8 @@
-import { randomToken, seal, sha256url } from '../_lib/crypto.js'
-import { readEnv } from '../_lib/env.js'
-import { authUrl, type Mode } from '../_lib/google.js'
-import { clientIp, guarded, redirect, setCookie, STATE_COOKIE } from '../_lib/http.js'
-import { overLimit } from '../_lib/rate.js'
+import { randomToken, seal, sha256url } from '../crypto.js'
+import { readEnv } from '../env.js'
+import { authUrl, type Mode } from '../google.js'
+import { clientIp, guarded, redirect, setCookie, STATE_COOKIE } from '../http.js'
+import { overLimit } from '../rate.js'
 
 // GET /api/auth/start[?mode=owner]: the whole page goes to Google. The state and PKCE verifier
 // wait in a sealed 10-minute cookie, checked when Google sends the browser back.

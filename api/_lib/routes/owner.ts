@@ -1,12 +1,12 @@
-import { apiKeysAction } from './_lib/apiKeysRoute.js'
-import { audit, readAudit } from './_lib/audit.js'
-import { open } from './_lib/crypto.js'
-import { readEnv } from './_lib/env.js'
-import { revoke } from './_lib/google.js'
-import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
-import { KEYS, kv } from './_lib/kv.js'
-import { overLimit } from './_lib/rate.js'
-import { endAllSessions, isOwner, normalizeEmail, requireManager } from './_lib/session.js'
+import { apiKeysAction } from '../apiKeysRoute.js'
+import { audit, readAudit } from '../audit.js'
+import { open } from '../crypto.js'
+import { readEnv } from '../env.js'
+import { revoke } from '../google.js'
+import { clientIp, guarded, json, readJson, sameOrigin } from '../http.js'
+import { KEYS, kv } from '../kv.js'
+import { overLimit } from '../rate.js'
+import { endAllSessions, isOwner, normalizeEmail, requireManager } from '../session.js'
 
 // POST /api/owner { action }: the owner's controls. 'list' | 'add' | 'remove' manage who may sign in;
 // 'assistant' { email, on } opens or closes the voice assistant to one of them (free commands only);

@@ -1,11 +1,11 @@
-import { audit } from '../_lib/audit.js'
-import { open, seal } from '../_lib/crypto.js'
-import { readEnv } from '../_lib/env.js'
-import { emailOf, exchangeCode, hasOwnerScopes, type Mode } from '../_lib/google.js'
-import { clearCookie, clientIp, guarded, readCookie, redirect, STATE_COOKIE } from '../_lib/http.js'
-import { overLimit } from '../_lib/rate.js'
-import { KEYS, kv } from '../_lib/kv.js'
-import { createSession, endSession, hasMfa, isAllowed, isOwner, readSession } from '../_lib/session.js'
+import { audit } from '../audit.js'
+import { open, seal } from '../crypto.js'
+import { readEnv } from '../env.js'
+import { emailOf, exchangeCode, hasOwnerScopes, type Mode } from '../google.js'
+import { clearCookie, clientIp, guarded, readCookie, redirect, STATE_COOKIE } from '../http.js'
+import { overLimit } from '../rate.js'
+import { KEYS, kv } from '../kv.js'
+import { createSession, endSession, hasMfa, isAllowed, isOwner, readSession } from '../session.js'
 
 // GET /api/auth/callback: Google sends the browser back here with a code.
 // Identity sign-in: an allowed email gets a session. The owner, the very first time (before setting up

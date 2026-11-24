@@ -1,10 +1,10 @@
-import { open, randomToken, seal } from './_lib/crypto.js'
-import { cleanAnswer, cleanRoster, deviceOf, isWeekStart, phoneDigits, type ConstraintAnswer, type RosterEntry } from './_lib/constraintForm.js'
-import { readEnv, type Env } from './_lib/env.js'
-import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
-import { KEYS, kv } from './_lib/kv.js'
-import { overLimit } from './_lib/rate.js'
-import { requireManager } from './_lib/session.js'
+import { open, randomToken, seal } from '../crypto.js'
+import { cleanAnswer, cleanRoster, deviceOf, isWeekStart, phoneDigits, type ConstraintAnswer, type RosterEntry } from '../constraintForm.js'
+import { readEnv, type Env } from '../env.js'
+import { clientIp, guarded, json, readJson, sameOrigin } from '../http.js'
+import { KEYS, kv } from '../kv.js'
+import { overLimit } from '../rate.js'
+import { requireManager } from '../session.js'
 
 // The weekly constraints form. A manager opens it for a week and shares one link (/constraints/<code>)
 // in the workers' WhatsApp group. A worker, not signed in to anything, types their mobile number
