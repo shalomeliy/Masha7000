@@ -64,6 +64,14 @@ describe('editing jobs', () => {
     expect(all.report).toContain('עדכנתי שדני כבר לא בחופש')
   })
 
+  it('just after midnight the vacation is cut from the manager own day, not the UTC one (bug, 2026-11-24)', () => {
+    const d = data()
+    d.workers[0].constraints = [{ id: 'c', when: 'dates', from: '2026-11-05', to: '2026-11-14', kind: 'vacation' }]
+    const proposal = { ...p({ editJobs: [edit({ date: '2026-11-12' })] }), absenceReturn: 'all' as const }
+    const afterMidnight = new Date(2026, 10, 7, 0, 30) // 7.11 00:30 on the manager's clock
+    expect(applyProposal(proposal, d, afterMidnight).data.workers[0].constraints).toMatchObject([{ id: 'c', from: '2026-11-05', to: '2026-11-06' }])
+  })
+
   it('a vacation and a plain constraint over the same days: both asked about and both cut (bug, 2026-11-11)', () => {
     const d = data()
     d.workers[1].constraints = [

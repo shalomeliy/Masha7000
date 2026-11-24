@@ -422,7 +422,7 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
   // updates his state: sickness saved as the status ends. A dated absence with days still to come
   // around the job asks first: back only for this job (those days are cut out, the rest stays), or
   // the absence is cancelled from now on. A weekly or part-of-day constraint is only said.
-  const today = at.slice(0, 10)
+  const today = todayIso(now) // the manager's own day, not UTC: in Israel 00:00-02:00 UTC is still yesterday
   let asksReturn = false
   for (const id of placed) {
     const shift = d.shifts.find((s) => s.id === id)
