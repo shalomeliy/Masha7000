@@ -1,6 +1,6 @@
 # Plan: smart onboarding, stage 1 part 2 (customers on their own Drive)
 
-Status: draft, waiting for the security review and the user's go. Part 1 (features on/off, wizard, guide, Shali) is built.
+Status: security review done (2026-11-24), changes below folded in; building. Part 1 (features on/off, wizard, guide, Shali) is built.
 
 ## The user's decisions (2026-11-24)
 
@@ -57,3 +57,18 @@ Trust boundaries crossed: a public form (spam, enumeration), new OAuth mode stor
 ## Size
 
 About as big as part 1. Two sessions.
+
+## Changes after the security review (2026-11-24)
+
+- One email belongs to one team only. Root (owner + `allowed`) wins; approving a root email, adding a root email to a customer team, or adding a customer's email to root is refused. `teamOf` null = refuse, never root.
+- Team ids are random (`tm_...`), never an email. `member:<email>` and `team-owner:<email>` point to the id; the team keeps a member set so removal finds every member.
+- teamId is resolved from the store on every request (`requireManager`), never kept in the session record, never read from a body, query or cookie.
+- `teamToken` works only on `t:<id>:*` keys and refuses root; `ownerToken` stays the only path to `owner:refresh`.
+- OAuth `mode=team`: auth start accepts it only from a verified session of a customer team owner and seals `{ mode, teamId }`; the callback re-reads the team, requires the Google email = the team owner, never OWNER_EMAIL, both scopes, and writes only `t:<id>:refresh`.
+- Customer managers are managed by their own actions with their own gate (never the root `add`/`remove`). Removing one ends all his sessions and forgets his two-step.
+- Free-only Shali for customers is enforced in code: no Claude, no cloud voice (TTS) and no server speech-to-text (they spend the owner's monthly caps) until the owner turns on "גם Claude" for the team; nothing of a customer goes to the owner's Claude log.
+- Public form codes: `formcode:<sha256(code)>` -> sealed `{ teamId }`; "who already sent" is per team (no cross-team phone oracle).
+- API keys: the record carries `teamId` (missing = root, so existing keys and the MCP key keep working); list, revoke, cap (20) and log are per team; `/api/v1` opens that team's Drive.
+- Access request: the email comes only from a Google sign-in the server sealed in a 30-minute cookie, never typed. One record per email (`areq:<hash>`), same answer for every email, own rate buckets, plain-text mail.
+- Deleting a customer owner's account deletes his whole team (Drive token revoked, members signed out, keys gone). The root owner deleting his account touches only root.
+- A static test lists every `KEYS.*` use in `api/**/*.ts` against a reviewed list; a negative test per route.

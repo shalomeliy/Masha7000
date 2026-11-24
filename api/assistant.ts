@@ -3,7 +3,7 @@ import { readBudget, recordSpend } from './_lib/budget.js'
 import { readEnv, type Env } from './_lib/env.js'
 import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
-import { canUseAssistant, canUseClaude, isOwner, requireManager } from './_lib/session.js'
+import { canUseAssistant, canUseClaude, canUseCloudVoice, requireManager } from './_lib/session.js'
 import { readSttRequest, sttKey, sttProvider, takeSeconds, transcribe } from './_lib/stt.js'
 import { cacheTarget, keepVoice, mp3, readCachedVoice, readTtsRequest, speakBest, takeChars, voiceEngine } from './_lib/tts.js'
 
@@ -27,7 +27,7 @@ async function ownerGate(req: Request): Promise<{ env: Env } | { refuse: Respons
   const gate = await requireManager(env, req)
   if ('refuse' in gate) return gate
   const email = gate.session.email
-  if (!(await canUseClaude(env, email))) return { refuse: json({ reason: (await canUseAssistant(env, email)) ? 'free-only' : 'not-owner' }, 403) }
+  if (!(await canUseClaude(env, email, gate.team))) return { refuse: json({ reason: (await canUseAssistant(env, email, gate.team)) ? 'free-only' : 'not-owner' }, 403) }
   return { env }
 }
 
@@ -46,8 +46,8 @@ async function speakSentence(req: Request): Promise<Response> {
   if (await overLimit(env, 'tts', clientIp(req))) return json({ reason: 'too-many' }, 429)
   const gate = await requireManager(env, req)
   if ('refuse' in gate) return gate.refuse
-  const email = gate.session.email
-  if (!isOwner(env, email) && !(await canUseAssistant(env, email))) return json({ reason: 'not-owner' }, 403)
+  // A customer team: only once the owner turned Claude on for it (these spend the owner's monthly caps).
+  if (!(await canUseCloudVoice(env, gate.session.email, gate.team))) return json({ reason: 'not-owner' }, 403)
   const apiKey = (process.env.GOOGLE_TTS_API_KEY ?? '').trim()
   if (!apiKey) return json({ reason: 'no-key' }, 503)
   const tts = readTtsRequest(await readJson(req, 4_000))
@@ -82,8 +82,8 @@ async function hearRecording(req: Request): Promise<Response> {
   if (await overLimit(env, 'stt', clientIp(req))) return json({ reason: 'too-many' }, 429)
   const gate = await requireManager(env, req)
   if ('refuse' in gate) return gate.refuse
-  const email = gate.session.email
-  if (!isOwner(env, email) && !(await canUseAssistant(env, email))) return json({ reason: 'not-owner' }, 403)
+  // A customer team: only once the owner turned Claude on for it (these spend the owner's monthly caps).
+  if (!(await canUseCloudVoice(env, gate.session.email, gate.team))) return json({ reason: 'not-owner' }, 403)
   const provider = sttProvider()
   const apiKey = sttKey(provider)
   if (!apiKey) return json({ reason: 'no-key', provider }, 503)

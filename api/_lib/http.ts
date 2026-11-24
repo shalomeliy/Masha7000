@@ -3,6 +3,9 @@
 
 export const SESSION_COOKIE = '__Host-session'
 export const STATE_COOKIE = '__Host-oauth'
+/** A refused sign-in's Google-verified email, sealed, for the access request (30 minutes). */
+export const APPLY_COOKIE = '__Host-apply'
+export const APPLY_SECONDS = 1800
 export const SESSION_DAYS = 180
 
 export function readCookie(req: Request, name: string): string | null {

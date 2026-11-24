@@ -19,7 +19,7 @@ export const POST = guarded(async (req: Request) => {
     const gate = await requireManager(env, req)
     if ('refuse' in gate) return gate.refuse
     await audit(env, req, 'account-delete', { email: gate.session.email })
-    await deleteAccount(env, gate.session.email)
+    await deleteAccount(env, gate.session.email, gate.team)
     return json({ ok: true }, 200, [clearCookie(SESSION_COOKIE)])
   }
   const session = await readSession(env, req)
