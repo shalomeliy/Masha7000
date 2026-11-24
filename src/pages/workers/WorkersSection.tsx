@@ -431,7 +431,7 @@ function WorkerCard({
             {active.slice(0, 1).map((c) => (
               <span
                 key={c.id}
-                className={`rounded-full px-2 py-0.5 text-xs ${c.kind === "sick" || c === sick ? "bg-rose-500/15 text-rose-200" : "bg-amber-500/15 text-amber-200"}`}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${c.kind === "sick" || c === sick ? "bg-rose-500/15 text-rose-200" : "bg-amber-500/15 text-amber-200"}`}
               >
                 {constraintText(c)}
               </span>
