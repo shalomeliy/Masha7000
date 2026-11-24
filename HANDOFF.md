@@ -521,3 +521,12 @@ model said with them, and every read-back says the 3 digits, make and model.
   proposals too. Saved with `vehicleModel`; report "הוספתי לעבודה ב... את רכב ...".
 - Tests: `src/lib/vehicleVoice.test.ts` (37). Checked in the dev server with the fake Drive: wrong make corrected,
   "לא, רכב 812" fixed it, saved `vehicleId` in shifts-2026-11.json, both turns free.
+
+## Smart onboarding, stage 1 part 1 (2026-11-24)
+- Server: 12 function files folded into 5 (`api/signin.ts`, `api/manage.ts`, `api/forms.ts`, plus `assistant`, `v1`); routes in `api/_lib/routes/`, URLs unchanged via `vercel.json` rewrites (PR #30, checked live).
+- Features on/off: 14 features (`src/lib/features.ts`) saved per team in `settings.json` (`features`, `onboarding`). No `onboarding` = all on (the owner's team). Wizard (`src/pages/Onboarding.tsx`) shows for a team with no settings record and no workers file, or from Settings > מסכים ותכונות > "לענות שוב על השאלות". Settings > מסכים ותכונות (switches, guide, feature request).
+- Gating: settings items, bottom tabs (Shali, journal), workers tabs (constraints form, join), vehicle field/text, cert picks/chips/stars/expiry, department picker/chip, night kinds, job closing + waiting jobs, join form lists. "שבץ" and advice ignore certs/expiry/constraints when off (`featureRules`), sickness still counts.
+- Shali: `offFeatureSaid` answers "<feature> כבוי אצלך..." free before anything else; Claude gets `featuresOff` and `featuresNote` tells it not to offer them.
+- Guide: `src/lib/guide.ts`, Settings > מדריך, only chapters of features that are on.
+- Not yet (part 2): access request + owner approval, each new customer on his OWN Drive with his own managers by tier (user's decision, 2026-11-24; today every allowed manager works on the owner's Drive). Security review first.
+- e2e: `e2e/onboarding.e2e.ts` (fake Drive empty via localStorage `dev.mockDrive.empty=1`).

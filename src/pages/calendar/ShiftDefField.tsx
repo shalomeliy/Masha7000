@@ -1,4 +1,5 @@
 import { tx } from '../../i18n'
+import { useFeatures } from '../../lib/data/useFeatures'
 import { Check, Moon, MoonStar, Sun } from 'lucide-react'
 import { endsNextDay } from '../../lib/catalog'
 import { useDriveList } from '../../lib/data/useDriveList'
@@ -12,7 +13,10 @@ const DefIcon = ({ def }: { def: ShiftDefinition }) => {
 }
 
 export function ShiftDefField({ value, onChange }: { value: string | undefined; onChange: (id: string) => void }) {
-  const defs = useDriveList('shiftDefinitions')
+  const all = useDriveList('shiftDefinitions')
+  // Night jobs turned off for the team: only the day kinds (a job already at night keeps its own).
+  const nights = useFeatures().isOn('nightJobs')
+  const defs = { items: all.items.filter((d) => nights || !endsNextDay(d) || d.id === value) }
   return (
     <fieldset className="space-y-2 rounded-2xl border-2 border-sky-500/60 bg-sky-500/5 p-3">
       <legend className="px-1 text-base font-semibold text-slate-100">{tx('תבנית עבודה')}</legend>

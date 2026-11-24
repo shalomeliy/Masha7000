@@ -19,7 +19,7 @@ const REASONS: Record<string, string> = {
   'mfa-required': tx('צריך להזין את הקוד הדו-שלבי מחדש.'),
 }
 
-export function FeatureRequestSection() {
+export function FeatureRequestSection({ inline = false }: { inline?: boolean } = {}) {
   const [text, setText] = useState('')
   const [reading, setReading] = useState(false)
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
@@ -63,7 +63,7 @@ export function FeatureRequestSection() {
   const tooLong = text.length > MAX
   return (
     <div className="space-y-3">
-      <h1 className="text-2xl font-bold">{tx('בקשת תכונות חדשות')}</h1>
+      {inline ? <h2 className="text-lg font-bold">{tx('חסרה לך תכונה?')}</h2> : <h1 className="text-2xl font-bold">{tx('בקשת תכונות חדשות')}</h1>}
       <p className="text-sm text-slate-400">{tx('כתוב או הכתב מה היית רוצה שהאפליקציה תדע לעשות. הבקשה נשלחת במייל למפתח.')}</p>
       {state === 'sent' && (
         <p role="status" className="flex items-center gap-2 rounded-xl border border-emerald-700 bg-emerald-500/10 p-3 text-sm text-emerald-200">

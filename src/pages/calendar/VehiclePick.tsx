@@ -1,4 +1,5 @@
 import { tx } from '../../i18n'
+import { useFeatures } from '../../lib/data/useFeatures'
 import { ChoiceList, type Choice } from '../../components/ChoiceList'
 import { useDriveList } from '../../lib/data/useDriveList'
 import { pickVehicle, vehicleLabel, vehicleOptionText, vehiclePickList } from '../../lib/vehicles'
@@ -13,7 +14,9 @@ const MODEL_ONLY = 'model-only'
 
 export function VehiclePick({ value, onChange }: { value: Pick; onChange: (next: Pick) => void }) {
   const vehicles = useDriveList('vehicles')
-  if (vehicles.query.isPending) return null
+  const { isOn } = useFeatures()
+  // Vehicles turned off for the team: no field. A vehicle already on the job stays saved.
+  if (vehicles.query.isPending || !isOn('vehicles')) return null
   if (!vehicles.items.length && !value.vehicleId && !value.vehicleModel)
     return <p className="text-xs text-slate-400">{tx('רכב לעבודה: עוד אין רכבים. מוסיפים אותם בלשונית "רכבים".')}</p>
   const list = vehiclePickList(vehicles.items)

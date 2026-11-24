@@ -1,3 +1,4 @@
+import { featureRules } from './featureRules'
 import { newId } from './catalog'
 import { dateError } from './dates'
 import { addDays, DAY_NAMES, HEBREW_DAYS, isNightShift, showDate, weekday } from './shifts'
@@ -108,7 +109,8 @@ export function blockingConstraints(w: Pick<Worker, 'constraints' | 'status' | '
   const blocks = (c: Constraint, d: string, last: boolean) => onDay(c, d) && (c.part !== 'evening' || !last || endsInEvening)
   const sick = sickConstraint(w)
   return (
-    [...(sick ? [sick] : []), ...w.constraints].filter((c) => (c.nightsOnly ? night && onDay(c, shift.date) : days.some((d, i) => blocks(c, d, i === days.length - 1))))
+    // Constraints turned off for the team (src/lib/featureRules.ts): only sickness, which is the worker's status, still counts.
+    [...(sick ? [sick] : []), ...(featureRules.constraints ? w.constraints : [])].filter((c) => (c.nightsOnly ? night && onDay(c, shift.date) : days.some((d, i) => blocks(c, d, i === days.length - 1))))
   )
 }
 

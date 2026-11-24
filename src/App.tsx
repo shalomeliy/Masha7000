@@ -16,6 +16,9 @@ import { SignIn } from './pages/SignIn'
 import { CrashGuard } from './components/CrashGuard'
 import { ScreenLoading } from './components/Skeleton'
 import { useAuth } from './store/auth'
+import { useFeatures } from './lib/data/useFeatures'
+import { useOnboarding } from './store/onboarding'
+import { applyFeatureRules } from './lib/featureRules'
 
 // Each screen is its own download: the first screen comes down alone, the rest follow once the
 // phone is idle, so moving between tabs does not wait.
@@ -40,15 +43,45 @@ function prefetchScreens() {
 
 // Shown once per device, after Google: kept out of the first download.
 const TwoStep = lazy(() => import('./pages/TwoStep').then((m) => ({ default: m.TwoStep })))
+// Shown once to a new team (smart onboarding); kept out of the first download too.
+const Onboarding = lazy(() => import('./pages/Onboarding').then((m) => ({ default: m.Onboarding })))
 
 export default function App() {
   const status = useAuth((s) => s.status)
   const check = useAuth((s) => s.check)
+  useEffect(() => {
+    void check()
+  }, [check])
+  if (status === 'signedIn') return <SignedIn />
+  if (status === 'checking')
+    return (
+      <main className="flex min-h-full items-center justify-center gap-2 text-slate-400">
+        <Loader2 className="animate-spin" size={20} aria-hidden />
+        {tx('מתחבר...')}
+      </main>
+    )
+  if (status === 'needsMfa')
+    return (
+      <Suspense fallback={null}>
+        <TwoStep />
+      </Suspense>
+    )
+  return <SignIn />
+}
+
+function SignedIn() {
   const who = useAuth((s) => s.who)
+  const { isOn, settings, loaded, flags } = useFeatures()
+  const workers = useDriveList('workers')
+  const forced = useOnboarding((s) => s.forced)
+  // The wizard: a new team (no onboarding record and no workers ever saved), or asked for again from Settings.
+  // Teams from before the wizard (the owner's) never see it on their own: no onboarding record = everything on.
+  const fresh = loaded && !settings?.onboarding && workers.missing
+  applyFeatureRules(flags)
   // The voice assistant is the main screen of whoever may use it (the owner, and managers the owner
-  // opened it to in Settings); locally it is always on.
+  // opened it to in Settings); locally it is always on. Hidden when the team turned Shali off.
   // In an iPhone home-screen app it listens through the server (src/lib/serverListen.ts, back 2026-11-23).
-  const voice = who?.assistant === true || who?.isOwner === true || import.meta.env.DEV
+  const voice = (who?.assistant === true || who?.isOwner === true || import.meta.env.DEV) && isOn('shali')
   const [tab, setTab] = useState<Tab | null>(null)
   const shown: Tab = tab ?? (voice ? 'voice' : 'calendar')
   // "הגדרות" tapped again from inside one of its screens (vehicles, archive...) goes back to its first screen.
@@ -63,28 +96,18 @@ export default function App() {
   }
 
   useEffect(() => {
-    void check()
-  }, [check])
+    prefetchScreens()
+  }, [])
+  // A tab that was turned off while open falls back to the calendar.
+  if (tab === 'journal' && !isOn('journal')) setTab('calendar')
+  if (tab === 'archive' && !isOn('reports')) setTab('settings')
 
-  const signedIn = status === 'signedIn'
-  useEffect(() => {
-    if (signedIn) prefetchScreens()
-  }, [signedIn])
-
-  if (status === 'checking')
+  if (forced || fresh)
     return (
-      <main className="flex min-h-full items-center justify-center gap-2 text-slate-400">
-        <Loader2 className="animate-spin" size={20} aria-hidden />
-        {tx('מתחבר...')}
-      </main>
-    )
-  if (status === 'needsMfa')
-    return (
-      <Suspense fallback={null}>
-        <TwoStep />
+      <Suspense fallback={<ScreenLoading />}>
+        <Onboarding />
       </Suspense>
     )
-  if (status !== 'signedIn') return <SignIn />
 
   return (
     <div className="mx-auto min-h-full max-w-md pb-24">
@@ -93,7 +116,7 @@ export default function App() {
       <NewWords />
       <DailyCopy />
       {/* Workers' answers to the weekly constraints form land in their constraints on any screen. */}
-      <ConstraintAnswersSync />
+      {isOn('constraintForm') && <ConstraintAnswersSync />}
       {/* "לשיבוץ" is no longer a screen: its waiting jobs are at the top of the calendar. */}
       {/* A screen that crashes shows a message in its place; the tabs below keep working. */}
       {voice && voiceOpened && (
@@ -109,11 +132,11 @@ export default function App() {
         <Suspense fallback={shown === 'voice' ? null : <ScreenLoading />}>
           {shown === 'calendar' && <Calendar />}
           {shown === 'workers' && <Workers />}
-          {shown === 'journal' && <Journal />}
+          {shown === 'journal' && isOn('journal') && <Journal />}
           {(shown === 'settings' || shown === 'archive') && <Settings key={`${shown}-${settingsRound}`} openArchive={shown === 'archive'} />}
         </Suspense>
       </CrashGuard>
-      <BottomNav active={shown} onChange={go} voice={voice} />
+      <BottomNav active={shown} onChange={go} voice={voice} journal={isOn('journal')} />
     </div>
   )
 }
