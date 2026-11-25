@@ -548,3 +548,4 @@ model said with them, and every read-back says the 3 digits, make and model.
 - `api/v1.ts` refuses every key of a team that turned "גישת API" off (`403 api-off`, `api/_lib/v1/features.ts`, equal to `resolveFeatures` by `src/lib/apiNormalize.test.ts`); on again = same keys work. Owner's team unchanged (no onboarding record = on).
 - New limit `apiTeam`: 300 calls a minute for all the keys of one team (`api/_lib/rate.ts`).
 - Next: 7-day trial spike (no payment yet); a team whose trial ended must also have its API keys refused.
+- 7-day trial: spike GO, owner's four decisions recorded in `docs/spikes/trial.md` (2026-11-25). Next session: write `docs/plans/trial-PLAN.md`, get approval, build.

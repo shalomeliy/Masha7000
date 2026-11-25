@@ -25,3 +25,12 @@ A trial that ends must really close the door: the app, the outside API, and anyt
 2. After the trial, what does the customer see: a full lock with "pay to continue" plus a contact button, or the app read-only (recommended: full lock, data kept, comes back the moment he pays).
 3. Until Grow is connected, the owner marks a team as paid by hand in his customers list ("שולם עד ..."), and can add days to a trial (recommended: yes).
 4. A warning before the end: a banner from day 5, "נשארו X ימים" (recommended: yes).
+
+## Owner's decisions (2026-11-25): all four as recommended
+
+1. The 7 days start when the customer connects his Drive.
+2. After the trial: full lock, "pay to continue" and a contact button; data kept, back the moment he pays.
+3. Until Grow: the owner marks "שולם עד ..." by hand in his customers list and can add trial days.
+4. A banner from day 5: "נשארו X ימים".
+Also: a team whose trial ended has its API keys refused (one gate in `customerToken`).
+Next: `architecture-plan` -> `docs/plans/trial-PLAN.md`, then build.
