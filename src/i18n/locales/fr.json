@@ -1388,6 +1388,7 @@
  "הוא ממלא את הפרטים, ואתה מאשר או דוחה.": "Il remplit les détails, et vous acceptez ou refusez.",
  "היומן האישי של כל עובד": "Le journal personnel de chaque employé",
  "המפתח מוצג פעם אחת בלבד. אפשר לבטל אותו בכל רגע.": "La clé n'est affichée qu'une fois. Vous pouvez la révoquer à tout moment.",
+ "כיבוי גישת API במסכים ותכונות עוצר את כל המפתחות. הדלקה מחזירה אותם.": "Désactiver l'accès API dans Écrans et fonctions arrête toutes les clés. Le réactiver les rétablit.",
  "הסמכות וכוכבים": "Certifications et étoiles",
  "העובד מזדהה במספר הנייד ומסמן את הימים שהוא לא יכול.": "L'employé s'identifie avec son mobile et coche les jours où il ne peut pas.",
  "העובדים יוצאים עם רכבי החברה?": "Les employés partent-ils avec des véhicules de l'entreprise ?",

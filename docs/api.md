@@ -12,7 +12,7 @@ The app owner creates keys in the app: Settings > נתונים וגוגל > גי
 - A key can be **read only** or **read and write**.
 - Workers' personal details (ID number, personal number, birth date, address, phones, notes) and every free-text note (constraint notes, job notes, closure notes) are sent only with a key made with **"כולל פרטים אישיים"**. Other keys never get them.
 - The key is shown once, when it is created. A revoked key stops working at once.
-- Limit: 60 calls a minute per key.
+- Limit: 60 calls a minute per key, and 300 a minute for all the keys of one team together.
 
 ## Answers
 
@@ -30,6 +30,7 @@ Dates are `YYYY-MM-DD`, times `HH:mm`, moments ISO 8601. Ids are strings. `GET /
 |---|---|---|
 | 401 | `bad-key` | no key, a wrong key, or a revoked key |
 | 403 | `no-scope` | a read-only key tried to write |
+| 403 | `api-off` | the team turned API access off in Settings > screens and features (its keys work again when it is turned back on) |
 | 404 | `not-found` | no such path or id |
 | 405 | `bad-method` | only GET, POST, PATCH |
 | 409 | `conflict` | the data changed while the call ran (someone saved in the app). Nothing was written. Try again |

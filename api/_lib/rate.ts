@@ -30,6 +30,7 @@ export const LIMITS = {
   claudeLog: { max: 300, windowSeconds: 600 },
   feedbackEmail: { max: 10, windowSeconds: 3600 },
   apiKey: { max: 60, windowSeconds: 60 }, // one outside API key
+  apiTeam: { max: 300, windowSeconds: 60 }, // all the outside API keys of one team together
   apiBadKey: { max: 30, windowSeconds: 600 }, // wrong keys from one address
   apiKeysManage: { max: 120, windowSeconds: 600 },
   accessIp: { max: 20, windowSeconds: 3600 }, // the public access request

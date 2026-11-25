@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as server from '../../api/_lib/v1/normalize.js'
+import { apiFeatureOn } from '../../api/_lib/v1/features.js'
+import { resolveFeatures } from './features'
 import { certStars, normalizeWorker, slotCerts, withoutGeneralCert } from './catalog'
 import { normalizeConstraint } from './constraints'
 import { normalizePendingJob, normalizeShiftRecord } from './shifts'
@@ -35,5 +37,19 @@ describe('server copies of the read upgrades', () => {
   it('a constraint alone', () => {
     const c = { id: 'k', when: 'dates' as const, from: '2026-11-01' }
     expect(strip(server.normalizeConstraint(c))).toEqual(strip(normalizeConstraint(c)))
+  })
+  it('is the outside API on (Settings > מסכים ותכונות)', () => {
+    const onb = (answers: Record<string, string>) => ({ version: 1 as const, answers, doneAt: '2026-11-24' })
+    const cases = [
+      null,
+      {},
+      { features: { api: false } },
+      { onboarding: onb({}) },
+      { onboarding: onb({}), features: { api: false } },
+      { onboarding: onb({ q: 'a' }) },
+      { onboarding: onb({ q: 'a' }), features: { api: true } },
+      { onboarding: onb({ q: 'a' }), features: { api: false } },
+    ]
+    for (const c of cases) expect(apiFeatureOn(c)).toBe(resolveFeatures(c).api)
   })
 })

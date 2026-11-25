@@ -147,6 +147,22 @@ describe('keys', () => {
     for (let i = 0; i < 60; i++) await call(GET, 'certifications', k)
     expect((await call(GET, 'certifications', k)).status).toBe(429)
   })
+  it('all the keys of one team: at most 300 calls a minute together', async () => {
+    const keys = await Promise.all(Array.from({ length: 6 }, () => key()))
+    for (const k of keys.slice(0, 5)) for (let i = 0; i < 60; i++) await call(GET, 'certifications', k)
+    expect((await call(GET, 'certifications', keys[5])).status).toBe(429)
+  })
+  it('stops every key when the team turned "גישת API" off, and they work again when it is back on', async () => {
+    const k = await key(true)
+    put('settings.json', { onboarding: { version: 1, answers: { q1: 'x' }, doneAt: '2026-11-24' }, features: { api: false } })
+    const off = await call(GET, 'workers', k)
+    expect(off.status).toBe(403)
+    expect((await off.json()).error.code).toBe('api-off')
+    expect((await call(POST, 'pending-jobs', k, 'POST', { location: 'ערד' })).status).toBe(403)
+    files.delete('settings.json')
+    put('settings.json', { onboarding: { version: 1, answers: { q1: 'x' }, doneAt: '2026-11-24' }, features: { api: true } })
+    expect((await call(GET, 'workers', k)).status).toBe(200)
+  })
   it('logs each call without its body', async () => {
     await call(GET, 'workers', await key())
     const log = (store.get(KEYS.apiLog) as string[]).map((l) => JSON.parse(l))

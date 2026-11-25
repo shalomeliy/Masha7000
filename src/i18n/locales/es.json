@@ -1388,6 +1388,7 @@
  "הוא ממלא את הפרטים, ואתה מאשר או דוחה.": "Él rellena los datos, y tú apruebas o rechazas.",
  "היומן האישי של כל עובד": "El diario personal de cada trabajador",
  "המפתח מוצג פעם אחת בלבד. אפשר לבטל אותו בכל רגע.": "La clave se muestra solo una vez. Puedes revocarla en cualquier momento.",
+ "כיבוי גישת API במסכים ותכונות עוצר את כל המפתחות. הדלקה מחזירה אותם.": "Al desactivar el acceso API en Pantallas y funciones, todas las claves dejan de funcionar. Al activarlo vuelven.",
  "הסמכות וכוכבים": "Certificaciones y estrellas",
  "העובד מזדהה במספר הנייד ומסמן את הימים שהוא לא יכול.": "El trabajador se identifica con su móvil y marca los días que no puede.",
  "העובדים יוצאים עם רכבי החברה?": "¿Los trabajadores salen con vehículos de la empresa?",

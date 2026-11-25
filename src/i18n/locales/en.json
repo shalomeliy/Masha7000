@@ -1388,6 +1388,7 @@
  "הוא ממלא את הפרטים, ואתה מאשר או דוחה.": "They fill in the details, and you approve or reject.",
  "היומן האישי של כל עובד": "Each worker's personal log",
  "המפתח מוצג פעם אחת בלבד. אפשר לבטל אותו בכל רגע.": "The key is shown only once. You can revoke it at any time.",
+ "כיבוי גישת API במסכים ותכונות עוצר את כל המפתחות. הדלקה מחזירה אותם.": "Turning API access off in Screens and features stops all the keys. Turning it on brings them back.",
  "הסמכות וכוכבים": "Certifications and stars",
  "העובד מזדהה במספר הנייד ומסמן את הימים שהוא לא יכול.": "The worker identifies with their mobile number and marks the days they cannot work.",
  "העובדים יוצאים עם רכבי החברה?": "Do workers go out in company vehicles?",

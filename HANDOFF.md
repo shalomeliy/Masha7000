@@ -541,3 +541,10 @@ model said with them, and every read-back says the 3 digits, make and model.
 - Shali free: "משמרת ערב" / "ערב" / "בוקר" pick the type; "בערב" with a prefix stays a time of day.
 - Tests: `src/lib/hourlyShifts.test.ts`, `src/lib/freeCommands.test.ts` (hours block), `e2e/hourlyShifts.e2e.ts`.
 - Not done: closing evening jobs (only types ending next day close); the 2-nights rule counts types ending the next day.
+
+## Smart onboarding: customer API keys security review (2026-11-25)
+
+- Review `docs/reviews/2026-11-25-api-keys-security.md`: customer keys were already per team (part 2); verdict safe to offer, with two fixes.
+- `api/v1.ts` refuses every key of a team that turned "גישת API" off (`403 api-off`, `api/_lib/v1/features.ts`, equal to `resolveFeatures` by `src/lib/apiNormalize.test.ts`); on again = same keys work. Owner's team unchanged (no onboarding record = on).
+- New limit `apiTeam`: 300 calls a minute for all the keys of one team (`api/_lib/rate.ts`).
+- Next: 7-day trial spike (no payment yet); a team whose trial ended must also have its API keys refused.

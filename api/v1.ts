@@ -4,6 +4,7 @@ import { readEnv, type Env } from './_lib/env.js'
 import { clientIp } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
 import { readTeam, ROOT } from './_lib/team.js'
+import { apiFeatureOn } from './_lib/v1/features.js'
 import { SCHEMA, SCHEMA_VERSION, toApiConstraint, toApiNamed, toApiPendingJob, toApiShift, toApiWorker } from './_lib/v1/contract.js'
 import { normalizeConstraint, normalizePendingJob, normalizeShiftRecord, normalizeWorker, withoutGeneralCert, type StoredShift } from './_lib/v1/normalize.js'
 import * as store from './_lib/v1/store.js'
@@ -390,9 +391,13 @@ async function handle(req: Request, env: Env, key: ApiKey): Promise<Response> {
   // The key's own team's Drive: root = the owner's, a customer key = that customer's, while the team exists.
   const teamId = keyTeam(key)
   if (teamId !== ROOT && !(await readTeam(env, teamId))) throw new Fail(401, 'bad-key', 'this key no longer works')
+  // All the keys of one team together: 20 keys x 60 a minute would otherwise be 1,200 calls a minute on one Drive.
+  if (await overLimit(env, 'apiTeam', teamId)) throw new Fail(429, 'too-many', 'at most 300 calls a minute for all the keys of one team')
   const got = await teamToken(env, teamId)
   if ('reason' in got) throw new Fail(got.reason === 'owner-disconnected' ? 409 : 502, got.reason)
   const drive = new Drive(got.token)
+  // The team turned "גישת API" off: its keys are hidden in Settings, so they stop here too (nothing deleted).
+  if (!apiFeatureOn((await drive.read<unknown>('settings.json')).data)) throw new Fail(403, 'api-off', 'API access is turned off in Settings > screens and features')
   const path = pathOf(req)
   return isWrite ? write(drive, key, method, path, req) : read(drive, key, path, new URL(req.url))
 }
