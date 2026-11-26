@@ -31,19 +31,29 @@ const LATIN = /[a-z]/i
 const HEBREW_WORD = /[א-ת֑-ׇ"'׳״]+/g
 
 /** The text with every known word (also with ו/ב/ל/ה... in front) written the way the voice says it right. */
-// The assistant's name, Shali, is said שָׁאלִי: קמץ in ש and the stress at the end (owner, 2026-11-14).
-// Written "Shali" or "Shalee" the phone said "שֶׁלִּי" (mine), so the way it is written for the voice is
-// picked by ear in Settings (NameSound in PronunciationSection) and saved as the entry for NAME.
+// The assistant's name, Shali, is said like "Sha" + "Ali" (as in Muhammad Ali), with the stress at the
+// end: sha-a-LI (owner, 2026-11-26; before that, 2026-11-14, "שָׁאלִי"). Written "Shali" or "Shalee" the
+// voice said "שֶׁלִּי" (mine), so the way it is written for the voice is picked by ear in Settings
+// (NameSound in PronunciationSection) and saved as the entry for NAME.
 export const NAME = 'Shali'
-/** Ways of writing the name to try by ear; the first is used until the owner picks one. */
-export const NAME_TRIES = ['Shaali', 'Shah-lee', 'Shahli', 'Sha lee', 'שאלי', 'שאאלי', 'שהלי', 'שָׁאלִי'] as const
-/** How the name is written for the voice now. */
-export const nameSay = (entries: readonly Omit<Pronunciation, 'id'>[] = table) => entries.find((p) => p.word === NAME)?.say ?? NAME_TRIES[0]
+/**
+ * Ways of writing the name to try by ear; the first is used until the owner picks one. None of the
+ * spellings tried before 2026-11-26 is here on purpose: a pick made for the old sound is not used.
+ */
+export const NAME_TRIES = ['Sha-Ali', 'Sha Ali', 'Shah-Ali', 'Sha-alee', 'Shaa-lee', 'שַׁעֲלִי', 'שה-עלי', 'שה עלי'] as const
+/** How the name is written for the voice now: the owner's pick, if it is one of NAME_TRIES. */
+export const nameSay = (entries: readonly Omit<Pronunciation, 'id'>[] = table): string => {
+  const say = entries.find((p) => p.word === NAME)?.say
+  return say && (NAME_TRIES as readonly string[]).includes(say) ? say : NAME_TRIES[0]
+}
+// The name in Hebrew letters, as Claude may write it ("אני שאלי"); also with ו/ל/ה... in front.
+const HEBREW_NAME = 'שאלי'
 
 export function pronounce(text: string, entries: readonly Omit<Pronunciation, 'id'>[] = table): string {
   // The name first, also the old spelling "Shaly", only as a whole word.
-  let out = text.replace(/\bShal[iy]\b/g, nameSay(entries))
-  if (!entries.length) return out
+  const name = nameSay(entries)
+  let out = text.replace(/\bShal[iy]\b/g, name)
+  entries = [...entries.filter((p) => p.word !== NAME && p.word !== HEBREW_NAME), { word: HEBREW_NAME, say: name }]
   // Two-word entries first ("באר שבע"), as a whole, only between non-letters.
   for (const { word, say } of entries)
     if (word.includes(' ')) out = out.replace(new RegExp(`(^|[^א-ת])([ובכלמשה]{0,3})${escape(word)}(?![א-ת])`, 'g'), (_, before: string, front: string) => before + withFront(front, say))

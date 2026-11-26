@@ -23,6 +23,8 @@ const ERRORS: Record<string, string> = {
 
 export function PronunciationSection() {
   const fixed = useDriveList('pronunciations')
+  // The name is picked in its own section above, so it is not one of the fixed words.
+  const words = fixed.items.filter((p) => p.word !== NAME)
   const approved = useDriveList('approvedWords')
   const fresh = useDriveList('newWords')
   const [seed, setSeed] = useState<readonly string[] | null>(null)
@@ -105,7 +107,7 @@ export function PronunciationSection() {
       {canSpeak && fixed.query.isSuccess && (
         <section className="space-y-2">
           <h2 className="font-semibold">{tx('איך אומרים את השם Shali')}</h2>
-          <p className="text-sm text-slate-400">{tx('שומעים כל כתיב, ובוחרים את זה שנשמע שָׁאלִי, עם הדגש בסוף. מכאן והלאה השם ייאמר כך.')}</p>
+          <p className="text-sm text-slate-400">{tx('שומעים כל כתיב, ובוחרים את זה שנשמע כמו "שַׁ" ואחריו "עלי" של מוחמד עלי, עם הדגש בסוף. מכאן והלאה השם ייאמר כך.')}</p>
           <ul className="space-y-2">
             {NAME_TRIES.map((say) => {
               const chosen = nameSay(fixed.items) === say
@@ -137,11 +139,11 @@ export function PronunciationSection() {
         </section>
       )}
 
-      {fixed.items.length > 0 && (
+      {words.length > 0 && (
         <section className="space-y-2">
-          <h2 className="font-semibold">{tx('מילים שתיקנת ({length})', { length: fixed.items.length })}</h2>
+          <h2 className="font-semibold">{tx('מילים שתיקנת ({length})', { length: words.length })}</h2>
           <ul className="space-y-2">
-            {fixed.items.map((p) => (
+            {words.map((p) => (
               <li key={p.id} className="flex min-h-14 items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900 px-4 py-2">
                 <span className="min-w-0 flex-1">
                   <span className="font-semibold">{p.word}</span>
