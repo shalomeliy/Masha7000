@@ -1528,5 +1528,8 @@
  "שעות מנוחה לפחות בין שתי משמרות של אותו עובד": "Minimum rest hours between two shifts of the same worker",
  "שעות מנוחה: מספר בין 0 ל-24": "Rest hours: a number from 0 to 24",
  "שעת הסיום צריכה להיות שונה משעת ההתחלה": "The end time must differ from the start time",
- "תפתח משמרת ערב מחר באילת": "Open an evening shift tomorrow in Eilat"
+ "תפתח משמרת ערב מחר באילת": "Open an evening shift tomorrow in Eilat",
+ "לחיצה ארוכה: Shali מקשיב בלי לעזוב את המסך": "Long press: Shali listens without leaving the screen",
+ "פתח את Shali": "Open Shali",
+ "מכל מסך אחר: לחיצה ארוכה של 2 שניות על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "From any other screen: press and hold the yellow button for 2 seconds, and Shali listens and answers without leaving the screen."
 }

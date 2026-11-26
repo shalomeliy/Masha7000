@@ -7,7 +7,7 @@ import type { Tab } from './components/BottomNav'
 import { ensureDailyCopy } from './lib/backup'
 import { applyWordSettings } from './lib/constraintWords'
 import { applyPronunciations, BUILT_IN, unknownWords } from './lib/pronounce'
-import { onSpoken } from './lib/speech'
+import { onSpoken, unlockSpeech } from './lib/speech'
 import { language } from './i18n'
 import { newId } from './lib/catalog'
 import { useDriveList } from './lib/data/useDriveList'
@@ -90,6 +90,12 @@ function SignedIn() {
   // look at another screen (user, 2026-11-23).
   const [voiceOpened, setVoiceOpened] = useState(false)
   if (shown === 'voice' && !voiceOpened) setVoiceOpened(true)
+  // A long press on the Shali button: Shali listens and answers here, on whatever screen is open (owner, 2026-11-26).
+  const [quickTalk, setQuickTalk] = useState(0)
+  const holdShali = () => {
+    setVoiceOpened(true)
+    setQuickTalk((n) => n + 1)
+  }
   const go = (next: Tab) => {
     if (next === 'settings' && (shown === 'settings' || shown === 'archive')) setSettingsRound((n) => n + 1)
     setTab(next)
@@ -123,7 +129,7 @@ function SignedIn() {
         <div hidden={shown !== 'voice'}>
           <CrashGuard>
             <Suspense fallback={<ScreenLoading />}>
-              <Voice active={shown === 'voice'} onNavigate={(s) => setTab(s === 'toSchedule' ? 'calendar' : s)} />
+              <Voice active={shown === 'voice'} quickTalk={quickTalk} onOpen={() => setTab('voice')} onNavigate={(s) => setTab(s === 'toSchedule' ? 'calendar' : s)} />
             </Suspense>
           </CrashGuard>
         </div>
@@ -136,7 +142,7 @@ function SignedIn() {
           {(shown === 'settings' || shown === 'archive') && <Settings key={`${shown}-${settingsRound}`} openArchive={shown === 'archive'} />}
         </Suspense>
       </CrashGuard>
-      <BottomNav active={shown} onChange={go} voice={voice} journal={isOn('journal')} />
+      <BottomNav active={shown} onChange={go} voice={voice} journal={isOn('journal')} onHold={holdShali} onHoldEnd={unlockSpeech} />
     </div>
   )
 }
