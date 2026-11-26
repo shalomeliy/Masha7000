@@ -40,7 +40,9 @@ export const NAME = 'Shali'
  * Ways of writing the name to try by ear; the first is used until the owner picks one. None of the
  * spellings tried before 2026-11-26 is here on purpose: a pick made for the old sound is not used.
  */
-export const NAME_TRIES = ['Sha-Ali', 'Sha Ali', 'Shah-Ali', 'Sha-alee', 'Shaa-lee', 'שַׁעֲלִי', 'שה-עלי', 'שה עלי'] as const
+// Round 2 (owner, 2026-11-26): "Sha-alee" was the closest of round 1, so it stays first (and stays his
+// pick), and the rest try to move the stress to the last syllable around it.
+export const NAME_TRIES = ['Sha-alee', 'Sha-aLEE', 'Sha-a-lee', 'Sha-ah-lee', 'Sha-alí', 'Shaalí', 'Sha-Ali', 'Shah-alee'] as const
 /** How the name is written for the voice now: the owner's pick, if it is one of NAME_TRIES. */
 export const nameSay = (entries: readonly Omit<Pronunciation, 'id'>[] = table): string => {
   const say = entries.find((p) => p.word === NAME)?.say
