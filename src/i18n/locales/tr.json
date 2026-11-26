@@ -1531,5 +1531,8 @@
  "תפתח משמרת ערב מחר באילת": "Yarın Eilat'ta akşam vardiyası aç",
  "לחיצה ארוכה: Shali מקשיב בלי לעזוב את המסך": "Uzun basma: Shali ekrandan ayrılmadan dinler",
  "פתח את Shali": "Shali'yi aç",
- "מכל מסך אחר: לחיצה ארוכה של 2 שניות על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "Başka herhangi bir ekrandan: sarı düğmeyi 2 saniye basılı tutun; Shali ekrandan ayrılmadan dinler ve yanıt verir."
+ "מכל מסך אחר: לחיצה ארוכה של 2 שניות על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "Başka herhangi bir ekrandan: sarı düğmeyi 2 saniye basılı tutun; Shali ekrandan ayrılmadan dinler ve yanıt verir.",
+ "קטיעה בקול (ניסוי)": "Sesle araya girme (deneme)",
+ "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "Shali konuşurken üstüne konuşabilirsiniz: durur ve dinler. Ortada kendi kendine durursa bunu kapatın.",
+ "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Deneme: Ayarlar > Sesli asistan'da \"Sesle araya girme\"yi açın, sonra Shali konuşurken üstüne konuşabilirsiniz, o da durup dinler (iPhone'da değil)."
 }
