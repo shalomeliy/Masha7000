@@ -1528,5 +1528,8 @@
  "שעות מנוחה לפחות בין שתי משמרות של אותו עובד": "Mindestruhe in Stunden zwischen zwei Schichten derselben Person",
  "שעות מנוחה: מספר בין 0 ל-24": "Ruhestunden: eine Zahl von 0 bis 24",
  "שעת הסיום צריכה להיות שונה משעת ההתחלה": "Das Ende muss sich vom Beginn unterscheiden",
- "תפתח משמרת ערב מחר באילת": "Öffne morgen eine Abendschicht in Eilat"
+ "תפתח משמרת ערב מחר באילת": "Öffne morgen eine Abendschicht in Eilat",
+ "לחיצה ארוכה: Shali מקשיב בלי לעזוב את המסך": "Lange drücken: Shali hört zu, ohne den Bildschirm zu verlassen",
+ "פתח את Shali": "Shali öffnen",
+ "מכל מסך אחר: לחיצה ארוכה של 2 שניות על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "Von jedem anderen Bildschirm: Die gelbe Taste 2 Sekunden gedrückt halten, und Shali hört zu und antwortet, ohne den Bildschirm zu verlassen."
 }

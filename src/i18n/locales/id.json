@@ -1528,5 +1528,8 @@
  "שעות מנוחה לפחות בין שתי משמרות של אותו עובד": "Jam istirahat minimal di antara dua shift pekerja yang sama",
  "שעות מנוחה: מספר בין 0 ל-24": "Jam istirahat: angka antara 0 dan 24",
  "שעת הסיום צריכה להיות שונה משעת ההתחלה": "Jam selesai harus berbeda dari jam mulai",
- "תפתח משמרת ערב מחר באילת": "Buka shift sore besok di Eilat"
+ "תפתח משמרת ערב מחר באילת": "Buka shift sore besok di Eilat",
+ "לחיצה ארוכה: Shali מקשיב בלי לעזוב את המסך": "Tekan lama: Shali mendengarkan tanpa meninggalkan layar",
+ "פתח את Shali": "Buka Shali",
+ "מכל מסך אחר: לחיצה ארוכה של 2 שניות על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "Dari layar lain mana pun: tekan dan tahan tombol kuning selama 2 detik, dan Shali mendengarkan serta menjawab tanpa meninggalkan layar."
 }

@@ -3,7 +3,8 @@ import { useFeatures } from '../lib/data/useFeatures'
 import { FEATURE_IDS } from '../lib/features'
 import { offFeatureAnswer, offFeatureSaid } from '../lib/featureSpeech'
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, AudioLines, BookMarked, Check, Keyboard, LifeBuoy, Loader2, Mic, MessageSquareText, Pencil, Square, Trash2 } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { AlertTriangle, AudioLines, BookMarked, Check, Keyboard, LifeBuoy, Loader2, Maximize2, Mic, MessageSquareText, Pencil, Square, Trash2, X } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
 import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, proposalVehicles, snapshot, summaryWith, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
 import { newId } from '../lib/catalog'
@@ -49,7 +50,10 @@ const MAX_FIXES = 2
 // calendar. Away longer than this, it starts fresh (user, 2026-11-23).
 export const KEEP_TALK_MS = 30 * 60 * 1000
 
-export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Screen) => void; active?: boolean }) {
+// `quickTalk` goes up by one on each long press of the Shali button (App.tsx): Shali listens and answers
+// on the screen that is open, in a small card above the bottom bar (owner, 2026-11-26). `onOpen` opens
+// the Shali screen itself, with the same conversation.
+export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { onNavigate: (screen: Screen) => void; onOpen?: () => void; active?: boolean; quickTalk?: number }) {
   const { isOn, flags } = useFeatures()
   const lists = {
     certifications: useDriveList('certifications'),
@@ -112,6 +116,13 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
   const localPart = useRef<{ texts: string[]; proposal: Proposal | null } | null>(null)
   const claudeProposal = useRef<Proposal | null>(null) // Claude's own part of a joined proposal: what is learned on a yes
   const listening = useRef<Listening | null>(null)
+  // Talking from another screen (a long press): what is heard there is acted on, and the card shows it.
+  const [quick, setQuick] = useState(false)
+  const quickRef = useRef(false)
+  const setQuickOn = (on: boolean) => {
+    quickRef.current = on
+    setQuick(on)
+  }
   // This conversation's line in the "what went to Claude" log (src/lib/claudeLog.ts), once it reached Claude.
   const logged = useRef<ClaudeLogEntry | null>(null)
 
@@ -146,6 +157,8 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
   const leftAt = useRef(0)
   useEffect(() => {
     shownNow.current = active
+    // On the Shali screen itself the conversation goes on there; the small card closes.
+    if (active) setQuickOn(false)
     if (!active) {
       leftAt.current = Date.now()
       listening.current?.stop()
@@ -199,7 +212,7 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
       return
     }
     setPhase('thinking')
-    if (!fixes && shownNow.current) speakAtOnce(MOMENT)
+    if (!fixes && (shownNow.current || quickRef.current)) speakAtOnce(MOMENT)
     setError(null)
     fromFree.current = false
     conversation.current = [...conversation.current, turn]
@@ -609,12 +622,14 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
       listening.current = null
       setHeard('')
       setPhase('idle')
-      // Stopped by leaving the screen: half a sentence is not acted on.
-      if (!shownNow.current) return
+      // Stopped by leaving the screen: half a sentence is not acted on (unless it was said from another screen).
+      if (!shownNow.current && !quickRef.current) return
       if (err) setError(err)
       handleSaid(text)
     })
     if (!l) {
+      // From another screen: the Shali screen, with its typing line.
+      if (quickRef.current && !shownNow.current) onOpen?.()
       // No listening here (iPhone home-screen app): the typing line, so the keyboard's mic can be used.
       setTyping(true)
       typedRef.current?.focus()
@@ -624,10 +639,41 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
     setPhase('listening')
   }
 
+  // A long press of the Shali button (App.tsx). On the Shali screen it is the big button; elsewhere it
+  // opens the small card and listens there. While an answer is on its way, a press waits for it.
+  useEffect(() => {
+    if (!quickTalk) return
+    if (!shownNow.current) setQuickOn(true)
+    if (phase === 'thinking' || phase === 'saving') return
+    if (listening.current) return
+    toggleMic()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per long press
+  }, [quickTalk])
+
+  // What the small card cannot show (the consent to send to Claude) is on the Shali screen.
+  useEffect(() => {
+    if (quick && consentFor) onOpen?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- when the consent is asked
+  }, [quick, consentFor])
+
+  // The card closes by itself a few seconds after Shali finished, when nothing waits for an answer.
+  const quickDone = quick && phase === 'idle' && !speaking && !talking && !proposal && !advice && !error
+  useEffect(() => {
+    if (!quickDone) return
+    const t = setTimeout(() => setQuickOn(false), 4000)
+    return () => clearTimeout(t)
+  }, [quickDone])
+
+  const closeQuick = () => {
+    listening.current?.stop()
+    setQuickOn(false)
+  }
+
   // "תקן": the manager says (or types) the correction; it goes to the assistant as the next turn.
   const correct = () => {
     stopSpeaking()
     if (typing || !canListen) {
+      if (quickRef.current && !shownNow.current) onOpen?.()
       setTyping(true)
       setTimeout(() => typedRef.current?.focus(), 0)
       return
@@ -861,7 +907,109 @@ export function Voice({ onNavigate, active = true }: { onNavigate: (screen: Scre
           </ol>
         )}
       </div>
+      {quick && !active &&
+        createPortal(
+          <QuickCard
+            status={status}
+            heard={heard}
+            said={[...lines].reverse().find((l) => l.who === 'app')?.text ?? ''}
+            error={error}
+            listeningNow={phase === 'listening'}
+            busy={busy && phase !== 'idle'}
+            speaking={speaking}
+            conflicts={proposal && phase === 'idle' ? conflicts : []}
+            choices={
+              proposal && phase === 'idle'
+                ? asksReturn
+                  ? [
+                      { label: tx('רק לעבודה הזו'), act: () => void confirm(true, 'job') },
+                      { label: tx('בוטל לגמרי'), act: () => void confirm(true, 'all') },
+                    ]
+                  : [{ label: tx('אשר'), act: () => void confirm(true) }]
+                : []
+            }
+            onFix={proposal && phase === 'idle' ? correct : undefined}
+            onMic={toggleMic}
+            onOpen={() => onOpen?.()}
+            onClose={closeQuick}
+          />,
+          document.body,
+        )}
     </section>
+  )
+}
+
+/** The small card of a conversation held from another screen: what Shali hears, does and says. */
+function QuickCard(p: {
+  status: string
+  heard: string
+  said: string
+  error: string | null
+  listeningNow: boolean
+  busy: boolean
+  speaking: boolean
+  conflicts: string[]
+  choices: { label: string; act: () => void }[]
+  onFix?: () => void
+  onMic: () => void
+  onOpen: () => void
+  onClose: () => void
+}) {
+  return (
+    <div role="dialog" aria-label="Shali" className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 mx-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-amber-400/70 bg-slate-900/95 p-3 text-slate-100 shadow-xl shadow-black/40 backdrop-blur">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={p.onMic}
+          disabled={p.busy}
+          aria-pressed={p.listeningNow}
+          aria-label={p.listeningNow ? tx('עצירת ההקשבה') : tx('דבר עם Shali')}
+          className={`flex size-12 shrink-0 items-center justify-center rounded-full border-2 disabled:opacity-60 ${
+            p.listeningNow ? 'animate-pulse border-red-400 bg-red-500/20 text-red-100' : p.speaking ? 'animate-pulse border-emerald-400 bg-emerald-500/15 text-emerald-100' : 'border-amber-400 text-amber-300'
+          }`}
+        >
+          {p.busy ? <Loader2 className="animate-spin" size={24} aria-hidden /> : p.listeningNow ? <Square size={20} aria-hidden /> : p.speaking ? <AudioLines size={24} aria-hidden /> : <Mic size={24} aria-hidden />}
+        </button>
+        <p className="min-w-0 flex-1 text-sm font-semibold text-amber-200" role="status">
+          {p.status}
+        </p>
+        <button type="button" onClick={p.onOpen} aria-label={tx('פתח את Shali')} className="flex size-11 items-center justify-center rounded-xl text-slate-300">
+          <Maximize2 size={18} aria-hidden />
+        </button>
+        <button type="button" onClick={p.onClose} aria-label={tx('סגירה')} className="flex size-11 items-center justify-center rounded-xl text-slate-300">
+          <X size={20} aria-hidden />
+        </button>
+      </div>
+      {(p.heard || p.said) && <p className="mt-2 line-clamp-4 text-sm text-slate-200">{p.heard || p.said}</p>}
+      {p.error && (
+        <p role="alert" className="mt-2 text-sm text-amber-300">
+          {p.error}
+        </p>
+      )}
+      {p.conflicts.length > 0 && (
+        <ul role="alert" className="mt-2 space-y-1 rounded-xl border border-amber-500/60 bg-amber-500/10 p-2 text-xs text-amber-100">
+          {p.conflicts.map((c) => (
+            <li key={c}>{c}</li>
+          ))}
+        </ul>
+      )}
+      {(p.choices.length > 0 || p.onFix) && (
+        <div className="mt-3 flex gap-2">
+          {p.choices.map((c) => (
+            <button key={c.label} type="button" onClick={c.act} className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white">
+              <Check size={18} aria-hidden />
+              {c.label}
+            </button>
+          ))}
+          {p.onFix && (
+            <button type="button" onClick={p.onFix} className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded-xl bg-sky-600 px-3 text-sm font-semibold text-white">
+              <Pencil size={18} aria-hidden />
+              {tx('תקן')}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 

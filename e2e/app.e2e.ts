@@ -164,6 +164,43 @@ test("a job picks its vehicle from the app's own list: make, model, plate, mark 
 })
 
 // The user, 2026-11-23: a look at another tab in the middle of a conversation must not lose it.
+// A long press (2 seconds) on the Shali button, on another screen: Shali listens and answers there,
+// in a small card, and the screen stays (owner, 2026-11-26). The browser's listening is a stand-in here.
+test('a long press on Shali listens and answers without leaving the screen', async ({ page }) => {
+  await page.addInitScript(() => {
+    class FakeRecognition {
+      lang = ''
+      interimResults = false
+      continuous = false
+      onresult: ((e: unknown) => void) | null = null
+      onerror: ((e: unknown) => void) | null = null
+      onend: (() => void) | null = null
+      start() {
+        setTimeout(() => {
+          this.onresult?.({ results: [[{ transcript: 'יוסי חולה מחר' }]] })
+          this.onend?.()
+        }, 200)
+      }
+      stop() {}
+    }
+    ;(globalThis as unknown as { SpeechRecognition: unknown }).SpeechRecognition = FakeRecognition
+  })
+  await openWithFakeDrive(page)
+  await tab(page, 'יומן').click()
+  const shali = page.getByRole('navigation').getByRole('button').nth(2)
+  // A short tap still opens the Shali screen; this one is held.
+  await shali.hover()
+  await page.mouse.down()
+  await page.waitForTimeout(2300)
+  await page.mouse.up()
+  const card = page.getByRole('dialog', { name: 'Shali' })
+  await expect(card.getByRole('status').filter({ hasText: 'לאשר, או לתקן?' })).toBeVisible()
+  await expect(tab(page, 'יומן')).toHaveAttribute('aria-current', 'page')
+  await card.getByRole('button', { name: 'אשר' }).click()
+  await expect(card.getByRole('button', { name: 'אשר' })).toBeHidden()
+  await expect(tab(page, 'יומן')).toHaveAttribute('aria-current', 'page')
+})
+
 test('a conversation with Shali waits while another tab is looked at', async ({ page }) => {
   await openWithFakeDrive(page)
   await page.getByRole('button', { name: 'הקלדה' }).click()

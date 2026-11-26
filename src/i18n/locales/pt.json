@@ -1528,5 +1528,8 @@
  "שעות מנוחה לפחות בין שתי משמרות של אותו עובד": "Horas mínimas de descanso entre dois turnos do mesmo trabalhador",
  "שעות מנוחה: מספר בין 0 ל-24": "Horas de descanso: um número de 0 a 24",
  "שעת הסיום צריכה להיות שונה משעת ההתחלה": "O horário de fim deve ser diferente do de início",
- "תפתח משמרת ערב מחר באילת": "Abra um turno da noite amanhã em Eilat"
+ "תפתח משמרת ערב מחר באילת": "Abra um turno da noite amanhã em Eilat",
+ "לחיצה ארוכה: Shali מקשיב בלי לעזוב את המסך": "Toque longo: o Shali ouve sem sair da tela",
+ "פתח את Shali": "Abrir o Shali",
+ "מכל מסך אחר: לחיצה ארוכה של 2 שניות על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "De qualquer outra tela: mantenha o botão amarelo pressionado por 2 segundos, e o Shali ouve e responde sem sair da tela."
 }
