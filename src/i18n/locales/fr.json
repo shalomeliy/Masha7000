@@ -1531,5 +1531,8 @@
  "תפתח משמרת ערב מחר באילת": "Ouvre un poste du soir demain à Eilat",
  "לחיצה ארוכה: Shali מקשיב בלי לעזוב את המסך": "Appui long : Shali écoute sans quitter l'écran",
  "פתח את Shali": "Ouvrir Shali",
- "מכל מסך אחר: לחיצה ארוכה של 2 שניות על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "Depuis n'importe quel autre écran : maintenez le bouton jaune appuyé 2 secondes, et Shali écoute et répond sans quitter l'écran."
+ "מכל מסך אחר: לחיצה ארוכה של 2 שניות על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "Depuis n'importe quel autre écran : maintenez le bouton jaune appuyé 2 secondes, et Shali écoute et répond sans quitter l'écran.",
+ "קטיעה בקול (ניסוי)": "Interrompre à la voix (essai)",
+ "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "Quand Shali parle, vous pouvez parler par-dessus : il s'arrête et écoute. S'il s'arrête tout seul au milieu, désactivez ceci.",
+ "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Essai : dans Réglages > Assistant vocal, activez \"Interrompre à la voix\", puis parlez par-dessus Shali pour qu'il s'arrête et écoute (pas sur iPhone)."
 }

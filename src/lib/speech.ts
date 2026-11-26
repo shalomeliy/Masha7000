@@ -26,7 +26,7 @@ const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpee
 const Speech = w.SpeechRecognition ?? w.webkitSpeechRecognition
 
 // iPhone (and iPad, which says it is a Mac): its listening and its sound need their own care below.
-const isIOS =
+export const isIOS =
   typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
 // Installed on an iPhone's home screen, the page's speech recognition starts but never hears anything
@@ -77,7 +77,9 @@ export function unlockSpeech() {
 }
 
 // A pause this long after the last words ends the listening, so the manager need not tap again.
-const SILENCE_MS = 2500
+// 1.5 s, as on the iPhone home-screen app (serverListen.ts), since 2026-11-27 (owner: Shali felt slow;
+// it was 2.5 s, a second of waiting on every turn).
+const SILENCE_MS = 1500
 
 export interface Listening {
   stop: () => void

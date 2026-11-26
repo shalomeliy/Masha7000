@@ -21,7 +21,8 @@ import { vlog, voiceReport } from '../lib/voiceLog'
 import { cloudOff } from '../lib/cloudVoice'
 import { hasAiConsent, setAiConsent } from '../lib/aiConsent'
 import { AiConsentCard } from '../components/AiConsentCard'
-import { canListen, currentVoice, iosHomeApp, listen, viaServer, unlockSpeech, onSpeaking, onVoicesChanged, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
+import { bargeInOn, canBargeIn, watchBargeIn } from '../lib/bargeIn'
+import { canListen, currentVoice, iosHomeApp, isIOS, listen, viaServer, unlockSpeech, onSpeaking, onVoicesChanged, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
 // what is missing, answers questions, or repeats the requested change and asks "לאשר, או שיש עוד
@@ -649,6 +650,19 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
     toggleMic()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per long press
   }, [quickTalk])
+
+  // Talking over Shali cuts it off and Shali listens (an experiment, off by default: Settings > העוזר
+  // הקולי > קטיעה בקול; src/lib/bargeIn.ts). Only while Shali is seen or its small card is open, and only
+  // while it reads an answer (not the "one moment" while thinking).
+  const micRef = useRef(toggleMic)
+  micRef.current = toggleMic
+  useEffect(() => {
+    if (!speaking || phase !== 'idle' || !(active || quick) || !canBargeIn(isIOS) || !bargeInOn()) return
+    return watchBargeIn(() => {
+      vlog('tap: voice over Shali')
+      if (!listening.current) micRef.current()
+    })
+  }, [speaking, phase, active, quick])
 
   // What the small card cannot show (the consent to send to Claude) is on the Shali screen.
   useEffect(() => {
