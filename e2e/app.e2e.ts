@@ -100,12 +100,14 @@ test('a personal log entry needs start and end times, and stays after a reload',
   await expect(page.getByRole('alert').filter({ hasText: 'צריך למלא שעת סיום' })).toBeVisible()
   await page.getByLabel('שעת סיום').fill('12:00')
   await page.getByRole('button', { name: 'שמירה' }).click()
-  await expect(page.getByText('E2E סיור בערד')).toBeVisible()
-  await expect(page.getByText('08:30–12:00')).toBeVisible()
+  // The saved entry in the list (the closing form may still hold the same words for a moment).
+  const saved = page.getByRole('listitem').getByText('E2E סיור בערד')
+  await expect(saved).toBeVisible()
+  await expect(page.getByRole('listitem').getByText('08:30–12:00')).toBeVisible()
 
   await reopen(page)
   await tab(page, 'יומן אישי').click()
-  await expect(page.getByText('E2E סיור בערד')).toBeVisible()
+  await expect(saved).toBeVisible()
 })
 
 test('dictating "שעת התחלה ... שעת סיום ... בערב" fills the time fields while still listening', async ({ page }) => {
