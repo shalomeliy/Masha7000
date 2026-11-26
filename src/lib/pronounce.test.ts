@@ -17,13 +17,13 @@ describe('pronounce', () => {
     expect(pronounce('ראיתי את השלי', [{ word: 'שלי', say: 'שאלי' }])).toBe('ראיתי את השאלי')
   })
   it('says the name the way the owner picked, also the old spelling, only as a whole word', () => {
-    expect(pronounce('את זה Shali עוד לא למד', [])).toBe('את זה Sha-alee עוד לא למד')
+    expect(pronounce('את זה Shali עוד לא למד', [])).toBe('את זה Shah-alee עוד לא למד')
     expect(pronounce('דבר עם Shaly', [{ word: 'Shali', say: 'Sha-aLEE' }])).toBe('דבר עם Sha-aLEE')
     // A pick made for the old sound (before 2026-11-26) is not used.
-    expect(pronounce('דבר עם Shali', [{ word: 'Shali', say: 'Shaali' }])).toBe('דבר עם Sha-alee')
+    expect(pronounce('דבר עם Shali', [{ word: 'Shali', say: 'Shaali' }])).toBe('דבר עם Shah-alee')
     // The name in Hebrew letters too, also with a letter in front.
-    expect(pronounce('אני שאלי, תשאל את שאלי', [])).toBe('אני Sha-alee, תשאל את Sha-alee')
-    expect(pronounce('ולשאלי', [])).toBe('ve le Sha-alee')
+    expect(pronounce('אני שאלי, תשאל את שאלי', [])).toBe('אני Shah-alee, תשאל את Shah-alee')
+    expect(pronounce('ולשאלי', [])).toBe('ve le Shah-alee')
     expect(pronounce('Shalibi', [])).toBe('Shalibi')
   })
   it('leaves words that only look alike', () => {
