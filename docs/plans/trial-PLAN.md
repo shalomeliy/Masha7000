@@ -1,6 +1,6 @@
 # Plan: 7-day free trial for customer teams
 
-Status: waiting for the owner's approval (2026-11-25). Spike: `docs/spikes/trial.md` (verdict GO).
+Status: APPROVED by the owner (2026-11-26), ON HOLD until close to launch. Until then there is no limit on customer teams: do not build or turn on the lock. When it is built, the lock stays behind a server switch (`TRIAL_ENFORCE=1` in Vercel), off by default, and the owner turns it on at launch. Spike: `docs/spikes/trial.md` (verdict GO).
 
 ## The owner's decisions (2026-11-25)
 
