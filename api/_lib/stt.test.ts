@@ -67,6 +67,21 @@ describe('speech to text (server)', () => {
     await expect(transcribe('google', 'k', w, 'he-IL', refused)).rejects.toThrow('google stt 403')
   })
 
+  it('Israel provider: needs both URL and token, posts the WAV with the token header', async () => {
+    expect(sttProvider({ STT_PROVIDER: 'Israel' })).toBe('israel')
+    expect(sttKey('israel', { ISRAEL_STT_TOKEN: 't' })).toBe('')
+    expect(sttKey('israel', { ISRAEL_STT_URL: 'https://x.run.app/', ISRAEL_STT_TOKEN: ' t ' })).toBe('t')
+    let seen: { url: string; token: string } | null = null
+    const israel = (async (url: string, init: RequestInit) => {
+      seen = { url, token: (init.headers as Record<string, string>)['X-Stt-Token'] }
+      return new Response(JSON.stringify({ text: ' שלום ' }))
+    }) as unknown as typeof fetch
+    expect(await transcribe('israel', 't', wav(1), 'he-IL', israel, { ISRAEL_STT_URL: 'https://x.run.app/' })).toBe('שלום')
+    expect(seen).toEqual({ url: 'https://x.run.app/stt', token: 't' })
+    const down = (async () => new Response('x', { status: 503 })) as unknown as typeof fetch
+    await expect(transcribe('israel', 't', wav(1), 'he-IL', down, { ISRAEL_STT_URL: 'https://x.run.app' })).rejects.toThrow('israel stt 503')
+  })
+
   it('sends OpenAI the WAV file with gpt-4o-mini-transcribe', async () => {
     let form: FormData | null = null
     const openai = (async (_url: string, init: RequestInit) => {

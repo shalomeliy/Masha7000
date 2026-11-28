@@ -92,8 +92,17 @@ async function hearRecording(req: Request): Promise<Response> {
   if (!(await takeSeconds(env, stt.seconds))) return json({ reason: 'over-budget' }, 402)
   const started = Date.now()
   try {
-    const text = await transcribe(provider, apiKey, stt.wav, stt.lang)
-    return json({ text, provider, ms: Date.now() - started })
+    try {
+      const text = await transcribe(provider, apiKey, stt.wav, stt.lang)
+      return json({ text, provider, ms: Date.now() - started })
+    } catch (first) {
+      // The Israel service is the only one with a fallback: Google answers when it is down or slow.
+      const backup = sttKey('google')
+      if (provider !== 'israel' || !backup) throw first
+      console.error('israel stt failed, using google', (first as Error).message?.slice(0, 200))
+      const text = await transcribe('google', backup, stt.wav, stt.lang)
+      return json({ text, provider: 'google', ms: Date.now() - started })
+    }
   } catch (e) {
     const detail = (e as Error).message?.slice(0, 800) ?? ''
     console.error('stt failed', detail)

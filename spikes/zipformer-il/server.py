@@ -1,7 +1,7 @@
 # Spike: small streaming Hebrew speech-to-text on plain CPU inside Israel (Cloud Run me-west1). Throwaway.
-import io, subprocess, tempfile, time
+import hmac, io, os, subprocess, tempfile, time
 import numpy as np, sherpa_onnx, soundfile as sf
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, Header, HTTPException, UploadFile
 
 M = '/app/model/sherpa-onnx'
 t0 = time.time()
@@ -12,7 +12,10 @@ LOAD_S = round(time.time() - t0, 1)
 app = FastAPI()
 
 @app.post('/stt')
-async def stt(file: UploadFile):
+async def stt(file: UploadFile, x_stt_token: str = Header('')):
+    want = os.environ.get('STT_TOKEN', '')
+    if want and not hmac.compare_digest(x_stt_token, want):
+        raise HTTPException(401)
     raw = await file.read()
     # any phone format (m4a, webm, mp3, wav) -> 16 kHz mono wav through ffmpeg
     # mp4/m4a keep their index at the end of the file, so ffmpeg needs a real file, not a pipe

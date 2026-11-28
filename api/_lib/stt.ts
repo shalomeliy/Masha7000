@@ -9,17 +9,26 @@ import { kv } from './kv.js'
 // Hard stop: seconds of audio per calendar month (UTC), refused from STT_MONTHLY_SECONDS on (default 3,000:
 // 50 minutes, about $0.80 at Google's $0.016 a minute).
 
-export type SttProvider = 'google' | 'openai'
+export type SttProvider = 'google' | 'openai' | 'israel'
 export const MAX_STT_SECONDS = 30
 const WAV_HEADER = 44
 const BYTES_PER_SECOND = 16_000 * 2
 
+// 'israel' (2026-11-28): the ivrit.ai streaming Hebrew model on Cloud Run Tel Aviv (spikes/zipformer-il,
+// docs/spikes/israel-stt.md). Needs ISRAEL_STT_URL and ISRAEL_STT_TOKEN; when it fails, hearRecording
+// falls back to Google. Off unless STT_PROVIDER=israel.
 export function sttProvider(e: NodeJS.ProcessEnv = process.env): SttProvider {
-  return (e.STT_PROVIDER ?? '').trim().toLowerCase() === 'openai' ? 'openai' : 'google'
+  const p = (e.STT_PROVIDER ?? '').trim().toLowerCase()
+  return p === 'openai' ? 'openai' : p === 'israel' ? 'israel' : 'google'
+}
+
+export function israelSttUrl(e: NodeJS.ProcessEnv = process.env): string {
+  return (e.ISRAEL_STT_URL ?? '').trim().replace(/\/+$/, '')
 }
 
 /** The provider's key, or '' when it is not set. Google's is the cloud-voice key, allowed for both APIs. */
 export function sttKey(provider: SttProvider, e: NodeJS.ProcessEnv = process.env): string {
+  if (provider === 'israel') return israelSttUrl(e) ? (e.ISRAEL_STT_TOKEN ?? '').trim() : ''
   return ((provider === 'openai' ? e.OPENAI_API_KEY : e.GOOGLE_TTS_API_KEY) ?? '').trim()
 }
 
@@ -55,7 +64,19 @@ export async function takeSeconds(env: Env, seconds: number, now = new Date(), e
 
 /** The text heard, '' when nothing was said. Throws with the status on any failure. */
 /** `lang` as the app's speech language, 'he-IL'. */
-export async function transcribe(provider: SttProvider, apiKey: string, wav: Buffer, lang = 'he-IL', fetchFn: typeof fetch = fetch): Promise<string> {
+export async function transcribe(provider: SttProvider, apiKey: string, wav: Buffer, lang = 'he-IL', fetchFn: typeof fetch = fetch, e: NodeJS.ProcessEnv = process.env): Promise<string> {
+  if (provider === 'israel') {
+    const form = new FormData()
+    form.append('file', new Blob([new Uint8Array(wav)], { type: 'audio/wav' }), 'speech.wav')
+    const res = await fetchFn(`${israelSttUrl(e)}/stt`, {
+      method: 'POST',
+      headers: { 'X-Stt-Token': apiKey },
+      body: form,
+      signal: AbortSignal.timeout(12_000),
+    })
+    if (!res.ok) throw new Error(`israel stt ${res.status}`)
+    return (((await res.json()) as { text?: string }).text ?? '').trim()
+  }
   if (provider === 'openai') {
     const form = new FormData()
     form.append('file', new Blob([new Uint8Array(wav)], { type: 'audio/wav' }), 'speech.wav')
