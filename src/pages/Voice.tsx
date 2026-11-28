@@ -22,6 +22,7 @@ import { cloudOff } from '../lib/cloudVoice'
 import { hasAiConsent, setAiConsent } from '../lib/aiConsent'
 import { AiConsentCard } from '../components/AiConsentCard'
 import { bargeInOn, canBargeIn, watchBargeIn } from '../lib/bargeIn'
+import { warmServer } from '../lib/serverListen'
 import { canListen, currentVoice, iosHomeApp, isIOS, listen, viaServer, unlockSpeech, onSpeaking, onVoicesChanged, prepare, speak, speakAtOnce, stopSpeaking, voiceName, type Listening } from '../lib/speech'
 
 // The main screen: one big button. The manager says anything about the app; the assistant asks for
@@ -140,6 +141,15 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
   const logDid = (line: string, outcome?: LogOutcome) => logUpdate((e) => ({ ...e, did: [...e.did, line], outcome: outcome ?? e.outcome }))
 
   // How much of the month's Anthropic budget is left (counted on the server, api/_lib/budget.ts).
+  // A sleeping Israel speech service takes ~6 s to wake: wake it when Shali's screen is shown or the app comes back.
+  useEffect(() => {
+    if (!viaServer || !active) return
+    warmServer()
+    const back = () => document.visibilityState === 'visible' && warmServer()
+    document.addEventListener('visibilitychange', back)
+    return () => document.removeEventListener('visibilitychange', back)
+  }, [active])
+
   useEffect(() => {
     let live = true
     fetchBudget().then((b) => live && b && setBudget(b))

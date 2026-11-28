@@ -20,7 +20,7 @@ const QUIET_SHARE = 0.2
 
 let lastWarm = 0
 /** Tells the server we are about to listen, so a sleeping Israel service wakes while the person speaks (once per 4 minutes). */
-function warmServer() {
+export function warmServer() {
   if (Date.now() - lastWarm < 4 * 60_000) return
   lastWarm = Date.now()
   void fetch('/api/assistant?stt-warm', { method: 'POST', credentials: 'same-origin' }).catch(() => {})
