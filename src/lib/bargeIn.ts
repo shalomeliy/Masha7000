@@ -56,8 +56,11 @@ export function detector(): (level: number) => boolean {
 /**
  * Listens while Shali speaks; calls `onVoice` once, after letting go of the microphone (so listening
  * can take it at once), when the manager talks over Shali. Returns a function that stops it.
+ * While `allowed()` is false (the manager moved to another screen) nothing counts, but the microphone
+ * stays open until Shali ends: opening and closing it on every screen change switched the phone's
+ * sound between "call" and "media" and made Shali stutter (owner, 2026-11-28).
  */
-export function watchBargeIn(onVoice: () => void): () => void {
+export function watchBargeIn(onVoice: () => void, allowed: () => boolean = () => true): () => void {
   let stopped = false
   let stream: MediaStream | null = null
   let ctx: AudioContext | null = null
@@ -80,9 +83,13 @@ export function watchBargeIn(onVoice: () => void): () => void {
       analyser.fftSize = 1024
       ctx.createMediaStreamSource(s).connect(analyser)
       const buf = new Float32Array(analyser.fftSize)
-      const heard = detector()
+      let heard = detector()
       vlog('barge-in: listening')
       timer = setInterval(() => {
+        if (!allowed()) {
+          heard = detector() // measured afresh when the manager is back
+          return
+        }
         analyser.getFloatTimeDomainData(buf)
         let sum = 0
         for (const v of buf) sum += v * v

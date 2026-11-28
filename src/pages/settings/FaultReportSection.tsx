@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Loader2, MessageCircle, Send, Square, Volume2 } from 'lucide-react'
 import { ChoiceList } from '../../components/ChoiceList'
 import { DictationField } from '../../components/DictationField'
@@ -76,7 +76,10 @@ export function FaultReportSection() {
   const [whatsapp, setWhatsapp] = useState('')
   const [device, setDevice] = useState<Device>({ model: '', os: '', osVersion: '' })
   const [occurredAt, setOccurredAt] = useState(() => nowLocal())
-  useEffect(() => () => void stopSpeaking(), [])
+  // Leaving stops only this page's own reading, never Shali talking meanwhile (owner, 2026-11-28).
+  const readingRef = useRef(false)
+  readingRef.current = reading
+  useEffect(() => () => void (readingRef.current && stopSpeaking()), [])
   useEffect(() => {
     let live = true
     // Fills only what the manager has not typed yet.
