@@ -2,6 +2,8 @@
 
 Status: APPROVED by the owner (2026-11-26), ON HOLD until close to launch. Until then there is no limit on customer teams: do not build or turn on the lock. When it is built, the lock stays behind a server switch (`TRIAL_ENFORCE=1` in Vercel), off by default, and the owner turns it on at launch. Spike: `docs/spikes/trial.md` (verdict GO).
 
+Re-checked against the code on 2026-11-28: none of the files below changed since the plan was written, every reference still holds. Added the `TRIAL_ENFORCE` switch to the steps and tests.
+
 ## The owner's decisions (2026-11-25)
 
 1. The 7 days start when the customer connects his Drive.
@@ -38,7 +40,7 @@ trialState(rec: TeamRecord, now: Date):
 
 **Start of the trial.** In auth-callback `mode=team`, on the first Drive connect only: `trialStartedAt = now` if it is not set. A reconnect never restarts it. A team that already has a Drive link but no `trialStartedAt` (approved before this version) gets it set the first time `customerToken` sees it, so nobody starts locked.
 
-**The lock: one gate.** `customerToken` reads the record and, when `ended`, returns `{ reason: 'trial-ended' }` before it touches the cached token or Google. Then:
+**The lock: one gate.** `customerToken` reads the record and, when `ended` and `TRIAL_ENFORCE=1`, returns `{ reason: 'trial-ended' }` before it touches the cached token or Google. Then:
 - `/api/token` answers `402 { reason: 'trial-ended', ...who }`.
 - `api/v1.ts` answers `402 { reason: 'trial-ended' }` to an API key of that team.
 - `canUseClaude` and the cloud-voice/STT check return false for an ended team, so the owner's budget is not spent on it even if "גם Claude" is on.
@@ -66,13 +68,16 @@ trialState(rec: TeamRecord, now: Date):
 
 1. `trialState` + the three record fields in `api/_lib/team.ts`; unit tests: not started, day 1, day 5 (3 left), day 7 end, ended, extra days, `paidUntil` today / past / future, Israel end-of-day edge.
 2. Start on first connect in auth-callback (+ lazy start in `customerToken` for old teams); test: reconnect keeps the start date.
-3. Gate in `customerToken`, `402` in `/api/token` and `api/v1.ts`, `canUseClaude` off when ended. Tests on the tenancy harness: ended team gets no token and no API access and Google is never called; paid again = works with no reconnect; root manager unaffected; a customer cannot call `team-days` / `team-paid` (403).
+3. Gate in `customerToken` behind `TRIAL_ENFORCE=1` (read from `env`, off when missing), `402` in `/api/token` and `api/v1.ts`, `canUseClaude` off when ended. The record fields, start date, chip and banner work with the switch off, so the owner sees the countdown before anything locks. Tests on the tenancy harness: switch off = ended team still works; ended team gets no token and no API access and Google is never called; paid again = works with no reconnect; root manager unaffected; a customer cannot call `team-days` / `team-paid` (403).
 4. Owner actions `team-days`, `team-paid` + audit; the customers list chip, "+ ימים", "שולם עד".
 5. App: `trialEnded` status, `TrialEnded.tsx`, the day-5 banner, the pay/contact sheet.
 6. Every new string through `tx()` in all 15 languages (written in the session, never by the API). Guide: a short "תקופת הניסיון" paragraph in `src/lib/guide.ts` (+ translations).
 7. `npm run verify`, then commit, push, merge to master.
 
 ## How the owner tests it (after the build)
+
+- First, with `TRIAL_ENFORCE` unset: chips and banner show, nothing locks.
+- Then set `TRIAL_ENFORCE=1` in Vercel (Production) and redeploy.
 
 - In the customers list, a test customer: "+ ימים" and "שולם עד" change the chip at once.
 - Set a test team to ended (`שולם עד` yesterday and no days left): on that account the app shows the lock screen within an hour (at once after a fresh sign-in); its API key gets 402.
@@ -81,7 +86,7 @@ trialState(rec: TeamRecord, now: Date):
 
 ## Open for the owner
 
-- The "לתשלום" button before Grow: WhatsApp to your fault-report number with a ready message (my pick, nothing new to set up). Say if you want a different number or an email instead.
+- The "לתשלום" button before Grow: WhatsApp to your fault-report number with a ready message (my pick, nothing new to set up). Say if you want a different number or an email instead. The `FAULT_WHATSAPP` number is still not set in Vercel; until it is, the button falls back to the "צור קשר" form.
 
 ## Out of scope
 
