@@ -107,3 +107,13 @@ export async function transcribe(provider: SttProvider, apiKey: string, wav: Buf
     .join(' ')
     .trim()
 }
+
+/** Wakes the Israel service (it sleeps when idle; the first call after a rest took ~6 s, 2026-11-28). Best effort. */
+export async function warmIsrael(apiKey: string, fetchFn: typeof fetch = fetch, e: NodeJS.ProcessEnv = process.env): Promise<boolean> {
+  try {
+    const res = await fetchFn(`${israelSttUrl(e)}/health`, { headers: { 'X-Stt-Token': apiKey }, signal: AbortSignal.timeout(15_000) })
+    return res.ok
+  } catch {
+    return false
+  }
+}

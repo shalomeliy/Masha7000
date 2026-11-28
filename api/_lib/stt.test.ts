@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { readSttRequest, sttKey, sttMonthlyLimit, sttProvider, takeSeconds, transcribe } from './stt.js'
+import { readSttRequest, sttKey, sttMonthlyLimit, sttProvider, takeSeconds, transcribe, warmIsrael } from './stt.js'
 import { kv } from './kv.js'
 import type { Env } from './env.js'
 
@@ -80,6 +80,18 @@ describe('speech to text (server)', () => {
     expect(seen).toEqual({ url: 'https://x.run.app/stt', token: 't' })
     const down = (async () => new Response('x', { status: 503 })) as unknown as typeof fetch
     await expect(transcribe('israel', 't', wav(1), 'he-IL', down, { ISRAEL_STT_URL: 'https://x.run.app' })).rejects.toThrow('israel stt 503')
+  })
+
+  it('warms the Israel service with the token and never throws', async () => {
+    let seen = ''
+    const ok = (async (url: string, init: RequestInit) => {
+      seen = `${url} ${(init.headers as Record<string, string>)['X-Stt-Token']}`
+      return new Response('{}')
+    }) as unknown as typeof fetch
+    expect(await warmIsrael('t', ok, { ISRAEL_STT_URL: 'https://x.run.app/' })).toBe(true)
+    expect(seen).toBe('https://x.run.app/health t')
+    const boom = (async () => { throw new Error('down') }) as unknown as typeof fetch
+    expect(await warmIsrael('t', boom, { ISRAEL_STT_URL: 'https://x.run.app' })).toBe(false)
   })
 
   it('sends OpenAI the WAV file with gpt-4o-mini-transcribe', async () => {

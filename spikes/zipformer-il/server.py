@@ -11,6 +11,13 @@ recognizer = sherpa_onnx.OnlineRecognizer.from_transducer(
 LOAD_S = round(time.time() - t0, 1)
 app = FastAPI()
 
+@app.get('/health')
+async def health(x_stt_token: str = Header('')):
+    want = os.environ.get('STT_TOKEN', '')
+    if want and not hmac.compare_digest(x_stt_token, want):
+        raise HTTPException(401)
+    return {'ok': True, 'model_load_s': LOAD_S}
+
 @app.post('/stt')
 async def stt(file: UploadFile, x_stt_token: str = Header('')):
     want = os.environ.get('STT_TOKEN', '')

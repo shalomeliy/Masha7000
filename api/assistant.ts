@@ -4,7 +4,7 @@ import { readEnv, type Env } from './_lib/env.js'
 import { clientIp, guarded, json, readJson, sameOrigin } from './_lib/http.js'
 import { overLimit } from './_lib/rate.js'
 import { canUseAssistant, canUseClaude, canUseCloudVoice, requireManager } from './_lib/session.js'
-import { readSttRequest, sttKey, sttProvider, takeSeconds, transcribe } from './_lib/stt.js'
+import { readSttRequest, sttKey, sttProvider, takeSeconds, transcribe, warmIsrael } from './_lib/stt.js'
 import { cacheTarget, keepVoice, mp3, readCachedVoice, readTtsRequest, speakBest, takeChars, voiceEngine } from './_lib/tts.js'
 
 // POST /api/assistant { messages, context }: one turn of the voice assistant, for the owner only,
@@ -74,6 +74,19 @@ async function speakSentence(req: Request): Promise<Response> {
   }
 }
 
+// POST /api/assistant?stt-warm: the phone says "about to listen"; wake the Israel service so the first words are not slow.
+async function warmListening(req: Request): Promise<Response> {
+  const env = readEnv()
+  if (!env) return json({ reason: 'not-configured' }, 503)
+  if (!sameOrigin(req, env.appOrigin)) return json({ reason: 'bad-origin' }, 403)
+  if (await overLimit(env, 'stt-warm', clientIp(req))) return json({ reason: 'too-many' }, 429)
+  const gate = await requireManager(env, req)
+  if ('refuse' in gate) return gate.refuse
+  const apiKey = sttKey('israel')
+  if (sttProvider() !== 'israel' || !apiKey) return json({ warm: false })
+  return json({ warm: await warmIsrael(apiKey) })
+}
+
 // Speech to text for the iPhone home-screen app (stt.ts): the same people as the cloud voice.
 async function hearRecording(req: Request): Promise<Response> {
   const env = readEnv()
@@ -112,6 +125,7 @@ async function hearRecording(req: Request): Promise<Response> {
 
 export const POST = guarded(async (req: Request) => {
   if (new URL(req.url).searchParams.has('tts')) return speakSentence(req)
+  if (new URL(req.url).searchParams.has('stt-warm')) return warmListening(req)
   if (new URL(req.url).searchParams.has('stt')) return hearRecording(req)
   const gate = await ownerGate(req)
   if ('refuse' in gate) return gate.refuse

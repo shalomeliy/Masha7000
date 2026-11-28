@@ -26,6 +26,7 @@ export const LIMITS = {
   assistant: { max: 60, windowSeconds: 600 },
   tts: { max: 300, windowSeconds: 600 }, // one sentence per request
   stt: { max: 60, windowSeconds: 600 }, // one recording per request
+  'stt-warm': { max: 30, windowSeconds: 600 }, // the phone's "about to listen" ping
   feedbackIp: { max: 30, windowSeconds: 3600 },
   claudeLog: { max: 300, windowSeconds: 600 },
   feedbackEmail: { max: 10, windowSeconds: 3600 },

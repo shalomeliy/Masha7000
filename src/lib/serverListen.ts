@@ -18,6 +18,14 @@ const MIN_LOUD = 0.015 // speech is at least this loud, however quiet the room
 // set the bar above his voice, and two tries in a row ended with "nothing said".
 const QUIET_SHARE = 0.2
 
+let lastWarm = 0
+/** Tells the server we are about to listen, so a sleeping Israel service wakes while the person speaks (once per 4 minutes). */
+function warmServer() {
+  if (Date.now() - lastWarm < 4 * 60_000) return
+  lastWarm = Date.now()
+  void fetch('/api/assistant?stt-warm', { method: 'POST', credentials: 'same-origin' }).catch(() => {})
+}
+
 export interface ServerListening {
   stop: () => void
 }
@@ -42,6 +50,7 @@ const REASONS: Record<string, string> = {
 export function listenViaServer(onText: (text: string) => void, onEnd: (text: string, error?: string) => void): ServerListening {
   const w = window as unknown as { AudioContext?: Ctx; webkitAudioContext?: Ctx }
   const ctx = new (w.AudioContext ?? w.webkitAudioContext)!()
+  warmServer()
   const pieces: Float32Array[] = []
   let stream: MediaStream | null = null
   let stopped = false
