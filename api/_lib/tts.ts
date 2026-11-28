@@ -1,6 +1,7 @@
 import type { Env } from './env.js'
 import { kv } from './kv.js'
-import { geminiSpeak } from './gemini.js'
+import { geminiSpeak, pcmToWav } from './gemini.js'
+import { vertexConfig, vertexSpeak, type VertexConfig } from './vertex.js'
 import { open, seal, sha256url } from './crypto.js'
 
 // Shali's cloud voice (the owner's choice, 2026-11-13/14): Google Cloud Text-to-Speech, Chirp 3 HD
@@ -86,23 +87,35 @@ const GEMINI_BUDGET_MS = 4500
 
 // The voice is the one the manager picked with "קול: ענן N": all six names are Gemini voices too (owner,
 // 2026-11-23: "where is Google's voice?" when ענן 1..6 all sounded the same).
-export function voiceEngine(e: NodeJS.ProcessEnv = process.env): { geminiKey: string } | null {
+// With VERTEX_SA_KEY set (vertex.ts, 2026-11-28) Gemini is asked at Google's EU endpoint first; on any failure
+// the AI Studio key (if set) answers, then Chirp. `geminiKey` may then be '' (Vertex only).
+export function voiceEngine(e: NodeJS.ProcessEnv = process.env): { geminiKey: string; vertex?: VertexConfig } | null {
   const key = (e.GEMINI_API_KEY ?? '').trim()
-  if (!key || (e.TTS_ENGINE ?? '').trim().toLowerCase() === 'chirp') return null
-  return { geminiKey: key }
+  const vertex = vertexConfig(e)
+  if ((!key && !vertex) || (e.TTS_ENGINE ?? '').trim().toLowerCase() === 'chirp') return null
+  return vertex ? { geminiKey: key, vertex } : { geminiKey: key }
 }
 
 /** One sentence as audio: Gemini when configured, else (or on any trouble) Chirp. */
 export async function speakBest(
   apiKey: string,
   req: TtsRequest,
-  gemini: { geminiKey: string } | null,
+  gemini: { geminiKey: string; vertex?: VertexConfig } | null,
   fetchFn: typeof fetch = fetch,
   now: () => number = Date.now,
 ): Promise<{ bytes: Uint8Array<ArrayBuffer>; type: string; engine: 'gemini' | 'chirp' }> {
   if (gemini) {
     const start = now()
     try {
+      if (gemini.vertex) {
+        try {
+          const { bytes } = await vertexSpeak(req.text, req.voice, gemini.vertex, pcmToWav, fetchFn, GEMINI_BUDGET_MS)
+          return { bytes: new Uint8Array(bytes), type: 'audio/wav', engine: 'gemini' }
+        } catch (e) {
+          console.error('vertex tts failed', (e as Error).message?.slice(0, 200))
+          if (!gemini.geminiKey) throw e
+        }
+      }
       const left = Math.max(1000, GEMINI_BUDGET_MS - (now() - start))
       const { bytes } = await geminiSpeak(req.text, req.voice, gemini.geminiKey, fetchFn, left)
       return { bytes: new Uint8Array(bytes), type: 'audio/wav', engine: 'gemini' }

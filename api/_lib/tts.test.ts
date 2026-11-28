@@ -128,3 +128,31 @@ describe('a sentence said before is not paid for again', () => {
     vi.restoreAllMocks()
   })
 })
+
+describe('Shali voice through Vertex EU', () => {
+  it('is off without VERTEX_SA_KEY and on with a valid key', async () => {
+    const { generateKeyPairSync } = await import('node:crypto')
+    const { vertexConfig } = await import('./vertex.js')
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs8', format: 'pem' }, publicKeyEncoding: { type: 'spki', format: 'pem' } })
+    expect(vertexConfig({})).toBeNull()
+    expect(vertexConfig({ VERTEX_SA_KEY: 'not json' })).toBeNull()
+    const sa = JSON.stringify({ client_email: 'v@p.iam.gserviceaccount.com', private_key: privateKey, project_id: 'masha7000' })
+    expect(vertexConfig({ VERTEX_SA_KEY: sa })).toMatchObject({ project: 'masha7000', clientEmail: 'v@p.iam.gserviceaccount.com' })
+    expect(voiceEngine({ VERTEX_SA_KEY: sa })).toMatchObject({ geminiKey: '', vertex: { project: 'masha7000' } })
+    expect(voiceEngine({ VERTEX_SA_KEY: sa, TTS_ENGINE: 'chirp' })).toBeNull()
+
+    const calls: string[] = []
+    const f = (async (url: string) => {
+      calls.push(url)
+      if (url.includes('oauth2')) return new Response(JSON.stringify({ access_token: 'tok' }))
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: Buffer.from('RIFF....WAVEdata').toString('base64') } }] } }] }))
+    }) as unknown as typeof fetch
+    const gem = voiceEngine({ VERTEX_SA_KEY: sa })!
+    const r = await speakBest('k', { text: 'שלום', voice: 'Sadaltager', rate: 1 }, gem, f)
+    expect(r.engine).toBe('gemini')
+    expect(calls.some((u) => u.startsWith('https://aiplatform.eu.rep.googleapis.com/v1/projects/masha7000/locations/eu/'))).toBe(true)
+    // Vertex failing with no AI Studio key falls through to Chirp.
+    const down = (async (url: string) => (url.includes('oauth2') ? new Response(JSON.stringify({ access_token: 'tok' })) : url.includes('aiplatform') ? new Response('x', { status: 500 }) : new Response(JSON.stringify({ audioContent: Buffer.from('mp3').toString('base64') })))) as unknown as typeof fetch
+    expect((await speakBest('k', { text: 'שלום', voice: 'Sadaltager', rate: 1 }, gem, down)).engine).toBe('chirp')
+  })
+})
