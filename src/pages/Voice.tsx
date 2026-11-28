@@ -156,6 +156,9 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
   // "can Shali speak in the background while I move between screens?"), answers that arrive meanwhile too.
   const shownNow = useRef(active)
   const leftAt = useRef(0)
+  // Something still open in the conversation: Shali listens, thinks, speaks, or waits for an answer.
+  const liveRef = useRef(false)
+  liveRef.current = phase !== 'idle' || speaking || talking || Boolean(proposal) || Boolean(advice)
   useEffect(() => {
     shownNow.current = active
     // On the Shali screen itself the conversation goes on there; the small card closes.
@@ -163,6 +166,9 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
     if (!active) {
       leftAt.current = Date.now()
       listening.current?.stop()
+      // A conversation still going on follows the manager to the other screen in the small card
+      // (owner, 2026-11-28: it vanished when he moved between screens).
+      if (liveRef.current) setQuickOn(true)
       return
     }
     if (!leftAt.current) return
@@ -930,7 +936,10 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
           <QuickCard
             status={status}
             heard={heard}
-            said={[...lines].reverse().find((l) => l.who === 'app')?.text ?? ''}
+            // What is going on now, never an older answer (owner, 2026-11-28): while listening only the
+            // words heard so far; then the request just said, until Shali answers it.
+            said={phase === 'listening' ? '' : lines[lines.length - 1]?.text ?? ''}
+            mine={phase !== 'listening' && lines[lines.length - 1]?.who === 'me'}
             error={error}
             listeningNow={phase === 'listening'}
             busy={busy && phase !== 'idle'}
@@ -962,6 +971,7 @@ function QuickCard(p: {
   status: string
   heard: string
   said: string
+  mine: boolean
   error: string | null
   listeningNow: boolean
   busy: boolean
@@ -998,7 +1008,7 @@ function QuickCard(p: {
           <X size={20} aria-hidden />
         </button>
       </div>
-      {(p.heard || p.said) && <p className="mt-2 line-clamp-4 text-sm text-slate-200">{p.heard || p.said}</p>}
+      {(p.heard || p.said) && <p className={`mt-2 line-clamp-4 text-sm ${p.heard || p.mine ? 'text-sky-200' : 'text-slate-200'}`}>{p.heard || p.said}</p>}
       {p.error && (
         <p role="alert" className="mt-2 text-sm text-amber-300">
           {p.error}
