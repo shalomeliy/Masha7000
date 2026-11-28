@@ -221,3 +221,23 @@ test('a conversation with Shali waits while another tab is looked at', async ({ 
   await expect(page.getByRole('status').filter({ hasText: 'לאשר, או לתקן?' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'אשר' })).toBeVisible()
 })
+
+test('the daily report opens from the calendar and opens a worker from a line', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await openWithFakeDrive(page)
+  await tab(page, 'יומן').click()
+  const button = page.getByRole('button', { name: /^דוח יומי/ })
+  await expect(button).toBeVisible()
+  await button.click()
+  const sheet = page.getByRole('dialog', { name: 'דוח יומי' })
+  await expect(sheet.getByText('שעת הדוח')).toBeVisible()
+  if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT })
+  const line = sheet.getByRole('list').last().getByRole('button').first()
+  if (await line.count()) {
+    await line.click()
+    await expect(page.getByRole('dialog').filter({ hasText: /עריכת עובד|עריכת עבודה|עבודה/ }).first()).toBeVisible()
+  }
+  await expect(page.getByText('משהו השתבש במסך הזה')).toHaveCount(0)
+  expect(errors).toEqual([])
+})

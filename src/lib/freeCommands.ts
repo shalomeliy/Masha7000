@@ -1,4 +1,5 @@
 import type { AppData, Proposal, Screen } from './assistant'
+import { dailyReport, reportSpeech } from './dailyReport'
 import { isYes, normalizeProposal } from './assistant'
 import type { Edits } from './assistantEdits'
 import { continueDates, freeDates } from './freeDates'
@@ -468,8 +469,12 @@ function fixed(text: string, d: AppData, now: Date): Local {
     if (f.date && f.date >= plus(now, 0) && !f.rest.length && !f.location && !f.workerIds.length && !f.unsure.length && !f.staffing.length && !f.vehicle)
       return { kind: 'say', text: whoSick(f.date, d, now) }
   }
+  // "מה בדוח היומי", "מה חסר למחר" (the owner, 2026-11-28): the daily report, said from the data, free.
+  if (DAILY_REPORT.test(s)) return { kind: 'say', text: reportSpeech(dailyReport({ workers: d.workers, records: d.shifts, defs: d.shiftDefinitions, certifications: d.certifications }, plus(now, 0))) }
   return null
 }
+
+const DAILY_REPORT = /^(?:(?:תקריא|תקריאי|הקרא|תגיד|תגידי|ספר|תספר|מה|מה יש|מה כתוב|תראה|הראה)(?: לי)? )?(?:את |ב|על )?(?:ה)?דוח (?:ה)?יומי$|^(?:מה|איזה דברים|מה עוד) (?:חסר|חסרים|לא מסודר|פתוח|פתוחים)(?: לי)?(?: (?:למחר|מחר|למחרתיים))?$|^(?:יש|האם יש) (?:בעיות|בעיה|חוסרים)(?: (?:למחר|מחר|בעבודות של מחר))?$/
 
 /** "Who is sick" on a day (today or later), from each worker's status and dated sick days, said back. */
 export function whoSick(date: string, d: AppData, now: Date): string {

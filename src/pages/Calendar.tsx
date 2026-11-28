@@ -20,6 +20,7 @@ import { OUTCOMES } from './calendar/outcomes'
 import { ShareSheet } from './calendar/ShareSheet'
 import { ShiftSheet } from './calendar/ShiftEditor'
 import { WeekPlanSheet } from './calendar/WeekPlanSheet'
+import { DailyReport } from './calendar/DailyReport'
 import { EditMark, WorkerDial } from './workers/common'
 import { WaitingJobs } from './ToSchedule'
 import { jobVehicleText } from '../lib/vehicles'
@@ -119,6 +120,8 @@ export function Calendar() {
               {tx('עבודה חדשה')}
             </button>
           </div>
+
+          <DailyReport ctx={gapCtx} today={today} onOpenShift={setEditing} />
 
           {/* Jobs still waiting for a day (until 2026-11-13 the "לשיבוץ" tab). */}
           {isOn('jobClosing') && <WaitingJobs />}

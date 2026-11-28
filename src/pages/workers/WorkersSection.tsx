@@ -473,7 +473,7 @@ function WorkerCard({
   );
 }
 
-function WorkerSheet({
+export function WorkerSheet({
   editing,
   monthFirst,
   onClose,
