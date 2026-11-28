@@ -676,6 +676,15 @@ describe('the log, 2026-11-23: "כחולה" and "מי חולה"', () => {
     expect(run('מי חולה ומי מחליף אותו מחר')).toBeNull()
     expect(run('תשלח לי דו״ח מי חולה היום')).toBeNull()
   })
+
+  it('reads the daily report, free (2026-11-28)', () => {
+    const empty = data({ workers: base.workers.map((x) => ({ ...x, mobilePhone: '0501234567', emergencyPhone1: '0507654321', certExpiry: { r1: '2027-01-01' } })) })
+    for (const said of ['מה בדוח היומי', 'תקריא לי את הדוח היומי', 'דוח יומי', 'מה חסר למחר', 'יש בעיות מחר?'])
+      expect(run(said, empty), said).toEqual({ kind: 'say', text: expect.stringContaining('נקי') })
+    const d = data({ shifts: [{ id: 'x', date: '2026-11-08', shiftDefinitionId: 's1', location: 'ערד 17', jobDescription: 'בדיקה', crew: [], staffing: [{}] }] })
+    expect(run('מה בדוח היומי', d)).toEqual({ kind: 'say', text: expect.stringContaining('מחר בערד 17: אין אף עובד משובץ.') })
+    expect(run('מה חסר בעבודה בערד 17')).toBeNull()
+  })
 })
 
 describe('a team with shifts by hours (smart onboarding stage 2)', () => {

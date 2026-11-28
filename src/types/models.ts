@@ -268,4 +268,6 @@ export interface AppSettings {
    * needs `restHours` between two shifts. Absent = the day / night-until-16:00 model, checked by whole days as before.
    */
   shiftHours?: { on: boolean; restHours: number }
+  /** When the daily report ("דוח יומי") turns the calendar button orange, "HH:mm". Absent = 18:00. */
+  dailyReportHour?: string
 }
