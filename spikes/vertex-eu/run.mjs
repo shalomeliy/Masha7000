@@ -8,7 +8,7 @@ const PROJECT = process.argv[2]
 if (!PROJECT) { console.error('usage: node run.mjs <project>'); process.exit(1) }
 const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-5-5'
 const token = execSync('gcloud auth print-access-token').toString().trim()
-const H = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+const H = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-goog-user-project': PROJECT }
 const TEXT = 'שלום, אני שאלי. מחר בבוקר יש שלוש משמרות פתוחות, רוצה שאשבץ?'
 const out = []
 const ms = (t) => Math.round(performance.now() - t)
