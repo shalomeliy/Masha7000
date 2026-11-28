@@ -10,6 +10,7 @@ import { todayIso } from './dates'
 import { autoAssign, busyCrew, busyText, pullFrom } from './planner'
 import { addDays, dayName, hebrewDayName, isNightShift, isWaiting, showDate } from './shifts'
 import { toggleKind } from './workKinds'
+import { cleanEntry, journalError } from './journal'
 import { applyEdits, editCount, type Edits } from './assistantEdits'
 import { kindOf, workerState } from './workerState'
 import type {
@@ -19,6 +20,7 @@ import type {
   Constraint,
   Department,
   JobType,
+  JournalEntry,
   PendingJob,
   Place,
   PostponeReason,
@@ -48,10 +50,14 @@ export interface AppData {
   departments: Department[]
   assistantExamples: AssistantExample[]
   vehicles: Vehicle[]
+  journal?: JournalEntry[] // the manager's personal log ("יומן אישי")
 }
 
-export type ListName = 'places' | 'jobTypes' | 'certifications' | 'postponeReasons'
-export type Screen = 'calendar' | 'toSchedule' | 'workers' | 'archive' | 'settings'
+export type ListName = 'places' | 'jobTypes' | 'certifications' | 'postponeReasons' | 'departments'
+export type Screen = 'calendar' | 'toSchedule' | 'workers' | 'archive' | 'settings' | 'journal' | 'vehicles'
+/** Screens inside Settings that Shali may open (Settings.tsx ItemId). */
+export const SETTING_SCREENS = ['certifications', 'shiftDefinitions', 'workKinds', 'postponeReasons', 'places', 'jobTypes', 'departments', 'constraintWords', 'pronunciations', 'features', 'guide', 'access', 'security', 'backup', 'account', 'voice', 'micTest', 'feedback', 'fault', 'api'] as const
+export type SettingScreen = (typeof SETTING_SCREENS)[number]
 
 export interface ProposedJob {
   date: string // '' = to the waiting list
@@ -75,6 +81,12 @@ export interface Proposal extends Edits {
   listItems: { list: ListName; name: string }[]
   // New vehicles: the card's three fields (owner, 2026-11-23: "add a vehicle, Isuzu D-Max" did nothing).
   newVehicles?: { plate: string; make: string; model: string }[]
+  // Owner, 2026-11-28 ("Shali must know every screen and do every action"): a fix to a vehicle card
+  // ('' = unchanged), personal log entries, new work kinds and new job templates.
+  editVehicles?: { id: string; plate: string; make: string; model: string }[]
+  journalEntries?: { date: string; start: string; end: string; text: string }[]
+  newWorkKinds?: { name: string; staffing: { count: number; certificationIds: string[] }[] }[]
+  newShiftKinds?: { name: string; startTime: string; endTime: string; endsNextDay: boolean }[]
   rememberNotes: string[] // things the manager asked the assistant to remember from now on
   lessons: string[] // rules the assistant learned from the manager in this conversation; saved with the yes
   forgetNoteIds: string[]
@@ -90,6 +102,8 @@ const AHEAD_DAYS = 28
 const HISTORY_DAYS = 56
 // Days listed by name and date, so "ראשון הקרוב" or "שלישי הבא" is looked up, not computed.
 const CALENDAR_DAYS = 21
+// The personal log this far back.
+const JOURNAL_DAYS = 14
 
 /** The most frequent values, most first, at most `n`. */
 function top(values: string[], n = 3): string[] {
@@ -154,11 +168,12 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
       return `${date} = ${i === 0 ? 'היום, ' : i === 1 ? 'מחר, ' : ''}יום ${hebrewDayName(date)} ${showDate(date)}`
     }),
     certifications: named(d.certifications),
+    departments: named(d.departments),
     shiftKinds: d.shiftDefinitions.map((s) => ({ id: s.id, name: s.name, night: endsNextDay(s), meaning: kindMeaning(s), ...(s.thenJob ? { hasNextJob: true } : {}) })),
     workKinds: d.workKinds.map((k) => ({ id: k.id, name: k.name, people: staffingNames(k.staffing) })),
     places: d.places.map((p) => p.name),
     jobTypes: d.jobTypes.map((j) => j.name),
-    postponeReasons: d.postponeReasons.map((r) => r.name),
+    postponeReasons: named(d.postponeReasons),
     workers: d.workers.filter(isActive).map((w) => ({
       id: w.id,
       name: fullName(w),
@@ -170,9 +185,16 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
       ...(w.departmentId && name(w.departmentId, d.departments) ? { department: name(w.departmentId, d.departments) } : {}),
       ...(w.status === 'sick' ? { sickUntil: w.sickUntil ?? '' } : {}),
       ...(workerState(w, today).id !== 'fit' ? { now: workerState(w, today).label } : {}),
-      ...(open(w).length ? { cannot: open(w).map(constraintText) } : {}),
+      ...(open(w).length ? { cannot: open(w).map((c) => ({ id: c.id, text: constraintText(c) })) } : {}),
+      // Until when each certification is valid ("טיפוס עד 2027-03-01"), so "של מי פג תוקף" is answered.
+      ...(Object.keys(w.certExpiry ?? {}).length
+        ? { certValidUntil: Object.entries(w.certExpiry ?? {}).filter(([id, until]) => until && w.certificationIds.includes(id) && name(id, d.certifications)).map(([id, until]) => `${name(id, d.certifications)} עד ${until}`) }
+        : {}),
       ...(w.notes?.trim() ? { notes: w.notes.trim().slice(0, 200) } : {}),
     })),
+    // Workers marked "לא פעיל": not in `workers` (never placed), named only so "X חזר לעבוד" finds them
+    // (owner, 2026-11-28).
+    inactiveWorkers: d.workers.filter((w) => !isActive(w)).map((w) => ({ id: w.id, name: fullName(w) })),
     // The last 8 weeks, counted: who did how many jobs and nights, where, and with whom.
     history: {
       fromDate: pastFrom,
@@ -217,12 +239,28 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
         needs: staffingNames(s.staffing),
         crew: s.crew.map((c) => workerName(c.workerId)),
         ...(s.nextJob ? { then: [s.nextJob.location, s.nextJob.jobDescription].filter(Boolean).join(' - ') } : {}),
-        ...(s.closure ? { closed: s.closure.outcome } : {}),
+        ...(s.closure ? { closed: s.closure.outcome, ...(s.closure.note ? { closedNote: s.closure.note } : {}) } : {}),
+        ...(s.pinnedIds?.length ? { pinned: s.pinnedIds.map(workerName) } : {}),
         ...(s.vehicleId ? { vehicle: carOf(s.vehicleId) } : {}),
       })),
     waitingJobs: d.pendingJobs
       .filter((j) => isWaiting(j, d.shifts))
-      .map((j) => ({ id: j.id, location: j.location, job: j.jobDescription, kind: name(j.shiftDefinitionId ?? '', d.shiftDefinitions), needs: staffingNames(j.staffing), ...(j.vehicleId ? { vehicle: carOf(j.vehicleId) } : {}) })),
+      .map((j) => ({
+        id: j.id,
+        location: j.location,
+        job: j.jobDescription,
+        kind: name(j.shiftDefinitionId ?? '', d.shiftDefinitions),
+        needs: staffingNames(j.staffing),
+        ...(j.vehicleId ? { vehicle: carOf(j.vehicleId) } : {}),
+        ...(j.note?.trim() ? { note: j.note.trim().slice(0, 200) } : {}),
+        ...(j.reasonIds.length ? { postponedFor: j.reasonIds.map((id) => name(id, d.postponeReasons)).filter(Boolean) } : {}),
+        ...(j.pinnedIds?.length ? { pinned: j.pinnedIds.map(workerName) } : {}),
+      })),
+    // The manager's personal log, the last two weeks: "כמה שעות עבדתי השבוע", "מה עשיתי ביום שלישי".
+    journal: (d.journal ?? [])
+      .filter((e) => e.date >= addDays(today, -JOURNAL_DAYS) && e.date <= today)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
+      .map((e) => ({ date: e.date, start: e.start, end: e.end, text: e.text.slice(0, 200) })),
   }
 }
 
@@ -267,7 +305,35 @@ export function proposalErrors(p: Proposal, d: AppData): string[] {
     if (e) errors.push(`רכב "${car.plate}": ${e}`)
     cars.push(v)
   }
-  const total = (p.newVehicles?.length ?? 0) + p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length + editCount(p)
+  for (const v of p.editVehicles ?? []) {
+    const old = d.vehicles.find((x) => x.id === v.id)
+    if (!old) {
+      errors.push(`אין רכב עם id "${v.id}"`)
+      continue
+    }
+    const e = vehicleError(fixedCar(old, v), cars.filter((x) => x.id !== v.id))
+    if (e) errors.push(`רכב "${plateOf(old)}": ${e}`)
+  }
+  for (const e of p.journalEntries ?? []) {
+    const bad = journalError({ id: '', ...e })
+    if (bad) errors.push(`יומן אישי: ${bad}`)
+  }
+  const kinds = [...d.workKinds]
+  for (const k of p.newWorkKinds ?? []) {
+    const e = nameError(k.name, kinds)
+    if (e) errors.push(`סוג עבודה "${k.name}": ${e}`)
+    if (!k.staffing.length) errors.push(`סוג עבודה "${k.name}": כמה אנשים ועם איזו הסמכה?`)
+    for (const s of k.staffing) for (const c of s.certificationIds) if (!has(d.certifications, c)) errors.push(`סוג עבודה "${k.name}": אין הסמכה עם id "${c}"`)
+    kinds.push({ id: '', name: k.name, staffing: [] })
+  }
+  const templates = [...d.shiftDefinitions]
+  for (const t of p.newShiftKinds ?? []) {
+    const e = nameError(t.name, templates)
+    if (e) errors.push(`תבנית "${t.name}": ${e}`)
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(t.startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(t.endTime)) errors.push(`תבנית "${t.name}": צריך שעת התחלה ושעת סיום HH:mm`)
+    templates.push({ id: '', name: t.name, requiredCertificationIds: [], startTime: '', endTime: '' })
+  }
+  const total = (p.newVehicles?.length ?? 0) + (p.editVehicles?.length ?? 0) + (p.journalEntries?.length ?? 0) + (p.newWorkKinds?.length ?? 0) + (p.newShiftKinds?.length ?? 0) + p.jobs.length + p.assignShiftIds.length + p.workers.length + p.listItems.length + p.rememberNotes.length + p.forgetNoteIds.length + editCount(p)
   // Edits are tried on a copy: what the screens would refuse (a worker in two jobs, a missing certification) goes back.
   errors.push(...applyProposal(p, d).errors)
   if (total === 0) errors.push('אין בהצעה שום שינוי')
@@ -336,6 +402,34 @@ export function applyProposal(p: Proposal, before: AppData, now = new Date()): A
     d.vehicles = [...d.vehicles, v]
     changed.add('vehicles')
     report.push(tx('הוספתי את רכב {car}', { car: carText(v) }))
+  }
+
+  for (const v of p.editVehicles ?? []) {
+    const old = d.vehicles.find((x) => x.id === v.id)
+    if (!old) continue
+    const next = fixedCar(old, v)
+    d.vehicles = upsert(d.vehicles, next)
+    changed.add('vehicles')
+    report.push(tx('עדכנתי את רכב {car}', { car: carText(next) }))
+  }
+
+  for (const e of p.journalEntries ?? []) {
+    d.journal = [...(d.journal ?? []), cleanEntry({ id: newId(), ...e })]
+    changed.add('journal')
+    report.push(tx('רשמתי ביומן האישי {start}–{end}', { start: e.start, end: e.end }))
+  }
+
+  for (const k of p.newWorkKinds ?? []) {
+    const staffing: StaffSlot[] = k.staffing.flatMap((s) => Array.from({ length: Math.max(1, Math.min(MAX_STAFF, Math.round(s.count))) }, () => (s.certificationIds.length ? { certificationIds: s.certificationIds } : {})))
+    d.workKinds = [...d.workKinds, { id: newId(), name: k.name.trim(), staffing: staffing.slice(0, MAX_STAFF) }]
+    changed.add('workKinds')
+    report.push(tx('הוספתי את סוג העבודה {name}', { name: k.name.trim() }))
+  }
+
+  for (const t of p.newShiftKinds ?? []) {
+    d.shiftDefinitions = [...d.shiftDefinitions, { id: newId(), name: t.name.trim(), requiredCertificationIds: [], startTime: t.startTime, endTime: t.endTime, ...(t.endsNextDay ? { endsNextDay: true } : {}) }]
+    changed.add('shiftDefinitions')
+    report.push(tx('הוספתי את התבנית {name}', { name: t.name.trim() }))
   }
 
   for (const w of p.workers) {
@@ -595,9 +689,13 @@ const SS = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => type
 const A = <T>(v: unknown, f: (o: Record<string, unknown>) => T): T[] =>
   Array.isArray(v) ? v.filter((o): o is Record<string, unknown> => !!o && typeof o === 'object').map(f) : []
 const lines = (v: unknown) => A(v, (s) => ({ count: Number(s.count) || 1, certificationIds: SS(s.certificationIds) }))
-const LISTS: ListName[] = ['places', 'jobTypes', 'certifications', 'postponeReasons']
+const LISTS: ListName[] = ['places', 'jobTypes', 'certifications', 'postponeReasons', 'departments']
 const OUTCOMES = ['done', 'partial', 'postponed'] as const
 const STATUSES = ['', 'active', 'sick', 'inactive'] as const
+
+/** A vehicle card with the fields the manager corrected ('' = as it was). */
+const fixedCar = (old: Vehicle, c: { plate: string; make: string; model: string }) =>
+  cleanVehicle({ ...old, values: { ...old.values, ...(c.plate ? { [PLATE]: c.plate } : {}), ...(c.make ? { [MAKE]: c.make } : {}), ...(c.model ? { [MODEL]: c.model } : {}) } })
 
 /** A vehicle card from what the manager said: plate, make, model (src/lib/vehicles.ts). */
 const newCar = (c: { plate: string; make: string; model: string }) => cleanVehicle({ id: newId(), values: { [PLATE]: c.plate, [MAKE]: c.make, [MODEL]: c.model } })
@@ -626,6 +724,10 @@ export function normalizeProposal(raw: unknown): Proposal {
     workers: A(p.workers, (w) => ({ firstName: S(w.firstName), lastName: S(w.lastName), mobilePhone: S(w.mobilePhone), certificationIds: SS(w.certificationIds) })),
     listItems: A(p.listItems, (i) => ({ list: i.list as ListName, name: S(i.name) })).filter((i) => LISTS.includes(i.list)),
     newVehicles: A(p.newVehicles, (v) => ({ plate: S(v.plate), make: S(v.make), model: S(v.model) })),
+    editVehicles: A(p.editVehicles, (v) => ({ id: S(v.id), plate: S(v.plate), make: S(v.make), model: S(v.model) })).filter((v) => v.id),
+    journalEntries: A(p.journalEntries, (e) => ({ date: S(e.date), start: S(e.start), end: S(e.end), text: S(e.text) })),
+    newWorkKinds: A(p.newWorkKinds, (k) => ({ name: S(k.name), staffing: lines(k.staffing) })),
+    newShiftKinds: A(p.newShiftKinds, (t) => ({ name: S(t.name), startTime: S(t.startTime), endTime: S(t.endTime), endsNextDay: B(t.endsNextDay) })),
     rememberNotes: SS(p.rememberNotes),
     lessons: SS(p.lessons),
     forgetNoteIds: SS(p.forgetNoteIds),
@@ -640,13 +742,26 @@ export function normalizeProposal(raw: unknown): Proposal {
       vehicleId: S(j.vehicleId),
     })),
     setCrews: A(p.setCrews, (c) => ({ shiftId: S(c.shiftId), crew: A(c.crew, (m) => ({ workerId: S(m.workerId) })) })),
-    closeJobs: A(p.closeJobs, (c) => ({ shiftId: S(c.shiftId), outcome: (OUTCOMES as readonly string[]).includes(S(c.outcome)) ? (c.outcome as (typeof OUTCOMES)[number]) : 'done', note: S(c.note) })),
+    closeJobs: A(p.closeJobs, (c) => ({ shiftId: S(c.shiftId), outcome: (OUTCOMES as readonly string[]).includes(S(c.outcome)) ? (c.outcome as (typeof OUTCOMES)[number]) : 'done', note: S(c.note), reasonIds: SS(c.reasonIds) })),
     deleteJobIds: SS(p.deleteJobIds),
     editWorkers: A(p.editWorkers, (w) => ({
       workerId: S(w.workerId),
       mobilePhone: S(w.mobilePhone),
       addCertificationIds: SS(w.addCertificationIds),
       removeCertificationIds: SS(w.removeCertificationIds),
+      departmentId: S(w.departmentId),
+      firstName: S(w.firstName),
+      lastName: S(w.lastName),
+      notes: S(w.notes),
+      birthDate: S(w.birthDate),
+      address: S(w.address),
+      emergencyPhone: S(w.emergencyPhone),
+      emergencyName: S(w.emergencyName),
+      idNumber: S(w.idNumber),
+      personalNumber: S(w.personalNumber),
+      certExpiry: A(w.certExpiry, (c) => ({ certificationId: S(c.certificationId), until: S(c.until) })).filter((c) => c.certificationId),
+      certStars: A(w.certStars, (c) => ({ certificationId: S(c.certificationId), stars: typeof c.stars === 'number' ? Math.round(c.stars) : 0 })).filter((c) => c.certificationId),
+      removeConstraintIds: SS(w.removeConstraintIds),
       status: (STATUSES as readonly string[]).includes(S(w.status)) ? (S(w.status) as (typeof STATUSES)[number]) : '',
       sickUntil: S(w.sickUntil),
     })),

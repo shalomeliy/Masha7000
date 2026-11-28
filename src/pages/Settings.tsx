@@ -315,6 +315,7 @@ function groups(isOwner: boolean, server: boolean, isOn: (id: FeatureId) => bool
 }
 
 const isList = (id: ItemId): id is ListId => LISTS.some((l) => l.id === id)
+const isItem = (id: string): id is ItemId => LISTS.some((l) => l.id === id) || id in PANELS
 // A topic with one screen in it opens that screen straight away.
 const only = (g: Group): ItemId | null => (g.items.length === 1 && 'id' in g.items[0] ? g.items[0].id : null)
 
@@ -331,10 +332,11 @@ function useBackTo(open: boolean, close: () => void) {
 }
 
 // The archive lives here too (the user's choice, 2026-11-06): the bottom bar keeps five buttons.
-export function Settings({ openArchive = false }: { openArchive?: boolean }) {
+export function Settings({ openArchive = false, openItem }: { openArchive?: boolean; openItem?: string }) {
   const who = useAuth((s) => s.who)
   const [groupId, setGroupId] = useState<string | null>(null)
-  const [open, setOpen] = useState<ItemId | null>(openArchive ? 'archive' : null)
+  // Shali may open one of its screens straight away (App.tsx); an id this screen does not have opens nothing.
+  const [open, setOpen] = useState<ItemId | null>(openArchive ? 'archive' : openItem && isItem(openItem) ? openItem : null)
   useBackTo(groupId !== null, () => setGroupId(null))
   useBackTo(open !== null, () => setOpen(null))
   // The editors read each other's lists (names, usage counts), so they load together.

@@ -1534,5 +1534,13 @@
  "מכל מסך אחר: לחיצה ארוכה של שנייה על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "Desde cualquier otra pantalla: mantén pulsado el botón amarillo 1 segundo y Shali escucha y responde sin salir de la pantalla.",
  "קטיעה בקול (ניסוי)": "Interrumpir con la voz (experimento)",
  "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "Mientras Shali habla, puedes hablar encima: se detiene y escucha. Si se detiene solo a mitad, desactiva esto.",
- "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Experimento: en Ajustes > Asistente de voz activa \"Interrumpir con la voz\" y podrás hablar encima de Shali para que se detenga y escuche (no en iPhone)."
+ "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Experimento: en Ajustes > Asistente de voz activa \"Interrumpir con la voz\" y podrás hablar encima de Shali para que se detenga y escuche (no en iPhone).",
+ "שיחה פתוחה עם Shali עוברת איתך לכל מסך, בכרטיס הקטן למטה.": "Una conversación abierta con Shali te acompaña a cada pantalla, en la tarjeta pequeña de abajo.",
+ "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "También puedes pedirle a Shali: \"Pasa a Danny al departamento de mantenimiento\".",
+ "הוספתי את התבנית {name}": "Añadí la plantilla {name}",
+ "הוספתי את סוג העבודה {name}": "Añadí el tipo de trabajo {name}",
+ "עדכנתי את רכב {car}": "Actualicé el vehículo {car}",
+ "רשמתי ביומן האישי {start}–{end}": "Anoté {start}–{end} en el diario personal",
+ "Shali יודע גם לעדכן כל שדה בכרטיס עובד, לבטל אילוץ, לרשום ביומן האישי ולפתוח כל מסך, גם בתוך ההגדרות.": "Shali también puede actualizar cualquier campo de la ficha del trabajador, cancelar una restricción, escribir en el diario personal y abrir cualquier pantalla, también dentro de Ajustes.",
+ "פרטים אישיים (כתובת, תאריך לידה, טלפון חירום, ת.ז ומספר אישי) Shali רק כותב, ואת מה ששמור הוא לא שולח החוצה.": "Los datos personales (dirección, fecha de nacimiento, teléfono de emergencia, documento y número personal) Shali solo los escribe; lo guardado nunca se envía fuera."
 }

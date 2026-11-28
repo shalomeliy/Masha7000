@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, AudioLines, BookMarked, Check, Keyboard, LifeBuoy, Loader2, Maximize2, Mic, MessageSquareText, Pencil, Square, Trash2, X } from 'lucide-react'
 import { inputClass } from '../components/Sheet'
-import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, proposalVehicles, snapshot, summaryWith, summaryWithConflicts, type AppData, type Proposal, type Screen } from '../lib/assistant'
+import { applyProposal, isYes, returnAsk, returnChoice, MAX_EXAMPLES, normalizeProposal, proposalConflicts, proposalDangers, proposalErrors, proposalVehicles, snapshot, summaryWith, summaryWithConflicts, type AppData, type Proposal, type Screen, type SettingScreen, SETTING_SCREENS } from '../lib/assistant'
 import { newId } from '../lib/catalog'
 import type { Edits } from '../lib/assistantEdits'
 import { optionsText, preferenceLesson, solve, type OptionKind, type Problem, type SolverOption } from '../lib/solvers'
@@ -54,7 +54,7 @@ export const KEEP_TALK_MS = 30 * 60 * 1000
 // `quickTalk` goes up by one on each long press of the Shali button (App.tsx): Shali listens and answers
 // on the screen that is open, in a small card above the bottom bar (owner, 2026-11-26). `onOpen` opens
 // the Shali screen itself, with the same conversation.
-export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { onNavigate: (screen: Screen) => void; onOpen?: () => void; active?: boolean; quickTalk?: number }) {
+export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { onNavigate: (screen: Screen, setting?: SettingScreen) => void; onOpen?: () => void; active?: boolean; quickTalk?: number }) {
   const { isOn, flags } = useFeatures()
   const lists = {
     certifications: useDriveList('certifications'),
@@ -69,7 +69,8 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
     assistantNotes: useDriveList('assistantNotes'),
     departments: useDriveList('departments'),
     assistantExamples: useDriveList('assistantExamples'),
-    vehicles: useDriveList('vehicles'), // read only: the assistant names them by the last 3 digits of the plate
+    vehicles: useDriveList('vehicles'), // the assistant names them by the last 3 digits of the plate
+    journal: useDriveList('journal'), // the manager's personal log
   }
   const loading = Object.values(lists).some((l) => l.query.isPending)
   const data = Object.fromEntries(Object.entries(lists).map(([k, l]) => [k, l.items])) as unknown as AppData
@@ -156,6 +157,9 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
   // "can Shali speak in the background while I move between screens?"), answers that arrive meanwhile too.
   const shownNow = useRef(active)
   const leftAt = useRef(0)
+  // Something still open in the conversation: Shali listens, thinks, speaks, or waits for an answer.
+  const liveRef = useRef(false)
+  liveRef.current = phase !== 'idle' || speaking || talking || Boolean(proposal) || Boolean(advice)
   useEffect(() => {
     shownNow.current = active
     // On the Shali screen itself the conversation goes on there; the small card closes.
@@ -163,6 +167,9 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
     if (!active) {
       leftAt.current = Date.now()
       listening.current?.stop()
+      // A conversation still going on follows the manager to the other screen in the small card
+      // (owner, 2026-11-28: it vanished when he moved between screens).
+      if (liveRef.current) setQuickOn(true)
       return
     }
     if (!leftAt.current) return
@@ -270,11 +277,12 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
       }
       // A button only a tap may press (WhatsApp, sharing): open its screen and make it blink.
       const hint = call.input.pressButton as Hint | ''
-      const screen = hint && hint in HINTS ? HINTS[hint] : (call.input.openScreen as Screen | '')
+      const setting = (SETTING_SCREENS as readonly string[]).includes(String(call.input.openSetting ?? '')) ? (call.input.openSetting as SettingScreen) : undefined
+      const screen = hint && hint in HINTS ? HINTS[hint] : setting ? 'settings' : (call.input.openScreen as Screen | '')
       // The screen opens at once; the answer goes on being said there (it used to be cut off, owner 2026-11-23).
       if (text && text !== early) say(text)
       if (screen) {
-        onNavigate(screen)
+        onNavigate(screen, setting)
         if (hint && hint in HINTS) showHint(hint)
       }
     } else if (call?.name === 'solve') {
@@ -930,7 +938,10 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
           <QuickCard
             status={status}
             heard={heard}
-            said={[...lines].reverse().find((l) => l.who === 'app')?.text ?? ''}
+            // What is going on now, never an older answer (owner, 2026-11-28): while listening only the
+            // words heard so far; then the request just said, until Shali answers it.
+            said={phase === 'listening' ? '' : lines[lines.length - 1]?.text ?? ''}
+            mine={phase !== 'listening' && lines[lines.length - 1]?.who === 'me'}
             error={error}
             listeningNow={phase === 'listening'}
             busy={busy && phase !== 'idle'}
@@ -962,6 +973,7 @@ function QuickCard(p: {
   status: string
   heard: string
   said: string
+  mine: boolean
   error: string | null
   listeningNow: boolean
   busy: boolean
@@ -998,7 +1010,7 @@ function QuickCard(p: {
           <X size={20} aria-hidden />
         </button>
       </div>
-      {(p.heard || p.said) && <p className="mt-2 line-clamp-4 text-sm text-slate-200">{p.heard || p.said}</p>}
+      {(p.heard || p.said) && <p className={`mt-2 line-clamp-4 text-sm ${p.heard || p.mine ? 'text-sky-200' : 'text-slate-200'}`}>{p.heard || p.said}</p>}
       {p.error && (
         <p role="alert" className="mt-2 text-sm text-amber-300">
           {p.error}

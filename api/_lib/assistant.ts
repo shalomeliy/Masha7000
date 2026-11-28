@@ -47,18 +47,22 @@ export const SYSTEM = `אתה Shali (נהגה שַׁ-עָלִי, כמו עלי �
 1. jobs: עבודה חדשה. shiftKindId מתוך shiftKinds, או "" בעבודה בלי תאריך כשהמנהל לא יודע איזו תבנית; location מקום אחד (שני מקומות הם שתי עבודות); staffing: count וגם certificationIds מתוך certifications לכל קבוצת אנשים עם אותה הסמכה, [] לאנשים בלי הסמכה (אם לא נאמר כמה, שאל). date: YYYY-MM-DD מתוך days, או "" אם המנהל אומר שאין תאריך עדיין או "לשיבוץ" (נכנס לרשימת הממתינות). workKindIds רק אם נאמר סוג עבודה מתוך workKinds (הוא מוסיף את האנשים שלו לבד; אל תכפיל אותם ב-staffing). nextJob ריק ("") בכל תבנית בלי hasNextJob. crew = העובדים שהמנהל ביקש לשים בעבודה (workerId), אחרת []; עם crew לא צריך autoAssign, ואם חסרים עוד אנשים, autoAssign: true ישלים. autoAssign: true רק אם המנהל ביקש שהמערכת תבחר עובדים (לעבודה עם תאריך בלבד).
 2. assignShiftIds: לשבץ אוטומטית עובדים לעבודות קיימות ביומן (id מתוך shifts).
 3. workers: עובד חדש: שם פרטי ושם משפחה (חובה), נייד, הסמכות מתוך הרשימה.
-4. listItems: פריט חדש ברשימה: places (מקומות), jobTypes (מהויות עבודה), certifications (הסמכות), postponeReasons (סיבות דחייה).
+4. listItems: פריט חדש ברשימה: places (מקומות), jobTypes (מהויות עבודה), certifications (הסמכות), postponeReasons (סיבות דחייה), departments (מחלקות).
+   newWorkKinds: סוג עבודה חדש (workKinds): name ו-staffing (כמה אנשים ועם איזו הסמכה, כמו בעבודה). newShiftKinds: תבנית עבודה חדשה (shiftKinds): name, startTime ו-endTime בפורמט HH:mm, endsNextDay אם היא נגמרת למחרת (לילה). בלי שעות, שאל.
+   editVehicles: לתקן רכב קיים (id מתוך vehicles): plate, make, model, "" = בלי שינוי.
+   journalEntries: רישום ביומן האישי של המנהל (מה הוא עצמו עשה, לא עבודה של הצוות): date YYYY-MM-DD מתוך days (בלי תאריך = היום), start ו-end בפורמט HH:mm (חובה; "5 בערב" = 17:00; סיום לפני ההתחלה = נגמר למחרת), text מה עשה. בלי שעות, שאל. journal = הרישומים של השבועיים האחרונים, ל"כמה שעות עבדתי" ו"מה עשיתי".
    newVehicles: רכב חדש: plate (מספר רישוי, חובה, בספרות כמו שנאמר, למשל 12-345-67), make (יצרן) ו-model (דגם), "" למה שלא נאמר. בלי מספר רישוי, שאל. כתוב יצרן ודגם כמו שרכבים קיימים ב-vehicles כתובים (למשל Isuzu, D-Max), אחרת כמו שנאמרו. ה-summary אומר את מספר הרישוי, היצרן והדגם.
 5. rememberNotes: משפט קצר וברור לכל דבר שצריך לזכור. forgetNoteIds: id מתוך remembered.
 6. editJobs: לשנות עבודה קיימת (id מתוך shifts או waitingJobs). שדה ריק ("" או []) = בלי שינוי. date בעבודה ביומן = להזיז אותה לתאריך הזה (העובדים נשארים); date בעבודה ממתינה = לשבץ אותה ליומן בתאריך הזה (לעבודה ממתינה בלי kind, הוסף shiftKindId אם המנהל אמר יום או לילה). staffing מחליף את כל הרשימה של מי שצריך. autoAssign: true = שהמערכת תבחר עובדים למקומות הריקים.
 7. setCrews: לשים עובדים מסוימים בעבודה ביומן. crew היא הרשימה המלאה אחרי השינוי (כולל מי שנשאר), כל אחד עם workerId. "תחליף את דני ביוסי" = אותה רשימה עם יוסי במקום דני.
-8. closeJobs: לסגור עבודת לילה שהסתיימה: done (בוצעה), partial (בוצעה חלקית, ההמשך חוזר ללשיבוץ), postponed (נדחתה, חוזרת ללשיבוץ), עם note אם נאמרה סיבה.
+8. closeJobs: לסגור עבודת לילה שהסתיימה: done (בוצעה), partial (בוצעה חלקית, ההמשך חוזר ללשיבוץ), postponed (נדחתה, חוזרת ללשיבוץ), עם note אם נאמרה סיבה, ובנדחתה גם reasonIds מתוך postponeReasons כשהסיבה מתאימה לאחת מהן.
 9. deleteJobIds: למחוק עבודה מהיומן או מהממתינות. רק כשהמנהל אמר במפורש למחוק או לבטל עבודה.
-10. editWorkers: לעדכן עובד קיים: נייד, להוסיף או להוריד הסמכות, status: sick (עם sickUntil), inactive (לא פעיל), active (חזר לעבוד). שדה ריק = בלי שינוי.
+10. editWorkers: לעדכן עובד קיים: נייד, להוסיף או להוריד הסמכות, מחלקה (departmentId מתוך departments, "none" = בלי מחלקה, "" = בלי שינוי; יש לעובד שדה מחלקה, אל תשמור אותה כהערה), שם פרטי ושם משפחה (תיקון שם), notes (ההערות המלאות אחרי השינוי: כשמוסיפים הערה, ההערות הקיימות + החדשה; "none" = למחוק הערות), birthDate (YYYY-MM-DD), address, emergencyPhone (טלפון חירום) ו-emergencyName (של מי), idNumber (ת.ז, 9 ספרות) ו-personalNumber (מספר אישי), certExpiry (תוקף הסמכה: certificationId ו-until YYYY-MM-DD, "" = ללא תוקף), certStars (1 עד 5 כוכבים להסמכה), removeConstraintIds (לבטל אילוץ או חופשה: id מתוך cannot של העובד). את הפרטים האישיים (כתובת, תאריך לידה, טלפון חירום, ת.ז ומספר אישי) אתה לא רואה ולא מקריא, רק כותב מה שהמנהל אמר. כל שדה מאלה: "" או [] = בלי שינוי. status: sick (עם sickUntil), inactive (לא פעיל), active (חזר לעבוד; גם לעובד מ-inactiveWorkers, שהם עובדים לא פעילים: אף פעם אל תשבץ אותם ואל תציע אותם לעבודה). שדה ריק = בלי שינוי.
 11. addConstraints: עובד לא זמין מתאריך עד תאריך (to ריק = יום אחד), nightsOnly אם רק לילות, note לסיבה. kind כשזה חופש (vacation), לימודים (study), מילואים (reserve) או השתלמות/קורס (course), אחרת "". מחלה היא לא kind. כשהוא חולה כבר היום (גם "חולה עד שלישי") = editWorkers עם status sick ו-sickUntil. מחלה שמתחילה ביום אחר בעתיד ("חולה מחר", "יהיה חולה בשלישי") = addConstraints לאותם ימים עם note "מחלה" ו-kind "", בלי status, כי היום הוא עוד עובד. "חזר לעבוד" = editWorkers עם status active. כשהמנהל שם בעבודה עובד שחולה, בחופש או לא זמין באותם ימים ("אלי חוזר מהחופש לעבודה בחולון"), רק תשבץ אותו בעבודה. אל תשנה בעצמך את הסטטוס או האילוצים שלו (בלי editWorkers ובלי addConstraints בשבילו): האפליקציה שואלת את המנהל אם הוא חוזר רק לעבודה הזו או שזה בוטל לגמרי, ומעדכנת לפי התשובה.
    המצב של כל עובד היום נמצא ב-now (אם הוא לא כשיר). "מי בחופש", "מי חולה", "מי זמין מחר" = לפי now, cannot ו-sickUntil.
 המטרה לקצר למנהל תהליכים: כשהוא אומר כמה דברים בבת אחת ("תזיז את דימונה לרביעי, תשים שם את אבי ותסגור את ערד כבוצעה"), עשה את כולם בהצעה אחת.
-מה שנשאר רק במסכים: הגדרות, גיבוי, דוחות חודשיים, סנכרון ליומן גוגל, מחיקת עובד או פריט ברשימה. אם המנהל מבקש, פתח לו את המסך (answer עם openScreen) ותגיד בדיוק איפה ללחוץ.
+מה שנשאר רק במסכים: הגדרות, גיבוי, דוחות חודשיים, מחיקת עובד או פריט ברשימה, שינוי שם או שעות של תבנית קיימת. אם המנהל מבקש, פתח לו את המסך ותגיד בדיוק איפה ללחוץ.
+פתיחת מסכים (answer): openScreen הוא calendar (יומן), toSchedule (עבודות לשיבוץ), workers (עובדים), journal (יומן אישי), vehicles (רכבים), archive (ארכיון ודוחות), settings (הגדרות). openSetting פותח מסך בתוך ההגדרות: certifications (הסמכות), shiftDefinitions (תבניות עבודה), workKinds (סוגי עבודה), postponeReasons (סיבות דחייה), places (מקומות), jobTypes (מהויות), departments (מחלקות), constraintWords (מילים לקריאת אילוצים), pronunciations (אימון הגייה), features (מסכים ותכונות), guide (מדריך), access (מי יכול להיכנס), security (אבטחה), backup (גיבוי), account (החשבון שלי), voice (העוזר הקולי), micTest (בדיקת מיקרופון), feedback (בקשת תכונה), fault (דיווח על תקלה), api (גישת API). עם openSetting, openScreen הוא "".
 
 שליחה בוואטסאפ ודברים שצריכים לחיצה של המנהל: הטלפון מרשה לפתוח וואטסאפ או שיתוף רק מלחיצה של אדם, לכן אתה לא שולח בעצמך. אף פעם אל תגיד סתם "אי אפשר": קרא ל-answer עם pressButton, והמערכת תפתח את המסך ותגרום לכפתור להבהב עד שהמנהל ילחץ. תגיד בקצרה מה ללחוץ, למשל "פתחתי לך את היומן, תלחץ על הכפתור שמהבהב ותבחר וואטסאפ".
 - shareWeek: שליחת סידור העבודה של השבוע בוואטסאפ (ביומן).
@@ -79,6 +83,9 @@ const str = { type: 'string' } as const
 const strs = { type: 'array', items: str } as const
 const obj = (properties: Record<string, unknown>) => ({ type: 'object', additionalProperties: false, required: Object.keys(properties), properties }) as const
 
+// Screens inside Settings that the answer may open (src/lib/assistant.ts SETTING_SCREENS; assistant.test checks they match).
+export const SETTING_SCREENS = ['certifications', 'shiftDefinitions', 'workKinds', 'postponeReasons', 'places', 'jobTypes', 'departments', 'constraintWords', 'pronunciations', 'features', 'guide', 'access', 'security', 'backup', 'account', 'voice', 'micTest', 'feedback', 'fault', 'api'] as const
+
 export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'ask_user',
@@ -92,7 +99,8 @@ export const TOOLS: Anthropic.Tool[] = [
     strict: true,
     input_schema: obj({
       text: str,
-      openScreen: { type: 'string', enum: ['', 'calendar', 'toSchedule', 'workers', 'archive', 'settings'] },
+      openScreen: { type: 'string', enum: ['', 'calendar', 'toSchedule', 'workers', 'archive', 'settings', 'journal', 'vehicles'] },
+      openSetting: { type: 'string', enum: ['', ...SETTING_SCREENS] },
       pressButton: { type: 'string', enum: ['', 'shareWeek', 'urgentNow', 'newJob', 'requestConstraints', 'joinLink'] },
     }),
   },
@@ -124,9 +132,13 @@ export const TOOLS: Anthropic.Tool[] = [
       workers: { type: 'array', items: obj({ firstName: str, lastName: str, mobilePhone: str, certificationIds: strs }) },
       listItems: {
         type: 'array',
-        items: obj({ list: { type: 'string', enum: ['places', 'jobTypes', 'certifications', 'postponeReasons'] }, name: str }),
+        items: obj({ list: { type: 'string', enum: ['places', 'jobTypes', 'certifications', 'postponeReasons', 'departments'] }, name: str }),
       },
       newVehicles: { type: 'array', items: obj({ plate: str, make: str, model: str }) },
+      editVehicles: { type: 'array', items: obj({ id: str, plate: str, make: str, model: str }) },
+      journalEntries: { type: 'array', items: obj({ date: str, start: str, end: str, text: str }) },
+      newWorkKinds: { type: 'array', items: obj({ name: str, staffing: { type: 'array', items: obj({ count: { type: 'integer' }, certificationIds: strs }) } }) },
+      newShiftKinds: { type: 'array', items: obj({ name: str, startTime: str, endTime: str, endsNextDay: { type: 'boolean' } }) },
       rememberNotes: strs,
       forgetNoteIds: strs,
       editJobs: {
@@ -143,7 +155,7 @@ export const TOOLS: Anthropic.Tool[] = [
         }),
       },
       setCrews: { type: 'array', items: obj({ shiftId: str, crew: { type: 'array', items: obj({ workerId: str }) } }) },
-      closeJobs: { type: 'array', items: obj({ shiftId: str, outcome: { type: 'string', enum: ['done', 'partial', 'postponed'] }, note: str }) },
+      closeJobs: { type: 'array', items: obj({ shiftId: str, outcome: { type: 'string', enum: ['done', 'partial', 'postponed'] }, note: str, reasonIds: strs }) },
       deleteJobIds: strs,
       editWorkers: {
         type: 'array',
@@ -152,6 +164,19 @@ export const TOOLS: Anthropic.Tool[] = [
           mobilePhone: str,
           addCertificationIds: strs,
           removeCertificationIds: strs,
+          departmentId: str,
+          firstName: str,
+          lastName: str,
+          notes: str,
+          birthDate: str,
+          address: str,
+          emergencyPhone: str,
+          emergencyName: str,
+          idNumber: str,
+          personalNumber: str,
+          certExpiry: { type: 'array', items: obj({ certificationId: str, until: str }) },
+          certStars: { type: 'array', items: obj({ certificationId: str, stars: { type: 'integer' } }) },
+          removeConstraintIds: strs,
           status: { type: 'string', enum: ['', 'active', 'sick', 'inactive'] },
           sickUntil: str,
         }),

@@ -1534,5 +1534,13 @@
  "מכל מסך אחר: לחיצה ארוכה של שנייה על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "De qualquer outra tela: mantenha o botão amarelo pressionado por 1 segundo, e o Shali ouve e responde sem sair da tela.",
  "קטיעה בקול (ניסוי)": "Interromper com a voz (teste)",
  "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "Enquanto o Shali fala, você pode falar por cima: ele para e escuta. Se ele parar sozinho no meio, desligue isto.",
- "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Teste: em Configurações > Assistente de voz ligue \"Interromper com a voz\" e você poderá falar por cima do Shali para ele parar e escutar (não no iPhone)."
+ "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Teste: em Configurações > Assistente de voz ligue \"Interromper com a voz\" e você poderá falar por cima do Shali para ele parar e escutar (não no iPhone).",
+ "שיחה פתוחה עם Shali עוברת איתך לכל מסך, בכרטיס הקטן למטה.": "Uma conversa aberta com o Shali acompanha você em todas as telas, no cartão pequeno embaixo.",
+ "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "Você também pode pedir ao Shali: \"Passe o Danny para o departamento de manutenção\".",
+ "הוספתי את התבנית {name}": "Adicionei o modelo {name}",
+ "הוספתי את סוג העבודה {name}": "Adicionei o tipo de trabalho {name}",
+ "עדכנתי את רכב {car}": "Atualizei o veículo {car}",
+ "רשמתי ביומן האישי {start}–{end}": "Registrei {start}–{end} no diário pessoal",
+ "Shali יודע גם לעדכן כל שדה בכרטיס עובד, לבטל אילוץ, לרשום ביומן האישי ולפתוח כל מסך, גם בתוך ההגדרות.": "O Shali também pode atualizar qualquer campo da ficha do trabalhador, cancelar uma restrição, escrever no diário pessoal e abrir qualquer tela, inclusive dentro de Configurações.",
+ "פרטים אישיים (כתובת, תאריך לידה, טלפון חירום, ת.ז ומספר אישי) Shali רק כותב, ואת מה ששמור הוא לא שולח החוצה.": "Os dados pessoais (endereço, data de nascimento, telefone de emergência, documento e número pessoal) o Shali só escreve; o que está salvo nunca é enviado para fora."
 }
