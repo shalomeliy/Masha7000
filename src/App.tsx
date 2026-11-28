@@ -1,5 +1,5 @@
 import { tx } from './i18n'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, startTransition, Suspense, useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { BottomNav } from './components/BottomNav'
@@ -97,8 +97,12 @@ function SignedIn() {
     setQuickTalk((n) => n + 1)
   }
   const go = (next: Tab) => {
-    if (next === 'settings' && (shown === 'settings' || shown === 'archive')) setSettingsRound((n) => n + 1)
-    setTab(next)
+    // As a transition: React draws the new screen in small pieces, so the phone keeps playing Shali's
+    // voice smoothly while the manager moves between screens (owner, 2026-11-28: it stuttered).
+    startTransition(() => {
+      if (next === 'settings' && (shown === 'settings' || shown === 'archive')) setSettingsRound((n) => n + 1)
+      setTab(next)
+    })
   }
 
   useEffect(() => {

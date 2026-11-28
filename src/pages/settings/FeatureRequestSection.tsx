@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Loader2, Send, Square, Volume2 } from 'lucide-react'
 import { DictationField } from '../../components/DictationField'
 import { canSpeak, speak, stopSpeaking } from '../../lib/speech'
@@ -24,7 +24,10 @@ export function FeatureRequestSection({ inline = false }: { inline?: boolean } =
   const [reading, setReading] = useState(false)
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
   const [error, setError] = useState<string | null>(null)
-  useEffect(() => () => void stopSpeaking(), [])
+  // Leaving stops only this page's own reading, never Shali talking meanwhile (owner, 2026-11-28).
+  const readingRef = useRef(false)
+  readingRef.current = reading
+  useEffect(() => () => void (readingRef.current && stopSpeaking()), [])
 
   const readAloud = () => {
     if (reading) {

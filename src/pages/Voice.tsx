@@ -652,17 +652,21 @@ export function Voice({ onNavigate, onOpen, active = true, quickTalk = 0 }: { on
   }, [quickTalk])
 
   // Talking over Shali cuts it off and Shali listens (an experiment, off by default: Settings > העוזר
-  // הקולי > קטיעה בקול; src/lib/bargeIn.ts). Only while Shali is seen or its small card is open, and only
-  // while it reads an answer (not the "one moment" while thinking).
+  // הקולי > קטיעה בקול; src/lib/bargeIn.ts). Only while it reads an answer (not the "one moment" while
+  // thinking), and it counts only while Shali is seen or its small card is open. The microphone opens once
+  // per answer, not on every screen change (that made Shali stutter, owner 2026-11-28).
   const micRef = useRef(toggleMic)
   micRef.current = toggleMic
   useEffect(() => {
-    if (!speaking || phase !== 'idle' || !(active || quick) || !canBargeIn(isIOS) || !bargeInOn()) return
-    return watchBargeIn(() => {
-      vlog('tap: voice over Shali')
-      if (!listening.current) micRef.current()
-    })
-  }, [speaking, phase, active, quick])
+    if (!speaking || phase !== 'idle' || !(shownNow.current || quickRef.current) || !canBargeIn(isIOS) || !bargeInOn()) return
+    return watchBargeIn(
+      () => {
+        vlog('tap: voice over Shali')
+        if (!listening.current) micRef.current()
+      },
+      () => shownNow.current || quickRef.current,
+    )
+  }, [speaking, phase])
 
   // What the small card cannot show (the consent to send to Claude) is on the Shali screen.
   useEffect(() => {
