@@ -43,6 +43,8 @@ test('Shali asks before the first request goes to Claude, and "not now" sends no
 
   // Settings shows the yes and takes it back.
   await tab(page, 'הגדרות').click()
+  // While Shali still reads its answer, the small card follows to Settings (owner, 2026-11-28); it is closed.
+  await page.getByRole('dialog', { name: 'Shali' }).getByRole('button', { name: 'סגירה' }).click()
   await page.getByRole('button', { name: /החשבון שלי/ }).click()
   await page.getByRole('button', { name: 'ביטול האישור' }).click()
   await expect(page.getByText(/^לא אישרת\./)).toBeVisible()

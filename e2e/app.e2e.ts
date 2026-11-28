@@ -203,6 +203,7 @@ test('a long press on Shali listens and answers without leaving the screen', asy
   await expect(tab(page, 'יומן')).toHaveAttribute('aria-current', 'page')
 })
 
+// Since 2026-11-28 (owner): an open conversation follows the manager to other screens in the small card.
 test('a conversation with Shali waits while another tab is looked at', async ({ page }) => {
   await openWithFakeDrive(page)
   await page.getByRole('button', { name: 'הקלדה' }).click()
@@ -210,9 +211,13 @@ test('a conversation with Shali waits while another tab is looked at', async ({ 
   await page.getByRole('button', { name: 'שלח' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'לאשר, או לתקן?' })).toBeVisible()
   await tab(page, 'יומן').click()
-  await expect(page.getByRole('button', { name: 'אשר' })).toBeHidden()
+  const card = page.getByRole('dialog', { name: 'Shali' })
+  await expect(card.getByRole('button', { name: 'אשר' })).toBeVisible()
+  await tab(page, 'עובדים').click()
+  await expect(card.getByRole('button', { name: 'אשר' })).toBeVisible()
   // The center button (Shali) has no text name of its own.
   await page.getByRole('navigation').getByRole('button').nth(2).click()
+  await expect(card).toBeHidden()
   await expect(page.getByRole('status').filter({ hasText: 'לאשר, או לתקן?' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'אשר' })).toBeVisible()
 })
