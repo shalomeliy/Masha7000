@@ -1,5 +1,5 @@
 # Spike: small streaming Hebrew speech-to-text on plain CPU inside Israel (Cloud Run me-west1). Throwaway.
-import io, time
+import io, subprocess, time
 import numpy as np, sherpa_onnx, soundfile as sf
 from fastapi import FastAPI, UploadFile
 
@@ -13,7 +13,11 @@ app = FastAPI()
 
 @app.post('/stt')
 async def stt(file: UploadFile):
-    audio, rate = sf.read(io.BytesIO(await file.read()), dtype='float32', always_2d=True)
+    raw = await file.read()
+    # any phone format (m4a, webm, mp3, wav) -> 16 kHz mono wav through ffmpeg
+    wav = subprocess.run(['ffmpeg', '-v', 'error', '-i', 'pipe:0', '-ac', '1', '-ar', '16000', '-f', 'wav', 'pipe:1'],
+                         input=raw, capture_output=True).stdout
+    audio, rate = sf.read(io.BytesIO(wav), dtype='float32', always_2d=True)
     audio = audio.mean(axis=1)
     t = time.time()
     s = recognizer.create_stream()
