@@ -42,6 +42,7 @@ export interface Edits {
     mobilePhone: string // '' = unchanged
     addCertificationIds: string[]
     removeCertificationIds: string[]
+    departmentId?: string // id from the departments list; 'none' = no department; '' = unchanged
     status: '' | 'active' | 'sick' | 'inactive' // '' = unchanged
     sickUntil: string // YYYY-MM-DD, with 'sick'
   }[]
@@ -91,12 +92,15 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       continue
     }
     for (const c of [...w.addCertificationIds, ...w.removeCertificationIds]) if (!has(d.certifications, c)) errors.push(`${worker.firstName}: אין הסמכה עם id "${c}"`)
+    const dept = w.departmentId ?? ''
+    if (dept && dept !== 'none' && !has(d.departments, dept)) errors.push(`${worker.firstName}: אין מחלקה עם id "${dept}"`)
     if (w.status === 'sick' && !isRealDate(w.sickUntil)) errors.push(`${worker.firstName}: חולה עד איזה תאריך?`)
     const status: WorkerStatus | undefined = w.status === '' ? worker.status : w.status === 'active' ? undefined : w.status
     const next: Worker = {
       ...worker,
       mobilePhone: w.mobilePhone ? w.mobilePhone.replace(/[^\d+]/g, '') : worker.mobilePhone,
       certificationIds: [...new Set([...worker.certificationIds.filter((c) => !w.removeCertificationIds.includes(c)), ...w.addCertificationIds])],
+      departmentId: dept === 'none' ? undefined : dept || worker.departmentId,
       status,
       sickUntil: status === 'sick' ? w.sickUntil || worker.sickUntil : undefined,
       // "חזר לעבוד" also ends a vacation or the like going on today.

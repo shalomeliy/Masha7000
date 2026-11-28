@@ -154,6 +154,7 @@ export function snapshot(d: AppData, now = new Date(), said = '') {
       return `${date} = ${i === 0 ? 'היום, ' : i === 1 ? 'מחר, ' : ''}יום ${hebrewDayName(date)} ${showDate(date)}`
     }),
     certifications: named(d.certifications),
+    departments: named(d.departments),
     shiftKinds: d.shiftDefinitions.map((s) => ({ id: s.id, name: s.name, night: endsNextDay(s), meaning: kindMeaning(s), ...(s.thenJob ? { hasNextJob: true } : {}) })),
     workKinds: d.workKinds.map((k) => ({ id: k.id, name: k.name, people: staffingNames(k.staffing) })),
     places: d.places.map((p) => p.name),
@@ -647,6 +648,7 @@ export function normalizeProposal(raw: unknown): Proposal {
       mobilePhone: S(w.mobilePhone),
       addCertificationIds: SS(w.addCertificationIds),
       removeCertificationIds: SS(w.removeCertificationIds),
+      departmentId: S(w.departmentId),
       status: (STATUSES as readonly string[]).includes(S(w.status)) ? (S(w.status) as (typeof STATUSES)[number]) : '',
       sickUntil: S(w.sickUntil),
     })),

@@ -1535,5 +1535,6 @@
  "קטיעה בקול (ניסוי)": "Interrupt by voice (experiment)",
  "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "While Shali speaks, you can talk over it: it stops and listens. If it stops by itself midway, turn this off.",
  "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Experiment: in Settings > Voice assistant turn on \"Interrupt by voice\", then you can talk over Shali and it stops and listens (not on iPhone).",
- "שיחה פתוחה עם Shali עוברת איתך לכל מסך, בכרטיס הקטן למטה.": "An open conversation with Shali follows you to every screen, in the small card at the bottom."
+ "שיחה פתוחה עם Shali עוברת איתך לכל מסך, בכרטיס הקטן למטה.": "An open conversation with Shali follows you to every screen, in the small card at the bottom.",
+ "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "You can also ask Shali: \"Move Danny to the maintenance department\"."
 }
