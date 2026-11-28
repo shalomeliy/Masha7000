@@ -1531,7 +1531,7 @@
  "תפתח משמרת ערב מחר באילת": "Open an evening shift tomorrow in Eilat",
  "לחיצה ארוכה: Shali מקשיב בלי לעזוב את המסך": "Long press: Shali listens without leaving the screen",
  "פתח את Shali": "Open Shali",
- "מכל מסך אחר: לחיצה ארוכה של 2 שניות על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "From any other screen: press and hold the yellow button for 2 seconds, and Shali listens and answers without leaving the screen.",
+ "מכל מסך אחר: לחיצה ארוכה של שנייה על הכפתור הצהוב, ו-Shali מקשיב ועונה בלי לעזוב את המסך.": "From any other screen: press and hold the yellow button for 1 second, and Shali listens and answers without leaving the screen.",
  "קטיעה בקול (ניסוי)": "Interrupt by voice (experiment)",
  "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "While Shali speaks, you can talk over it: it stops and listens. If it stops by itself midway, turn this off.",
  "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Experiment: in Settings > Voice assistant turn on \"Interrupt by voice\", then you can talk over Shali and it stops and listens (not on iPhone)."

@@ -19,8 +19,8 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
 
 // `voice` only for the owner: the assistant spends the owner's Anthropic credit.
 // `journal` false: the team turned "יומן אישי" off in Settings > מסכים ותכונות.
-// Holding the yellow Shali button this long starts listening on whatever screen is open (owner, 2026-11-26).
-export const HOLD_MS = 2000
+// Holding the yellow Shali button this long starts listening on whatever screen is open (owner, 2026-11-26; 1 second since 2026-11-28).
+export const HOLD_MS = 1000
 
 // `onHold`: the Shali button was held HOLD_MS; `onHoldEnd`: it was let go after that (a tap the phone
 // counts, so the sound of the answer may start from it). A short tap still opens the Shali screen.
