@@ -188,6 +188,20 @@ describe('workers', () => {
     expect(out.workers[0]).toMatchObject({ certificationIds: ['climb', 'h40'], status: 'sick', sickUntil: '2026-11-12' })
   })
 
+  it('changes the other card fields, writes personal details, sets expiry and stars, drops a constraint', () => {
+    const d = data()
+    d.workers[0] = { ...d.workers[0], notes: 'ישן', certRatings: { climb: 2 }, certExpiry: { climb: '2026-12-01' }, constraints: [{ id: 'c1', when: 'dates', from: '2026-11-20', to: '2026-11-22' }, { id: 'c2', when: 'weekdays', weekdays: [5] }] }
+    const out = applyProposal(
+      p({ editWorkers: [{ ...ew, lastName: 'לוי', notes: 'ישן. גר בדימונה', birthDate: '1990-05-01', address: 'הרצל 1, ערד', emergencyPhone: '050-111-2222', emergencyName: 'אמא', certExpiry: [{ certificationId: 'climb', until: '' }, { certificationId: 'el', until: '2027-01-31' }], certStars: [{ certificationId: 'climb', stars: 4 }], removeConstraintIds: ['c1'] }] }),
+      d,
+      NOW,
+    ).data.workers[0]
+    expect(out).toMatchObject({ firstName: 'דני', lastName: 'לוי', notes: 'ישן. גר בדימונה', birthDate: '1990-05-01', address: 'הרצל 1, ערד', emergencyPhone1: '0501112222', emergencyName: 'אמא', certExpiry: { el: '2027-01-31' }, certRatings: { climb: 4 } })
+    expect(out.constraints.map((c) => c.id)).toEqual(['c2'])
+    expect(applyProposal(p({ editWorkers: [{ ...ew, notes: 'none' }] }), d, NOW).data.workers[0].notes).toBeUndefined()
+    expect(proposalErrors(p({ editWorkers: [{ ...ew, certStars: [{ certificationId: 'climb', stars: 7 }], removeConstraintIds: ['zz'] }] }), d)).toEqual(['דני: כוכבים הם 1 עד 5', 'דני: אין אילוץ עם id "zz"'])
+  })
+
   // The owner, 2026-11-28: "the department of X is Y" was saved as a note, as if there were no such field.
   it('sets, keeps and clears the department', () => {
     const d = data()
@@ -223,7 +237,7 @@ describe('normalizeProposal', () => {
   it('fills what a non-strict tool call left out, and drops wrong kinds', () => {
     const n = normalizeProposal({ summary: 'x', editJobs: [{ id: 's1', date: '2026-11-11' }], closeJobs: [{ shiftId: 's2', outcome: 'weird' }], listItems: [{ list: 'nope', name: 'a' }], jobs: 'bad' })
     expect(n.editJobs).toEqual([edit({ date: '2026-11-11' })])
-    expect(n.closeJobs).toEqual([{ shiftId: 's2', outcome: 'done', note: '' }])
+    expect(n.closeJobs).toEqual([{ shiftId: 's2', outcome: 'done', note: '', reasonIds: [] }])
     expect(n.listItems).toEqual([])
     expect(n.jobs).toEqual([])
     expect(n.setCrews).toEqual([])

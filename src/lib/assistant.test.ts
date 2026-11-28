@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { applyProposal, isYes, relevantExamples, jobStaffing, proposalErrors, snapshot, type AppData, type Proposal, type ProposedJob } from './assistant'
+import { applyProposal, isYes, relevantExamples, jobStaffing, proposalErrors, snapshot, SETTING_SCREENS, type AppData, type Proposal, type ProposedJob } from './assistant'
+import { SETTING_SCREENS as SERVER_SETTINGS } from '../../api/_lib/assistant'
 import { NO_EDITS } from './assistantEdits'
 import type { Worker } from '../types/models'
 
@@ -52,6 +53,8 @@ describe('snapshot', () => {
     const s = snapshot(d, NOW)
     expect(s.today).toBe('2026-11-06 (יום שישי)')
     expect(s.workers.map((w) => w.name)).toEqual(['דני כהן', 'יוסי כהן', 'רון כהן'])
+    // Not placed, but known by name, so "עזב חזר לעבוד" finds him.
+    expect(s.inactiveWorkers).toEqual([{ id: 'w4', name: 'עזב כהן' }])
     expect(s.shifts[0]).toMatchObject({ id: 's1', kind: 'יום', crew: ['רון כהן'], needs: ['טכנאי מצלמות'] })
   })
 
@@ -209,7 +212,15 @@ describe('version 2 context', () => {
       { id: 'x', when: 'dates', from: '2026-11-10', to: '2026-11-10' },
       { id: 'y', when: 'dates', from: '2026-10-01', to: '2026-10-02' },
     ]
-    expect(snapshot(d, NOW).workers[0].cannot).toEqual(['לא זמין ב-10.11'])
+    expect(snapshot(d, NOW).workers[0].cannot).toEqual([{ id: 'x', text: 'לא זמין ב-10.11' }])
+  })
+
+  it('tells until when each certification is valid, but no personal details', () => {
+    const d = data()
+    d.workers[0] = { ...d.workers[0], certExpiry: { [d.workers[0].certificationIds[0]]: '2027-03-01' }, address: 'הרצל 1', birthDate: '1990-01-01', emergencyPhone1: '0501111111', idNumber: '123456789' }
+    const w = snapshot(d, NOW).workers[0]
+    expect(w.certValidUntil).toEqual([`${d.certifications.find((c) => c.id === d.workers[0].certificationIds[0])!.name} עד 2027-03-01`])
+    expect(JSON.stringify(w)).not.toMatch(/הרצל|1990|0501111111|123456789/)
   })
 
   it('a לינה job keeps its next job; a day job drops it; waiting jobs get it in the note', () => {
@@ -264,5 +275,61 @@ describe('a new job with named workers', () => {
     const named = job({ crew: [{ workerId: 'w1' }] })
     expect(applyProposal(proposal({ jobs: [named] }), d, NOW).data.shifts.at(-1)?.crew).toEqual([{ workerId: 'w1' }])
     expect(proposalErrors(proposal({ jobs: [job({ crew: [{ workerId: 'nobody' }] })] }), d)).toHaveLength(1)
+  })
+})
+
+// Owner, 2026-11-28: "Shali must know every field and screen, and do every action in the app".
+describe('the rest of the app', () => {
+  it('writes the personal log, and sees the last two weeks of it', () => {
+    const d = { ...data(), journal: [{ id: 'j0', date: '2026-11-05', start: '08:00', end: '12:00', text: 'סיור' }, { id: 'old', date: '2026-10-01', start: '08:00', end: '09:00', text: '' }] }
+    expect(snapshot(d, NOW).journal).toEqual([{ date: '2026-11-05', start: '08:00', end: '12:00', text: 'סיור' }])
+    const p = proposal({ journalEntries: [{ date: '2026-11-06', start: '08:30', end: '17:30', text: ' סיור בערד ' }] })
+    expect(proposalErrors(p, d)).toEqual([])
+    const out = applyProposal(p, d, NOW)
+    expect(out.changed.has('journal')).toBe(true)
+    expect(out.data.journal?.at(-1)).toMatchObject({ date: '2026-11-06', start: '08:30', end: '17:30', text: 'סיור בערד' })
+    expect(proposalErrors(proposal({ journalEntries: [{ date: '2026-11-06', start: '', end: '17:30', text: '' }] }), d)).toEqual(['יומן אישי: צריך למלא שעת התחלה'])
+  })
+
+  it('adds a department, a work kind and a job template', () => {
+    const p = proposal({
+      listItems: [{ list: 'departments', name: 'תחזוקה' }],
+      newWorkKinds: [{ name: 'ריתוך', staffing: [{ count: 2, certificationIds: ['climb'] }] }],
+      newShiftKinds: [{ name: 'ערב', startTime: '16:00', endTime: '23:00', endsNextDay: false }],
+    })
+    expect(proposalErrors(p, data())).toEqual([])
+    const out = applyProposal(p, data(), NOW).data
+    expect(out.departments.map((x) => x.name)).toEqual(['תחזוקה'])
+    expect(out.workKinds.at(-1)).toMatchObject({ name: 'ריתוך', staffing: [{ certificationIds: ['climb'] }, { certificationIds: ['climb'] }] })
+    expect(out.shiftDefinitions.at(-1)).toMatchObject({ name: 'ערב', startTime: '16:00', endTime: '23:00' })
+    expect(proposalErrors(proposal({ newWorkKinds: [{ name: 'טיפוס', staffing: [{ count: 1, certificationIds: [] }] }], newShiftKinds: [{ name: 'ערב', startTime: '4', endTime: '', endsNextDay: false }] }), data())).toHaveLength(2)
+  })
+
+  it('fixes a vehicle card, keeping what was not said', () => {
+    const d = { ...data(), vehicles: [{ id: 'v1', values: { plate: '1234567', make: 'Isuzu', model: 'D-Max' } }] }
+    const out = applyProposal(proposal({ editVehicles: [{ id: 'v1', plate: '', make: '', model: 'MU-X' }] }), d, NOW).data.vehicles[0]
+    expect(out.values).toMatchObject({ plate: '1234567', make: 'Isuzu', model: 'MU-X' })
+    expect(proposalErrors(proposal({ editVehicles: [{ id: 'nope', plate: '', make: '', model: 'x' }] }), d)).toContain('אין רכב עם id "nope"')
+  })
+
+  it('closes a postponed job with its reason', () => {
+    const d = { ...data(), postponeReasons: [{ id: 'r1', name: 'מזג אוויר' }] }
+    d.shifts[0] = { ...d.shifts[0], shiftDefinitionId: 'night', date: '2026-11-05' }
+    const out = applyProposal(proposal({ closeJobs: [{ shiftId: 's1', outcome: 'postponed', note: '', reasonIds: ['r1', 'nope'] }] }), d, NOW).data
+    expect(out.shifts[0].closure?.reasonIds).toEqual(['r1'])
+    expect(snapshot(d, NOW).postponeReasons).toEqual([{ id: 'r1', name: 'מזג אוויר' }])
+  })
+
+  it('writes the ID number but never sends it', () => {
+    const d = data()
+    const ew = { workerId: 'w1', mobilePhone: '', addCertificationIds: [], removeCertificationIds: [], status: '' as const, sickUntil: '' }
+    expect(applyProposal(proposal({ editWorkers: [{ ...ew, idNumber: '012-345-678', personalNumber: '7654321' }] }), d, NOW).data.workers[0]).toMatchObject({ idNumber: '012345678', personalNumber: '7654321' })
+    expect(proposalErrors(proposal({ editWorkers: [{ ...ew, idNumber: '123' }] }), d)).toEqual(['דני: תעודת זהות היא 9 ספרות'])
+    d.workers[0] = { ...d.workers[0], idNumber: '012345678', personalNumber: '7654321' }
+    expect(JSON.stringify(snapshot(d, NOW))).not.toMatch(/012345678|7654321/)
+  })
+
+  it('the server may open exactly the Settings screens the app knows', () => {
+    expect([...SERVER_SETTINGS]).toEqual([...SETTING_SCREENS])
   })
 })
