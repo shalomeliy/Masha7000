@@ -188,6 +188,17 @@ describe('workers', () => {
     expect(out.workers[0]).toMatchObject({ certificationIds: ['climb', 'h40'], status: 'sick', sickUntil: '2026-11-12' })
   })
 
+  // The owner, 2026-11-28: "the department of X is Y" was saved as a note, as if there were no such field.
+  it('sets, keeps and clears the department', () => {
+    const d = data()
+    d.departments = [{ id: 'dep1', name: 'תחזוקה' }]
+    const set = applyProposal(p({ editWorkers: [{ ...ew, departmentId: 'dep1' }] }), d, NOW).data
+    expect(set.workers[0].departmentId).toBe('dep1')
+    expect(applyProposal(p({ editWorkers: [{ ...ew, mobilePhone: '0501234567' }] }), set, NOW).data.workers[0].departmentId).toBe('dep1')
+    expect(applyProposal(p({ editWorkers: [{ ...ew, departmentId: 'none' }] }), set, NOW).data.workers[0].departmentId).toBeUndefined()
+    expect(proposalErrors(p({ editWorkers: [{ ...ew, departmentId: 'nope' }] }), d)).toEqual(['דני: אין מחלקה עם id "nope"'])
+  })
+
   it('sick needs a date; back to active clears it', () => {
     expect(proposalErrors(p({ editWorkers: [{ ...ew, status: 'sick' }] }), data())).toEqual(['דני: חולה עד איזה תאריך?'])
     const d = data()
