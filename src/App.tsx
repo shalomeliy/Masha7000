@@ -15,6 +15,7 @@ import { ConstraintAnswersSync } from './pages/workers/ConstraintFormSection'
 import { SignIn } from './pages/SignIn'
 import { CrashGuard } from './components/CrashGuard'
 import { ScreenLoading } from './components/Skeleton'
+import type { Screen, SettingScreen } from './lib/assistant'
 import { useAuth } from './store/auth'
 import { useFeatures } from './lib/data/useFeatures'
 import { useOnboarding } from './store/onboarding'
@@ -86,6 +87,14 @@ function SignedIn() {
   const shown: Tab = tab ?? (voice ? 'voice' : 'calendar')
   // "הגדרות" tapped again from inside one of its screens (vehicles, archive...) goes back to its first screen.
   const [settingsRound, setSettingsRound] = useState(0)
+  // A screen inside Settings that Shali opened ("תפתח לי את הגיבוי"); a tap on "הגדרות" goes back to the topics.
+  const [settingsItem, setSettingsItem] = useState<string | undefined>(undefined)
+  const navigate = (s: Screen, setting?: SettingScreen) => {
+    const item = s === 'vehicles' ? 'vehicles' : setting
+    setSettingsItem(item)
+    if (item) setSettingsRound((n) => n + 1)
+    setTab(s === 'toSchedule' ? 'calendar' : s === 'vehicles' || item ? 'settings' : s)
+  }
   // Once opened, the assistant stays behind the other tabs, so a conversation is not lost on a
   // look at another screen (user, 2026-11-23).
   const [voiceOpened, setVoiceOpened] = useState(false)
@@ -101,6 +110,7 @@ function SignedIn() {
     // voice smoothly while the manager moves between screens (owner, 2026-11-28: it stuttered).
     startTransition(() => {
       if (next === 'settings' && (shown === 'settings' || shown === 'archive')) setSettingsRound((n) => n + 1)
+      setSettingsItem(undefined)
       setTab(next)
     })
   }
@@ -133,7 +143,7 @@ function SignedIn() {
         <div hidden={shown !== 'voice'}>
           <CrashGuard>
             <Suspense fallback={<ScreenLoading />}>
-              <Voice active={shown === 'voice'} quickTalk={quickTalk} onOpen={() => setTab('voice')} onNavigate={(s) => setTab(s === 'toSchedule' ? 'calendar' : s)} />
+              <Voice active={shown === 'voice'} quickTalk={quickTalk} onOpen={() => setTab('voice')} onNavigate={navigate} />
             </Suspense>
           </CrashGuard>
         </div>
@@ -143,7 +153,7 @@ function SignedIn() {
           {shown === 'calendar' && <Calendar />}
           {shown === 'workers' && <Workers />}
           {shown === 'journal' && isOn('journal') && <Journal />}
-          {(shown === 'settings' || shown === 'archive') && <Settings key={`${shown}-${settingsRound}`} openArchive={shown === 'archive'} />}
+          {(shown === 'settings' || shown === 'archive') && <Settings key={`${shown}-${settingsRound}`} openArchive={shown === 'archive'} openItem={shown === 'settings' ? settingsItem : undefined} />}
         </Suspense>
       </CrashGuard>
       <BottomNav active={shown} onChange={go} voice={voice} journal={isOn('journal')} onHold={holdShali} onHoldEnd={unlockSpeech} />

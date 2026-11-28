@@ -1536,5 +1536,11 @@
  "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "Quand Shali parle, vous pouvez parler par-dessus : il s'arrête et écoute. S'il s'arrête tout seul au milieu, désactivez ceci.",
  "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Essai : dans Réglages > Assistant vocal, activez \"Interrompre à la voix\", puis parlez par-dessus Shali pour qu'il s'arrête et écoute (pas sur iPhone).",
  "שיחה פתוחה עם Shali עוברת איתך לכל מסך, בכרטיס הקטן למטה.": "Une conversation ouverte avec Shali vous suit sur chaque écran, dans la petite carte en bas.",
- "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "Vous pouvez aussi demander à Shali : « Passe Danny au service maintenance »."
+ "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "Vous pouvez aussi demander à Shali : « Passe Danny au service maintenance ».",
+ "הוספתי את התבנית {name}": "J'ai ajouté le modèle {name}",
+ "הוספתי את סוג העבודה {name}": "J'ai ajouté le type de travail {name}",
+ "עדכנתי את רכב {car}": "J'ai mis à jour le véhicule {car}",
+ "רשמתי ביומן האישי {start}–{end}": "J'ai noté {start}–{end} dans le journal personnel",
+ "Shali יודע גם לעדכן כל שדה בכרטיס עובד, לבטל אילוץ, לרשום ביומן האישי ולפתוח כל מסך, גם בתוך ההגדרות.": "Shali peut aussi modifier n'importe quel champ de la fiche d'un employé, annuler une contrainte, écrire dans le journal personnel et ouvrir n'importe quel écran, même dans les Réglages.",
+ "פרטים אישיים (כתובת, תאריך לידה, טלפון חירום, ת.ז ומספר אישי) Shali רק כותב, ואת מה ששמור הוא לא שולח החוצה.": "Les données personnelles (adresse, date de naissance, téléphone d'urgence, numéro d'identité et numéro personnel), Shali ne fait que les écrire ; ce qui est enregistré n'est jamais envoyé à l'extérieur."
 }

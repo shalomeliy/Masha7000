@@ -4,7 +4,7 @@
 // problems to send back to the model, and once for real after the manager says yes.
 
 import { crewSwaps } from './archive'
-import { fullName, isActive, MAX_STAFF, newId, upsert } from './catalog'
+import { fullName, isActive, MAX_STAFF, MAX_STARS, newId, upsert } from './catalog'
 import { constraintError, constraintText, normalizeConstraint } from './constraints'
 import { isRealDate } from './dates'
 import { applyClosure, blankShift, isNightShift, moveShift, pendingAfterShiftSave } from './shifts'
@@ -35,7 +35,7 @@ export interface EditJob {
 export interface Edits {
   editJobs: EditJob[]
   setCrews: { shiftId: string; crew: { workerId: string }[] }[]
-  closeJobs: { shiftId: string; outcome: 'done' | 'partial' | 'postponed'; note: string }[]
+  closeJobs: { shiftId: string; outcome: 'done' | 'partial' | 'postponed'; note: string; reasonIds?: string[] }[] // reasonIds: postpone reasons
   deleteJobIds: string[]
   editWorkers: {
     workerId: string
@@ -43,10 +43,33 @@ export interface Edits {
     addCertificationIds: string[]
     removeCertificationIds: string[]
     departmentId?: string // id from the departments list; 'none' = no department; '' = unchanged
+    // The worker card's other fields (owner, 2026-11-28: "Shali must know every field"). '' / [] = unchanged.
+    firstName?: string
+    lastName?: string
+    notes?: string // the whole notes after the change; 'none' = no notes
+    birthDate?: string // YYYY-MM-DD
+    address?: string
+    emergencyPhone?: string
+    emergencyName?: string
+    idNumber?: string // ת.ז, written only: never sent to the model (owner, 2026-11-28)
+    personalNumber?: string // מספר אישי, the same
+    certExpiry?: { certificationId: string; until: string }[] // until '' = no expiry
+    certStars?: { certificationId: string; stars: number }[] // 1-5
+    removeConstraintIds?: string[] // ids from the worker's `cannot`
     status: '' | 'active' | 'sick' | 'inactive' // '' = unchanged
     sickUntil: string // YYYY-MM-DD, with 'sick'
   }[]
   addConstraints: { workerId: string; from: string; to: string; nightsOnly: boolean; note: string; kind?: AbsenceKind | '' }[] // kind: חופש, לימודים...
+}
+
+/** `base` with these keys set; a '' value takes the key out ("ללא תוקף"). Undefined when nothing is left. */
+function withKeys<T extends string | number>(base: Record<string, T> | undefined, pairs: [string, T][]): Record<string, T> | undefined {
+  const out: Record<string, T> = { ...(base ?? {}) }
+  for (const [k, v] of pairs) {
+    if (v === '') delete out[k]
+    else out[k] = v
+  }
+  return Object.keys(out).length ? out : undefined
 }
 
 export const NO_EDITS: Edits = { editJobs: [], setCrews: [], closeJobs: [], deleteJobIds: [], editWorkers: [], addConstraints: [] }
@@ -94,6 +117,15 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
     for (const c of [...w.addCertificationIds, ...w.removeCertificationIds]) if (!has(d.certifications, c)) errors.push(`${worker.firstName}: אין הסמכה עם id "${c}"`)
     const dept = w.departmentId ?? ''
     if (dept && dept !== 'none' && !has(d.departments, dept)) errors.push(`${worker.firstName}: אין מחלקה עם id "${dept}"`)
+    const expiry = w.certExpiry ?? []
+    const stars = w.certStars ?? []
+    const dropIds = w.removeConstraintIds ?? []
+    for (const c of [...expiry, ...stars]) if (!has(d.certifications, c.certificationId)) errors.push(`${worker.firstName}: אין הסמכה עם id "${c.certificationId}"`)
+    for (const c of expiry) if (c.until && !isRealDate(c.until)) errors.push(`${worker.firstName}: תאריך תוקף לא תקין "${c.until}"`)
+    for (const c of stars) if (c.stars < 1 || c.stars > MAX_STARS) errors.push(`${worker.firstName}: כוכבים הם 1 עד ${MAX_STARS}`)
+    if (w.idNumber && w.idNumber.replace(/\D/g, '').length !== 9) errors.push(`${worker.firstName}: תעודת זהות היא 9 ספרות`)
+    if (w.birthDate && !isRealDate(w.birthDate)) errors.push(`${worker.firstName}: תאריך לידה לא תקין "${w.birthDate}"`)
+    for (const id of dropIds) if (!worker.constraints.some((c) => c.id === id)) errors.push(`${worker.firstName}: אין אילוץ עם id "${id}"`)
     if (w.status === 'sick' && !isRealDate(w.sickUntil)) errors.push(`${worker.firstName}: חולה עד איזה תאריך?`)
     const status: WorkerStatus | undefined = w.status === '' ? worker.status : w.status === 'active' ? undefined : w.status
     const next: Worker = {
@@ -101,10 +133,21 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       mobilePhone: w.mobilePhone ? w.mobilePhone.replace(/[^\d+]/g, '') : worker.mobilePhone,
       certificationIds: [...new Set([...worker.certificationIds.filter((c) => !w.removeCertificationIds.includes(c)), ...w.addCertificationIds])],
       departmentId: dept === 'none' ? undefined : dept || worker.departmentId,
+      firstName: w.firstName?.trim() || worker.firstName,
+      lastName: w.lastName?.trim() || worker.lastName,
+      notes: w.notes === 'none' ? undefined : w.notes?.trim() || worker.notes,
+      birthDate: w.birthDate || worker.birthDate,
+      address: w.address?.trim() || worker.address,
+      emergencyPhone1: w.emergencyPhone ? w.emergencyPhone.replace(/[^\d+]/g, '') : worker.emergencyPhone1,
+      emergencyName: w.emergencyName?.trim() || worker.emergencyName,
+      idNumber: w.idNumber ? w.idNumber.replace(/\D/g, '') : worker.idNumber,
+      personalNumber: w.personalNumber?.trim() || worker.personalNumber,
+      certExpiry: expiry.length ? withKeys(worker.certExpiry, expiry.map((c) => [c.certificationId, c.until])) : worker.certExpiry,
+      certRatings: stars.length ? withKeys(worker.certRatings, stars.map((c) => [c.certificationId, c.stars])) : worker.certRatings,
       status,
       sickUntil: status === 'sick' ? w.sickUntil || worker.sickUntil : undefined,
       // "חזר לעבוד" also ends a vacation or the like going on today.
-      constraints: w.status === 'active' ? endAbsence(worker.constraints, at.slice(0, 10)) : worker.constraints,
+      constraints: (w.status === 'active' ? endAbsence(worker.constraints, at.slice(0, 10)) : worker.constraints).filter((c) => !dropIds.includes(c.id)),
     }
     d.workers = upsert(d.workers, next)
     changed.add('workers')
@@ -226,7 +269,7 @@ export function applyEdits(e: Edits, d: AppData, at: string, changed: Set<keyof 
       errors.push(`סוגרים רק עבודות לילה, והעבודה ב${where(shift)} היא עבודת יום`)
       continue
     }
-    const out = applyClosure(d.shifts, d.pendingJobs, shift.id, { outcome: c.outcome, reasonIds: [], closedAt: at, ...(c.note.trim() ? { note: c.note.trim() } : {}) })
+    const out = applyClosure(d.shifts, d.pendingJobs, shift.id, { outcome: c.outcome, reasonIds: c.outcome === 'postponed' ? (c.reasonIds ?? []).filter((id) => d.postponeReasons.some((r) => r.id === id)) : [], closedAt: at, ...(c.note.trim() ? { note: c.note.trim() } : {}) })
     d.shifts = out.records
     d.pendingJobs = out.pending
     changed.add('shifts').add('pendingJobs')

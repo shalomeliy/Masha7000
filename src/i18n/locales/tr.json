@@ -1536,5 +1536,11 @@
  "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "Shali konuşurken üstüne konuşabilirsiniz: durur ve dinler. Ortada kendi kendine durursa bunu kapatın.",
  "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Deneme: Ayarlar > Sesli asistan'da \"Sesle araya girme\"yi açın, sonra Shali konuşurken üstüne konuşabilirsiniz, o da durup dinler (iPhone'da değil).",
  "שיחה פתוחה עם Shali עוברת איתך לכל מסך, בכרטיס הקטן למטה.": "Shali ile açık bir konuşma, alttaki küçük kartta her ekranda sizinle gelir.",
- "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "Shali'ye de söyleyebilirsiniz: \"Danny'yi bakım departmanına al\"."
+ "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "Shali'ye de söyleyebilirsiniz: \"Danny'yi bakım departmanına al\".",
+ "הוספתי את התבנית {name}": "{name} şablonunu ekledim",
+ "הוספתי את סוג העבודה {name}": "{name} iş türünü ekledim",
+ "עדכנתי את רכב {car}": "{car} aracını güncelledim",
+ "רשמתי ביומן האישי {start}–{end}": "Kişisel günlüğe {start}–{end} yazdım",
+ "Shali יודע גם לעדכן כל שדה בכרטיס עובד, לבטל אילוץ, לרשום ביומן האישי ולפתוח כל מסך, גם בתוך ההגדרות.": "Shali ayrıca çalışan kartındaki her alanı güncelleyebilir, bir kısıtı iptal edebilir, kişisel günlüğe yazabilir ve Ayarlar içindekiler dahil her ekranı açabilir.",
+ "פרטים אישיים (כתובת, תאריך לידה, טלפון חירום, ת.ז ומספר אישי) Shali רק כותב, ואת מה ששמור הוא לא שולח החוצה.": "Kişisel bilgileri (adres, doğum tarihi, acil durum telefonu, kimlik ve kişisel numara) Shali yalnızca yazar; kayıtlı olan asla dışarı gönderilmez."
 }

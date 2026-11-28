@@ -1536,5 +1536,11 @@
  "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "While Shali speaks, you can talk over it: it stops and listens. If it stops by itself midway, turn this off.",
  "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Experiment: in Settings > Voice assistant turn on \"Interrupt by voice\", then you can talk over Shali and it stops and listens (not on iPhone).",
  "שיחה פתוחה עם Shali עוברת איתך לכל מסך, בכרטיס הקטן למטה.": "An open conversation with Shali follows you to every screen, in the small card at the bottom.",
- "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "You can also ask Shali: \"Move Danny to the maintenance department\"."
+ "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "You can also ask Shali: \"Move Danny to the maintenance department\".",
+ "הוספתי את התבנית {name}": "I added the template {name}",
+ "הוספתי את סוג העבודה {name}": "I added the work kind {name}",
+ "עדכנתי את רכב {car}": "I updated vehicle {car}",
+ "רשמתי ביומן האישי {start}–{end}": "I logged {start}–{end} in the personal log",
+ "Shali יודע גם לעדכן כל שדה בכרטיס עובד, לבטל אילוץ, לרשום ביומן האישי ולפתוח כל מסך, גם בתוך ההגדרות.": "Shali can also update any field of a worker card, cancel a constraint, write in the personal log and open any screen, also inside Settings.",
+ "פרטים אישיים (כתובת, תאריך לידה, טלפון חירום, ת.ז ומספר אישי) Shali רק כותב, ואת מה ששמור הוא לא שולח החוצה.": "Personal details (address, birth date, emergency phone, ID and personal number) Shali only writes; what is saved is never sent out."
 }

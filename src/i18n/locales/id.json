@@ -1536,5 +1536,11 @@
  "כש-Shali מדבר, אפשר לדבר מעליו: הוא עוצר ומקשיב. אם הוא נעצר לבד באמצע, כבה את זה.": "Saat Shali berbicara, Anda bisa langsung bicara: Shali berhenti dan mendengarkan. Jika berhenti sendiri di tengah, matikan ini.",
  "ניסוי: בהגדרות > העוזר הקולי מדליקים \"קטיעה בקול\", ואז אפשר לדבר מעל Shali והוא עוצר ומקשיב (לא באייפון).": "Percobaan: di Pengaturan > Asisten suara nyalakan \"Sela dengan suara\", lalu Anda bisa bicara saat Shali berbicara dan Shali berhenti serta mendengarkan (tidak di iPhone).",
  "שיחה פתוחה עם Shali עוברת איתך לכל מסך, בכרטיס הקטן למטה.": "Percakapan yang sedang berjalan dengan Shali ikut ke setiap layar, di kartu kecil di bawah.",
- "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "Anda juga bisa meminta Shali: \"Pindahkan Danny ke departemen pemeliharaan\"."
+ "אפשר גם לבקש מ-Shali: \"תעביר את דני למחלקת תחזוקה\".": "Anda juga bisa meminta Shali: \"Pindahkan Danny ke departemen pemeliharaan\".",
+ "הוספתי את התבנית {name}": "Saya menambahkan templat {name}",
+ "הוספתי את סוג העבודה {name}": "Saya menambahkan jenis pekerjaan {name}",
+ "עדכנתי את רכב {car}": "Saya memperbarui kendaraan {car}",
+ "רשמתי ביומן האישי {start}–{end}": "Saya mencatat {start}–{end} di log pribadi",
+ "Shali יודע גם לעדכן כל שדה בכרטיס עובד, לבטל אילוץ, לרשום ביומן האישי ולפתוח כל מסך, גם בתוך ההגדרות.": "Shali juga bisa memperbarui kolom apa pun di kartu pekerja, membatalkan batasan, menulis di log pribadi, dan membuka layar apa pun, juga di dalam Pengaturan.",
+ "פרטים אישיים (כתובת, תאריך לידה, טלפון חירום, ת.ז ומספר אישי) Shali רק כותב, ואת מה ששמור הוא לא שולח החוצה.": "Data pribadi (alamat, tanggal lahir, telepon darurat, nomor identitas dan nomor pribadi) hanya ditulis oleh Shali; yang tersimpan tidak pernah dikirim keluar."
 }

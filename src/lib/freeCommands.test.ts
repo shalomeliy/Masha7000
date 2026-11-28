@@ -61,6 +61,8 @@ describe('fixed commands', () => {
     expect(run('תפתח לי את היומן')).toMatchObject({ kind: 'open', screen: 'calendar' })
     expect(run('לך ליומן')).toMatchObject({ kind: 'open', screen: 'calendar' })
     expect(run('תראה לי את רשימת העובדים')).toMatchObject({ kind: 'open', screen: 'workers' })
+    expect(run('תפתח לי את היומן האישי')).toMatchObject({ kind: 'open', screen: 'journal' })
+    expect(run('תפתח את הרכבים')).toMatchObject({ kind: 'open', screen: 'vehicles' })
     expect(run('תשתף את השבוע בווטסאפ')).toMatchObject({ kind: 'open', hint: 'shareWeek' })
     expect(run('תבקש אילוצים מהעובדים')).toMatchObject({ kind: 'open', hint: 'requestConstraints', screen: 'workers' })
   })
